@@ -1,0 +1,40 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>8.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Authors>Dmitry Tikhonov</Authors>
+    <Company />
+    <Version>0.0.2</Version>
+    <Summary>SqExpress is a sql query builder which allows creating SQL expression directly in C# code with strong typing and intellisense.</Summary>
+    <PackageReleaseNotes>This is the SECOND first prevew release.</PackageReleaseNotes>
+    <Description>SqExpress is a sql query builder which allows creating SQL expression in C# code with strong typing and intellisense.
+The library provides a generic sql syntax tree with exports to MS t-SQL and Postgres SQL text.
+It also provides a set of builders and operators which will help you building complex Sql expressions.
+It does not use Linq and your C# code will be close to real SQL as much as possible, so it can be used when you need the full SQL flexibility to create efficient Db requests.
+It is delivered with a simple but efficient data access mechanism which warps ADO.Net DbConnection and can be used with MS SQL Client or Npgsql.
+It can be used together with the “Code First” concept when you declare SQL tables as C# classes with possibility to generate recreation scripts for a target platform (MS SQL or Postgres SQL)
+    </Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageIcon>Icon.png</PackageIcon>
+    <Copyright>Dmitry Tikhonov</Copyright>
+    <AssemblyOriginatorKeyFile>SqExpress.pfx</AssemblyOriginatorKeyFile>
+    <PackageProjectUrl>https://github.com/0x1000000/SqExpress</PackageProjectUrl>
+    <PackageTags>query postgres sql tsql builder mssql dataaccess</PackageTags>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>SqExpress.pfx</AssemblyOriginatorKeyFile>
+    <DelaySign>false</DelaySign>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="Icon.png">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+  </ItemGroup>
+</Project>
