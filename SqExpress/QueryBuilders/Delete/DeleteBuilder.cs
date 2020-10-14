@@ -19,7 +19,7 @@ namespace SqExpress.QueryBuilders.Delete
             return new ExprDelete(target: this._target, source: null, filter: null);
         }
 
-        public ExprDelete Where(ExprBoolean filter)
+        public ExprDelete Where(ExprBoolean? filter)
         {
             return new ExprDelete(target: this._target, source: null, filter: filter);
         }

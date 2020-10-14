@@ -22,7 +22,7 @@ namespace SqExpress.QueryBuilders.Select
 
         IQuerySpecificationBuilderJoin CrossJoin(IExprTableSource join);
 
-        IQuerySpecificationBuilderFiltered Where(ExprBoolean where);
+        IQuerySpecificationBuilderFiltered Where(ExprBoolean? where);
     }
 
     public interface IQuerySpecificationBuilderFiltered : IQuerySpecificationBuilderFinal

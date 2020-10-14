@@ -38,7 +38,7 @@ namespace SqExpress.QueryBuilders.Update
 
         public ExprUpdate All() => new ExprUpdate(this._target, this._sets, this._source, null);
 
-        public ExprUpdate Where(ExprBoolean condition) =>
+        public ExprUpdate Where(ExprBoolean? condition) =>
             new ExprUpdate(this._target, this._sets, this._source, condition);
     }
 }

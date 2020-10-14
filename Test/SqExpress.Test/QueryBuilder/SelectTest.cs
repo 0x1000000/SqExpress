@@ -88,6 +88,21 @@ namespace SqExpress.Test.QueryBuilder
         }
 
         [Test]
+        public void Where_NullSupport()
+        {
+            var user = Tables.User(Alias.Empty);
+
+            var actual = Select(user.UserId)
+                .From(user)
+                .Where(null)
+                .OrderBy(user.UserId)
+                .Done()
+                .ToSql();
+
+            Assert.AreEqual("SELECT [UserId] FROM [dbo].[user] ORDER BY [UserId]", actual);
+        }
+
+        [Test]
         public void GroupByTest()
         {
             var u = Tables.User(Alias.Empty);
