@@ -16,7 +16,7 @@ namespace SqExpress.Syntax.Functions
 
         public ExprOrderBy? OrderBy { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprOver(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprOver(this, arg);
     }
 }

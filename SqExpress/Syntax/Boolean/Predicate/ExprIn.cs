@@ -23,8 +23,8 @@ namespace SqExpress.Syntax.Boolean.Predicate
         public IExprSubQuery SubQuery { get; }
 
 
-        public override TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprInSubQuery(this);
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprInSubQuery(this, arg);
     }
 
     public class ExprInValues : ExprIn
@@ -36,7 +36,7 @@ namespace SqExpress.Syntax.Boolean.Predicate
 
         public IReadOnlyList<ExprValue> Items { get; }
 
-        public override TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprInValues(this);
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprInValues(this, arg);
     }
 }

@@ -12,7 +12,7 @@ namespace SqExpress.Syntax.Select
 
         public IReadOnlyList<ExprLiteral> Items { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprRowValue(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprRowValue(this, arg);
     }
 }

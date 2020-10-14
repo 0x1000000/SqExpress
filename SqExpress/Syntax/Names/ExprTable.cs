@@ -17,8 +17,8 @@ namespace SqExpress.Syntax.Names
             this.FullName = fullName;
         }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprTable(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprTable(this, arg);
 
         public (IReadOnlyList<IExprTableSource> Tables, ExprBoolean? On) ToTableMultiplication()
         {

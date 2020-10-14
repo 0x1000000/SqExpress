@@ -29,8 +29,8 @@ namespace SqExpress.Syntax.Select
             this.GroupBy = groupBy;
         }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprQuerySpecification(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprQuerySpecification(this, arg);
 
         public IReadOnlyList<string?> GetOutputColumnNames()
         {

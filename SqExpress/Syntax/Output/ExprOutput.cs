@@ -14,8 +14,8 @@ namespace SqExpress.Syntax.Output
 
         public IReadOnlyList<IExprOutputColumn> Columns { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprOutPut(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprOutput(this, arg);
     }
 
     public interface IExprOutputColumn : IExpr
@@ -23,7 +23,7 @@ namespace SqExpress.Syntax.Output
         string? OutputName { get; }
     }
 
-    public class ExprOutputColumnInserted : IExprOutputColumn
+    public class  ExprOutputColumnInserted : IExprOutputColumn
     {
         public ExprOutputColumnInserted(ExprAliasedColumnName columnName)
         {
@@ -32,8 +32,8 @@ namespace SqExpress.Syntax.Output
 
         public ExprAliasedColumnName ColumnName { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprOutPutColumnInserted(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprOutputColumnInserted(this, arg);
 
         public string? OutputName => ((IExprNamedSelecting) this.ColumnName).OutputName;
     }
@@ -47,8 +47,8 @@ namespace SqExpress.Syntax.Output
 
         public ExprAliasedColumnName ColumnName { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprOutPutColumnDeleted(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprOutputColumnDeleted(this, arg);
 
         public string? OutputName => ((IExprNamedSelecting)this.ColumnName).OutputName;
     }
@@ -62,8 +62,8 @@ namespace SqExpress.Syntax.Output
 
         public ExprAliasedColumn Column { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprOutPutColumn(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprOutputColumn(this, arg);
 
         public string? OutputName => ((IExprNamedSelecting)this.Column).OutputName;
 
@@ -78,8 +78,8 @@ namespace SqExpress.Syntax.Output
 
         public ExprColumnAlias? Alias { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprOutPutAction(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprOutputAction(this, arg);
 
         public string? OutputName => this.Alias?.Name;
     }

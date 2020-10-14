@@ -20,7 +20,7 @@ namespace SqExpress.Syntax.Functions
 
         public ExprOver Over { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprAggregateAnalyticFunction(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprAnalyticFunction(this, arg);
     }
 }

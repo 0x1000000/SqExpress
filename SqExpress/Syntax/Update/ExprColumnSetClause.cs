@@ -15,7 +15,7 @@ namespace SqExpress.Syntax.Update
 
         public IExprAssigning Value { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprColumnSetClause(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprColumnSetClause(this, arg);
     }
 }

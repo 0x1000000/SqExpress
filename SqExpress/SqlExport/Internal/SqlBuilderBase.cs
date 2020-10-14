@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
-using SqExpress.SqlExport.Internal;
 using SqExpress.Syntax;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Boolean.Predicate;
@@ -18,9 +17,9 @@ using SqExpress.Syntax.Update;
 using SqExpress.Syntax.Value;
 using SqExpress.Utils;
 
-namespace SqExpress.SqlExport
+namespace SqExpress.SqlExport.Internal
 {
-    public abstract class SqlBuilderBase: IExprVisitor<bool>
+    internal abstract class SqlBuilderBase: IExprVisitor<bool, object?>
     {
         protected readonly SqlBuilderOptions Options;
 
@@ -34,138 +33,138 @@ namespace SqExpress.SqlExport
 
         private readonly SqlAliasGenerator _aliasGenerator = new SqlAliasGenerator();
 
-        public bool VisitExprBooleanAnd(ExprBooleanAnd expr)
+        public bool VisitExprBooleanAnd(ExprBooleanAnd expr, object? arg)
         {
             if (expr.Left is ExprBooleanOr)
             {
-                this.AcceptPar('(', expr.Left, ')');
+                this.AcceptPar('(', expr.Left, ')', arg);
                 this.Builder.Append("AND");
             }
             else
             {
-                expr.Left.Accept(this);
+                expr.Left.Accept(this, arg);
                 this.Builder.Append(" AND");
             }
 
             if (expr.Right is ExprBooleanOr)
             {
-                this.AcceptPar('(', expr.Right, ')');
+                this.AcceptPar('(', expr.Right, ')', arg);
             }
             else
             {
                 this.Builder.Append(' ');
-                expr.Right.Accept(this);
+                expr.Right.Accept(this, arg);
             }
 
             return true;
         }
 
-        public bool VisitExprBooleanOr(ExprBooleanOr expr)
+        public bool VisitExprBooleanOr(ExprBooleanOr expr, object? arg)
         {
-            expr.Left.Accept(this);
+            expr.Left.Accept(this, arg);
             this.Builder.Append(" OR ");
-            expr.Right.Accept(this);
+            expr.Right.Accept(this, arg);
 
             return true;
         }
 
-        public bool VisitExprBooleanNot(ExprBooleanNot expr)
+        public bool VisitExprBooleanNot(ExprBooleanNot expr, object? arg)
         {
             this.Builder.Append("NOT");
             if (expr.Expr is ExprPredicate)
             {
                 this.Builder.Append(' ');
-                expr.Expr.Accept(this);
+                expr.Expr.Accept(this, arg);
             }
             else
             {
-                this.AcceptPar('(', expr.Expr, ')');
+                this.AcceptPar('(', expr.Expr, ')', arg);
             }
 
             return true;
         }
 
-        public bool VisitExprBooleanNotEq(ExprBooleanNotEq exprBooleanNotEq)
+        public bool VisitExprBooleanNotEq(ExprBooleanNotEq exprBooleanNotEq, object? arg)
         {
-            exprBooleanNotEq.Left.Accept(this);
+            exprBooleanNotEq.Left.Accept(this, arg);
             this.Builder.Append("!=");
-            exprBooleanNotEq.Right.Accept(this);
+            exprBooleanNotEq.Right.Accept(this, arg);
 
             return true;
         }
 
-        public bool VisitExprBooleanEq(ExprBooleanEq exprBooleanEq)
+        public bool VisitExprBooleanEq(ExprBooleanEq exprBooleanEq, object? arg)
         {
-            exprBooleanEq.Left.Accept(this);
+            exprBooleanEq.Left.Accept(this, arg);
             this.Builder.Append('=');
-            exprBooleanEq.Right.Accept(this);
+            exprBooleanEq.Right.Accept(this, arg);
 
             return true;
         }
 
-        public bool VisitExprBooleanGt(ExprBooleanGt booleanGt)
+        public bool VisitExprBooleanGt(ExprBooleanGt booleanGt, object? arg)
         {
-            booleanGt.Left.Accept(this);
+            booleanGt.Left.Accept(this, arg);
             this.Builder.Append('>');
-            booleanGt.Right.Accept(this);
+            booleanGt.Right.Accept(this, arg);
 
             return true;
         }
 
-        public bool VisitExprBooleanGtEq(ExprBooleanGtEq booleanGtEq)
+        public bool VisitExprBooleanGtEq(ExprBooleanGtEq booleanGtEq, object? arg)
         {
-            booleanGtEq.Left.Accept(this);
+            booleanGtEq.Left.Accept(this, arg);
             this.Builder.Append(">=");
-            booleanGtEq.Right.Accept(this);
+            booleanGtEq.Right.Accept(this, arg);
 
             return true;
         }
 
-        public bool VisitExprBooleanLt(ExprBooleanLt booleanLt)
+        public bool VisitExprBooleanLt(ExprBooleanLt booleanLt, object? arg)
         {
-            booleanLt.Left.Accept(this);
+            booleanLt.Left.Accept(this, arg);
             this.Builder.Append('<');
-            booleanLt.Right.Accept(this);
+            booleanLt.Right.Accept(this, arg);
 
             return true;
         }
 
-        public bool VisitExprBooleanLtEq(ExprBooleanLtEq booleanLtEq)
+        public bool VisitExprBooleanLtEq(ExprBooleanLtEq booleanLtEq, object? arg)
         {
-            booleanLtEq.Left.Accept(this);
+            booleanLtEq.Left.Accept(this, arg);
             this.Builder.Append("<=");
-            booleanLtEq.Right.Accept(this);
+            booleanLtEq.Right.Accept(this, arg);
 
             return true;
         }
 
-        public bool VisitExprInSubQuery(ExprInSubQuery exprInSubQuery)
+        public bool VisitExprInSubQuery(ExprInSubQuery exprInSubQuery, object? arg)
         {
-            exprInSubQuery.TestExpression.Accept(this);
+            exprInSubQuery.TestExpression.Accept(this, arg);
             this.Builder.Append(" IN");
-            this.AcceptPar('(', exprInSubQuery.SubQuery, ')');
+            this.AcceptPar('(', exprInSubQuery.SubQuery, ')', arg);
             return true;
         }
 
-        public bool VisitExprInValues(ExprInValues exprInValues)
+        public bool VisitExprInValues(ExprInValues exprInValues, object? arg)
         {
-            exprInValues.TestExpression.Accept(this);
+            exprInValues.TestExpression.Accept(this, arg);
             this.AssertNotEmptyList(exprInValues.Items, "'IN' Predicate cannot have an empty list of expressions");
             this.Builder.Append(" IN");
-            this.AcceptListComaSeparatedPar('(', exprInValues.Items, ')');
+            this.AcceptListComaSeparatedPar('(', exprInValues.Items, ')', arg);
             return true;
         }
 
-        public bool VisitExprExists(ExprExists exprExists)
+        public bool VisitExprExists(ExprExists exprExists, object? arg)
         {
             this.Builder.Append("EXISTS");
-            this.AcceptPar('(', exprExists.SubQuery, ')');
+            this.AcceptPar('(', exprExists.SubQuery, ')', arg);
             return true;
         }
 
-        public bool VisitExprIsNull(ExprIsNull exprIsNull)
+        public bool VisitExprIsNull(ExprIsNull exprIsNull, object? arg)
         {
-            exprIsNull.Test.Accept(this);
+            exprIsNull.Test.Accept(this, arg);
             this.Builder.Append(" IS");
             if (exprIsNull.Not)
             {
@@ -175,15 +174,15 @@ namespace SqExpress.SqlExport
             return true;
         }
 
-        public bool VisitExprLike(ExprLike exprLike)
+        public bool VisitExprLike(ExprLike exprLike, object? arg)
         {
-            exprLike.Test.Accept(this);
+            exprLike.Test.Accept(this, arg);
             this.Builder.Append(" LIKE ");
-            exprLike.Pattern.Accept(this);
+            exprLike.Pattern.Accept(this, arg);
             return true;
         }
 
-        public bool VisitExprIntLiteral(ExprInt32Literal exprInt32Literal)
+        public bool VisitExprInt32Literal(ExprInt32Literal exprInt32Literal, object? arg)
         {
             if (exprInt32Literal.Value == null)
             {
@@ -196,9 +195,9 @@ namespace SqExpress.SqlExport
             return true;
         }
 
-        public abstract bool VisitExprGuidLiteral(ExprGuidLiteral exprGuidLiteral);
+        public abstract bool VisitExprGuidLiteral(ExprGuidLiteral exprGuidLiteral, object? arg);
 
-        public bool VisitExprStringLiteral(ExprStringLiteral stringLiteral)
+        public bool VisitExprStringLiteral(ExprStringLiteral stringLiteral, object? arg)
         {
             if (stringLiteral.Value == null)
             {
@@ -217,7 +216,7 @@ namespace SqExpress.SqlExport
             return true;
         }
 
-        public bool VisitExprDateTimeLiteral(ExprDateTimeLiteral dateTimeLiteral)
+        public bool VisitExprDateTimeLiteral(ExprDateTimeLiteral dateTimeLiteral, object? arg)
         {
             if (!dateTimeLiteral.Value.HasValue)
             {
@@ -240,9 +239,9 @@ namespace SqExpress.SqlExport
             return true;
         }
 
-        public abstract bool VisitExprBoolLiteral(ExprBoolLiteral boolLiteral);
+        public abstract bool VisitExprBoolLiteral(ExprBoolLiteral boolLiteral, object? arg);
 
-        public bool VisitExprLongLiteral(ExprInt64Literal int64Literal)
+        public bool VisitExprInt64Literal(ExprInt64Literal int64Literal, object? arg)
         {
             if (int64Literal.Value.HasValue)
             {
@@ -256,7 +255,7 @@ namespace SqExpress.SqlExport
             return true;
         }
 
-        public bool VisitExprByteLiteral(ExprByteLiteral byteLiteral)
+        public bool VisitExprByteLiteral(ExprByteLiteral byteLiteral, object? arg)
         {
             if (byteLiteral.Value.HasValue)
             {
@@ -270,7 +269,7 @@ namespace SqExpress.SqlExport
             return true;
         }
 
-        public bool VisitExprShortLiteral(ExprInt16Literal int16Literal)
+        public bool VisitExprInt16Literal(ExprInt16Literal int16Literal, object? arg)
         {
             if (int16Literal.Value.HasValue)
             {
@@ -284,7 +283,7 @@ namespace SqExpress.SqlExport
             return true;
         }
 
-        public bool VisitExprDecimalLiteral(ExprDecimalLiteral decimalLiteral)
+        public bool VisitExprDecimalLiteral(ExprDecimalLiteral decimalLiteral, object? arg)
         {
             if (decimalLiteral.Value.HasValue)
             {
@@ -298,7 +297,7 @@ namespace SqExpress.SqlExport
             return true;
         }
 
-        public bool VisitExprDoubleLiteral(ExprDoubleLiteral doubleLiteral)
+        public bool VisitExprDoubleLiteral(ExprDoubleLiteral doubleLiteral, object? arg)
         {
             if (doubleLiteral.Value.HasValue)
             {
@@ -312,7 +311,7 @@ namespace SqExpress.SqlExport
             return true;
         }
 
-        public bool VisitExprByteArrayLiteral(ExprByteArrayLiteral byteArrayLiteral)
+        public bool VisitExprByteArrayLiteral(ExprByteArrayLiteral byteArrayLiteral, object? arg)
         {
             if (byteArrayLiteral.Value.Count < 1)
             {
@@ -329,69 +328,69 @@ namespace SqExpress.SqlExport
             return true;
         }
 
-        public bool VisitExprNull(ExprNull exprNull)
+        public bool VisitExprNull(ExprNull exprNull, object? arg)
         {
             this.Builder.Append("NULL");
             return true;
         }
 
-        public bool VisitExprDefault(ExprDefault exprDefault)
+        public bool VisitExprDefault(ExprDefault exprDefault, object? arg)
         {
             this.Builder.Append("DEFAULT");
             return true;
         }
 
-        public bool VisitExprSum(ExprSum exprSum)
+        public bool VisitExprSum(ExprSum exprSum, object? arg)
         {
-            exprSum.Left.Accept(this);
+            exprSum.Left.Accept(this, arg);
             this.Builder.Append('+');
-            exprSum.Right.Accept(this);
+            exprSum.Right.Accept(this, arg);
             return true;
         }
 
-        public bool VisitExprSub(ExprSub exprSub)
+        public bool VisitExprSub(ExprSub exprSub, object? arg)
         {
-            exprSub.Left.Accept(this);
+            exprSub.Left.Accept(this, arg);
             this.Builder.Append('-');
-            this.CheckPlusMinusParenthesizes(exprSub.Right);
+            this.CheckPlusMinusParenthesizes(exprSub.Right, arg);
             return true;
         }
 
-        public bool VisitExprMul(ExprMul exprMul)
+        public bool VisitExprMul(ExprMul exprMul, object? arg)
         {
-            this.CheckPlusMinusParenthesizes(exprMul.Left);
+            this.CheckPlusMinusParenthesizes(exprMul.Left, arg);
             this.Builder.Append('*');
-            this.CheckPlusMinusParenthesizes(exprMul.Right);
+            this.CheckPlusMinusParenthesizes(exprMul.Right, arg);
             return true;
         }
 
-        public bool VisitExprDiv(ExprDiv exprDiv)
+        public bool VisitExprDiv(ExprDiv exprDiv, object? arg)
         {
-            this.CheckPlusMinusParenthesizes(exprDiv.Left);
+            this.CheckPlusMinusParenthesizes(exprDiv.Left, arg);
             this.Builder.Append('/');
-            this.CheckPlusMinusParenthesizes(exprDiv.Right);
+            this.CheckPlusMinusParenthesizes(exprDiv.Right, arg);
             return true;
         }
 
-        public abstract bool VisitExprStringConcat(ExprStringConcat exprStringConcat);
+        public abstract bool VisitExprStringConcat(ExprStringConcat exprStringConcat, object? arg);
 
-        private void CheckPlusMinusParenthesizes(ExprValue exp)
+        private void CheckPlusMinusParenthesizes(ExprValue exp, object? arg)
         {
             if (exp is ExprSum || exp is ExprSub)
             {
                 this.Builder.Append('(');
-                exp.Accept(this);
+                exp.Accept(this, arg);
                 this.Builder.Append(')');
             }
             else
             {
-                exp.Accept(this);
+                exp.Accept(this, arg);
             }
         }
 
-        protected abstract void AppendSelectTop(ExprValue top);
+        protected abstract void AppendSelectTop(ExprValue top, object? arg);
 
-        public bool VisitExprQuerySpecification(ExprQuerySpecification exprQuerySpecification)
+        public bool VisitExprQuerySpecification(ExprQuerySpecification exprQuerySpecification, object? arg)
         {
             this.Builder.Append("SELECT ");
             if (exprQuerySpecification.Distinct)
@@ -400,35 +399,35 @@ namespace SqExpress.SqlExport
             }
             if (!ReferenceEquals(exprQuerySpecification.Top, null))
             {
-                this.AppendSelectTop(exprQuerySpecification.Top);
+                this.AppendSelectTop(exprQuerySpecification.Top, arg);
             }
 
-            this.AcceptListComaSeparated(exprQuerySpecification.SelectList);
+            this.AcceptListComaSeparated(exprQuerySpecification.SelectList, arg);
 
             if (exprQuerySpecification.From != null)
             {
                 this.Builder.Append(" FROM ");
-                exprQuerySpecification.From.Accept(this);
+                exprQuerySpecification.From.Accept(this, arg);
             }
 
             if (exprQuerySpecification.Where != null)
             {
                 this.Builder.Append(" WHERE ");
-                exprQuerySpecification.Where.Accept(this);
+                exprQuerySpecification.Where.Accept(this, arg);
             }
 
             if (exprQuerySpecification.GroupBy != null)
             {
                 this.Builder.Append(" GROUP BY ");
-                this.AcceptListComaSeparated(exprQuerySpecification.GroupBy);
+                this.AcceptListComaSeparated(exprQuerySpecification.GroupBy, arg);
             }
 
             return true;
         }
 
-        public bool VisitExprJoinedTable(ExprJoinedTable joinedTable)
+        public bool VisitExprJoinedTable(ExprJoinedTable joinedTable, object? arg)
         {
-            joinedTable.Left.Accept(this);
+            joinedTable.Left.Accept(this, arg);
             switch (joinedTable.JoinType)
             {
                 case ExprJoinedTable.ExprJoinType.Inner:
@@ -446,24 +445,24 @@ namespace SqExpress.SqlExport
                 default:
                     throw new ArgumentOutOfRangeException();
             }
-            joinedTable.Right.Accept(this);
+            joinedTable.Right.Accept(this, arg);
             this.Builder.Append(" ON ");
-            joinedTable.SearchCondition.Accept(this);
+            joinedTable.SearchCondition.Accept(this, arg);
 
             return true;
         }
 
-        public bool VisitExprCrossedTable(ExprCrossedTable exprCrossedTable)
+        public bool VisitExprCrossedTable(ExprCrossedTable exprCrossedTable, object? arg)
         {
-            exprCrossedTable.Left.Accept(this);
+            exprCrossedTable.Left.Accept(this, arg);
             this.Builder.Append(" CROSS JOIN ");
-            exprCrossedTable.Right.Accept(this);
+            exprCrossedTable.Right.Accept(this, arg);
             return true;
         }
 
-        public bool VisitExprQueryExpression(ExprQueryExpression exprQueryExpression)
+        public bool VisitExprQueryExpression(ExprQueryExpression exprQueryExpression, object? arg)
         {
-            exprQueryExpression.Left.Accept(this);
+            exprQueryExpression.Left.Accept(this, arg);
 
             switch (exprQueryExpression.QueryExpressionType)
             {
@@ -485,48 +484,48 @@ namespace SqExpress.SqlExport
 
             if (exprQueryExpression.Right is ExprQueryExpression)
             {
-                this.AcceptPar('(', exprQueryExpression.Right, ')');
+                this.AcceptPar('(', exprQueryExpression.Right, ')', arg);
             }
             else
             {
-                exprQueryExpression.Right.Accept(this);
+                exprQueryExpression.Right.Accept(this, arg);
             }
 
             return true;
         }
 
-        public bool VisitExprSelect(ExprSelect exprSelect)
+        public bool VisitExprSelect(ExprSelect exprSelect, object? arg)
         {
-            exprSelect.SelectQuery.Accept(this);
+            exprSelect.SelectQuery.Accept(this, arg);
             this.Builder.Append(" ORDER BY ");
-            exprSelect.OrderBy.Accept(this);
+            exprSelect.OrderBy.Accept(this, arg);
             return true;
         }
 
-        public bool VisitExprSelectOffsetFetch(ExprSelectOffsetFetch exprSelectOffsetFetch)
+        public bool VisitExprSelectOffsetFetch(ExprSelectOffsetFetch exprSelectOffsetFetch, object? arg)
         {
-            exprSelectOffsetFetch.SelectQuery.Accept(this);
+            exprSelectOffsetFetch.SelectQuery.Accept(this, arg);
             this.Builder.Append(" ORDER BY ");
-            exprSelectOffsetFetch.OrderBy.Accept(this);
+            exprSelectOffsetFetch.OrderBy.Accept(this, arg);
             return true;
         }
 
-        public bool VisitExprOrderBy(ExprOrderBy exprOrderBy)
+        public bool VisitExprOrderBy(ExprOrderBy exprOrderBy, object? arg)
         {
-            this.AcceptListComaSeparated(exprOrderBy.OrderList);
+            this.AcceptListComaSeparated(exprOrderBy.OrderList, arg);
             return true;
         }
 
-        public bool VisitExprOrderByOffsetFetch(ExprOrderByOffsetFetch exprOrderByOffsetFetch)
+        public bool VisitExprOrderByOffsetFetch(ExprOrderByOffsetFetch exprOrderByOffsetFetch, object? arg)
         {
-            this.AcceptListComaSeparated(exprOrderByOffsetFetch.OrderList);
-            exprOrderByOffsetFetch.OffsetFetch.Accept(this);
+            this.AcceptListComaSeparated(exprOrderByOffsetFetch.OrderList, arg);
+            exprOrderByOffsetFetch.OffsetFetch.Accept(this, arg);
             return true;
         }
 
-        public bool VisitExprOrderByItem(ExprOrderByItem exprOrderByItem)
+        public bool VisitExprOrderByItem(ExprOrderByItem exprOrderByItem, object? arg)
         {
-            exprOrderByItem.Value.Accept(this);
+            exprOrderByItem.Value.Accept(this, arg);
             if (exprOrderByItem.Descendant)
             {
                 this.Builder.Append(" DESC");
@@ -534,98 +533,98 @@ namespace SqExpress.SqlExport
             return true;
         }
 
-        public bool VisitExprOffsetFetch(ExprOffsetFetch exprOffsetFetch)
+        public bool VisitExprOffsetFetch(ExprOffsetFetch exprOffsetFetch, object? arg)
         {
             this.Builder.Append(" OFFSET ");
-            exprOffsetFetch.Offset.Accept(this);
+            exprOffsetFetch.Offset.Accept(this, arg);
             this.Builder.Append(" ROW");
 
             if (!ReferenceEquals(exprOffsetFetch.Fetch,null))
             {
                 this.Builder.Append(" FETCH NEXT ");
-                exprOffsetFetch.Fetch.Accept(this);
+                exprOffsetFetch.Fetch.Accept(this, arg);
                 this.Builder.Append(" ROW ONLY");
             }
 
             return true;
         }
 
-        public bool VisitExprOutPutColumnInserted(ExprOutputColumnInserted exprOutputColumnInserted)
+        public bool VisitExprOutputColumnInserted(ExprOutputColumnInserted exprOutputColumnInserted, object? arg)
         {
             this.Builder.Append("INSERTED.");
-            exprOutputColumnInserted.ColumnName.Accept(this);
+            exprOutputColumnInserted.ColumnName.Accept(this, arg);
             return true;
         }
 
-        public bool VisitExprOutPutColumnDeleted(ExprOutputColumnDeleted exprOutputColumnDeleted)
+        public bool VisitExprOutputColumnDeleted(ExprOutputColumnDeleted exprOutputColumnDeleted, object? arg)
         {
             this.Builder.Append("DELETED.");
-            exprOutputColumnDeleted.ColumnName.Accept(this);
+            exprOutputColumnDeleted.ColumnName.Accept(this, arg);
             return true;
         }
 
-        public bool VisitExprOutPutColumn(ExprOutputColumn exprOutputColumn)
+        public bool VisitExprOutputColumn(ExprOutputColumn exprOutputColumn, object? arg)
         {
-            exprOutputColumn.Column.Accept(this);
+            exprOutputColumn.Column.Accept(this, arg);
             return true;
         }
 
-        public bool VisitExprOutPutAction(ExprOutputAction exprOutputAction)
+        public bool VisitExprOutputAction(ExprOutputAction exprOutputAction, object? arg)
         {
             this.Builder.Append("$ACTION");
             if (exprOutputAction.Alias != null)
             {
                 this.Builder.Append(' ');
-                exprOutputAction.Alias.Accept(this);
+                exprOutputAction.Alias.Accept(this, arg);
             }
             return true;
         }
 
-        public bool VisitExprOutPut(ExprOutput exprOutput)
+        public bool VisitExprOutput(ExprOutput exprOutput, object? arg)
         {
             this.AssertNotEmptyList(exprOutput.Columns, "Output column list cannot be empty");
-            this.AcceptListComaSeparated(exprOutput.Columns);
+            this.AcceptListComaSeparated(exprOutput.Columns, arg);
             return true;
         }
 
-        public bool VisitExprAggregateFunction(ExprAggregateFunction exprAggregateFunction)
+        public bool VisitExprAggregateFunction(ExprAggregateFunction exprAggregateFunction, object? arg)
         {
-            exprAggregateFunction.Name.Accept(this);
+            exprAggregateFunction.Name.Accept(this, arg);
             this.Builder.Append('(');
             if (exprAggregateFunction.IsDistinct)
             {
                 this.Builder.Append("DISTINCT ");
             }
 
-            exprAggregateFunction.Expression.Accept(this);
+            exprAggregateFunction.Expression.Accept(this, arg);
             this.Builder.Append(')');
 
             return true;
         }
 
-        public bool VisitExprScalarFunction(ExprScalarFunction exprScalarFunction)
+        public bool VisitExprScalarFunction(ExprScalarFunction exprScalarFunction, object? arg)
         {
-            exprScalarFunction.Name.Accept(this);
-            this.AcceptListComaSeparatedPar('(', exprScalarFunction.Arguments, ')');
+            exprScalarFunction.Name.Accept(this, arg);
+            this.AcceptListComaSeparatedPar('(', exprScalarFunction.Arguments, ')', arg);
 
             return true;
         }
 
-        public bool VisitExprAggregateAnalyticFunction(ExprAnalyticFunction exprAnalyticFunction)
+        public bool VisitExprAnalyticFunction(ExprAnalyticFunction exprAnalyticFunction, object? arg)
         {
-            exprAnalyticFunction.Name.Accept(this);
+            exprAnalyticFunction.Name.Accept(this, arg);
             this.Builder.Append('(');
             if (exprAnalyticFunction.Arguments != null)
             {
                 this.AssertNotEmptyList(exprAnalyticFunction.Arguments, "Arguments list cannot be empty");
-                this.AcceptListComaSeparated(exprAnalyticFunction.Arguments);
+                this.AcceptListComaSeparated(exprAnalyticFunction.Arguments, arg);
             }
             this.Builder.Append(')');
-            exprAnalyticFunction.Over.Accept(this);
+            exprAnalyticFunction.Over.Accept(this, arg);
             return true;
         }
 
-        public bool VisitExprOver(ExprOver exprOver)
+        public bool VisitExprOver(ExprOver exprOver, object? arg)
         {
             this.Builder.Append("OVER(");
 
@@ -633,7 +632,7 @@ namespace SqExpress.SqlExport
             {
                 this.AssertNotEmptyList(exprOver.Partitions, "Partition list cannot be empty");
                 this.Builder.Append("PARTITION BY ");
-                this.AcceptListComaSeparated(exprOver.Partitions);
+                this.AcceptListComaSeparated(exprOver.Partitions, arg);
             }
 
             if (exprOver.OrderBy != null)
@@ -643,13 +642,13 @@ namespace SqExpress.SqlExport
                     this.Builder.Append(' ');
                 }
                 this.Builder.Append("ORDER BY ");
-                exprOver.OrderBy.Accept(this);
+                exprOver.OrderBy.Accept(this, arg);
             }
             this.Builder.Append(")");
             return true;
         }
 
-        public bool VisitExprCase(ExprCase exprCase)
+        public bool VisitExprCase(ExprCase exprCase, object? arg)
         {
             this.AssertNotEmptyList(exprCase.Cases, "Cases cannot be empty");
 
@@ -657,129 +656,129 @@ namespace SqExpress.SqlExport
             for (int i = 0; i < exprCase.Cases.Count; i++)
             {
                 this.Builder.Append(' ');
-                exprCase.Cases[i].Accept(this);
+                exprCase.Cases[i].Accept(this, arg);
             }
             this.Builder.Append(" ELSE ");
-            exprCase.DefaultValue.Accept(this);
+            exprCase.DefaultValue.Accept(this, arg);
             this.Builder.Append(" END");
             return true;
         }
 
-        public bool VisitExprCaseWhenThen(ExprCaseWhenThen exprCaseWhenThen)
+        public bool VisitExprCaseWhenThen(ExprCaseWhenThen exprCaseWhenThen, object? arg)
         {
             this.Builder.Append("WHEN ");
-            exprCaseWhenThen.Condition.Accept(this);
+            exprCaseWhenThen.Condition.Accept(this, arg);
             this.Builder.Append(" THEN ");
-            exprCaseWhenThen.Value.Accept(this);
+            exprCaseWhenThen.Value.Accept(this, arg);
 
             return true;
         }
 
-        public bool VisitExprColumn(ExprColumn exprColumn)
+        public bool VisitExprColumn(ExprColumn exprColumn, object? arg)
         {
             if (exprColumn.Source != null)
             {
-                exprColumn.Source.Accept(this);
+                exprColumn.Source.Accept(this, arg);
                 this.Builder.Append('.');
             }
 
-            exprColumn.ColumnName.Accept(this);
+            exprColumn.ColumnName.Accept(this, arg);
 
             return true;
         }
 
-        public bool VisitExprTable(ExprTable exprTable)
+        public bool VisitExprTable(ExprTable exprTable, object? arg)
         {
-            exprTable.FullName.Accept(this);
+            exprTable.FullName.Accept(this, arg);
             if (exprTable.Alias != null)
             {
                 this.Builder.Append(' ');
-                exprTable.Alias.Accept(this);
+                exprTable.Alias.Accept(this, arg);
             }
             return true;
         }
 
-        public bool VisitExprColumnName(ExprColumnName columnName)
+        public bool VisitExprColumnName(ExprColumnName columnName, object? arg)
         {
             this.AppendName(columnName.Name);
             return true;
         }
 
-        public bool VisitExprTableName(ExprTableName tableName)
+        public bool VisitExprTableName(ExprTableName tableName, object? arg)
         {
             this.AppendName(tableName.Name);
             return true;
         }
 
-        public bool VisitExprTableFullName(ExprTableFullName exprTableFullName)
+        public bool VisitExprTableFullName(ExprTableFullName exprTableFullName, object? arg)
         {
-            exprTableFullName.Schema.Accept(this);
+            exprTableFullName.Schema.Accept(this, arg);
             this.Builder.Append('.');
-            exprTableFullName.TableName.Accept(this);
+            exprTableFullName.TableName.Accept(this, arg);
             return true;
         }
 
-        public bool VisitExprAlias(ExprAlias alias)
+        public bool VisitExprAlias(ExprAlias alias, object? arg)
         {
             this.AppendName(alias.Name);
             return true;
         }
 
-        public bool VisitExprAliasGuid(ExprAliasGuid aliasGuid)
+        public bool VisitExprAliasGuid(ExprAliasGuid aliasGuid, object? arg)
         {
             this.AppendName(this._aliasGenerator.GetAlias(aliasGuid));
             return true;
         }
 
-        public bool VisitExprColumnAlias(ExprColumnAlias exprColumnAlias)
+        public bool VisitExprColumnAlias(ExprColumnAlias exprColumnAlias, object? arg)
         {
             this.AppendName(exprColumnAlias.Name);
             return true;
         }
 
-        public bool VisitExprAliasedColumn(ExprAliasedColumn exprAliasedColumn)
+        public bool VisitExprAliasedColumn(ExprAliasedColumn exprAliasedColumn, object? arg)
         {
-            exprAliasedColumn.Column.Accept(this);
+            exprAliasedColumn.Column.Accept(this, arg);
             if (exprAliasedColumn.Alias != null)
             {
                 this.Builder.Append(' ');
-                exprAliasedColumn.Alias?.Accept(this);
+                exprAliasedColumn.Alias?.Accept(this, arg);
             }
             return true;
         }
 
-        public bool VisitExprAliasedColumnName(ExprAliasedColumnName exprAliasedColumnName)
+        public bool VisitExprAliasedColumnName(ExprAliasedColumnName exprAliasedColumnName, object? arg)
         {
-            exprAliasedColumnName.Column.Accept(this);
+            exprAliasedColumnName.Column.Accept(this, arg);
             if (exprAliasedColumnName.Alias != null)
             {
                 this.Builder.Append(' ');
-                exprAliasedColumnName.Alias.Accept(this);
+                exprAliasedColumnName.Alias.Accept(this, arg);
             }
             return true;
         }
 
-        public bool VisitExprAliasedSelectItem(ExprAliasedSelecting exprAliasedSelecting)
+        public bool VisitExprAliasedSelecting(ExprAliasedSelecting exprAliasedSelecting, object? arg)
         {
-            exprAliasedSelecting.Value.Accept(this);
+            exprAliasedSelecting.Value.Accept(this, arg);
             this.Builder.Append(' ');
-            exprAliasedSelecting.Alias.Accept(this);
+            exprAliasedSelecting.Alias.Accept(this, arg);
             return true;
         }
 
-        public bool VisitExprTableAlias(ExprTableAlias tableAlias)
+        public bool VisitExprTableAlias(ExprTableAlias tableAlias, object? arg)
         {
-            tableAlias.Alias.Accept(this);
+            tableAlias.Alias.Accept(this, arg);
             return true;
         }
 
-        public bool VisitExprSchemaName(ExprSchemaName schemaName)
+        public bool VisitExprSchemaName(ExprSchemaName schemaName, object? arg)
         {
             this.AppendName(this.Options.MapSchema(schemaName.Name));
             return true;
         }
 
-        public bool VisitExprFunctionName(ExprFunctionName exprFunctionName)
+        public bool VisitExprFunctionName(ExprFunctionName exprFunctionName, object? arg)
         {
             if (exprFunctionName.BuiltIn)
             {
@@ -793,19 +792,19 @@ namespace SqExpress.SqlExport
             return true;
         }
 
-        public bool VisitExprRowValue(ExprRowValue rowValue)
+        public bool VisitExprRowValue(ExprRowValue rowValue, object? arg)
         {
             if (rowValue.Items == null || rowValue.Items.Count < 1)
             {
                 throw new SqExpressException("Row value should have at least one column");
             }
 
-            this.AcceptListComaSeparatedPar('(',rowValue.Items, ')');
+            this.AcceptListComaSeparatedPar('(',rowValue.Items, ')', arg);
 
             return true;
         }
 
-        public bool VisitExprTableValueConstructor(ExprTableValueConstructor tableValueConstructor)
+        public bool VisitExprTableValueConstructor(ExprTableValueConstructor tableValueConstructor, object? arg)
         {
             int initialLength = this.Builder.Length;
             bool first = true;
@@ -823,7 +822,7 @@ namespace SqExpress.SqlExport
                     first = false;
                 }
 
-                rowValue.Accept(this);
+                rowValue.Accept(this, arg);
             }
 
             if (first)
@@ -834,10 +833,10 @@ namespace SqExpress.SqlExport
             return true;
         }
 
-        public bool VisitExprDerivedTableQuery(ExprDerivedTableQuery exprDerivedTableQuery)
+        public bool VisitExprDerivedTableQuery(ExprDerivedTableQuery exprDerivedTableQuery, object? arg)
         {
-            this.AcceptPar('(', exprDerivedTableQuery.Query, ')');
-            exprDerivedTableQuery.Alias.Accept(this);
+            this.AcceptPar('(', exprDerivedTableQuery.Query, ')', arg);
+            exprDerivedTableQuery.Alias.Accept(this, arg);
             if (exprDerivedTableQuery.Columns != null)
             {
                 exprDerivedTableQuery.Columns.AssertNotEmpty("List of columns in a derived table with values literals cannot be empty");
@@ -860,105 +859,105 @@ namespace SqExpress.SqlExport
                 }
                 if (!allMatch)
                 {
-                    this.AcceptListComaSeparatedPar('(', exprDerivedTableQuery.Columns, ')');
+                    this.AcceptListComaSeparatedPar('(', exprDerivedTableQuery.Columns, ')', arg);
                 }
             }
 
             return true;
         }
 
-        public bool VisitDerivedTableValues(ExprDerivedTableValues derivedTableValues)
+        public bool VisitExprDerivedTableValues(ExprDerivedTableValues derivedTableValues, object? arg)
         {
             int initialLength = this.Builder.Length;
-            if (!this.AcceptPar('(', derivedTableValues.Values, ')'))
+            if (!this.AcceptPar('(', derivedTableValues.Values, ')', arg))
             {
                 return this.Rollback(initialLength);
             }
-            derivedTableValues.Alias.Accept(this);
+            derivedTableValues.Alias.Accept(this, arg);
             derivedTableValues.Columns.AssertNotEmpty("List of columns in a derived table with values literals cannot be empty");
-            this.AcceptListComaSeparatedPar('(', derivedTableValues.Columns, ')');
+            this.AcceptListComaSeparatedPar('(', derivedTableValues.Columns, ')', arg);
 
             return true;
         }
 
-        public bool VisitExprColumnSetClause(ExprColumnSetClause columnSetClause)
+        public bool VisitExprColumnSetClause(ExprColumnSetClause columnSetClause, object? arg)
         {
-            columnSetClause.Column.Accept(this);
+            columnSetClause.Column.Accept(this, arg);
             this.Builder.Append('=');
-            columnSetClause.Value.Accept(this);
+            columnSetClause.Value.Accept(this, arg);
 
             return true;
         }
 
-        public bool VisitExprMerge(ExprMerge merge)
+        public bool VisitExprMerge(ExprMerge merge, object? arg)
         {
             int init = this.Builder.Length;
 
             this.Builder.Append("MERGE ");
-            merge.TargetTable.Accept(this);
+            merge.TargetTable.Accept(this, arg);
             this.Builder.Append(" USING ");
-            if (!merge.Source.Accept(this))
+            if (!merge.Source.Accept(this, arg))
             {
                 return this.Rollback(init);
             }
             this.Builder.Append(" ON ");
-            merge.On.Accept(this);
+            merge.On.Accept(this, arg);
             if (merge.WhenMatched != null)
             {
                 this.Builder.Append(" WHEN MATCHED");
-                merge.WhenMatched.Accept(this);
+                merge.WhenMatched.Accept(this, arg);
             }
             if (merge.WhenNotMatchedByTarget != null)
             {
                 this.Builder.Append(" WHEN NOT MATCHED");
-                merge.WhenNotMatchedByTarget.Accept(this);
+                merge.WhenNotMatchedByTarget.Accept(this, arg);
             }
             if (merge.WhenNotMatchedBySource != null)
             {
                 this.Builder.Append(" WHEN NOT MATCHED BY SOURCE");
-                merge.WhenNotMatchedBySource.Accept(this);
+                merge.WhenNotMatchedBySource.Accept(this, arg);
             }
             this.Builder.Append(';');
 
             return true;
         }
 
-        public bool VisitExprMergeOutput(ExprMergeOutput mergeOutput)
+        public bool VisitExprMergeOutput(ExprMergeOutput mergeOutput, object? arg)
         {
-            if (this.VisitExprMerge(mergeOutput))
+            if (this.VisitExprMerge(mergeOutput, arg))
             {
                 this.Builder.Length = this.Builder.Length - 1;// ; <-
                 this.Builder.Append(" OUTPUT ");
-                mergeOutput.Output.Accept(this);
+                mergeOutput.Output.Accept(this, arg);
                 this.Builder.Append(';');
                 return true;
             }
             return false;
         }
 
-        public bool VisitExprMergeMatchedUpdate(ExprMergeMatchedUpdate mergeMatchedUpdate)
+        public bool VisitExprMergeMatchedUpdate(ExprMergeMatchedUpdate mergeMatchedUpdate, object? arg)
         {
             if (mergeMatchedUpdate.And != null)
             {
                 this.Builder.Append(" AND ");
-                mergeMatchedUpdate.And.Accept(this);
+                mergeMatchedUpdate.And.Accept(this, arg);
             }
 
             this.AssertNotEmptyList(mergeMatchedUpdate.Set, "Set Clause cannot be empty");
 
             this.Builder.Append(" THEN UPDATE SET ");
 
-            this.AcceptListComaSeparated(mergeMatchedUpdate.Set);
+            this.AcceptListComaSeparated(mergeMatchedUpdate.Set, arg);
 
             return true;
         }
 
-        public bool VisitExprMergeMatchedDelete(ExprMergeMatchedDelete mergeMatchedDelete)
+        public bool VisitExprMergeMatchedDelete(ExprMergeMatchedDelete mergeMatchedDelete, object? arg)
         {
             if (mergeMatchedDelete.And != null)
             {
                 this.Builder.Append(" AND ");
-                mergeMatchedDelete.And.Accept(this);
+                mergeMatchedDelete.And.Accept(this, arg);
             }
 
             this.Builder.Append(" THEN  DELETE");
@@ -966,12 +965,12 @@ namespace SqExpress.SqlExport
             return true;
         }
 
-        public bool VisitExprExprMergeNotMatchedInsert(ExprExprMergeNotMatchedInsert exprMergeNotMatchedInsert)
+        public bool VisitExprExprMergeNotMatchedInsert(ExprExprMergeNotMatchedInsert exprMergeNotMatchedInsert, object? arg)
         {
             if (exprMergeNotMatchedInsert.And != null)
             {
                 this.Builder.Append(" AND ");
-                exprMergeNotMatchedInsert.And.Accept(this);
+                exprMergeNotMatchedInsert.And.Accept(this, arg);
             }
 
             this.AssertNotEmptyList(exprMergeNotMatchedInsert.Values, "Values cannot be empty");
@@ -983,20 +982,19 @@ namespace SqExpress.SqlExport
             }
 
             this.Builder.Append(" THEN INSERT");
-            this.AcceptListComaSeparatedPar('(', exprMergeNotMatchedInsert.Columns, ')');
+            this.AcceptListComaSeparatedPar('(', exprMergeNotMatchedInsert.Columns, ')', arg);
             this.Builder.Append(" VALUES");
-            this.AcceptListComaSeparatedPar('(', exprMergeNotMatchedInsert.Values, ')');
+            this.AcceptListComaSeparatedPar('(', exprMergeNotMatchedInsert.Values, ')', arg);
 
             return true;
         }
 
-        public bool VisitExprExprMergeNotMatchedInsertDefault(
-            ExprExprMergeNotMatchedInsertDefault exprExprMergeNotMatchedInsertDefault)
+        public bool VisitExprExprMergeNotMatchedInsertDefault(ExprExprMergeNotMatchedInsertDefault exprExprMergeNotMatchedInsertDefault, object? arg)
         {
             if (exprExprMergeNotMatchedInsertDefault.And != null)
             {
                 this.Builder.Append(" AND ");
-                exprExprMergeNotMatchedInsertDefault.And.Accept(this);
+                exprExprMergeNotMatchedInsertDefault.And.Accept(this, arg);
             }
 
             this.Builder.Append(" THEN INSERT DEFAULT VALUES");
@@ -1004,20 +1002,20 @@ namespace SqExpress.SqlExport
             return true;
         }
 
-        public bool VisitExprInsert(ExprInsert exprInsert)
+        public bool VisitExprInsert(ExprInsert exprInsert, object? arg)
         {
-            this.GenericInsert(exprInsert, null, null);
+            this.GenericInsert(exprInsert, null, null, arg);
             return true;
         }
 
-        protected void GenericInsert(ExprInsert exprInsert, Action? middleHandler, Action? endHandler)
+        protected void GenericInsert(ExprInsert exprInsert, Action? middleHandler, Action? endHandler, object? arg)
         {
             this.Builder.Append("INSERT INTO ");
-            exprInsert.Target.Accept(this);
+            exprInsert.Target.Accept(this, arg);
             if (exprInsert.TargetColumns != null)
             {
                 this.AssertNotEmptyList(exprInsert.TargetColumns, "Insert column list cannot be empty");
-                this.AcceptListComaSeparatedPar('(', exprInsert.TargetColumns, ')');
+                this.AcceptListComaSeparatedPar('(', exprInsert.TargetColumns, ')', arg);
             }
 
             if (middleHandler != null)
@@ -1026,7 +1024,7 @@ namespace SqExpress.SqlExport
                 middleHandler();
             }
             this.Builder.Append(' ');
-            exprInsert.Source.Accept(this);
+            exprInsert.Source.Accept(this, arg);
             if (endHandler != null)
             {
                 this.Builder.Append(' ');
@@ -1034,72 +1032,72 @@ namespace SqExpress.SqlExport
             }
         }
 
-        public abstract bool VisitExprInsertOutput(ExprInsertOutput exprInsertOutput);
+        public abstract bool VisitExprInsertOutput(ExprInsertOutput exprInsertOutput, object? arg);
 
-        public bool VisitExprInsertValues(ExprInsertValues exprInsertValues)
+        public bool VisitExprInsertValues(ExprInsertValues exprInsertValues, object? arg)
         {
-            exprInsertValues.Values.Accept(this);
+            exprInsertValues.Values.Accept(this, arg);
             return true;
         }
 
-        public bool VisitExprInsertQuery(ExprInsertQuery exprInsertQuery)
+        public bool VisitExprInsertQuery(ExprInsertQuery exprInsertQuery, object? arg)
         {
-            exprInsertQuery.Query.Accept(this);
+            exprInsertQuery.Query.Accept(this, arg);
             return true;
         }
 
-        public abstract bool VisitExprUpdate(ExprUpdate exprUpdate);
+        public abstract bool VisitExprUpdate(ExprUpdate exprUpdate, object? arg);
 
-        public abstract bool VisitExprDelete(ExprDelete exprDelete);
+        public abstract bool VisitExprDelete(ExprDelete exprDelete, object? arg);
 
-        public abstract bool VisitExprDeleteOutput(ExprDeleteOutput exprDeleteOutput);
+        public abstract bool VisitExprDeleteOutput(ExprDeleteOutput exprDeleteOutput, object? arg);
 
-        public bool VisitExprCast(ExprCast exprCast)
+        public bool VisitExprCast(ExprCast exprCast, object? arg)
         {
             this.Builder.Append("CAST(");
-            exprCast.Expression.Accept(this);
+            exprCast.Expression.Accept(this, arg);
             this.Builder.Append(" AS ");
-            exprCast.SqlType.Accept(this);
+            exprCast.SqlType.Accept(this, arg);
             this.Builder.Append(')');
             return true;
         }
 
-        public abstract bool VisitExprTypeBoolean(ExprTypeBoolean exprTypeBoolean);
+        public abstract bool VisitExprTypeBoolean(ExprTypeBoolean exprTypeBoolean, object? arg);
 
-        public abstract bool VisitExprTypeByte(ExprTypeByte exprTypeByte);
+        public abstract bool VisitExprTypeByte(ExprTypeByte exprTypeByte, object? arg);
 
-        public abstract bool VisitExprTypeInt16(ExprTypeInt16 exprTypeInt16);
+        public abstract bool VisitExprTypeInt16(ExprTypeInt16 exprTypeInt16, object? arg);
 
-        public abstract bool VisitExprTypeInt32(ExprTypeInt32 exprTypeInt32);
+        public abstract bool VisitExprTypeInt32(ExprTypeInt32 exprTypeInt32, object? arg);
 
-        public abstract bool VisitExprTypeInt64(ExprTypeInt64 exprTypeInt64);
+        public abstract bool VisitExprTypeInt64(ExprTypeInt64 exprTypeInt64, object? arg);
 
-        public abstract bool VisitExprTypeDecimal(ExprTypeDecimal exprTypeDecimal);
+        public abstract bool VisitExprTypeDecimal(ExprTypeDecimal exprTypeDecimal, object? arg);
 
-        public abstract bool VisitExprTypeDouble(ExprTypeDouble exprTypeDouble);
+        public abstract bool VisitExprTypeDouble(ExprTypeDouble exprTypeDouble, object? arg);
 
-        public abstract bool VisitExprTypeDateTime(ExprTypeDateTime exprTypeDateTime);
+        public abstract bool VisitExprTypeDateTime(ExprTypeDateTime exprTypeDateTime, object? arg);
 
-        public abstract bool VisitExprTypeGuid(ExprTypeGuid exprTypeGuid);
+        public abstract bool VisitExprTypeGuid(ExprTypeGuid exprTypeGuid, object? arg);
 
-        public abstract bool VisitExprTypeString(ExprTypeString exprTypeString);
+        public abstract bool VisitExprTypeString(ExprTypeString exprTypeString, object? arg);
 
-        public abstract bool VisitExprFuncIsNull(ExprFuncIsNull exprFuncIsNull);
+        public abstract bool VisitExprFuncIsNull(ExprFuncIsNull exprFuncIsNull, object? arg);
 
-        public bool VisitExprFuncCoalesce(ExprFuncCoalesce exprFuncCoalesce)
+        public bool VisitExprFuncCoalesce(ExprFuncCoalesce exprFuncCoalesce, object? arg)
         {
             this.Builder.Append("COALESCE(");
-            exprFuncCoalesce.Test.Accept(this);
+            exprFuncCoalesce.Test.Accept(this, arg);
             this.Builder.Append(',');
             this.AssertNotEmptyList(exprFuncCoalesce.Alts, "Alt argument list cannot be empty in 'COALESCE' function call");
-            this.AcceptListComaSeparated(exprFuncCoalesce.Alts);
+            this.AcceptListComaSeparated(exprFuncCoalesce.Alts, arg);
             this.Builder.Append(')');
             return true;
         }
 
-        public abstract bool VisitExprFuncGetDate(ExprGetDate exprGetDate);
+        public abstract bool VisitExprGetDate(ExprGetDate exprGetDate, object? arg);
 
-        public abstract bool VisitExprFuncGetUtcDate(ExprGetUtcDate exprGetUtcDate);
+        public abstract bool VisitExprGetUtcDate(ExprGetUtcDate exprGetUtcDate, object? arg);
 
         public abstract void AppendName(string name);
 
@@ -1108,11 +1106,11 @@ namespace SqExpress.SqlExport
             this.Builder.Append("NULL");
         }
 
-        protected bool AcceptPar(char start, IExpr list, char end)
+        protected bool AcceptPar(char start, IExpr list, char end, object? arg)
         {
             int initial = this.Builder.Length;
             this.Builder.Append(start);
-            if (!list.Accept(this))
+            if (!list.Accept(this, arg))
             {
                 return this.Rollback(initial);
             }
@@ -1120,11 +1118,11 @@ namespace SqExpress.SqlExport
             return true;
         }
 
-        internal bool AcceptListComaSeparatedPar(char start, IReadOnlyList<IExpr> list, char end)
+        internal bool AcceptListComaSeparatedPar(char start, IReadOnlyList<IExpr> list, char end, object? arg)
         {
             int initial = this.Builder.Length;
             this.Builder.Append(start);
-            if (!this.AcceptListComaSeparated(list))
+            if (!this.AcceptListComaSeparated(list, arg))
             {
                 return this.Rollback(initial);
             }
@@ -1133,7 +1131,7 @@ namespace SqExpress.SqlExport
             return true;
         }
 
-        protected bool AcceptListComaSeparated(IReadOnlyList<IExpr> list)
+        protected bool AcceptListComaSeparated(IReadOnlyList<IExpr> list, object? arg)
         {
             int initial = this.Builder.Length;
 
@@ -1144,7 +1142,7 @@ namespace SqExpress.SqlExport
                     this.Builder.Append(',');
                 }
 
-                if (!list[i].Accept(this))
+                if (!list[i].Accept(this, arg))
                 {
                     return this.Rollback(initial);
                 }

@@ -15,7 +15,7 @@ namespace SqExpress.Syntax.Functions.Known
 
         public IReadOnlyList<ExprValue> Alts { get; }
 
-        public override TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprFuncCoalesce(this);
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprFuncCoalesce(this, arg);
     }
 }

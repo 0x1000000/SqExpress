@@ -11,7 +11,7 @@ namespace SqExpress.Syntax.Value
             this.Value = value;
         }
 
-        public override TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprByteArrayLiteral(this);
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprByteArrayLiteral(this, arg);
     }
 }

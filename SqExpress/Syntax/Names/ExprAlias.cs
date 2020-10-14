@@ -14,8 +14,8 @@ namespace SqExpress.Syntax.Names
 
         public string LowerInvariantName { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprAlias(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprAlias(this, arg);
 
         public bool Equals(ExprAlias? other)
         {

@@ -9,8 +9,8 @@
             this.Value = value;
         }
 
-        public override TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprLongLiteral(this);
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprInt64Literal(this, arg);
 
         public static implicit operator ExprInt64Literal(long value)
             => new ExprInt64Literal(value);

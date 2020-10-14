@@ -11,8 +11,8 @@ namespace SqExpress.Syntax.Names
 
         public IExprAlias Alias { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprTableAlias(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprTableAlias(this, arg);
 
         public bool Equals(ExprTableAlias? other)
         {

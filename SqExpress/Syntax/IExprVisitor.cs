@@ -13,220 +13,220 @@ using SqExpress.Syntax.Value;
 
 namespace SqExpress.Syntax
 {
-    public interface IExprVisitor<out TRes>
+    public interface IExprVisitor<out TRes,in TArg>
     {
         //Boolean Expressions
-        TRes VisitExprBooleanAnd(ExprBooleanAnd expr);
+        TRes VisitExprBooleanAnd(ExprBooleanAnd expr, TArg arg);
 
         //Boolean Predicates
-        TRes VisitExprBooleanOr(ExprBooleanOr expr);
+        TRes VisitExprBooleanOr(ExprBooleanOr expr, TArg arg);
 
-        TRes VisitExprBooleanNot(ExprBooleanNot expr);
+        TRes VisitExprBooleanNot(ExprBooleanNot expr, TArg arg);
 
-        TRes VisitExprBooleanNotEq(ExprBooleanNotEq exprBooleanNotEq);
+        TRes VisitExprBooleanNotEq(ExprBooleanNotEq exprBooleanNotEq, TArg arg);
 
-        TRes VisitExprBooleanEq(ExprBooleanEq exprBooleanEq);
+        TRes VisitExprBooleanEq(ExprBooleanEq exprBooleanEq, TArg arg);
 
-        TRes VisitExprBooleanGt(ExprBooleanGt booleanGt);
+        TRes VisitExprBooleanGt(ExprBooleanGt booleanGt, TArg arg);
 
-        TRes VisitExprBooleanGtEq(ExprBooleanGtEq booleanGtEq);
+        TRes VisitExprBooleanGtEq(ExprBooleanGtEq booleanGtEq, TArg arg);
 
-        TRes VisitExprBooleanLt(ExprBooleanLt booleanLt);
+        TRes VisitExprBooleanLt(ExprBooleanLt booleanLt, TArg arg);
 
-        TRes VisitExprBooleanLtEq(ExprBooleanLtEq booleanLtEq);
+        TRes VisitExprBooleanLtEq(ExprBooleanLtEq booleanLtEq, TArg arg);
 
         //Boolean Predicates - Others
-        TRes VisitExprInSubQuery(ExprInSubQuery exprInSubQuery);
+        TRes VisitExprInSubQuery(ExprInSubQuery exprInSubQuery, TArg arg);
 
-        TRes VisitExprInValues(ExprInValues exprInValues);
+        TRes VisitExprInValues(ExprInValues exprInValues, TArg arg);
 
-        TRes VisitExprExists(ExprExists exprExists);
+        TRes VisitExprExists(ExprExists exprExists, TArg arg);
 
-        TRes VisitExprIsNull(ExprIsNull exprIsNull);
+        TRes VisitExprIsNull(ExprIsNull exprIsNull, TArg arg);
 
-        TRes VisitExprLike(ExprLike exprLike);
+        TRes VisitExprLike(ExprLike exprLike, TArg arg);
 
         //Value
-        TRes VisitExprIntLiteral(ExprInt32Literal exprInt32Literal);
+        TRes VisitExprInt32Literal(ExprInt32Literal exprInt32Literal, TArg arg);
 
-        TRes VisitExprGuidLiteral(ExprGuidLiteral exprGuidLiteral);
+        TRes VisitExprGuidLiteral(ExprGuidLiteral exprGuidLiteral, TArg arg);
 
-        TRes VisitExprStringLiteral(ExprStringLiteral stringLiteral);
+        TRes VisitExprStringLiteral(ExprStringLiteral stringLiteral, TArg arg);
 
-        TRes VisitExprDateTimeLiteral(ExprDateTimeLiteral dateTimeLiteral);
+        TRes VisitExprDateTimeLiteral(ExprDateTimeLiteral dateTimeLiteral, TArg arg);
 
-        TRes VisitExprBoolLiteral(ExprBoolLiteral boolLiteral);
+        TRes VisitExprBoolLiteral(ExprBoolLiteral boolLiteral, TArg arg);
 
-        TRes VisitExprLongLiteral(ExprInt64Literal int64Literal);
+        TRes VisitExprInt64Literal(ExprInt64Literal int64Literal, TArg arg);
 
-        TRes VisitExprByteLiteral(ExprByteLiteral byteLiteral);
+        TRes VisitExprByteLiteral(ExprByteLiteral byteLiteral, TArg arg);
 
-        TRes VisitExprShortLiteral(ExprInt16Literal int16Literal);
+        TRes VisitExprInt16Literal(ExprInt16Literal int16Literal, TArg arg);
 
-        TRes VisitExprDecimalLiteral(ExprDecimalLiteral decimalLiteral);
+        TRes VisitExprDecimalLiteral(ExprDecimalLiteral decimalLiteral, TArg arg);
 
-        TRes VisitExprDoubleLiteral(ExprDoubleLiteral doubleLiteral);
+        TRes VisitExprDoubleLiteral(ExprDoubleLiteral doubleLiteral, TArg arg);
 
-        TRes VisitExprByteArrayLiteral(ExprByteArrayLiteral byteArrayLiteral);
+        TRes VisitExprByteArrayLiteral(ExprByteArrayLiteral byteArrayLiteral, TArg arg);
 
-        TRes VisitExprNull(ExprNull exprNull);
+        TRes VisitExprNull(ExprNull exprNull, TArg arg);
 
-        TRes VisitExprDefault(ExprDefault exprDefault);
+        TRes VisitExprDefault(ExprDefault exprDefault, TArg arg);
 
         //Arithmetic Expressions
-        TRes VisitExprSum(ExprSum exprSum);
+        TRes VisitExprSum(ExprSum exprSum, TArg arg);
 
-        TRes VisitExprSub(ExprSub exprSub);
+        TRes VisitExprSub(ExprSub exprSub, TArg arg);
 
-        TRes VisitExprMul(ExprMul exprMul);
+        TRes VisitExprMul(ExprMul exprMul, TArg arg);
 
-        TRes VisitExprDiv(ExprDiv exprDiv);
+        TRes VisitExprDiv(ExprDiv exprDiv, TArg arg);
 
-        TRes VisitExprStringConcat(ExprStringConcat exprStringConcat);
+        TRes VisitExprStringConcat(ExprStringConcat exprStringConcat, TArg arg);
 
         //Select
-        TRes VisitExprQuerySpecification(ExprQuerySpecification exprQuerySpecification);
+        TRes VisitExprQuerySpecification(ExprQuerySpecification exprQuerySpecification, TArg arg);
 
-        TRes VisitExprJoinedTable(ExprJoinedTable joinedTable);
+        TRes VisitExprJoinedTable(ExprJoinedTable joinedTable, TArg arg);
 
-        TRes VisitExprCrossedTable(ExprCrossedTable exprCrossedTable);
+        TRes VisitExprCrossedTable(ExprCrossedTable exprCrossedTable, TArg arg);
 
-        TRes VisitExprQueryExpression(ExprQueryExpression exprQueryExpression);
+        TRes VisitExprQueryExpression(ExprQueryExpression exprQueryExpression, TArg arg);
 
-        TRes VisitExprSelect(ExprSelect exprSelect);
+        TRes VisitExprSelect(ExprSelect exprSelect, TArg arg);
 
-        TRes VisitExprSelectOffsetFetch(ExprSelectOffsetFetch exprSelectOffsetFetch);
+        TRes VisitExprSelectOffsetFetch(ExprSelectOffsetFetch exprSelectOffsetFetch, TArg arg);
 
-        TRes VisitExprOrderBy(ExprOrderBy exprOrderBy);
+        TRes VisitExprOrderBy(ExprOrderBy exprOrderBy, TArg arg);
 
-        TRes VisitExprOrderByOffsetFetch(ExprOrderByOffsetFetch exprOrderByOffsetFetch);
+        TRes VisitExprOrderByOffsetFetch(ExprOrderByOffsetFetch exprOrderByOffsetFetch, TArg arg);
 
-        TRes VisitExprOrderByItem(ExprOrderByItem exprOrderByItem);
+        TRes VisitExprOrderByItem(ExprOrderByItem exprOrderByItem, TArg arg);
 
-        TRes VisitExprOffsetFetch(ExprOffsetFetch exprOffsetFetch);
+        TRes VisitExprOffsetFetch(ExprOffsetFetch exprOffsetFetch, TArg arg);
 
         //Select Output
-        TRes VisitExprOutPutColumnInserted(ExprOutputColumnInserted exprOutputColumnInserted);
+        TRes VisitExprOutputColumnInserted(ExprOutputColumnInserted exprOutputColumnInserted, TArg arg);
 
-        TRes VisitExprOutPutColumnDeleted(ExprOutputColumnDeleted exprOutputColumnDeleted);
+        TRes VisitExprOutputColumnDeleted(ExprOutputColumnDeleted exprOutputColumnDeleted, TArg arg);
 
-        TRes VisitExprOutPutColumn(ExprOutputColumn exprOutputColumn);
+        TRes VisitExprOutputColumn(ExprOutputColumn exprOutputColumn, TArg arg);
 
-        TRes VisitExprOutPutAction(ExprOutputAction exprOutputAction);
+        TRes VisitExprOutputAction(ExprOutputAction exprOutputAction, TArg arg);
 
-        TRes VisitExprOutPut(ExprOutput exprOutput);
+        TRes VisitExprOutput(ExprOutput exprOutput, TArg arg);
 
         //Functions
-        TRes VisitExprAggregateFunction(ExprAggregateFunction exprAggregateFunction);
+        TRes VisitExprAggregateFunction(ExprAggregateFunction exprAggregateFunction, TArg arg);
 
-        TRes VisitExprScalarFunction(ExprScalarFunction exprScalarFunction);
+        TRes VisitExprScalarFunction(ExprScalarFunction exprScalarFunction, TArg arg);
 
-        TRes VisitExprAggregateAnalyticFunction(ExprAnalyticFunction exprAnalyticFunction);
+        TRes VisitExprAnalyticFunction(ExprAnalyticFunction exprAnalyticFunction, TArg arg);
 
-        TRes VisitExprOver(ExprOver exprOver);
+        TRes VisitExprOver(ExprOver exprOver, TArg arg);
 
-        TRes VisitExprCase(ExprCase exprCase);
+        TRes VisitExprCase(ExprCase exprCase, TArg arg);
 
-        TRes VisitExprCaseWhenThen(ExprCaseWhenThen exprCaseWhenThen);
+        TRes VisitExprCaseWhenThen(ExprCaseWhenThen exprCaseWhenThen, TArg arg);
 
         //Meta
-        TRes VisitExprColumn(ExprColumn exprColumn);
+        TRes VisitExprColumn(ExprColumn exprColumn, TArg arg);
 
-        TRes VisitExprTable(ExprTable exprTable);
+        TRes VisitExprTable(ExprTable exprTable, TArg arg);
 
-        TRes VisitExprColumnName(ExprColumnName columnName);
+        TRes VisitExprColumnName(ExprColumnName columnName, TArg arg);
 
-        TRes VisitExprTableName(ExprTableName tableName);
+        TRes VisitExprTableName(ExprTableName tableName, TArg arg);
 
-        TRes VisitExprTableFullName(ExprTableFullName exprTableFullName);
+        TRes VisitExprTableFullName(ExprTableFullName exprTableFullName, TArg arg);
 
-        TRes VisitExprAlias(ExprAlias alias);
+        TRes VisitExprAlias(ExprAlias alias, TArg arg);
 
-        TRes VisitExprAliasGuid(ExprAliasGuid aliasGuid);
+        TRes VisitExprAliasGuid(ExprAliasGuid aliasGuid, TArg arg);
 
-        TRes VisitExprColumnAlias(ExprColumnAlias exprColumnAlias);
+        TRes VisitExprColumnAlias(ExprColumnAlias exprColumnAlias, TArg arg);
 
-        TRes VisitExprAliasedColumn(ExprAliasedColumn exprAliasedColumn);
+        TRes VisitExprAliasedColumn(ExprAliasedColumn exprAliasedColumn, TArg arg);
 
-        TRes VisitExprAliasedColumnName(ExprAliasedColumnName exprAliasedColumnName);
+        TRes VisitExprAliasedColumnName(ExprAliasedColumnName exprAliasedColumnName, TArg arg);
 
-        TRes VisitExprAliasedSelectItem(ExprAliasedSelecting exprAliasedSelecting);
+        TRes VisitExprAliasedSelecting(ExprAliasedSelecting exprAliasedSelecting, TArg arg);
 
-        TRes VisitExprTableAlias(ExprTableAlias tableAlias);
+        TRes VisitExprTableAlias(ExprTableAlias tableAlias, TArg arg);
 
-        TRes VisitExprSchemaName(ExprSchemaName schemaName);
+        TRes VisitExprSchemaName(ExprSchemaName schemaName, TArg arg);
 
-        TRes VisitExprFunctionName(ExprFunctionName exprFunctionName);
+        TRes VisitExprFunctionName(ExprFunctionName exprFunctionName, TArg arg);
 
-        TRes VisitExprRowValue(ExprRowValue rowValue);
+        TRes VisitExprRowValue(ExprRowValue rowValue, TArg arg);
 
-        TRes VisitExprTableValueConstructor(ExprTableValueConstructor tableValueConstructor);
+        TRes VisitExprTableValueConstructor(ExprTableValueConstructor tableValueConstructor, TArg arg);
 
-        TRes VisitExprDerivedTableQuery(ExprDerivedTableQuery exprDerivedTableQuery);
+        TRes VisitExprDerivedTableQuery(ExprDerivedTableQuery exprDerivedTableQuery, TArg arg);
 
-        TRes VisitDerivedTableValues(ExprDerivedTableValues derivedTableValues);
+        TRes VisitExprDerivedTableValues(ExprDerivedTableValues derivedTableValues, TArg arg);
 
-        TRes VisitExprColumnSetClause(ExprColumnSetClause columnSetClause);
+        TRes VisitExprColumnSetClause(ExprColumnSetClause columnSetClause, TArg arg);
 
         //Merge
-        TRes VisitExprMerge(ExprMerge merge);
+        TRes VisitExprMerge(ExprMerge merge, TArg arg);
 
-        TRes VisitExprMergeOutput(ExprMergeOutput mergeOutput);
+        TRes VisitExprMergeOutput(ExprMergeOutput mergeOutput, TArg arg);
 
-        TRes VisitExprMergeMatchedUpdate(ExprMergeMatchedUpdate mergeMatchedUpdate);
+        TRes VisitExprMergeMatchedUpdate(ExprMergeMatchedUpdate mergeMatchedUpdate, TArg arg);
 
-        TRes VisitExprMergeMatchedDelete(ExprMergeMatchedDelete mergeMatchedDelete);
+        TRes VisitExprMergeMatchedDelete(ExprMergeMatchedDelete mergeMatchedDelete, TArg arg);
 
-        TRes VisitExprExprMergeNotMatchedInsert(ExprExprMergeNotMatchedInsert exprMergeNotMatchedInsert);
+        TRes VisitExprExprMergeNotMatchedInsert(ExprExprMergeNotMatchedInsert exprMergeNotMatchedInsert, TArg arg);
 
-        TRes VisitExprExprMergeNotMatchedInsertDefault(ExprExprMergeNotMatchedInsertDefault exprExprMergeNotMatchedInsertDefault);
+        TRes VisitExprExprMergeNotMatchedInsertDefault(ExprExprMergeNotMatchedInsertDefault exprExprMergeNotMatchedInsertDefault, TArg arg);
 
         //Insert
-        TRes VisitExprInsert(ExprInsert exprInsert);
+        TRes VisitExprInsert(ExprInsert exprInsert, TArg arg);
 
-        TRes VisitExprInsertOutput(ExprInsertOutput exprInsertOutput);
+        TRes VisitExprInsertOutput(ExprInsertOutput exprInsertOutput, TArg arg);
 
-        TRes VisitExprInsertValues(ExprInsertValues exprInsertValues);
+        TRes VisitExprInsertValues(ExprInsertValues exprInsertValues, TArg arg);
 
-        TRes VisitExprInsertQuery(ExprInsertQuery exprInsertQuery);
+        TRes VisitExprInsertQuery(ExprInsertQuery exprInsertQuery, TArg arg);
 
         //Update
-        TRes VisitExprUpdate(ExprUpdate exprUpdate);
+        TRes VisitExprUpdate(ExprUpdate exprUpdate, TArg arg);
 
         //Delete
-        TRes VisitExprDelete(ExprDelete exprDelete);
+        TRes VisitExprDelete(ExprDelete exprDelete, TArg arg);
 
-        TRes VisitExprDeleteOutput(ExprDeleteOutput exprDeleteOutput);
+        TRes VisitExprDeleteOutput(ExprDeleteOutput exprDeleteOutput, TArg arg);
 
         //Types
-        TRes VisitExprCast(ExprCast exprCast);
+        TRes VisitExprCast(ExprCast exprCast, TArg arg);
 
-        TRes VisitExprTypeBoolean(ExprTypeBoolean exprTypeBoolean);
+        TRes VisitExprTypeBoolean(ExprTypeBoolean exprTypeBoolean, TArg arg);
 
-        TRes VisitExprTypeByte(ExprTypeByte exprTypeByte);
+        TRes VisitExprTypeByte(ExprTypeByte exprTypeByte, TArg arg);
 
-        TRes VisitExprTypeInt16(ExprTypeInt16 exprTypeInt16);
+        TRes VisitExprTypeInt16(ExprTypeInt16 exprTypeInt16, TArg arg);
 
-        TRes VisitExprTypeInt32(ExprTypeInt32 exprTypeInt32);
+        TRes VisitExprTypeInt32(ExprTypeInt32 exprTypeInt32, TArg arg);
 
-        TRes VisitExprTypeInt64(ExprTypeInt64 exprTypeInt64);
+        TRes VisitExprTypeInt64(ExprTypeInt64 exprTypeInt64, TArg arg);
 
-        TRes VisitExprTypeDecimal(ExprTypeDecimal exprTypeDecimal);
+        TRes VisitExprTypeDecimal(ExprTypeDecimal exprTypeDecimal, TArg arg);
 
-        TRes VisitExprTypeDouble(ExprTypeDouble exprTypeDouble);
+        TRes VisitExprTypeDouble(ExprTypeDouble exprTypeDouble, TArg arg);
 
-        TRes VisitExprTypeDateTime(ExprTypeDateTime exprTypeDateTime);
+        TRes VisitExprTypeDateTime(ExprTypeDateTime exprTypeDateTime, TArg arg);
 
-        TRes VisitExprTypeGuid(ExprTypeGuid exprTypeGuid);
+        TRes VisitExprTypeGuid(ExprTypeGuid exprTypeGuid, TArg arg);
 
-        TRes VisitExprTypeString(ExprTypeString exprTypeString);
+        TRes VisitExprTypeString(ExprTypeString exprTypeString, TArg arg);
 
-        TRes VisitExprFuncIsNull(ExprFuncIsNull exprFuncIsNull);
+        TRes VisitExprFuncIsNull(ExprFuncIsNull exprFuncIsNull, TArg arg);
 
-        TRes VisitExprFuncCoalesce(ExprFuncCoalesce exprFuncCoalesce);
+        TRes VisitExprFuncCoalesce(ExprFuncCoalesce exprFuncCoalesce, TArg arg);
 
-        TRes VisitExprFuncGetDate(ExprGetDate exprGetDate);
+        TRes VisitExprGetDate(ExprGetDate exprGetDate, TArg arg);
 
-        TRes VisitExprFuncGetUtcDate(ExprGetUtcDate exprGetUtcDate);
+        TRes VisitExprGetUtcDate(ExprGetUtcDate exprGetUtcDate, TArg arg);
     }
 }

@@ -14,7 +14,7 @@ namespace SqExpress.Syntax.Boolean.Predicate
 
         public override ExprValue Right { get; }
 
-        public override TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprBooleanEq(this);
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprBooleanEq(this, arg);
     }
 }

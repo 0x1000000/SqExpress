@@ -22,8 +22,8 @@ namespace SqExpress.Syntax.Update
 
         public ExprBoolean? Filter { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprDelete(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprDelete(this, arg);
     }
 
     public class ExprDeleteOutput : IExprQuery
@@ -38,8 +38,8 @@ namespace SqExpress.Syntax.Update
 
         public IReadOnlyList<ExprAliasedColumn> OutputColumns { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprDeleteOutput(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprDeleteOutput(this, arg);
 
         public IReadOnlyList<string?> GetOutputColumnNames()
         {

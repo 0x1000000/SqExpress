@@ -1,9 +1,9 @@
-﻿using SqExpress.SqlExport.Statement.Internal;
+﻿using SqExpress.SqlExport.Internal;
 using SqExpress.StatementSyntax;
 
-namespace SqExpress.SqlExport.Statement
+namespace SqExpress.SqlExport.Statement.Internal
 {
-    public class TSqlStatementBuilder : SqlStatementBuilderBase, IStatementVisitor
+    internal class TSqlStatementBuilder : SqlStatementBuilderBase, IStatementVisitor
     {
         private readonly TSqlBuilder _exprBuilder;
 
@@ -19,10 +19,10 @@ namespace SqExpress.SqlExport.Statement
 
         protected override void AppendColumn(TableColumn column)
         {
-            column.ColumnName.Accept(this.ExprBuilder);
+            column.ColumnName.Accept(this.ExprBuilder, null);
             this.Builder.Append(' ');
 
-            column.SqlType.Accept(this.ExprBuilder);
+            column.SqlType.Accept(this.ExprBuilder, null);
 
             if (!column.IsNullable)
             {
@@ -43,18 +43,21 @@ namespace SqExpress.SqlExport.Statement
             if (!statementDropTable.IfExists)
             {
                 this.Builder.Append("DROP TABLE ");
-                statementDropTable.Table.FullName.Accept(this.ExprBuilder);
+                statementDropTable.Table.FullName.Accept(this.ExprBuilder, null);
             }
             else
             {
-                new StatementIfTableExists(statementDropTable.Table, StatementList.Combine(new StatementDropTable(statementDropTable.Table, false)), null).Accept(this);
+                new StatementIfTableExists(
+                    statementDropTable.Table, 
+                    StatementList.Combine(new StatementDropTable(statementDropTable.Table, false)), null)
+                .Accept(this);
             }
         }
 
         public void VisitIf(StatementIf statementIf)
         {
             this.Builder.Append("IF ");
-            statementIf.Condition.Accept(this.ExprBuilder);
+            statementIf.Condition.Accept(this.ExprBuilder, null);
 
             bool ifBlock = statementIf.Statements.Count() > 1;
             if (ifBlock)

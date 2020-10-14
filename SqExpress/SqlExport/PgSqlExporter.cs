@@ -1,4 +1,6 @@
-﻿using SqExpress.SqlExport.Statement;
+﻿using SqExpress.SqlExport.Internal;
+using SqExpress.SqlExport.Statement;
+using SqExpress.SqlExport.Statement.Internal;
 using SqExpress.StatementSyntax;
 using SqExpress.Syntax;
 
@@ -18,7 +20,7 @@ namespace SqExpress.SqlExport
         public string ToSql(IExpr expr)
         {
             var sqlExporter = new PgSqlBuilder(this._builderOptions);
-            if (expr.Accept(sqlExporter))
+            if (expr.Accept(sqlExporter, null))
             {
                 return sqlExporter.ToString();
             }

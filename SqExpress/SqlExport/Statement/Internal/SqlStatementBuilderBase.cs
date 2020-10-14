@@ -1,12 +1,12 @@
 ﻿using System.Text;
-using SqExpress.SqlExport.Statement.Internal;
+using SqExpress.SqlExport.Internal;
 using SqExpress.StatementSyntax;
 using SqExpress.Syntax.Names;
 using SqExpress.Utils;
 
-namespace SqExpress.SqlExport.Statement
+namespace SqExpress.SqlExport.Statement.Internal
 {
-    public abstract class SqlStatementBuilderBase
+    internal abstract class SqlStatementBuilderBase
     {
         protected readonly StringBuilder Builder = new StringBuilder();
 
@@ -25,7 +25,7 @@ namespace SqExpress.SqlExport.Statement
         {
             var table = statementCreateTable.Table;
             this.Builder.Append("CREATE TABLE ");
-            statementCreateTable.Table.FullName.Accept(this.ExprBuilder);
+            statementCreateTable.Table.FullName.Accept(this.ExprBuilder, null);
             this.Builder.Append('(');
 
             ColumnAnalysis analysis = ColumnAnalysis.Build();
@@ -64,7 +64,7 @@ namespace SqExpress.SqlExport.Statement
             this.AppendName(this.BuildPkName(table.FullName));
 
             this.Builder.Append(" PRIMARY KEY ");
-            this.ExprBuilder.AcceptListComaSeparatedPar('(', analysis.Pk, ')');
+            this.ExprBuilder.AcceptListComaSeparatedPar('(', analysis.Pk, ')', null);
         }
 
         private void AppendFkConstraints(TableBase table, ColumnAnalysis analysis)
@@ -78,11 +78,11 @@ namespace SqExpress.SqlExport.Statement
                 this.AppendName(this.BuildFkName(table.FullName, foreignTable));
 
                 this.Builder.Append(" FOREIGN KEY ");
-                this.ExprBuilder.AcceptListComaSeparatedPar('(', pairList.SelectToReadOnlyList(i => i.Internal), ')');
+                this.ExprBuilder.AcceptListComaSeparatedPar('(', pairList.SelectToReadOnlyList(i => i.Internal), ')', null);
 
                 this.Builder.Append(" REFERENCES ");
-                foreignTable.Accept(this.ExprBuilder);
-                this.ExprBuilder.AcceptListComaSeparatedPar('(', pairList.SelectToReadOnlyList(i => i.External), ')');
+                foreignTable.Accept(this.ExprBuilder, null);
+                this.ExprBuilder.AcceptListComaSeparatedPar('(', pairList.SelectToReadOnlyList(i => i.External), ')', null);
             }
         }
 

@@ -23,7 +23,7 @@ namespace SqExpress.Syntax.Update
 
         public ExprBoolean? Filter { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprUpdate(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprUpdate(this, arg);
     }
 }

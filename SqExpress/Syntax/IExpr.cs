@@ -2,6 +2,6 @@
 {
     public interface IExpr
     {
-        TRes Accept<TRes>(IExprVisitor<TRes> visitor);
+        TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg);
     }
 }

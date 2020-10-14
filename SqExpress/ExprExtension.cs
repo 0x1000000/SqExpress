@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using SqExpress.DataAccess;
 using SqExpress.QueryBuilders;
+using SqExpress.Syntax;
+using SqExpress.SyntaxExplorer;
 
 namespace SqExpress
 {
@@ -31,5 +33,25 @@ namespace SqExpress
 
         public static Task Exec(this IExprExecFinal query, ISqDatabase database)
             => database.Exec(query.Done());
+
+        public static SyntaxTreeActions SyntaxTree(this IExpr expr)
+        {
+            return new SyntaxTreeActions(expr);
+        }
+
+        public readonly struct SyntaxTreeActions
+        {
+            private readonly IExpr _expr;
+
+            internal SyntaxTreeActions(IExpr expr)
+            {
+                this._expr = expr;
+            }
+
+            public void WalkThrough<TCtx>(Func<IExpr, TCtx, VisitorResult<TCtx>> walker, TCtx context)
+            {
+                this._expr.Accept(new ExprWalker<TCtx>(walker), context);
+            }
+        }
     }
 }

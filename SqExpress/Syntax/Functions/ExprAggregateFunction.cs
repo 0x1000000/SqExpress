@@ -19,8 +19,7 @@ namespace SqExpress.Syntax.Functions
 
         public ExprValue Expression { get; }
 
-
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprAggregateFunction(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprAggregateFunction(this, arg);
     }
 }

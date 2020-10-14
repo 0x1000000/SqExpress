@@ -14,7 +14,7 @@ namespace SqExpress.Syntax.Expressions
 
         public ExprValue Right { get; }
 
-        public override TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprMul(this);
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprMul(this, arg);
     }
 }

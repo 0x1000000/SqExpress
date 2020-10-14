@@ -16,8 +16,8 @@ namespace SqExpress.Syntax.Functions
 
         public ExprValue DefaultValue { get; }
 
-        public override TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprCase(this);
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprCase(this, arg);
     }
 
     public class ExprCaseWhenThen : ExprValue
@@ -32,7 +32,7 @@ namespace SqExpress.Syntax.Functions
 
         public ExprValue Value { get; }
 
-        public override TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprCaseWhenThen(this);
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprCaseWhenThen(this, arg);
     }
 }

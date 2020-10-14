@@ -14,8 +14,8 @@ namespace SqExpress.Syntax.Select
 
         public ExprOrderBy OrderBy { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprSelect(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprSelect(this, arg);
 
         public IReadOnlyList<string?> GetOutputColumnNames() => this.SelectQuery.GetOutputColumnNames();
     }

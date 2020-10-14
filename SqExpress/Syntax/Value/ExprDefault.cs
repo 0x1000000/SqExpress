@@ -6,7 +6,7 @@
 
         private ExprDefault() { }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprDefault(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprDefault(this, arg);
     }
 }

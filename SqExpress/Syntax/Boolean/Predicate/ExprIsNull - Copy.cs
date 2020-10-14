@@ -14,7 +14,7 @@ namespace SqExpress.Syntax.Boolean.Predicate
 
         public ExprStringLiteral Pattern { get; }
 
-        public override TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprLike(this);
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprLike(this, arg);
     }
 }

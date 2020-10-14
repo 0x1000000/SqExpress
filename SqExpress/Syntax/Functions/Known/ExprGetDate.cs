@@ -8,7 +8,7 @@ namespace SqExpress.Syntax.Functions.Known
 
         private ExprGetDate() { }
 
-        public override TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprFuncGetDate(this);
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprGetDate(this, arg);
     }
 }
