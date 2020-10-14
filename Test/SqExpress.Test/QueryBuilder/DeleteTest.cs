@@ -1,5 +1,4 @@
-﻿using System;
-using NUnit.Framework;
+﻿using NUnit.Framework;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.Test.QueryBuilder
@@ -38,19 +37,19 @@ namespace SqExpress.Test.QueryBuilder
 
             var actual = Delete(tUser)
                 .From(tUser)
-                .InnerJoin(tCustomer, @on: tCustomer.UserId == tUser.UserId)
+                .InnerJoin(tCustomer, on: tCustomer.UserId == tUser.UserId)
                 .All()
                 .ToSql();
             var expected =
                 "DELETE [A0] FROM [dbo].[user] [A0] JOIN [dbo].[Customer] [A1] ON [A1].[UserId]=[A0].[UserId]";
             Assert.AreEqual(expected, actual);
 
-            actual = Delete(tUser).From(tUser).LeftJoin(tCustomer, @on: tCustomer.UserId == tUser.UserId).All().ToSql();
+            actual = Delete(tUser).From(tUser).LeftJoin(tCustomer, on: tCustomer.UserId == tUser.UserId).All().ToSql();
             expected =
                 "DELETE [A0] FROM [dbo].[user] [A0] LEFT JOIN [dbo].[Customer] [A1] ON [A1].[UserId]=[A0].[UserId]";
             Assert.AreEqual(expected, actual);
 
-            actual = Delete(tUser).From(tUser).FullJoin(tCustomer, @on: tCustomer.UserId == tUser.UserId).All().ToSql();
+            actual = Delete(tUser).From(tUser).FullJoin(tCustomer, on: tCustomer.UserId == tUser.UserId).All().ToSql();
             expected =
                 "DELETE [A0] FROM [dbo].[user] [A0] FULL JOIN [dbo].[Customer] [A1] ON [A1].[UserId]=[A0].[UserId]";
             Assert.AreEqual(expected, actual);
@@ -62,22 +61,26 @@ namespace SqExpress.Test.QueryBuilder
             var tUser2 = Tables.User();
             actual = Delete(tUser)
                 .From(tUser)
-                .InnerJoin(tCustomer, @on: tCustomer.UserId == tUser.UserId)
-                .InnerJoin(tUser2, @on: tUser.UserId == tUser2.UserId)
+                .InnerJoin(tCustomer, on: tCustomer.UserId == tUser.UserId)
+                .InnerJoin(tUser2, on: tUser.UserId == tUser2.UserId)
                 .All()
                 .ToSql();
+
             expected =
                 "DELETE [A0] FROM [dbo].[user] [A0] JOIN [dbo].[Customer] [A1] ON [A1].[UserId]=[A0].[UserId] JOIN [dbo].[user] [A2] ON [A0].[UserId]=[A2].[UserId]";
+
             Assert.AreEqual(expected, actual);
 
             //Join Where
             actual = Delete(tUser)
                 .From(tUser)
-                .InnerJoin(tCustomer, @on: tCustomer.UserId == tUser.UserId)
+                .InnerJoin(tCustomer, on: tCustomer.UserId == tUser.UserId)
                 .Where(tUser.UserId.In(7))
                 .ToSql();
+
             expected =
                 "DELETE [A0] FROM [dbo].[user] [A0] JOIN [dbo].[Customer] [A1] ON [A1].[UserId]=[A0].[UserId] WHERE [A0].[UserId] IN(7)";
+
             Assert.AreEqual(expected, actual);
         }
 
@@ -108,7 +111,25 @@ namespace SqExpress.Test.QueryBuilder
                 Delete(tUser).From(tUser).All().Output(tUser.UserId).ToPgSql());
 
             Assert.AreEqual("DELETE FROM \"public\".\"user\" \"A0\" USING \"public\".\"Customer\" \"A1\" WHERE \"A1\".\"UserId\"=\"A0\".\"UserId\" RETURNING \"A0\".\"UserId\"",
-                Delete(tUser).From(tUser).InnerJoin(tCustomer, @on: tCustomer.UserId == tUser.UserId).All().Output(tUser.UserId).ToPgSql());
+                Delete(tUser).From(tUser).InnerJoin(tCustomer, on: tCustomer.UserId == tUser.UserId).All().Output(tUser.UserId).ToPgSql());
+        }
+
+        [Test]
+        public void Delete_NullWhere()
+        {
+            var tUser = Tables.User();
+            var tCustomer = Tables.Customer();
+
+            var expr = Delete(tUser)
+                .From(tUser)
+                .InnerJoin(tCustomer, on: tCustomer.UserId == tUser.UserId)
+                .Where(null);
+
+            var actualTSql = expr.ToSql();
+            var actualPgSql = expr.ToPgSql();
+
+            Assert.AreEqual("DELETE [A0] FROM [dbo].[user] [A0] JOIN [dbo].[Customer] [A1] ON [A1].[UserId]=[A0].[UserId]", actualTSql);
+            Assert.AreEqual("DELETE FROM \"public\".\"user\" \"A0\" USING \"public\".\"Customer\" \"A1\" WHERE \"A1\".\"UserId\"=\"A0\".\"UserId\"", actualPgSql);
         }
     }
 }

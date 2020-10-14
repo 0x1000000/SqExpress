@@ -569,9 +569,9 @@ namespace SqExpress.Test.Meta
 
         public Int16TableColumn ColInt16 { get; set; }
 
-        public NullableByteTableColumn? ColNullableByte { get; set; }
+        public NullableByteTableColumn ColNullableByte { get; set; }
 
-        public ByteTableColumn? ColByte { get; set; }
+        public ByteTableColumn ColByte { get; set; }
 
         public NullableBooleanTableColumn ColNullableBoolean { get; set; }
 

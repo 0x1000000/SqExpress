@@ -64,7 +64,7 @@ namespace SqExpress.QueryBuilders.Select.Internal
             return this;
         }
 
-        public IQuerySpecificationBuilderFiltered Where(ExprBoolean where)
+        public IQuerySpecificationBuilderFiltered Where(ExprBoolean? where)
         {
             this._where.AssertFatalNull(nameof(this._where));
             this._where = where;
