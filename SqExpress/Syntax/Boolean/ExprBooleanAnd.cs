@@ -12,7 +12,7 @@
 
         public ExprBoolean Right { get; }
 
-        public override TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprBooleanAnd(this);
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprBooleanAnd(this, arg);
     }
 }

@@ -7,7 +7,7 @@ namespace SqExpress.Syntax.Value
 {
     public abstract class ExprValue : IExprSelecting, IExprAssigning
     {
-        public abstract TRes Accept<TRes>(IExprVisitor<TRes> visitor);
+        public abstract TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg);
 
         public bool Equals(ExprValue? other) 
             => base.Equals(other);

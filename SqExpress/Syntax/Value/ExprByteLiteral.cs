@@ -9,8 +9,8 @@
             this.Value = value;
         }
 
-        public override TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprByteLiteral(this);
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprByteLiteral(this, arg);
 
         public static implicit operator ExprByteLiteral(byte value)
             => new ExprByteLiteral(value);

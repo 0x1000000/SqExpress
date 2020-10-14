@@ -14,8 +14,8 @@ namespace SqExpress.Syntax.Select
 
         public ExprOrderByOffsetFetch OrderBy { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprSelectOffsetFetch(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprSelectOffsetFetch(this, arg);
 
         public IReadOnlyList<string?> GetOutputColumnNames() => this.SelectQuery.GetOutputColumnNames();
     }

@@ -12,8 +12,8 @@
 
         public string LowerInvariantName { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprColumnAlias(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprColumnAlias(this, arg);
 
         public static implicit operator ExprColumnAlias(string name)=> new ExprColumnAlias(name);
 

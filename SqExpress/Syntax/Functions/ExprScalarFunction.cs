@@ -19,7 +19,7 @@ namespace SqExpress.Syntax.Functions
 
         public IReadOnlyList<ExprValue> Arguments { get; }
 
-        public override TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprScalarFunction(this);
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprScalarFunction(this, arg);
     }
 }

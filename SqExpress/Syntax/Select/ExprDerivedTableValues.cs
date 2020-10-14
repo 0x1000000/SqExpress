@@ -13,7 +13,7 @@ namespace SqExpress.Syntax.Select
 
         public ExprTableAlias Alias { get; }
 
-        public abstract TRes Accept<TRes>(IExprVisitor<TRes> visitor);
+        public abstract TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg);
 
         public (IReadOnlyList<IExprTableSource> Tables, ExprBoolean? On) ToTableMultiplication()
         {
@@ -33,8 +33,8 @@ namespace SqExpress.Syntax.Select
 
         public IReadOnlyList<ExprColumnName> Columns { get; }
 
-        public override TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitDerivedTableValues(this);
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprDerivedTableValues(this, arg);
     }
 
     public class ExprDerivedTableQuery : ExprDerivedTable
@@ -50,7 +50,7 @@ namespace SqExpress.Syntax.Select
         public IReadOnlyList<ExprColumnName>? Columns { get; }
 
 
-        public override TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprDerivedTableQuery(this);
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprDerivedTableQuery(this, arg);
     }
 }

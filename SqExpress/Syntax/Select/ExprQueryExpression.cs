@@ -17,8 +17,8 @@ namespace SqExpress.Syntax.Select
 
         public ExprQueryExpressionType QueryExpressionType { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprQueryExpression(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprQueryExpression(this, arg);
 
         public IReadOnlyList<string?> GetOutputColumnNames() => this.Left.GetOutputColumnNames();
     }

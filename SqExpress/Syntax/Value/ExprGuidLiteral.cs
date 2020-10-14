@@ -11,8 +11,8 @@ namespace SqExpress.Syntax.Value
             this.Value = value;
         }
 
-        public override TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprGuidLiteral(this);
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprGuidLiteral(this, arg);
 
         public static implicit operator ExprGuidLiteral(Guid value)
             => new ExprGuidLiteral(value);

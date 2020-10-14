@@ -14,8 +14,8 @@ namespace SqExpress.Syntax.Names
 
         public ExprTableName TableName { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprTableFullName(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprTableFullName(this, arg);
 
         public bool Equals(ExprTableFullName? other)
         {

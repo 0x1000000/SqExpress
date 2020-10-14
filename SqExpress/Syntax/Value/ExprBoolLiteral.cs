@@ -9,8 +9,8 @@
             this.Value = value;
         }
 
-        public override TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprBoolLiteral(this);
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprBoolLiteral(this, arg);
 
         public static implicit operator ExprBoolLiteral(bool value)
             => new ExprBoolLiteral(value);

@@ -7,18 +7,13 @@ namespace SqExpress.Test
     {
         public static string ToSql(this IExpr expr)
         {
-            var exporter = new TSqlBuilder();
-            expr.Accept(exporter);
-
-            return exporter.ToString();
+            return TSqlExporter.Default.ToSql(expr);
         }
 
         public static string ToPgSql(this IExpr expr)
         {
-            var exporter = new PgSqlBuilder(SqlBuilderOptions.Default.WithSchemaMap(new []{new SchemaMap("dbo", "public") }) );
-            expr.Accept(exporter);
-
-            return exporter.ToString();
+            return new PgSqlExporter(SqlBuilderOptions.Default.WithSchemaMap(new[] {new SchemaMap("dbo", "public")}))
+                .ToSql(expr);
         }
     }
 }

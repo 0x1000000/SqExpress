@@ -21,8 +21,8 @@ namespace SqExpress.Syntax.Update
 
         public IExprInsertSource Source { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprInsert(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprInsert(this, arg);
     }
 
     public class ExprInsertOutput : IExprQuery
@@ -37,8 +37,8 @@ namespace SqExpress.Syntax.Update
 
         public IReadOnlyList<ExprAliasedColumnName> OutputColumns { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprInsertOutput(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprInsertOutput(this, arg);
 
         public IReadOnlyList<string?> GetOutputColumnNames() 
             => this.OutputColumns.SelectToReadOnlyList(i => ((IExprNamedSelecting)i).OutputName);
@@ -59,8 +59,8 @@ namespace SqExpress.Syntax.Update
 
         public ExprTableValueConstructor Values { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprInsertValues(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprInsertValues(this, arg);
 
     }
 
@@ -73,7 +73,7 @@ namespace SqExpress.Syntax.Update
 
         public IExprQuery Query { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprInsertQuery(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprInsertQuery(this, arg);
     }
 }

@@ -13,8 +13,8 @@ namespace SqExpress.Syntax.Select
 
         public IReadOnlyList<ExprOrderByItem> OrderList { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprOrderBy(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprOrderBy(this, arg);
     }
 
     public class ExprOrderByOffsetFetch : IExpr
@@ -29,8 +29,8 @@ namespace SqExpress.Syntax.Select
 
         public ExprOffsetFetch OffsetFetch { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprOrderByOffsetFetch(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprOrderByOffsetFetch(this, arg);
     }
 
     public class ExprOrderByItem : IExpr
@@ -45,8 +45,8 @@ namespace SqExpress.Syntax.Select
 
         public bool Descendant { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprOrderByItem(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprOrderByItem(this, arg);
 
         public static implicit operator ExprOrderByItem(ExprColumn column)=> new ExprOrderByItem(column, false);
     }
@@ -63,7 +63,7 @@ namespace SqExpress.Syntax.Select
 
         public ExprInt32Literal? Fetch { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprOffsetFetch(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprOffsetFetch(this, arg);
     }
 }

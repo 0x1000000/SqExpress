@@ -14,8 +14,8 @@ namespace SqExpress.Syntax.Expressions
 
         public ExprValue Right { get; }
 
-        public override TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprSum(this);
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprSum(this, arg);
     }
 
     public class ExprStringConcat : ExprValue
@@ -30,8 +30,8 @@ namespace SqExpress.Syntax.Expressions
 
         public ExprValue Right { get; }
 
-        public override TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprStringConcat(this);
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprStringConcat(this, arg);
 
         public static ExprStringConcat operator +(ExprValue a, ExprStringConcat b)
             => new ExprStringConcat(a, b);

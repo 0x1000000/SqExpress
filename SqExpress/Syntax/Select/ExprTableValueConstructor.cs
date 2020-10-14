@@ -4,14 +4,14 @@ namespace SqExpress.Syntax.Select
 {
     public class ExprTableValueConstructor : IExpr
     {
-        public ExprTableValueConstructor(IEnumerable<ExprRowValue> items)
+        public ExprTableValueConstructor(IReadOnlyList<ExprRowValue> items)
         {
             this.Items = items;
         }
 
-        public IEnumerable<ExprRowValue> Items { get; }
+        public IReadOnlyList<ExprRowValue> Items { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprTableValueConstructor(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprTableValueConstructor(this, arg);
     }
 }

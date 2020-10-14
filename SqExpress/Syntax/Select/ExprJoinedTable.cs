@@ -22,8 +22,8 @@ namespace SqExpress.Syntax.Select
 
         public ExprBoolean SearchCondition { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprJoinedTable(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprJoinedTable(this, arg);
 
         public (IReadOnlyList<IExprTableSource> Tables, ExprBoolean? On) ToTableMultiplication()
         {

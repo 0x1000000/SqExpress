@@ -30,11 +30,11 @@ namespace SqExpress
 
         protected abstract IExprSubQuery CreateQuery();
 
-        public override TRes Accept<TRes>(IExprVisitor<TRes> visitor)
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
         {
             this._table ??=
                 new ExprDerivedTableQuery(this.CreateQuery(), this.Alias, this.Columns.SelectToReadOnlyList(i => i.ColumnName));
-            return this._table.Accept(visitor);
+            return this._table.Accept(visitor, arg);
         }
 
         internal T RegisterColumn<T>(T otherColumn) where T: ExprColumn

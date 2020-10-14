@@ -2,7 +2,7 @@
 {
     public abstract class ExprBoolean : IExpr
     {
-        public abstract TRes Accept<TRes>(IExprVisitor<TRes> visitor);
+        public abstract TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg);
 
         public static ExprBoolean operator |(ExprBoolean? a, ExprBoolean b) => a == null ? b : new ExprBooleanOr(a, b);
 

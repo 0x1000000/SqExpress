@@ -14,7 +14,7 @@ namespace SqExpress.Syntax.Update
         {
             this.TargetTable = targetTable;
             this.Source = source;
-            this.On = @on;
+            this.On = on;
             this.WhenMatched = whenMatched;
             this.WhenNotMatchedByTarget = whenNotMatchedByTarget;
             this.WhenNotMatchedBySource = whenNotMatchedBySource;
@@ -32,8 +32,8 @@ namespace SqExpress.Syntax.Update
 
         public IExprMergeMatched? WhenNotMatchedBySource { get; }
 
-        public virtual TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprMerge(this);
+        public virtual TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprMerge(this, arg);
     }
 
     public class ExprMergeOutput : ExprMerge, IExprQuery
@@ -47,8 +47,8 @@ namespace SqExpress.Syntax.Update
 
         public ExprOutput Output { get; }
 
-        public override TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprMergeOutput(this);
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprMergeOutput(this, arg);
 
         public IReadOnlyList<string?> GetOutputColumnNames()
         {
@@ -72,8 +72,8 @@ namespace SqExpress.Syntax.Update
 
         public IReadOnlyList<ExprColumnSetClause> Set { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprMergeMatchedUpdate(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprMergeMatchedUpdate(this, arg);
     }
 
     public class ExprMergeMatchedDelete : IExprMergeMatched
@@ -85,8 +85,8 @@ namespace SqExpress.Syntax.Update
 
         public ExprBoolean? And { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprMergeMatchedDelete(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprMergeMatchedDelete(this, arg);
     }
 
 
@@ -110,8 +110,8 @@ namespace SqExpress.Syntax.Update
 
         public IReadOnlyList<IExprAssigning> Values { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprExprMergeNotMatchedInsert(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprExprMergeNotMatchedInsert(this, arg);
 
     }
 
@@ -124,8 +124,8 @@ namespace SqExpress.Syntax.Update
 
         public ExprBoolean? And { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprExprMergeNotMatchedInsertDefault(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprExprMergeNotMatchedInsertDefault(this, arg);
     }
 
 }

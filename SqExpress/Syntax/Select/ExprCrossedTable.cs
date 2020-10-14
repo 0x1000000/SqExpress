@@ -16,8 +16,8 @@ namespace SqExpress.Syntax.Select
 
         public IExprTableSource Right { get; }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprCrossedTable(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprCrossedTable(this, arg);
 
         public (IReadOnlyList<IExprTableSource> Tables, ExprBoolean? On) ToTableMultiplication()
         {

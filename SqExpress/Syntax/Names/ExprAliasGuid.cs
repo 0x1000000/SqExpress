@@ -11,8 +11,8 @@ namespace SqExpress.Syntax.Names
             this.Id = id;
         }
 
-        public TRes Accept<TRes>(IExprVisitor<TRes> visitor)
-            => visitor.VisitExprAliasGuid(this);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprAliasGuid(this, arg);
 
         public bool Equals(ExprAliasGuid? other)
         {

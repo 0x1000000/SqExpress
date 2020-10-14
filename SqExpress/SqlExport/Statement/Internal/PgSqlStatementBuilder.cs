@@ -1,10 +1,11 @@
 ﻿using System;
+using SqExpress.SqlExport.Internal;
 using SqExpress.StatementSyntax;
 using SqExpress.Utils;
 
-namespace SqExpress.SqlExport.Statement
+namespace SqExpress.SqlExport.Statement.Internal
 {
-    public class PgSqlStatementBuilder : SqlStatementBuilderBase, IStatementVisitor
+    internal class PgSqlStatementBuilder : SqlStatementBuilderBase, IStatementVisitor
     {
         private readonly PgSqlBuilder _exprBuilder;
 
@@ -22,11 +23,11 @@ namespace SqExpress.SqlExport.Statement
 
         protected override void AppendColumn(TableColumn column)
         {
-            column.ColumnName.Accept(this.ExprBuilder);
+            column.ColumnName.Accept(this.ExprBuilder, null);
             this.Builder.Append(' ');
 
 
-            column.SqlType.Accept(this.ExprBuilder);
+            column.SqlType.Accept(this.ExprBuilder, null);
 
             if (!column.IsNullable)
             {
@@ -49,7 +50,7 @@ namespace SqExpress.SqlExport.Statement
             {
                 this.Builder.Append("IF EXISTS ");
             }
-            statementDropTable.Table.FullName.Accept(this.ExprBuilder);
+            statementDropTable.Table.FullName.Accept(this.ExprBuilder, null);
             this.Builder.Append(';');
         }
 
