@@ -28,7 +28,7 @@ It can be used together with the “Code First” concept when you declare SQL t
 
 Add a reference to the library: 
 ```
-Install-Package SqExpress -Version 0.0.2
+Install-Package SqExpress -Version 0.0.3.1
 ```
 and start with "Hello World":
 ```cs
