@@ -52,6 +52,26 @@ namespace SqExpress
             {
                 this._expr.Accept(new ExprWalker<TCtx>(walker), context);
             }
+
+            public TExpr? FirstOrDefault<TExpr>(Predicate<TExpr> filter) where TExpr : class, IExpr
+            {
+                TExpr? result = null;
+                this._expr.Accept(new ExprWalker<object?>((e, c) =>
+                {
+                    if (e is TExpr te && filter.Invoke(te))
+                    {
+                        result = te;
+                        return VisitorResult<object?>.Stop(c);
+                    }
+                    return VisitorResult<object?>.Continue(c);
+                }), null);
+                return result;
+            }
+
+            public IExpr? Modify(Func<IExpr, IExpr?> modifier)
+            {
+                return this._expr.Accept(ExprModifier.Instance, modifier);
+            }
         }
     }
 }
