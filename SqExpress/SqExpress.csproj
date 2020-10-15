@@ -10,7 +10,9 @@
     <Version>0.0.4.0-alpha</Version>
     <Summary>SqExpress is a sql query builder which allows creating SQL expression directly in C# code with strong typing and intellisense.</Summary>
     <PackageReleaseNotes>-	“Where” now accepts nulls
--	SyntaxTree().WalkThrough()
+-	expr.SyntaxTree().WalkThrough()
+-	expr.SyntaxTree().Find()
+-	expr.SyntaxTree().Modify
 Braking Changes:
 -	SqlBuilderBase is now internal
 -	IExprVistor changed
