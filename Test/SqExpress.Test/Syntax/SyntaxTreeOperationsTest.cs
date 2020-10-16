@@ -1,17 +1,20 @@
 ﻿using System;
+using System.IO;
 using System.Text;
+using System.Text.Json;
 using NUnit.Framework;
 using SqExpress.Syntax;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Value;
-using SqExpress.SyntaxExplorer;
+using SqExpress.SyntaxTreeOperations;
+using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.Test.Syntax
 {
     [TestFixture]
-    public class SyntaxTreeExploringTest
+    public class SyntaxTreeOperationsTest
     {
         [Test]
         public void WalkThroughTest()
@@ -19,7 +22,7 @@ namespace SqExpress.Test.Syntax
             var tUser = Tables.User();
             var tCustomer = Tables.Customer();
 
-            var e = SqQueryBuilder.Select(tUser.UserId, tUser.FirstName, tCustomer.CustomerId)
+            var e = Select(tUser.UserId, tUser.FirstName, tCustomer.CustomerId)
                 .From(tUser)
                 .InnerJoin(tCustomer, on: tCustomer.UserId == tUser.UserId)
                 .Done();
@@ -53,7 +56,7 @@ namespace SqExpress.Test.Syntax
             var tUser = Tables.User();
             var tCustomer = Tables.Customer();
 
-            var e = SqQueryBuilder.Select(tUser.UserId, tUser.FirstName, tCustomer.CustomerId)
+            var e = Select(tUser.UserId, tUser.FirstName, tCustomer.CustomerId)
                 .From(tUser)
                 .InnerJoin(tCustomer, on: tCustomer.UserId == tUser.UserId)
                 .Where(tUser.Version == 5)
@@ -65,15 +68,13 @@ namespace SqExpress.Test.Syntax
             Assert.AreEqual(tUser.Version.ColumnName, versionCol);
         }
 
-
-
         [Test]
         public void ModifyTest()
         {
             var tUser = Tables.User();
             var tCustomer = Tables.Customer();
 
-            IExpr e = SqQueryBuilder.Select(tUser.UserId, tUser.FirstName, tCustomer.CustomerId)
+            IExpr e = Select(tUser.UserId, tUser.FirstName, tCustomer.CustomerId)
                 .From(tUser)
                 .InnerJoin(tCustomer, on: tCustomer.UserId == tUser.UserId & tUser.Version == 1)
                 .Where(tUser.UserId.In(1))
@@ -107,6 +108,36 @@ namespace SqExpress.Test.Syntax
             Assert.AreEqual("SELECT [A0].[UserNewId],[A0].[FirstName],[A1].[CustomerId] " +
                             "FROM [dbo].[user] [A0] JOIN [dbo].[Customer] [A1] " +
                             "ON [A1].[UserNewId]=[A0].[UserNewId]", e.ToSql());
+        }
+
+
+
+        [Test]
+        public void TestExportImportJson()
+        {
+            var tUser = Tables.User();
+            var tCustomer = Tables.Customer();
+
+            var selectExpr = Select(tUser.UserId, tUser.FirstName, tCustomer.CustomerId, Cast(Literal(12.8m), SqlType.Decimal((10,2))).As("Salary"))
+                .From(tUser)
+                .InnerJoin(tCustomer, on: tCustomer.UserId == tUser.UserId)
+                .Where(tUser.Version == 5)
+                .OrderBy(tUser.FirstName)
+                .OffsetFetch(100, 5)
+                .Done();
+
+            using MemoryStream writer = new MemoryStream();
+            selectExpr
+                .SyntaxTree()
+                .WalkThrough(new JsonWriter(), new Utf8JsonWriter(writer));
+
+            var jsonText = Encoding.UTF8.GetString(writer.ToArray());
+
+            var doc = JsonDocument.Parse(jsonText);
+
+            var deserialized = ExprDeserializer.Deserialize(doc.RootElement, new JsonReader());
+
+            Assert.AreEqual(selectExpr.ToSql(), deserialized.ToSql());
         }
     }
 }

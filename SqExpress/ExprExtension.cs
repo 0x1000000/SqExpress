@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using SqExpress.DataAccess;
 using SqExpress.QueryBuilders;
 using SqExpress.Syntax;
-using SqExpress.SyntaxExplorer;
+using SqExpress.SyntaxTreeOperations;
 
 namespace SqExpress
 {
@@ -48,15 +48,20 @@ namespace SqExpress
                 this._expr = expr;
             }
 
+            public void WalkThrough<TCtx>(IWalkerVisitor<TCtx> walkerVisitor, TCtx context)
+            {
+                this._expr.Accept(new ExprWalker<TCtx>(walkerVisitor), context);
+            }
+
             public void WalkThrough<TCtx>(Func<IExpr, TCtx, VisitorResult<TCtx>> walker, TCtx context)
             {
-                this._expr.Accept(new ExprWalker<TCtx>(walker), context);
+                this._expr.Accept(new ExprWalker<TCtx>(new DefaultWalkerVisitor<TCtx>(walker)), context);
             }
 
             public TExpr? FirstOrDefault<TExpr>(Predicate<TExpr> filter) where TExpr : class, IExpr
             {
                 TExpr? result = null;
-                this._expr.Accept(new ExprWalker<object?>((e, c) =>
+                this._expr.Accept(new ExprWalker<object?>(new DefaultWalkerVisitor<object?>((e, c) =>
                 {
                     if (e is TExpr te && filter.Invoke(te))
                     {
@@ -64,7 +69,7 @@ namespace SqExpress
                         return VisitorResult<object?>.Stop(c);
                     }
                     return VisitorResult<object?>.Continue(c);
-                }), null);
+                })), null);
                 return result;
             }
 

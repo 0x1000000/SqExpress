@@ -4,9 +4,9 @@ namespace SqExpress.Syntax.Value
 {
     public class ExprByteArrayLiteral : ExprLiteral
     {
-        public IReadOnlyList<byte> Value { get; }
+        public IReadOnlyList<byte>? Value { get; }
 
-        public ExprByteArrayLiteral(IReadOnlyList<byte> value)
+        public ExprByteArrayLiteral(IReadOnlyList<byte>? value)
         {
             this.Value = value;
         }
