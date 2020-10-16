@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using SqExpress.Syntax;
@@ -25,6 +25,7 @@ namespace SqExpress.SyntaxTreeOperations
 
             switch (typeTag)
             {
+                //CodeGenStart
                 case "BoolLiteral": return new ExprBoolLiteral(value: ReadNullableBoolean(rootElement, reader, "Value"));
                 case "ByteArrayLiteral": return new ExprByteArrayLiteral(value: ReadByte(rootElement, reader, "Value"));
                 case "ByteLiteral": return new ExprByteLiteral(value: ReadNullableByte(rootElement, reader, "Value"));
@@ -45,8 +46,8 @@ namespace SqExpress.SyntaxTreeOperations
                 case "InsertOutput": return new ExprInsertOutput(insert: GetSubNode<TNode, ExprInsert>(rootElement, reader, "Insert"), outputColumns: GetSubNodeList<TNode, ExprAliasedColumnName>(rootElement, reader, "OutputColumns"));
                 case "InsertValues": return new ExprInsertValues(values: GetSubNode<TNode, ExprTableValueConstructor>(rootElement, reader, "Values"));
                 case "InsertQuery": return new ExprInsertQuery(query: GetSubNode<TNode, IExprQuery>(rootElement, reader, "Query"));
-                case "Merge": return new ExprMerge(targetTable: GetSubNode<TNode, ExprTable>(rootElement, reader, "TargetTable"), source: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Source"), @on: GetSubNode<TNode, ExprBoolean>(rootElement, reader, "On"), whenMatched: GetNullableSubNode<TNode, IExprMergeMatched>(rootElement, reader, "WhenMatched"), whenNotMatchedByTarget: GetNullableSubNode<TNode, IExprMergeNotMatched>(rootElement, reader, "WhenNotMatchedByTarget"), whenNotMatchedBySource: GetNullableSubNode<TNode, IExprMergeMatched>(rootElement, reader, "WhenNotMatchedBySource"));
-                case "MergeOutput": return new ExprMergeOutput(targetTable: GetSubNode<TNode, ExprTable>(rootElement, reader, "TargetTable"), source: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Source"), @on: GetSubNode<TNode, ExprBoolean>(rootElement, reader, "On"), whenMatched: GetNullableSubNode<TNode, IExprMergeMatched>(rootElement, reader, "WhenMatched"), whenNotMatchedByTarget: GetNullableSubNode<TNode, IExprMergeNotMatched>(rootElement, reader, "WhenNotMatchedByTarget"), whenNotMatchedBySource: GetNullableSubNode<TNode, IExprMergeMatched>(rootElement, reader, "WhenNotMatchedBySource"), output: GetSubNode<TNode, ExprOutput>(rootElement, reader, "Output"));
+                case "Merge": return new ExprMerge(targetTable: GetSubNode<TNode, ExprTable>(rootElement, reader, "TargetTable"), source: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Source"), on: GetSubNode<TNode, ExprBoolean>(rootElement, reader, "On"), whenMatched: GetNullableSubNode<TNode, IExprMergeMatched>(rootElement, reader, "WhenMatched"), whenNotMatchedByTarget: GetNullableSubNode<TNode, IExprMergeNotMatched>(rootElement, reader, "WhenNotMatchedByTarget"), whenNotMatchedBySource: GetNullableSubNode<TNode, IExprMergeMatched>(rootElement, reader, "WhenNotMatchedBySource"));
+                case "MergeOutput": return new ExprMergeOutput(targetTable: GetSubNode<TNode, ExprTable>(rootElement, reader, "TargetTable"), source: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Source"), on: GetSubNode<TNode, ExprBoolean>(rootElement, reader, "On"), whenMatched: GetNullableSubNode<TNode, IExprMergeMatched>(rootElement, reader, "WhenMatched"), whenNotMatchedByTarget: GetNullableSubNode<TNode, IExprMergeNotMatched>(rootElement, reader, "WhenNotMatchedByTarget"), whenNotMatchedBySource: GetNullableSubNode<TNode, IExprMergeMatched>(rootElement, reader, "WhenNotMatchedBySource"), output: GetSubNode<TNode, ExprOutput>(rootElement, reader, "Output"));
                 case "MergeMatchedUpdate": return new ExprMergeMatchedUpdate(and: GetNullableSubNode<TNode, ExprBoolean>(rootElement, reader, "And"), set: GetSubNodeList<TNode, ExprColumnSetClause>(rootElement, reader, "Set"));
                 case "MergeMatchedDelete": return new ExprMergeMatchedDelete(and: GetNullableSubNode<TNode, ExprBoolean>(rootElement, reader, "And"));
                 case "ExprMergeNotMatchedInsert": return new ExprExprMergeNotMatchedInsert(and: GetNullableSubNode<TNode, ExprBoolean>(rootElement, reader, "And"), columns: GetSubNodeList<TNode, ExprColumnName>(rootElement, reader, "Columns"), values: GetSubNodeList<TNode, IExprAssigning>(rootElement, reader, "Values"));
@@ -72,7 +73,7 @@ namespace SqExpress.SyntaxTreeOperations
                 case "OrderByItem": return new ExprOrderByItem(value: GetSubNode<TNode, ExprValue>(rootElement, reader, "Value"), descendant: ReadBoolean(rootElement, reader, "Descendant"));
                 case "OffsetFetch": return new ExprOffsetFetch(offset: GetSubNode<TNode, ExprInt32Literal>(rootElement, reader, "Offset"), fetch: GetNullableSubNode<TNode, ExprInt32Literal>(rootElement, reader, "Fetch"));
                 case "QueryExpression": return new ExprQueryExpression(left: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "Left"), right: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "Right"), queryExpressionType: ReadExprQueryExpressionType(rootElement, reader, "QueryExpressionType"));
-                case "QuerySpecification": return new ExprQuerySpecification(selectList: GetSubNodeList<TNode, IExprSelecting>(rootElement, reader, "SelectList"), top: GetNullableSubNode<TNode, ExprValue>(rootElement, reader, "Top"), @from: GetNullableSubNode<TNode, IExprTableSource>(rootElement, reader, "From"), @where: GetNullableSubNode<TNode, ExprBoolean>(rootElement, reader, "Where"), groupBy: GetNullableSubNodeList<TNode, ExprColumn>(rootElement, reader, "GroupBy"), distinct: ReadBoolean(rootElement, reader, "Distinct"));
+                case "QuerySpecification": return new ExprQuerySpecification(selectList: GetSubNodeList<TNode, IExprSelecting>(rootElement, reader, "SelectList"), top: GetNullableSubNode<TNode, ExprValue>(rootElement, reader, "Top"), from: GetNullableSubNode<TNode, IExprTableSource>(rootElement, reader, "From"), where: GetNullableSubNode<TNode, ExprBoolean>(rootElement, reader, "Where"), groupBy: GetNullableSubNodeList<TNode, ExprColumn>(rootElement, reader, "GroupBy"), distinct: ReadBoolean(rootElement, reader, "Distinct"));
                 case "RowValue": return new ExprRowValue(items: GetSubNodeList<TNode, ExprLiteral>(rootElement, reader, "Items"));
                 case "Select": return new ExprSelect(selectQuery: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "SelectQuery"), orderBy: GetSubNode<TNode, ExprOrderBy>(rootElement, reader, "OrderBy"));
                 case "SelectOffsetFetch": return new ExprSelectOffsetFetch(selectQuery: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "SelectQuery"), orderBy: GetSubNode<TNode, ExprOrderByOffsetFetch>(rootElement, reader, "OrderBy"));
@@ -125,7 +126,7 @@ namespace SqExpress.SyntaxTreeOperations
                 case "InValues": return new ExprInValues(testExpression: GetSubNode<TNode, ExprValue>(rootElement, reader, "TestExpression"), items: GetSubNodeList<TNode, ExprValue>(rootElement, reader, "Items"));
                 case "Like": return new ExprLike(test: GetSubNode<TNode, ExprValue>(rootElement, reader, "Test"), pattern: GetSubNode<TNode, ExprStringLiteral>(rootElement, reader, "Pattern"));
                 case "IsNull": return new ExprIsNull(test: GetSubNode<TNode, ExprValue>(rootElement, reader, "Test"), not: ReadBoolean(rootElement, reader, "Not"));
-
+                //CodeGenEnd
                 default: throw new SqExpressException($"Could not recognize the type tag \"{typeTag}\"");
             }
         }

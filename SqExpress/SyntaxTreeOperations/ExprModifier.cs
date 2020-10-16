@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using SqExpress.Syntax;
 using SqExpress.Syntax.Boolean;
@@ -115,7 +115,7 @@ namespace SqExpress.SyntaxTreeOperations
         }
 
 
-        //Visitor start
+        //CodeGenStart
         public IExpr? VisitExprBoolLiteral(ExprBoolLiteral exprIn, Func<IExpr, IExpr?> modifier)
         {
             return modifier.Invoke(exprIn);
@@ -172,7 +172,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newColumn = this.AcceptItem(exprIn.Column, modifier);
             var newValue = this.AcceptItem(exprIn.Value, modifier);
-            if (!ReferenceEquals(exprIn.Column, newColumn) || !ReferenceEquals(exprIn.Value, newValue))
+            if(!ReferenceEquals(exprIn.Column, newColumn) || !ReferenceEquals(exprIn.Value, newValue))
             {
                 exprIn = new ExprColumnSetClause(column: newColumn, value: newValue);
             }
@@ -183,7 +183,7 @@ namespace SqExpress.SyntaxTreeOperations
             var newTarget = this.AcceptItem(exprIn.Target, modifier);
             var newSource = this.AcceptNullableItem(exprIn.Source, modifier);
             var newFilter = this.AcceptNullableItem(exprIn.Filter, modifier);
-            if (!ReferenceEquals(exprIn.Target, newTarget) || !ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.Filter, newFilter))
+            if(!ReferenceEquals(exprIn.Target, newTarget) || !ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.Filter, newFilter))
             {
                 exprIn = new ExprDelete(target: newTarget, source: newSource, filter: newFilter);
             }
@@ -193,7 +193,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newDelete = this.AcceptItem(exprIn.Delete, modifier);
             var newOutputColumns = this.AcceptNotNullCollection(exprIn.OutputColumns, modifier);
-            if (!ReferenceEquals(exprIn.Delete, newDelete) || !ReferenceEquals(exprIn.OutputColumns, newOutputColumns))
+            if(!ReferenceEquals(exprIn.Delete, newDelete) || !ReferenceEquals(exprIn.OutputColumns, newOutputColumns))
             {
                 exprIn = new ExprDeleteOutput(delete: newDelete, outputColumns: newOutputColumns);
             }
@@ -204,7 +204,7 @@ namespace SqExpress.SyntaxTreeOperations
             var newTarget = this.AcceptItem(exprIn.Target, modifier);
             var newTargetColumns = this.AcceptNullCollection(exprIn.TargetColumns, modifier);
             var newSource = this.AcceptItem(exprIn.Source, modifier);
-            if (!ReferenceEquals(exprIn.Target, newTarget) || !ReferenceEquals(exprIn.TargetColumns, newTargetColumns) || !ReferenceEquals(exprIn.Source, newSource))
+            if(!ReferenceEquals(exprIn.Target, newTarget) || !ReferenceEquals(exprIn.TargetColumns, newTargetColumns) || !ReferenceEquals(exprIn.Source, newSource))
             {
                 exprIn = new ExprInsert(target: newTarget, targetColumns: newTargetColumns, source: newSource);
             }
@@ -214,7 +214,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newInsert = this.AcceptItem(exprIn.Insert, modifier);
             var newOutputColumns = this.AcceptNotNullCollection(exprIn.OutputColumns, modifier);
-            if (!ReferenceEquals(exprIn.Insert, newInsert) || !ReferenceEquals(exprIn.OutputColumns, newOutputColumns))
+            if(!ReferenceEquals(exprIn.Insert, newInsert) || !ReferenceEquals(exprIn.OutputColumns, newOutputColumns))
             {
                 exprIn = new ExprInsertOutput(insert: newInsert, outputColumns: newOutputColumns);
             }
@@ -223,7 +223,7 @@ namespace SqExpress.SyntaxTreeOperations
         public IExpr? VisitExprInsertValues(ExprInsertValues exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newValues = this.AcceptItem(exprIn.Values, modifier);
-            if (!ReferenceEquals(exprIn.Values, newValues))
+            if(!ReferenceEquals(exprIn.Values, newValues))
             {
                 exprIn = new ExprInsertValues(values: newValues);
             }
@@ -232,7 +232,7 @@ namespace SqExpress.SyntaxTreeOperations
         public IExpr? VisitExprInsertQuery(ExprInsertQuery exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newQuery = this.AcceptItem(exprIn.Query, modifier);
-            if (!ReferenceEquals(exprIn.Query, newQuery))
+            if(!ReferenceEquals(exprIn.Query, newQuery))
             {
                 exprIn = new ExprInsertQuery(query: newQuery);
             }
@@ -246,9 +246,9 @@ namespace SqExpress.SyntaxTreeOperations
             var newWhenMatched = this.AcceptNullableItem(exprIn.WhenMatched, modifier);
             var newWhenNotMatchedByTarget = this.AcceptNullableItem(exprIn.WhenNotMatchedByTarget, modifier);
             var newWhenNotMatchedBySource = this.AcceptNullableItem(exprIn.WhenNotMatchedBySource, modifier);
-            if (!ReferenceEquals(exprIn.TargetTable, newTargetTable) || !ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.On, newOn) || !ReferenceEquals(exprIn.WhenMatched, newWhenMatched) || !ReferenceEquals(exprIn.WhenNotMatchedByTarget, newWhenNotMatchedByTarget) || !ReferenceEquals(exprIn.WhenNotMatchedBySource, newWhenNotMatchedBySource))
+            if(!ReferenceEquals(exprIn.TargetTable, newTargetTable) || !ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.On, newOn) || !ReferenceEquals(exprIn.WhenMatched, newWhenMatched) || !ReferenceEquals(exprIn.WhenNotMatchedByTarget, newWhenNotMatchedByTarget) || !ReferenceEquals(exprIn.WhenNotMatchedBySource, newWhenNotMatchedBySource))
             {
-                exprIn = new ExprMerge(targetTable: newTargetTable, source: newSource, @on: newOn, whenMatched: newWhenMatched, whenNotMatchedByTarget: newWhenNotMatchedByTarget, whenNotMatchedBySource: newWhenNotMatchedBySource);
+                exprIn = new ExprMerge(targetTable: newTargetTable, source: newSource, on: newOn, whenMatched: newWhenMatched, whenNotMatchedByTarget: newWhenNotMatchedByTarget, whenNotMatchedBySource: newWhenNotMatchedBySource);
             }
             return modifier.Invoke(exprIn);
         }
@@ -261,9 +261,9 @@ namespace SqExpress.SyntaxTreeOperations
             var newWhenNotMatchedByTarget = this.AcceptNullableItem(exprIn.WhenNotMatchedByTarget, modifier);
             var newWhenNotMatchedBySource = this.AcceptNullableItem(exprIn.WhenNotMatchedBySource, modifier);
             var newOutput = this.AcceptItem(exprIn.Output, modifier);
-            if (!ReferenceEquals(exprIn.TargetTable, newTargetTable) || !ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.On, newOn) || !ReferenceEquals(exprIn.WhenMatched, newWhenMatched) || !ReferenceEquals(exprIn.WhenNotMatchedByTarget, newWhenNotMatchedByTarget) || !ReferenceEquals(exprIn.WhenNotMatchedBySource, newWhenNotMatchedBySource) || !ReferenceEquals(exprIn.Output, newOutput))
+            if(!ReferenceEquals(exprIn.TargetTable, newTargetTable) || !ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.On, newOn) || !ReferenceEquals(exprIn.WhenMatched, newWhenMatched) || !ReferenceEquals(exprIn.WhenNotMatchedByTarget, newWhenNotMatchedByTarget) || !ReferenceEquals(exprIn.WhenNotMatchedBySource, newWhenNotMatchedBySource) || !ReferenceEquals(exprIn.Output, newOutput))
             {
-                exprIn = new ExprMergeOutput(targetTable: newTargetTable, source: newSource, @on: newOn, whenMatched: newWhenMatched, whenNotMatchedByTarget: newWhenNotMatchedByTarget, whenNotMatchedBySource: newWhenNotMatchedBySource, output: newOutput);
+                exprIn = new ExprMergeOutput(targetTable: newTargetTable, source: newSource, on: newOn, whenMatched: newWhenMatched, whenNotMatchedByTarget: newWhenNotMatchedByTarget, whenNotMatchedBySource: newWhenNotMatchedBySource, output: newOutput);
             }
             return modifier.Invoke(exprIn);
         }
@@ -271,7 +271,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newAnd = this.AcceptNullableItem(exprIn.And, modifier);
             var newSet = this.AcceptNotNullCollection(exprIn.Set, modifier);
-            if (!ReferenceEquals(exprIn.And, newAnd) || !ReferenceEquals(exprIn.Set, newSet))
+            if(!ReferenceEquals(exprIn.And, newAnd) || !ReferenceEquals(exprIn.Set, newSet))
             {
                 exprIn = new ExprMergeMatchedUpdate(and: newAnd, set: newSet);
             }
@@ -280,7 +280,7 @@ namespace SqExpress.SyntaxTreeOperations
         public IExpr? VisitExprMergeMatchedDelete(ExprMergeMatchedDelete exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newAnd = this.AcceptNullableItem(exprIn.And, modifier);
-            if (!ReferenceEquals(exprIn.And, newAnd))
+            if(!ReferenceEquals(exprIn.And, newAnd))
             {
                 exprIn = new ExprMergeMatchedDelete(and: newAnd);
             }
@@ -291,7 +291,7 @@ namespace SqExpress.SyntaxTreeOperations
             var newAnd = this.AcceptNullableItem(exprIn.And, modifier);
             var newColumns = this.AcceptNotNullCollection(exprIn.Columns, modifier);
             var newValues = this.AcceptNotNullCollection(exprIn.Values, modifier);
-            if (!ReferenceEquals(exprIn.And, newAnd) || !ReferenceEquals(exprIn.Columns, newColumns) || !ReferenceEquals(exprIn.Values, newValues))
+            if(!ReferenceEquals(exprIn.And, newAnd) || !ReferenceEquals(exprIn.Columns, newColumns) || !ReferenceEquals(exprIn.Values, newValues))
             {
                 exprIn = new ExprExprMergeNotMatchedInsert(and: newAnd, columns: newColumns, values: newValues);
             }
@@ -300,7 +300,7 @@ namespace SqExpress.SyntaxTreeOperations
         public IExpr? VisitExprExprMergeNotMatchedInsertDefault(ExprExprMergeNotMatchedInsertDefault exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newAnd = this.AcceptNullableItem(exprIn.And, modifier);
-            if (!ReferenceEquals(exprIn.And, newAnd))
+            if(!ReferenceEquals(exprIn.And, newAnd))
             {
                 exprIn = new ExprExprMergeNotMatchedInsertDefault(and: newAnd);
             }
@@ -312,7 +312,7 @@ namespace SqExpress.SyntaxTreeOperations
             var newSetClause = this.AcceptNotNullCollection(exprIn.SetClause, modifier);
             var newSource = this.AcceptNullableItem(exprIn.Source, modifier);
             var newFilter = this.AcceptNullableItem(exprIn.Filter, modifier);
-            if (!ReferenceEquals(exprIn.Target, newTarget) || !ReferenceEquals(exprIn.SetClause, newSetClause) || !ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.Filter, newFilter))
+            if(!ReferenceEquals(exprIn.Target, newTarget) || !ReferenceEquals(exprIn.SetClause, newSetClause) || !ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.Filter, newFilter))
             {
                 exprIn = new ExprUpdate(target: newTarget, setClause: newSetClause, source: newSource, filter: newFilter);
             }
@@ -322,7 +322,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newExpression = this.AcceptItem(exprIn.Expression, modifier);
             var newSqlType = this.AcceptItem(exprIn.SqlType, modifier);
-            if (!ReferenceEquals(exprIn.Expression, newExpression) || !ReferenceEquals(exprIn.SqlType, newSqlType))
+            if(!ReferenceEquals(exprIn.Expression, newExpression) || !ReferenceEquals(exprIn.SqlType, newSqlType))
             {
                 exprIn = new ExprCast(expression: newExpression, sqlType: newSqlType);
             }
@@ -372,7 +372,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newLeft = this.AcceptItem(exprIn.Left, modifier);
             var newRight = this.AcceptItem(exprIn.Right, modifier);
-            if (!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
             {
                 exprIn = new ExprCrossedTable(left: newLeft, right: newRight);
             }
@@ -383,7 +383,7 @@ namespace SqExpress.SyntaxTreeOperations
             var newValues = this.AcceptItem(exprIn.Values, modifier);
             var newAlias = this.AcceptItem(exprIn.Alias, modifier);
             var newColumns = this.AcceptNotNullCollection(exprIn.Columns, modifier);
-            if (!ReferenceEquals(exprIn.Values, newValues) || !ReferenceEquals(exprIn.Alias, newAlias) || !ReferenceEquals(exprIn.Columns, newColumns))
+            if(!ReferenceEquals(exprIn.Values, newValues) || !ReferenceEquals(exprIn.Alias, newAlias) || !ReferenceEquals(exprIn.Columns, newColumns))
             {
                 exprIn = new ExprDerivedTableValues(values: newValues, alias: newAlias, columns: newColumns);
             }
@@ -394,7 +394,7 @@ namespace SqExpress.SyntaxTreeOperations
             var newQuery = this.AcceptItem(exprIn.Query, modifier);
             var newAlias = this.AcceptItem(exprIn.Alias, modifier);
             var newColumns = this.AcceptNullCollection(exprIn.Columns, modifier);
-            if (!ReferenceEquals(exprIn.Query, newQuery) || !ReferenceEquals(exprIn.Alias, newAlias) || !ReferenceEquals(exprIn.Columns, newColumns))
+            if(!ReferenceEquals(exprIn.Query, newQuery) || !ReferenceEquals(exprIn.Alias, newAlias) || !ReferenceEquals(exprIn.Columns, newColumns))
             {
                 exprIn = new ExprDerivedTableQuery(query: newQuery, alias: newAlias, columns: newColumns);
             }
@@ -405,7 +405,7 @@ namespace SqExpress.SyntaxTreeOperations
             var newLeft = this.AcceptItem(exprIn.Left, modifier);
             var newRight = this.AcceptItem(exprIn.Right, modifier);
             var newSearchCondition = this.AcceptItem(exprIn.SearchCondition, modifier);
-            if (!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight) || !ReferenceEquals(exprIn.SearchCondition, newSearchCondition))
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight) || !ReferenceEquals(exprIn.SearchCondition, newSearchCondition))
             {
                 exprIn = new ExprJoinedTable(left: newLeft, right: newRight, searchCondition: newSearchCondition, joinType: exprIn.JoinType);
             }
@@ -414,7 +414,7 @@ namespace SqExpress.SyntaxTreeOperations
         public IExpr? VisitExprOrderBy(ExprOrderBy exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newOrderList = this.AcceptNotNullCollection(exprIn.OrderList, modifier);
-            if (!ReferenceEquals(exprIn.OrderList, newOrderList))
+            if(!ReferenceEquals(exprIn.OrderList, newOrderList))
             {
                 exprIn = new ExprOrderBy(orderList: newOrderList);
             }
@@ -424,7 +424,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newOrderList = this.AcceptNotNullCollection(exprIn.OrderList, modifier);
             var newOffsetFetch = this.AcceptItem(exprIn.OffsetFetch, modifier);
-            if (!ReferenceEquals(exprIn.OrderList, newOrderList) || !ReferenceEquals(exprIn.OffsetFetch, newOffsetFetch))
+            if(!ReferenceEquals(exprIn.OrderList, newOrderList) || !ReferenceEquals(exprIn.OffsetFetch, newOffsetFetch))
             {
                 exprIn = new ExprOrderByOffsetFetch(orderList: newOrderList, offsetFetch: newOffsetFetch);
             }
@@ -433,7 +433,7 @@ namespace SqExpress.SyntaxTreeOperations
         public IExpr? VisitExprOrderByItem(ExprOrderByItem exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newValue = this.AcceptItem(exprIn.Value, modifier);
-            if (!ReferenceEquals(exprIn.Value, newValue))
+            if(!ReferenceEquals(exprIn.Value, newValue))
             {
                 exprIn = new ExprOrderByItem(value: newValue, descendant: exprIn.Descendant);
             }
@@ -443,7 +443,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newOffset = this.AcceptItem(exprIn.Offset, modifier);
             var newFetch = this.AcceptNullableItem(exprIn.Fetch, modifier);
-            if (!ReferenceEquals(exprIn.Offset, newOffset) || !ReferenceEquals(exprIn.Fetch, newFetch))
+            if(!ReferenceEquals(exprIn.Offset, newOffset) || !ReferenceEquals(exprIn.Fetch, newFetch))
             {
                 exprIn = new ExprOffsetFetch(offset: newOffset, fetch: newFetch);
             }
@@ -453,7 +453,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newLeft = this.AcceptItem(exprIn.Left, modifier);
             var newRight = this.AcceptItem(exprIn.Right, modifier);
-            if (!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
             {
                 exprIn = new ExprQueryExpression(left: newLeft, right: newRight, queryExpressionType: exprIn.QueryExpressionType);
             }
@@ -466,16 +466,16 @@ namespace SqExpress.SyntaxTreeOperations
             var newFrom = this.AcceptNullableItem(exprIn.From, modifier);
             var newWhere = this.AcceptNullableItem(exprIn.Where, modifier);
             var newGroupBy = this.AcceptNullCollection(exprIn.GroupBy, modifier);
-            if (!ReferenceEquals(exprIn.SelectList, newSelectList) || !ReferenceEquals(exprIn.Top, newTop) || !ReferenceEquals(exprIn.From, newFrom) || !ReferenceEquals(exprIn.Where, newWhere) || !ReferenceEquals(exprIn.GroupBy, newGroupBy))
+            if(!ReferenceEquals(exprIn.SelectList, newSelectList) || !ReferenceEquals(exprIn.Top, newTop) || !ReferenceEquals(exprIn.From, newFrom) || !ReferenceEquals(exprIn.Where, newWhere) || !ReferenceEquals(exprIn.GroupBy, newGroupBy))
             {
-                exprIn = new ExprQuerySpecification(selectList: newSelectList, top: newTop, @from: newFrom, @where: newWhere, groupBy: newGroupBy, distinct: exprIn.Distinct);
+                exprIn = new ExprQuerySpecification(selectList: newSelectList, top: newTop, from: newFrom, where: newWhere, groupBy: newGroupBy, distinct: exprIn.Distinct);
             }
             return modifier.Invoke(exprIn);
         }
         public IExpr? VisitExprRowValue(ExprRowValue exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newItems = this.AcceptNotNullCollection(exprIn.Items, modifier);
-            if (!ReferenceEquals(exprIn.Items, newItems))
+            if(!ReferenceEquals(exprIn.Items, newItems))
             {
                 exprIn = new ExprRowValue(items: newItems);
             }
@@ -485,7 +485,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newSelectQuery = this.AcceptItem(exprIn.SelectQuery, modifier);
             var newOrderBy = this.AcceptItem(exprIn.OrderBy, modifier);
-            if (!ReferenceEquals(exprIn.SelectQuery, newSelectQuery) || !ReferenceEquals(exprIn.OrderBy, newOrderBy))
+            if(!ReferenceEquals(exprIn.SelectQuery, newSelectQuery) || !ReferenceEquals(exprIn.OrderBy, newOrderBy))
             {
                 exprIn = new ExprSelect(selectQuery: newSelectQuery, orderBy: newOrderBy);
             }
@@ -495,7 +495,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newSelectQuery = this.AcceptItem(exprIn.SelectQuery, modifier);
             var newOrderBy = this.AcceptItem(exprIn.OrderBy, modifier);
-            if (!ReferenceEquals(exprIn.SelectQuery, newSelectQuery) || !ReferenceEquals(exprIn.OrderBy, newOrderBy))
+            if(!ReferenceEquals(exprIn.SelectQuery, newSelectQuery) || !ReferenceEquals(exprIn.OrderBy, newOrderBy))
             {
                 exprIn = new ExprSelectOffsetFetch(selectQuery: newSelectQuery, orderBy: newOrderBy);
             }
@@ -504,7 +504,7 @@ namespace SqExpress.SyntaxTreeOperations
         public IExpr? VisitExprTableValueConstructor(ExprTableValueConstructor exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newItems = this.AcceptNotNullCollection(exprIn.Items, modifier);
-            if (!ReferenceEquals(exprIn.Items, newItems))
+            if(!ReferenceEquals(exprIn.Items, newItems))
             {
                 exprIn = new ExprTableValueConstructor(items: newItems);
             }
@@ -514,7 +514,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newColumn = this.AcceptItem(exprIn.Column, modifier);
             var newAlias = this.AcceptNullableItem(exprIn.Alias, modifier);
-            if (!ReferenceEquals(exprIn.Column, newColumn) || !ReferenceEquals(exprIn.Alias, newAlias))
+            if(!ReferenceEquals(exprIn.Column, newColumn) || !ReferenceEquals(exprIn.Alias, newAlias))
             {
                 exprIn = new ExprAliasedColumn(column: newColumn, alias: newAlias);
             }
@@ -524,7 +524,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newColumn = this.AcceptItem(exprIn.Column, modifier);
             var newAlias = this.AcceptNullableItem(exprIn.Alias, modifier);
-            if (!ReferenceEquals(exprIn.Column, newColumn) || !ReferenceEquals(exprIn.Alias, newAlias))
+            if(!ReferenceEquals(exprIn.Column, newColumn) || !ReferenceEquals(exprIn.Alias, newAlias))
             {
                 exprIn = new ExprAliasedColumnName(column: newColumn, alias: newAlias);
             }
@@ -534,7 +534,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newValue = this.AcceptItem(exprIn.Value, modifier);
             var newAlias = this.AcceptItem(exprIn.Alias, modifier);
-            if (!ReferenceEquals(exprIn.Value, newValue) || !ReferenceEquals(exprIn.Alias, newAlias))
+            if(!ReferenceEquals(exprIn.Value, newValue) || !ReferenceEquals(exprIn.Alias, newAlias))
             {
                 exprIn = new ExprAliasedSelecting(value: newValue, alias: newAlias);
             }
@@ -543,7 +543,7 @@ namespace SqExpress.SyntaxTreeOperations
         public IExpr? VisitExprOutput(ExprOutput exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newColumns = this.AcceptNotNullCollection(exprIn.Columns, modifier);
-            if (!ReferenceEquals(exprIn.Columns, newColumns))
+            if(!ReferenceEquals(exprIn.Columns, newColumns))
             {
                 exprIn = new ExprOutput(columns: newColumns);
             }
@@ -552,7 +552,7 @@ namespace SqExpress.SyntaxTreeOperations
         public IExpr? VisitExprOutputColumnInserted(ExprOutputColumnInserted exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newColumnName = this.AcceptItem(exprIn.ColumnName, modifier);
-            if (!ReferenceEquals(exprIn.ColumnName, newColumnName))
+            if(!ReferenceEquals(exprIn.ColumnName, newColumnName))
             {
                 exprIn = new ExprOutputColumnInserted(columnName: newColumnName);
             }
@@ -561,7 +561,7 @@ namespace SqExpress.SyntaxTreeOperations
         public IExpr? VisitExprOutputColumnDeleted(ExprOutputColumnDeleted exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newColumnName = this.AcceptItem(exprIn.ColumnName, modifier);
-            if (!ReferenceEquals(exprIn.ColumnName, newColumnName))
+            if(!ReferenceEquals(exprIn.ColumnName, newColumnName))
             {
                 exprIn = new ExprOutputColumnDeleted(columnName: newColumnName);
             }
@@ -570,7 +570,7 @@ namespace SqExpress.SyntaxTreeOperations
         public IExpr? VisitExprOutputColumn(ExprOutputColumn exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newColumn = this.AcceptItem(exprIn.Column, modifier);
-            if (!ReferenceEquals(exprIn.Column, newColumn))
+            if(!ReferenceEquals(exprIn.Column, newColumn))
             {
                 exprIn = new ExprOutputColumn(column: newColumn);
             }
@@ -579,7 +579,7 @@ namespace SqExpress.SyntaxTreeOperations
         public IExpr? VisitExprOutputAction(ExprOutputAction exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newAlias = this.AcceptNullableItem(exprIn.Alias, modifier);
-            if (!ReferenceEquals(exprIn.Alias, newAlias))
+            if(!ReferenceEquals(exprIn.Alias, newAlias))
             {
                 exprIn = new ExprOutputAction(alias: newAlias);
             }
@@ -597,7 +597,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newSource = this.AcceptNullableItem(exprIn.Source, modifier);
             var newColumnName = this.AcceptItem(exprIn.ColumnName, modifier);
-            if (!ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.ColumnName, newColumnName))
+            if(!ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.ColumnName, newColumnName))
             {
                 exprIn = new ExprColumn(source: newSource, columnName: newColumnName);
             }
@@ -623,7 +623,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newFullName = this.AcceptItem(exprIn.FullName, modifier);
             var newAlias = this.AcceptNullableItem(exprIn.Alias, modifier);
-            if (!ReferenceEquals(exprIn.FullName, newFullName) || !ReferenceEquals(exprIn.Alias, newAlias))
+            if(!ReferenceEquals(exprIn.FullName, newFullName) || !ReferenceEquals(exprIn.Alias, newAlias))
             {
                 exprIn = new ExprTable(fullName: newFullName, alias: newAlias);
             }
@@ -632,7 +632,7 @@ namespace SqExpress.SyntaxTreeOperations
         public IExpr? VisitExprTableAlias(ExprTableAlias exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newAlias = this.AcceptItem(exprIn.Alias, modifier);
-            if (!ReferenceEquals(exprIn.Alias, newAlias))
+            if(!ReferenceEquals(exprIn.Alias, newAlias))
             {
                 exprIn = new ExprTableAlias(alias: newAlias);
             }
@@ -642,7 +642,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newSchema = this.AcceptItem(exprIn.Schema, modifier);
             var newTableName = this.AcceptItem(exprIn.TableName, modifier);
-            if (!ReferenceEquals(exprIn.Schema, newSchema) || !ReferenceEquals(exprIn.TableName, newTableName))
+            if(!ReferenceEquals(exprIn.Schema, newSchema) || !ReferenceEquals(exprIn.TableName, newTableName))
             {
                 exprIn = new ExprTableFullName(schema: newSchema, tableName: newTableName);
             }
@@ -656,7 +656,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newName = this.AcceptItem(exprIn.Name, modifier);
             var newExpression = this.AcceptItem(exprIn.Expression, modifier);
-            if (!ReferenceEquals(exprIn.Name, newName) || !ReferenceEquals(exprIn.Expression, newExpression))
+            if(!ReferenceEquals(exprIn.Name, newName) || !ReferenceEquals(exprIn.Expression, newExpression))
             {
                 exprIn = new ExprAggregateFunction(name: newName, expression: newExpression, isDistinct: exprIn.IsDistinct);
             }
@@ -667,7 +667,7 @@ namespace SqExpress.SyntaxTreeOperations
             var newName = this.AcceptItem(exprIn.Name, modifier);
             var newArguments = this.AcceptNullCollection(exprIn.Arguments, modifier);
             var newOver = this.AcceptItem(exprIn.Over, modifier);
-            if (!ReferenceEquals(exprIn.Name, newName) || !ReferenceEquals(exprIn.Arguments, newArguments) || !ReferenceEquals(exprIn.Over, newOver))
+            if(!ReferenceEquals(exprIn.Name, newName) || !ReferenceEquals(exprIn.Arguments, newArguments) || !ReferenceEquals(exprIn.Over, newOver))
             {
                 exprIn = new ExprAnalyticFunction(name: newName, arguments: newArguments, over: newOver);
             }
@@ -677,7 +677,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newCases = this.AcceptNotNullCollection(exprIn.Cases, modifier);
             var newDefaultValue = this.AcceptItem(exprIn.DefaultValue, modifier);
-            if (!ReferenceEquals(exprIn.Cases, newCases) || !ReferenceEquals(exprIn.DefaultValue, newDefaultValue))
+            if(!ReferenceEquals(exprIn.Cases, newCases) || !ReferenceEquals(exprIn.DefaultValue, newDefaultValue))
             {
                 exprIn = new ExprCase(cases: newCases, defaultValue: newDefaultValue);
             }
@@ -687,7 +687,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newCondition = this.AcceptItem(exprIn.Condition, modifier);
             var newValue = this.AcceptItem(exprIn.Value, modifier);
-            if (!ReferenceEquals(exprIn.Condition, newCondition) || !ReferenceEquals(exprIn.Value, newValue))
+            if(!ReferenceEquals(exprIn.Condition, newCondition) || !ReferenceEquals(exprIn.Value, newValue))
             {
                 exprIn = new ExprCaseWhenThen(condition: newCondition, value: newValue);
             }
@@ -697,7 +697,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newPartitions = this.AcceptNullCollection(exprIn.Partitions, modifier);
             var newOrderBy = this.AcceptNullableItem(exprIn.OrderBy, modifier);
-            if (!ReferenceEquals(exprIn.Partitions, newPartitions) || !ReferenceEquals(exprIn.OrderBy, newOrderBy))
+            if(!ReferenceEquals(exprIn.Partitions, newPartitions) || !ReferenceEquals(exprIn.OrderBy, newOrderBy))
             {
                 exprIn = new ExprOver(partitions: newPartitions, orderBy: newOrderBy);
             }
@@ -708,7 +708,7 @@ namespace SqExpress.SyntaxTreeOperations
             var newSchema = this.AcceptNullableItem(exprIn.Schema, modifier);
             var newName = this.AcceptItem(exprIn.Name, modifier);
             var newArguments = this.AcceptNotNullCollection(exprIn.Arguments, modifier);
-            if (!ReferenceEquals(exprIn.Schema, newSchema) || !ReferenceEquals(exprIn.Name, newName) || !ReferenceEquals(exprIn.Arguments, newArguments))
+            if(!ReferenceEquals(exprIn.Schema, newSchema) || !ReferenceEquals(exprIn.Name, newName) || !ReferenceEquals(exprIn.Arguments, newArguments))
             {
                 exprIn = new ExprScalarFunction(schema: newSchema, name: newName, arguments: newArguments);
             }
@@ -718,7 +718,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newTest = this.AcceptItem(exprIn.Test, modifier);
             var newAlts = this.AcceptNotNullCollection(exprIn.Alts, modifier);
-            if (!ReferenceEquals(exprIn.Test, newTest) || !ReferenceEquals(exprIn.Alts, newAlts))
+            if(!ReferenceEquals(exprIn.Test, newTest) || !ReferenceEquals(exprIn.Alts, newAlts))
             {
                 exprIn = new ExprFuncCoalesce(test: newTest, alts: newAlts);
             }
@@ -728,7 +728,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newTest = this.AcceptItem(exprIn.Test, modifier);
             var newAlt = this.AcceptItem(exprIn.Alt, modifier);
-            if (!ReferenceEquals(exprIn.Test, newTest) || !ReferenceEquals(exprIn.Alt, newAlt))
+            if(!ReferenceEquals(exprIn.Test, newTest) || !ReferenceEquals(exprIn.Alt, newAlt))
             {
                 exprIn = new ExprFuncIsNull(test: newTest, alt: newAlt);
             }
@@ -746,7 +746,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newLeft = this.AcceptItem(exprIn.Left, modifier);
             var newRight = this.AcceptItem(exprIn.Right, modifier);
-            if (!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
             {
                 exprIn = new ExprDiv(left: newLeft, right: newRight);
             }
@@ -756,7 +756,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newLeft = this.AcceptItem(exprIn.Left, modifier);
             var newRight = this.AcceptItem(exprIn.Right, modifier);
-            if (!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
             {
                 exprIn = new ExprMul(left: newLeft, right: newRight);
             }
@@ -766,7 +766,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newLeft = this.AcceptItem(exprIn.Left, modifier);
             var newRight = this.AcceptItem(exprIn.Right, modifier);
-            if (!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
             {
                 exprIn = new ExprSub(left: newLeft, right: newRight);
             }
@@ -776,7 +776,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newLeft = this.AcceptItem(exprIn.Left, modifier);
             var newRight = this.AcceptItem(exprIn.Right, modifier);
-            if (!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
             {
                 exprIn = new ExprSum(left: newLeft, right: newRight);
             }
@@ -786,7 +786,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newLeft = this.AcceptItem(exprIn.Left, modifier);
             var newRight = this.AcceptItem(exprIn.Right, modifier);
-            if (!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
             {
                 exprIn = new ExprStringConcat(left: newLeft, right: newRight);
             }
@@ -796,7 +796,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newLeft = this.AcceptItem(exprIn.Left, modifier);
             var newRight = this.AcceptItem(exprIn.Right, modifier);
-            if (!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
             {
                 exprIn = new ExprBooleanAnd(left: newLeft, right: newRight);
             }
@@ -805,7 +805,7 @@ namespace SqExpress.SyntaxTreeOperations
         public IExpr? VisitExprBooleanNot(ExprBooleanNot exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newExpr = this.AcceptItem(exprIn.Expr, modifier);
-            if (!ReferenceEquals(exprIn.Expr, newExpr))
+            if(!ReferenceEquals(exprIn.Expr, newExpr))
             {
                 exprIn = new ExprBooleanNot(expr: newExpr);
             }
@@ -815,7 +815,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newLeft = this.AcceptItem(exprIn.Left, modifier);
             var newRight = this.AcceptItem(exprIn.Right, modifier);
-            if (!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
             {
                 exprIn = new ExprBooleanOr(left: newLeft, right: newRight);
             }
@@ -825,7 +825,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newLeft = this.AcceptItem(exprIn.Left, modifier);
             var newRight = this.AcceptItem(exprIn.Right, modifier);
-            if (!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
             {
                 exprIn = new ExprBooleanEq(left: newLeft, right: newRight);
             }
@@ -835,7 +835,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newLeft = this.AcceptItem(exprIn.Left, modifier);
             var newRight = this.AcceptItem(exprIn.Right, modifier);
-            if (!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
             {
                 exprIn = new ExprBooleanGt(left: newLeft, right: newRight);
             }
@@ -845,7 +845,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newLeft = this.AcceptItem(exprIn.Left, modifier);
             var newRight = this.AcceptItem(exprIn.Right, modifier);
-            if (!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
             {
                 exprIn = new ExprBooleanGtEq(left: newLeft, right: newRight);
             }
@@ -855,7 +855,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newLeft = this.AcceptItem(exprIn.Left, modifier);
             var newRight = this.AcceptItem(exprIn.Right, modifier);
-            if (!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
             {
                 exprIn = new ExprBooleanLt(left: newLeft, right: newRight);
             }
@@ -865,7 +865,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newLeft = this.AcceptItem(exprIn.Left, modifier);
             var newRight = this.AcceptItem(exprIn.Right, modifier);
-            if (!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
             {
                 exprIn = new ExprBooleanLtEq(left: newLeft, right: newRight);
             }
@@ -875,7 +875,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newLeft = this.AcceptItem(exprIn.Left, modifier);
             var newRight = this.AcceptItem(exprIn.Right, modifier);
-            if (!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
             {
                 exprIn = new ExprBooleanNotEq(left: newLeft, right: newRight);
             }
@@ -884,7 +884,7 @@ namespace SqExpress.SyntaxTreeOperations
         public IExpr? VisitExprExists(ExprExists exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newSubQuery = this.AcceptItem(exprIn.SubQuery, modifier);
-            if (!ReferenceEquals(exprIn.SubQuery, newSubQuery))
+            if(!ReferenceEquals(exprIn.SubQuery, newSubQuery))
             {
                 exprIn = new ExprExists(subQuery: newSubQuery);
             }
@@ -894,7 +894,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newTestExpression = this.AcceptItem(exprIn.TestExpression, modifier);
             var newSubQuery = this.AcceptItem(exprIn.SubQuery, modifier);
-            if (!ReferenceEquals(exprIn.TestExpression, newTestExpression) || !ReferenceEquals(exprIn.SubQuery, newSubQuery))
+            if(!ReferenceEquals(exprIn.TestExpression, newTestExpression) || !ReferenceEquals(exprIn.SubQuery, newSubQuery))
             {
                 exprIn = new ExprInSubQuery(testExpression: newTestExpression, subQuery: newSubQuery);
             }
@@ -904,7 +904,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newTestExpression = this.AcceptItem(exprIn.TestExpression, modifier);
             var newItems = this.AcceptNotNullCollection(exprIn.Items, modifier);
-            if (!ReferenceEquals(exprIn.TestExpression, newTestExpression) || !ReferenceEquals(exprIn.Items, newItems))
+            if(!ReferenceEquals(exprIn.TestExpression, newTestExpression) || !ReferenceEquals(exprIn.Items, newItems))
             {
                 exprIn = new ExprInValues(testExpression: newTestExpression, items: newItems);
             }
@@ -914,7 +914,7 @@ namespace SqExpress.SyntaxTreeOperations
         {
             var newTest = this.AcceptItem(exprIn.Test, modifier);
             var newPattern = this.AcceptItem(exprIn.Pattern, modifier);
-            if (!ReferenceEquals(exprIn.Test, newTest) || !ReferenceEquals(exprIn.Pattern, newPattern))
+            if(!ReferenceEquals(exprIn.Test, newTest) || !ReferenceEquals(exprIn.Pattern, newPattern))
             {
                 exprIn = new ExprLike(test: newTest, pattern: newPattern);
             }
@@ -923,11 +923,12 @@ namespace SqExpress.SyntaxTreeOperations
         public IExpr? VisitExprIsNull(ExprIsNull exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newTest = this.AcceptItem(exprIn.Test, modifier);
-            if (!ReferenceEquals(exprIn.Test, newTest))
+            if(!ReferenceEquals(exprIn.Test, newTest))
             {
                 exprIn = new ExprIsNull(test: newTest, not: exprIn.Not);
             }
             return modifier.Invoke(exprIn);
         }
+        //CodeGenEnd
     }
 }
