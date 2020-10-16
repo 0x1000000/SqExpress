@@ -313,7 +313,7 @@ namespace SqExpress.SqlExport.Internal
 
         public bool VisitExprByteArrayLiteral(ExprByteArrayLiteral byteArrayLiteral, object? arg)
         {
-            if (byteArrayLiteral.Value.Count < 1)
+            if (byteArrayLiteral.Value == null || byteArrayLiteral.Value.Count < 1)
             {
                 this.AppendNull();
             }

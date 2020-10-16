@@ -14,7 +14,7 @@ using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Update;
 using SqExpress.Syntax.Value;
 
-namespace SqExpress.SyntaxExplorer
+namespace SqExpress.SyntaxTreeOperations
 {
     internal class ExprModifier : IExprVisitor<IExpr?, Func<IExpr, IExpr?>>
     {
@@ -49,12 +49,12 @@ namespace SqExpress.SyntaxExplorer
 
         private IReadOnlyList<T>? AcceptNullCollection<T>(IReadOnlyList<T>? collection, Func<IExpr, IExpr?> arg) where T : IExpr
         {
-            return AcceptCollection(collection, true, arg);
+            return this.AcceptCollection(collection, true, arg);
         }
 
         private IReadOnlyList<T> AcceptNotNullCollection<T>(IReadOnlyList<T> collection, Func<IExpr, IExpr?> arg) where T : IExpr
         {
-            return AcceptCollection(collection, false, arg)!;
+            return this.AcceptCollection(collection, false, arg)!;
         }
 
         private IReadOnlyList<T>? AcceptCollection<T>(IReadOnlyList<T>? collection, bool allowNull, Func<IExpr, IExpr?> arg) where T : IExpr
@@ -248,7 +248,7 @@ namespace SqExpress.SyntaxExplorer
             var newWhenNotMatchedBySource = this.AcceptNullableItem(exprIn.WhenNotMatchedBySource, modifier);
             if (!ReferenceEquals(exprIn.TargetTable, newTargetTable) || !ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.On, newOn) || !ReferenceEquals(exprIn.WhenMatched, newWhenMatched) || !ReferenceEquals(exprIn.WhenNotMatchedByTarget, newWhenNotMatchedByTarget) || !ReferenceEquals(exprIn.WhenNotMatchedBySource, newWhenNotMatchedBySource))
             {
-                exprIn = new ExprMerge(targetTable: newTargetTable, source: newSource, on: newOn, whenMatched: newWhenMatched, whenNotMatchedByTarget: newWhenNotMatchedByTarget, whenNotMatchedBySource: newWhenNotMatchedBySource);
+                exprIn = new ExprMerge(targetTable: newTargetTable, source: newSource, @on: newOn, whenMatched: newWhenMatched, whenNotMatchedByTarget: newWhenNotMatchedByTarget, whenNotMatchedBySource: newWhenNotMatchedBySource);
             }
             return modifier.Invoke(exprIn);
         }
@@ -263,7 +263,7 @@ namespace SqExpress.SyntaxExplorer
             var newOutput = this.AcceptItem(exprIn.Output, modifier);
             if (!ReferenceEquals(exprIn.TargetTable, newTargetTable) || !ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.On, newOn) || !ReferenceEquals(exprIn.WhenMatched, newWhenMatched) || !ReferenceEquals(exprIn.WhenNotMatchedByTarget, newWhenNotMatchedByTarget) || !ReferenceEquals(exprIn.WhenNotMatchedBySource, newWhenNotMatchedBySource) || !ReferenceEquals(exprIn.Output, newOutput))
             {
-                exprIn = new ExprMergeOutput(targetTable: newTargetTable, source: newSource, on: newOn, whenMatched: newWhenMatched, whenNotMatchedByTarget: newWhenNotMatchedByTarget, whenNotMatchedBySource: newWhenNotMatchedBySource, output: newOutput);
+                exprIn = new ExprMergeOutput(targetTable: newTargetTable, source: newSource, @on: newOn, whenMatched: newWhenMatched, whenNotMatchedByTarget: newWhenNotMatchedByTarget, whenNotMatchedBySource: newWhenNotMatchedBySource, output: newOutput);
             }
             return modifier.Invoke(exprIn);
         }
@@ -468,7 +468,7 @@ namespace SqExpress.SyntaxExplorer
             var newGroupBy = this.AcceptNullCollection(exprIn.GroupBy, modifier);
             if (!ReferenceEquals(exprIn.SelectList, newSelectList) || !ReferenceEquals(exprIn.Top, newTop) || !ReferenceEquals(exprIn.From, newFrom) || !ReferenceEquals(exprIn.Where, newWhere) || !ReferenceEquals(exprIn.GroupBy, newGroupBy))
             {
-                exprIn = new ExprQuerySpecification(selectList: newSelectList, top: newTop, from: newFrom, where: newWhere, groupBy: newGroupBy, distinct: exprIn.Distinct);
+                exprIn = new ExprQuerySpecification(selectList: newSelectList, top: newTop, @from: newFrom, @where: newWhere, groupBy: newGroupBy, distinct: exprIn.Distinct);
             }
             return modifier.Invoke(exprIn);
         }

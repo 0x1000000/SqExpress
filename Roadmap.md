@@ -5,14 +5,14 @@
 - [x] "CASE WHEN"
 - [x] Arifmetic Expressions
 ## After 0.0.2
-- [ ] Make "Where" nullable
+- [x] Make "Where" nullable
 - [ ] Insert Values (with DEFAULT)
 - [ ] Table Variable
 - [ ] "Update Data" builder
 - [ ] Post "Done" modifications
 - [ ] Split Merge into Insert Update Delete
-- [ ] Tree Walker
-- [ ] Tree Modifier
+- [x] Tree Walker
+- [x] Tree Modifier
 - [ ] Serialization
 
 --Meta
