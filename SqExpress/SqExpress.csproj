@@ -47,4 +47,9 @@ It can be used together with the “Code First” concept when you declare SQL t
       <PackagePath></PackagePath>
     </None>
   </ItemGroup>
+
+  <Target Name="PreventPackInDebug" BeforeTargets="Pack" Condition="'$(Configuration)|$(Platform)'!='Release|AnyCPU'">
+    <Error Text="Pack cannot be done in debug mode!"></Error>
+  </Target>
+
 </Project>
