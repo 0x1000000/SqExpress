@@ -7,11 +7,11 @@ namespace SqExpress.SqlExport.Statement.Internal
     {
         public readonly List<ExprColumnName> Pk;
 
-        public readonly Dictionary<ExprTableFullName, List<(ExprColumnName Internal, ExprColumnName External)>> Fks;
+        public readonly Dictionary<IExprTableFullName, List<(ExprColumnName Internal, ExprColumnName External)>> Fks;
 
-        public static ColumnAnalysis Build() => new ColumnAnalysis(new List<ExprColumnName>(4), new Dictionary<ExprTableFullName, List<(ExprColumnName Internal, ExprColumnName External)>>(4));
+        public static ColumnAnalysis Build() => new ColumnAnalysis(new List<ExprColumnName>(4), new Dictionary<IExprTableFullName, List<(ExprColumnName Internal, ExprColumnName External)>>(4));
 
-        private ColumnAnalysis(List<ExprColumnName> pk, Dictionary<ExprTableFullName, List<(ExprColumnName Internal, ExprColumnName External)>> fks)
+        private ColumnAnalysis(List<ExprColumnName> pk, Dictionary<IExprTableFullName, List<(ExprColumnName Internal, ExprColumnName External)>> fks)
         {
             this.Pk = pk;
             this.Fks = fks;

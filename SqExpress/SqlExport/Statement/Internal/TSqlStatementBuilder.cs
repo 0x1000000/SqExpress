@@ -1,6 +1,9 @@
-﻿using SqExpress.SqlExport.Internal;
+﻿using System;
+using SqExpress.SqlExport.Internal;
 using SqExpress.StatementSyntax;
 using SqExpress.Syntax.Boolean;
+using SqExpress.Syntax.Functions;
+using SqExpress.Syntax.Names;
 
 namespace SqExpress.SqlExport.Statement.Internal
 {
@@ -39,19 +42,31 @@ namespace SqExpress.SqlExport.Statement.Internal
             }
         }
 
+        protected override void AppendTempKeyword(IExprTableFullName tableName)
+        {
+        }
+
         public void VisitDropTable(StatementDropTable statementDropTable)
         {
             if (!statementDropTable.IfExists)
             {
                 this.Builder.Append("DROP TABLE ");
-                statementDropTable.Table.FullName.Accept(this.ExprBuilder, null);
+                statementDropTable.Table.Accept(this.ExprBuilder, null);
             }
             else
             {
-                new StatementIfTableExists(
-                    statementDropTable.Table, 
-                    StatementList.Combine(new StatementDropTable(statementDropTable.Table, false)), null)
-                .Accept(this);
+                StatementIfExists ifExists = statementDropTable.Table switch
+                {
+                    ExprTableFullName t => new StatementIfTableExists(
+                        t,
+                        StatementList.Combine(new StatementDropTable(statementDropTable.Table, false)), null),
+                    ExprTempTableName tempTable  => new StatementIfTempTableExists(
+                        tempTable,
+                        StatementList.Combine(new StatementDropTable(statementDropTable.Table, false)), null),
+                    _ => throw new ArgumentOutOfRangeException()
+                };
+
+                ifExists.Accept(this);
             }
         }
 
@@ -95,20 +110,36 @@ namespace SqExpress.SqlExport.Statement.Internal
 
         public void VisitIfTableExists(StatementIfTableExists statementIfExists)
         {
-            var tbl = new InformationSchemaTables(Alias.Empty);
-
-
-            ExprBoolean condition = tbl.TableName == statementIfExists.Table.FullName.TableName.Name;
-            if (statementIfExists.Table.FullName.DbSchema != null)
+            if (statementIfExists.ExprTable.DbSchema == null)
             {
-                condition = tbl.TableSchema == this.Options.MapSchema(statementIfExists.Table.FullName.DbSchema.Schema.Name) & condition;
+                throw new SqExpressException("Table schema name is mandatory to check the table existence");
             }
+
+            string? databaseName = statementIfExists.ExprTable.DbSchema.Database?.Name;
+
+            var tbl = new InformationSchemaTables(databaseName, Alias.Empty);
+
+            ExprBoolean condition = tbl.TableSchema == this.Options.MapSchema(statementIfExists.ExprTable.DbSchema.Schema.Name) 
+                                    & tbl.TableName == statementIfExists.ExprTable.TableName.Name;
 
             var test = SqQueryBuilder.SelectTopOne()
                 .From(tbl)
                 .Where(condition);
 
             new StatementIf(SqQueryBuilder.Exists(test), statementIfExists.Statements, statementIfExists.ElseStatements).Accept(this);
+        }
+
+        public void VisitIfTempTableExists(StatementIfTempTableExists statementIfTempTableExists)
+        {
+            var tableName =  TSqlExporter.Default.ToSql(statementIfTempTableExists.Table);
+
+            tableName = "tempdb.." + tableName;
+
+            var condition = SqQueryBuilder.IsNotNull(new ExprScalarFunction(null,
+                new ExprFunctionName(true, "OBJECT_ID"),
+                new[] {SqQueryBuilder.Literal(tableName)}));
+
+            new StatementIf(condition, statementIfTempTableExists.Statements, statementIfTempTableExists.ElseStatements).Accept(this);
         }
 
         public string Build() => this.Builder.ToString();

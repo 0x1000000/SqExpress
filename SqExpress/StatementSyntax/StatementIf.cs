@@ -37,16 +37,29 @@ namespace SqExpress.StatementSyntax
         public abstract void Accept(IStatementVisitor visitor);
     }
 
-
     public class StatementIfTableExists : StatementIfExists
     {
-        public StatementIfTableExists(ExprTable table, StatementList statements, StatementList? elseStatements) : base(statements, elseStatements)
+        public StatementIfTableExists(ExprTableFullName exprTable, StatementList statements, StatementList? elseStatements) 
+            : base(statements, elseStatements)
+        {
+            this.ExprTable = exprTable;
+        }
+
+        public ExprTableFullName ExprTable { get; }
+
+        public override void Accept(IStatementVisitor visitor) => visitor.VisitIfTableExists(this);
+    }
+
+    public class StatementIfTempTableExists : StatementIfExists
+    {
+        public StatementIfTempTableExists(ExprTempTableName table, StatementList statements, StatementList? elseStatements) 
+            : base(statements, elseStatements)
         {
             this.Table = table;
         }
 
-        public ExprTable Table { get; }
+        public ExprTempTableName Table { get; }
 
-        public override void Accept(IStatementVisitor visitor) => visitor.VisitIfTableExists(this);
+        public override void Accept(IStatementVisitor visitor) => visitor.VisitIfTempTableExists(this);
     }
 }

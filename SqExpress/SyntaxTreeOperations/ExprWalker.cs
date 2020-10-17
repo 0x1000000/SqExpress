@@ -559,6 +559,13 @@ namespace SqExpress.SyntaxTreeOperations
             this._visitor.EndVisitExpr(expr, arg);
             return res;
         }
+        public bool VisitExprTempTableName(ExprTempTableName expr, TCtx arg)
+        {
+            var res = this.Visit(expr, "TempTableName", arg, out var argOut);
+            this.VisitPlainProperty("Name",expr.Name, argOut);
+            this._visitor.EndVisitExpr(expr, arg);
+            return res;
+        }
         public bool VisitExprAggregateFunction(ExprAggregateFunction expr, TCtx arg)
         {
             var res = this.Visit(expr, "AggregateFunction", arg, out var argOut) && this.Accept("Name",expr.Name, argOut) && this.Accept("Expression",expr.Expression, argOut);

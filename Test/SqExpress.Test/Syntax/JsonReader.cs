@@ -17,7 +17,7 @@ namespace SqExpress.Test.Syntax
             return node.TryGetProperty(propertyName, out subNode);
         }
 
-        public IEnumerable<JsonElement>? EnumerateList(JsonElement node, string propertyName)
+        public IEnumerable<JsonElement> EnumerateList(JsonElement node, string propertyName)
         {
             if (node.TryGetProperty(propertyName, out var arrayElement))
             {

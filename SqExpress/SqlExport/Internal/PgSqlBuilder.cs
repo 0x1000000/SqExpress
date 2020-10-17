@@ -61,6 +61,12 @@ namespace SqExpress.SqlExport.Internal
             throw new NotSupportedException("PostgreSql does not support 'TOP x' expression");
         }
 
+        public override bool VisitExprTempTableName(ExprTempTableName tempTableName, object? arg)
+        {
+            this.AppendName(tempTableName.Name);
+            return true;
+        }
+
         public override bool VisitExprInsertOutput(ExprInsertOutput exprInsertOutput, object? arg)
         {
             this.GenericInsert(exprInsertOutput.Insert,
@@ -305,9 +311,13 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
-        public override void AppendName(string name)
+        public override void AppendName(string name, char? prefix = null)
         {
             this.Builder.Append("\"");
+            if (prefix.HasValue)
+            {
+                this.Builder.Append(prefix.Value);
+            }
             SqlInjectionChecker.AppendStringEscapeDoubleQuote(this.Builder, name);
             this.Builder.Append("\"");
         }
