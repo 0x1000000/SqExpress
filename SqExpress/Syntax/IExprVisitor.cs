@@ -152,6 +152,8 @@ namespace SqExpress.Syntax
 
         TRes VisitExprAliasedSelecting(ExprAliasedSelecting exprAliasedSelecting, TArg arg);
 
+        TRes VisitExprTempTableName(ExprTempTableName tempTableName, TArg arg);
+
         TRes VisitExprTableAlias(ExprTableAlias tableAlias, TArg arg);
 
         TRes VisitExprSchemaName(ExprSchemaName schemaName, TArg arg);

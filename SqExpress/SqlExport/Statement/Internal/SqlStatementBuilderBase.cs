@@ -24,7 +24,9 @@ namespace SqExpress.SqlExport.Statement.Internal
         protected void AppendTable(StatementCreateTable statementCreateTable)
         {
             var table = statementCreateTable.Table;
-            this.Builder.Append("CREATE TABLE ");
+            this.Builder.Append("CREATE ");
+            this.AppendTempKeyword(table.FullName);
+            this.Builder.Append("TABLE ");
             statementCreateTable.Table.FullName.Accept(this.ExprBuilder, null);
             this.Builder.Append('(');
 
@@ -51,6 +53,8 @@ namespace SqExpress.SqlExport.Statement.Internal
         }
 
         protected abstract void AppendColumn(TableColumn column);
+
+        protected abstract void AppendTempKeyword(IExprTableFullName tableName);
 
         private void AppendPkConstraints(TableBase table, ColumnAnalysis analysis)
         {
@@ -86,16 +90,22 @@ namespace SqExpress.SqlExport.Statement.Internal
             }
         }
 
-        private string BuildPkName(ExprTableFullName table)
+        private string BuildPkName(IExprTableFullName tableIn)
         {
+            var table = tableIn.AsExprTableFullName();
+
             var schemaName = table.DbSchema != null ? this.Options.MapSchema(table.DbSchema.Schema.Name) + "_" : null;
 
             return $"PK_{schemaName}{table.TableName.Name}";
         }
 
-        private string BuildFkName(ExprTableFullName table, ExprTableFullName foreignTable)
+        private string BuildFkName(IExprTableFullName tableIn, IExprTableFullName foreignTableIn)
         {
             StringBuilder nameBuilder = new StringBuilder();
+
+            ExprTableFullName table = tableIn.AsExprTableFullName();
+
+            ExprTableFullName foreignTable = foreignTableIn.AsExprTableFullName();
 
             var schemaName = table.DbSchema != null ? this.Options.MapSchema(table.DbSchema.Schema.Name) + "_" : null;
 

@@ -62,6 +62,17 @@ namespace SqExpress.SqlExport.Internal
             this.Builder.Append(' ');
         }
 
+        public override bool VisitExprTempTableName(ExprTempTableName tempTableName, object? arg)
+        {
+            char? prefix = null;
+            if (tempTableName.Name.Length > 0 && tempTableName.Name[0] != '#')
+            {
+                prefix = '#';
+            }
+            this.AppendName(tempTableName.Name, prefix);
+            return true;
+        }
+
         public override bool VisitExprInsertOutput(ExprInsertOutput exprInsertOutput, object? arg)
         {
             this.GenericInsert(exprInsertOutput.Insert,
@@ -328,9 +339,13 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
-        public override void AppendName(string name)
+        public override void AppendName(string name, char? prefix = null)
         {
             this.Builder.Append('[');
+            if (prefix.HasValue)
+            {
+                this.Builder.Append(prefix.Value);
+            }
             SqlInjectionChecker.AppendStringEscapeClosingSquare(this.Builder, name);
             this.Builder.Append(']');
         }

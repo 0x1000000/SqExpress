@@ -42,7 +42,7 @@ namespace SqExpress.SyntaxTreeOperations
                 case "ColumnSetClause": return new ExprColumnSetClause(column: GetSubNode<TNode, ExprColumn>(rootElement, reader, "Column"), value: GetSubNode<TNode, IExprAssigning>(rootElement, reader, "Value"));
                 case "Delete": return new ExprDelete(target: GetSubNode<TNode, ExprTable>(rootElement, reader, "Target"), source: GetNullableSubNode<TNode, IExprTableSource>(rootElement, reader, "Source"), filter: GetNullableSubNode<TNode, ExprBoolean>(rootElement, reader, "Filter"));
                 case "DeleteOutput": return new ExprDeleteOutput(delete: GetSubNode<TNode, ExprDelete>(rootElement, reader, "Delete"), outputColumns: GetSubNodeList<TNode, ExprAliasedColumn>(rootElement, reader, "OutputColumns"));
-                case "Insert": return new ExprInsert(target: GetSubNode<TNode, ExprTableFullName>(rootElement, reader, "Target"), targetColumns: GetNullableSubNodeList<TNode, ExprColumnName>(rootElement, reader, "TargetColumns"), source: GetSubNode<TNode, IExprInsertSource>(rootElement, reader, "Source"));
+                case "Insert": return new ExprInsert(target: GetSubNode<TNode, IExprTableFullName>(rootElement, reader, "Target"), targetColumns: GetNullableSubNodeList<TNode, ExprColumnName>(rootElement, reader, "TargetColumns"), source: GetSubNode<TNode, IExprInsertSource>(rootElement, reader, "Source"));
                 case "InsertOutput": return new ExprInsertOutput(insert: GetSubNode<TNode, ExprInsert>(rootElement, reader, "Insert"), outputColumns: GetSubNodeList<TNode, ExprAliasedColumnName>(rootElement, reader, "OutputColumns"));
                 case "InsertValues": return new ExprInsertValues(values: GetSubNode<TNode, ExprTableValueConstructor>(rootElement, reader, "Values"));
                 case "InsertQuery": return new ExprInsertQuery(query: GetSubNode<TNode, IExprQuery>(rootElement, reader, "Query"));
@@ -95,10 +95,11 @@ namespace SqExpress.SyntaxTreeOperations
                 case "DbSchema": return new ExprDbSchema(database: GetNullableSubNode<TNode, ExprDatabaseName>(rootElement, reader, "Database"), schema: GetSubNode<TNode, ExprSchemaName>(rootElement, reader, "Schema"));
                 case "FunctionName": return new ExprFunctionName(builtIn: ReadBoolean(rootElement, reader, "BuiltIn"), name: ReadString(rootElement, reader, "Name"));
                 case "SchemaName": return new ExprSchemaName(name: ReadString(rootElement, reader, "Name"));
-                case "Table": return new ExprTable(fullName: GetSubNode<TNode, ExprTableFullName>(rootElement, reader, "FullName"), alias: GetNullableSubNode<TNode, ExprTableAlias>(rootElement, reader, "Alias"));
+                case "Table": return new ExprTable(fullName: GetSubNode<TNode, IExprTableFullName>(rootElement, reader, "FullName"), alias: GetNullableSubNode<TNode, ExprTableAlias>(rootElement, reader, "Alias"));
                 case "TableAlias": return new ExprTableAlias(alias: GetSubNode<TNode, IExprAlias>(rootElement, reader, "Alias"));
                 case "TableFullName": return new ExprTableFullName(dbSchema: GetNullableSubNode<TNode, ExprDbSchema>(rootElement, reader, "DbSchema"), tableName: GetSubNode<TNode, ExprTableName>(rootElement, reader, "TableName"));
                 case "TableName": return new ExprTableName(name: ReadString(rootElement, reader, "Name"));
+                case "TempTableName": return new ExprTempTableName(name: ReadString(rootElement, reader, "Name"));
                 case "AggregateFunction": return new ExprAggregateFunction(name: GetSubNode<TNode, ExprFunctionName>(rootElement, reader, "Name"), expression: GetSubNode<TNode, ExprValue>(rootElement, reader, "Expression"), isDistinct: ReadBoolean(rootElement, reader, "IsDistinct"));
                 case "AnalyticFunction": return new ExprAnalyticFunction(name: GetSubNode<TNode, ExprFunctionName>(rootElement, reader, "Name"), arguments: GetNullableSubNodeList<TNode, ExprValue>(rootElement, reader, "Arguments"), over: GetSubNode<TNode, ExprOver>(rootElement, reader, "Over"));
                 case "Case": return new ExprCase(cases: GetSubNodeList<TNode, ExprCaseWhenThen>(rootElement, reader, "Cases"), defaultValue: GetSubNode<TNode, ExprValue>(rootElement, reader, "DefaultValue"));

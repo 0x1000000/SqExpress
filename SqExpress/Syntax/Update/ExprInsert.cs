@@ -8,14 +8,14 @@ namespace SqExpress.Syntax.Update
 {
     public class ExprInsert : IExprExec
     {
-        public ExprInsert(ExprTableFullName target, IReadOnlyList<ExprColumnName>? targetColumns, IExprInsertSource source)
+        public ExprInsert(IExprTableFullName target, IReadOnlyList<ExprColumnName>? targetColumns, IExprInsertSource source)
         {
             this.Target = target;
             this.TargetColumns = targetColumns;
             this.Source = source;
         }
 
-        public ExprTableFullName Target { get; }
+        public IExprTableFullName Target { get; }
 
         public IReadOnlyList<ExprColumnName>? TargetColumns { get; }
 

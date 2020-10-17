@@ -7,15 +7,15 @@ namespace SqExpress.Syntax.Names
 {
     public class ExprTable : IExprTableSource, IEquatable<ExprTable>
     {
-        public ExprTableAlias? Alias { get; }
-
-        public ExprTableFullName FullName { get; }
-
-        public ExprTable(ExprTableFullName fullName, ExprTableAlias? alias)
+        public ExprTable(IExprTableFullName fullName, ExprTableAlias? alias)
         {
             this.Alias = alias;
             this.FullName = fullName;
         }
+
+        public ExprTableAlias? Alias { get; }
+
+        public IExprTableFullName FullName { get; }
 
         public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprTable(this, arg);

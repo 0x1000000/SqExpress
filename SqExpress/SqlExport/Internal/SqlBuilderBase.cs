@@ -769,6 +769,8 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public abstract bool VisitExprTempTableName(ExprTempTableName tempTableName, object? arg);
+
         public bool VisitExprTableAlias(ExprTableAlias tableAlias, object? arg)
         {
             tableAlias.Alias.Accept(this, arg);
@@ -1120,7 +1122,7 @@ namespace SqExpress.SqlExport.Internal
 
         public abstract bool VisitExprGetUtcDate(ExprGetUtcDate exprGetUtcDate, object? arg);
 
-        public abstract void AppendName(string name);
+        public abstract void AppendName(string name, char? prefix = null);
 
         protected void AppendNull()
         {

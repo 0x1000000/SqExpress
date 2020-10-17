@@ -666,6 +666,10 @@ namespace SqExpress.SyntaxTreeOperations
         {
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprTempTableName(ExprTempTableName exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprAggregateFunction(ExprAggregateFunction exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newName = this.AcceptItem(exprIn.Name, modifier);

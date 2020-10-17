@@ -2,7 +2,7 @@
 
 namespace SqExpress.Syntax.Names
 {
-    public class ExprTableFullName : IExprColumnSource, IEquatable<ExprTableFullName>
+    public class ExprTableFullName : IExprTableFullName, IEquatable<ExprTableFullName>
     {
         public ExprTableFullName(ExprDbSchema? dbSchema, ExprTableName tableName)
         {
@@ -16,6 +16,11 @@ namespace SqExpress.Syntax.Names
 
         public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprTableFullName(this, arg);
+
+        public ExprTableFullName AsExprTableFullName()
+        {
+            return this;
+        }
 
         public bool Equals(ExprTableFullName? other)
         {

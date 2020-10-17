@@ -18,7 +18,12 @@ namespace SqExpress.Meta
 
         public IStatement DropIfExist()
         {
-            return new StatementDropTable(this._table, ifExists: true);
+            return new StatementDropTable(this._table.FullName, ifExists: true);
+        }
+
+        public IStatement Drop()
+        {
+            return new StatementDropTable(this._table.FullName, ifExists: false);
         }
 
         public IStatement Create()

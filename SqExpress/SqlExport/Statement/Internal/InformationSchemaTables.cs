@@ -10,7 +10,8 @@
 
         public readonly StringTableColumn TableType;
 
-        public InformationSchemaTables(Alias alias = default) : base("INFORMATION_SCHEMA", "TABLES", alias)
+        public InformationSchemaTables(string? database = null, Alias alias = default) 
+            :  base(database, "INFORMATION_SCHEMA", "TABLES", alias)
         {
             this.TableCatalog = this.CreateStringColumn("TABLE_CATALOG", null);
             this.TableSchema = this.CreateStringColumn("TABLE_SCHEMA", null);

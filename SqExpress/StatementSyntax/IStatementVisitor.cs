@@ -11,5 +11,7 @@
         void VisitStatementList(StatementList statementList);
 
         void VisitIfTableExists(StatementIfTableExists statementIfExists);
+
+        void VisitIfTempTableExists(StatementIfTempTableExists statementIfTempTableExists);
     }
 }

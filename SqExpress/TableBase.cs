@@ -7,13 +7,22 @@ namespace SqExpress
 {
     public class TableBase : ExprTable
     {
-        public TableBase(string schema, string name, Alias alias = default) 
-            : base(new ExprTableFullName(new ExprDbSchema(null, new ExprSchemaName(schema)), new ExprTableName(name)), BuildTableAlias(alias))
+        public TableBase(string? schema, string name, Alias alias = default)
+            : base(new ExprTableFullName(schema != null ? new ExprDbSchema(null, new ExprSchemaName(schema)) : null,
+                    new ExprTableName(name)),
+                BuildTableAlias(alias))
         {
         }
 
-        public TableBase(string databaseName, string schema, string name, Alias alias = default) 
-            : base(new ExprTableFullName(new ExprDbSchema(new ExprDatabaseName(databaseName), new ExprSchemaName(schema)), new ExprTableName(name)), BuildTableAlias(alias))
+        public TableBase(string? databaseName, string schema, string name, Alias alias = default)
+            : base(new ExprTableFullName(
+                    new ExprDbSchema(databaseName != null ? new ExprDatabaseName(databaseName) : null, new ExprSchemaName(schema)),
+                    new ExprTableName(name)),
+                BuildTableAlias(alias))
+        {
+        }
+
+        protected internal TableBase(IExprTableFullName fullName, ExprTableAlias? alias) : base(fullName, alias)
         {
         }
 
@@ -163,7 +172,7 @@ namespace SqExpress
             return result;
         }
 
-        private static ExprTableAlias? BuildTableAlias(Alias alias)
+        protected internal static ExprTableAlias? BuildTableAlias(Alias alias)
         {
             var a = alias.BuildAliasExpression();
 

@@ -4,7 +4,7 @@ namespace SqExpress.StatementSyntax
 {
     public class StatementDropTable : IStatement
     {
-        public StatementDropTable(ExprTable table, bool ifExists)
+        public StatementDropTable(IExprTableFullName table, bool ifExists)
         {
             this.Table = table;
             this.IfExists = ifExists;
@@ -12,7 +12,7 @@ namespace SqExpress.StatementSyntax
 
         public bool IfExists { get; }
 
-        public ExprTable Table { get; }
+        public IExprTableFullName Table { get; }
 
         public void Accept(IStatementVisitor visitor)
             => visitor.VisitDropTable(this);
