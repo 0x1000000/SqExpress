@@ -3,26 +3,38 @@ using SqExpress.Syntax.Select;
 
 namespace SqExpress.Syntax.Names
 {
-    public class ExprColumnName : IExprNamedSelecting, IEquatable<ExprColumnName>
+    public class ExprColumnName : IExprNamedSelecting, IExprName, IEquatable<ExprColumnName>
     {
+        private string? _lowerInvariantName;
+
         public ExprColumnName(string name)
         {
             this.Name = name.Trim();
-            this.LowerInvariantName = this.Name.ToLowerInvariant();
         }
 
         public string Name { get; }
 
-        public string LowerInvariantName { get; }
+        public string LowerInvariantName
+        {
+            get
+            {
+                this._lowerInvariantName ??= this.Name.ToLowerInvariant();
+                return this._lowerInvariantName;
+            }
+        }
 
         public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprColumnName(this, arg);
+
+        public static implicit operator ExprColumnName(ExprColumn column) => column.ColumnName;
+
+        string IExprNamedSelecting.OutputName => this.Name;
 
         public bool Equals(ExprColumnName? other)
         {
             if (ReferenceEquals(null, other)) return false;
             if (ReferenceEquals(this, other)) return true;
-            return this.LowerInvariantName == other.LowerInvariantName;
+            return this.Name == other.Name;
         }
 
         public override bool Equals(object? obj)
@@ -30,13 +42,12 @@ namespace SqExpress.Syntax.Names
             if (ReferenceEquals(null, obj)) return false;
             if (ReferenceEquals(this, obj)) return true;
             if (obj.GetType() != this.GetType()) return false;
-            return this.Equals((ExprColumnName) obj);
+            return Equals((ExprColumnName) obj);
         }
 
-        public override int GetHashCode() => this.LowerInvariantName.GetHashCode();
-
-        public static implicit operator ExprColumnName(ExprColumn column) => column.ColumnName;
-
-        string IExprNamedSelecting.OutputName => this.Name;
+        public override int GetHashCode()
+        {
+            return this.Name.GetHashCode();
+        }
     }
 }

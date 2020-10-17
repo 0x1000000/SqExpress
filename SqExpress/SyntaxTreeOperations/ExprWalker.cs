@@ -506,6 +506,19 @@ namespace SqExpress.SyntaxTreeOperations
             this._visitor.EndVisitExpr(expr, arg);
             return res;
         }
+        public bool VisitExprDatabaseName(ExprDatabaseName expr, TCtx arg)
+        {
+            var res = this.Visit(expr, "DatabaseName", arg, out var argOut);
+            this.VisitPlainProperty("Name",expr.Name, argOut);
+            this._visitor.EndVisitExpr(expr, arg);
+            return res;
+        }
+        public bool VisitExprDbSchema(ExprDbSchema expr, TCtx arg)
+        {
+            var res = this.Visit(expr, "DbSchema", arg, out var argOut) && this.Accept("Database",expr.Database, argOut) && this.Accept("Schema",expr.Schema, argOut);
+            this._visitor.EndVisitExpr(expr, arg);
+            return res;
+        }
         public bool VisitExprFunctionName(ExprFunctionName expr, TCtx arg)
         {
             var res = this.Visit(expr, "FunctionName", arg, out var argOut);
@@ -535,7 +548,7 @@ namespace SqExpress.SyntaxTreeOperations
         }
         public bool VisitExprTableFullName(ExprTableFullName expr, TCtx arg)
         {
-            var res = this.Visit(expr, "TableFullName", arg, out var argOut) && this.Accept("Schema",expr.Schema, argOut) && this.Accept("TableName",expr.TableName, argOut);
+            var res = this.Visit(expr, "TableFullName", arg, out var argOut) && this.Accept("DbSchema",expr.DbSchema, argOut) && this.Accept("TableName",expr.TableName, argOut);
             this._visitor.EndVisitExpr(expr, arg);
             return res;
         }

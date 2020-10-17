@@ -611,6 +611,20 @@ namespace SqExpress.SyntaxTreeOperations
         {
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprDatabaseName(ExprDatabaseName exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprDbSchema(ExprDbSchema exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newDatabase = this.AcceptNullableItem(exprIn.Database, modifier);
+            var newSchema = this.AcceptItem(exprIn.Schema, modifier);
+            if(!ReferenceEquals(exprIn.Database, newDatabase) || !ReferenceEquals(exprIn.Schema, newSchema))
+            {
+                exprIn = new ExprDbSchema(database: newDatabase, schema: newSchema);
+            }
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprFunctionName(ExprFunctionName exprIn, Func<IExpr, IExpr?> modifier)
         {
             return modifier.Invoke(exprIn);
@@ -640,11 +654,11 @@ namespace SqExpress.SyntaxTreeOperations
         }
         public IExpr? VisitExprTableFullName(ExprTableFullName exprIn, Func<IExpr, IExpr?> modifier)
         {
-            var newSchema = this.AcceptItem(exprIn.Schema, modifier);
+            var newDbSchema = this.AcceptNullableItem(exprIn.DbSchema, modifier);
             var newTableName = this.AcceptItem(exprIn.TableName, modifier);
-            if(!ReferenceEquals(exprIn.Schema, newSchema) || !ReferenceEquals(exprIn.TableName, newTableName))
+            if(!ReferenceEquals(exprIn.DbSchema, newDbSchema) || !ReferenceEquals(exprIn.TableName, newTableName))
             {
-                exprIn = new ExprTableFullName(schema: newSchema, tableName: newTableName);
+                exprIn = new ExprTableFullName(dbSchema: newDbSchema, tableName: newTableName);
             }
             return modifier.Invoke(exprIn);
         }

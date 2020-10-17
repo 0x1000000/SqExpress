@@ -1,5 +1,6 @@
 ﻿using SqExpress.SqlExport.Internal;
 using SqExpress.StatementSyntax;
+using SqExpress.Syntax.Boolean;
 
 namespace SqExpress.SqlExport.Statement.Internal
 {
@@ -95,10 +96,17 @@ namespace SqExpress.SqlExport.Statement.Internal
         public void VisitIfTableExists(StatementIfTableExists statementIfExists)
         {
             var tbl = new InformationSchemaTables(Alias.Empty);
+
+
+            ExprBoolean condition = tbl.TableName == statementIfExists.Table.FullName.TableName.Name;
+            if (statementIfExists.Table.FullName.DbSchema != null)
+            {
+                condition = tbl.TableSchema == this.Options.MapSchema(statementIfExists.Table.FullName.DbSchema.Schema.Name) & condition;
+            }
+
             var test = SqQueryBuilder.SelectTopOne()
                 .From(tbl)
-                .Where(tbl.TableSchema == this.Options.MapSchema(statementIfExists.Table.FullName.Schema.Name) &
-                       tbl.TableName == statementIfExists.Table.FullName.TableName.Name);
+                .Where(condition);
 
             new StatementIf(SqQueryBuilder.Exists(test), statementIfExists.Statements, statementIfExists.ElseStatements).Accept(this);
         }

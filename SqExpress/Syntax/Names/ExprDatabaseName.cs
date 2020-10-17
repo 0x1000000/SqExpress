@@ -2,11 +2,11 @@
 
 namespace SqExpress.Syntax.Names
 {
-    public class ExprColumnAlias : IExprName, IEquatable<ExprColumnAlias>
+    public class ExprDatabaseName : IExprName, IEquatable<ExprDatabaseName>
     {
         private string? _lowerInvariantName;
 
-        public ExprColumnAlias(string name)
+        public ExprDatabaseName(string name)
         {
             this.Name = name.Trim();
         }
@@ -21,17 +21,10 @@ namespace SqExpress.Syntax.Names
                 return this._lowerInvariantName;
             }
         }
-
         public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
-            => visitor.VisitExprColumnAlias(this, arg);
+            => visitor.VisitExprDatabaseName(this, arg);
 
-        public static implicit operator ExprColumnAlias(string name)=> new ExprColumnAlias(name);
-
-        public static implicit operator ExprColumnAlias(ExprColumn column) => new ExprColumnAlias(column.ColumnName.Name);
-
-        public static implicit operator ExprColumnAlias(ExprColumnName column) => new ExprColumnAlias(column.Name);
-
-        public bool Equals(ExprColumnAlias? other)
+        public bool Equals(ExprDatabaseName? other)
         {
             if (ReferenceEquals(null, other)) return false;
             if (ReferenceEquals(this, other)) return true;
@@ -43,7 +36,7 @@ namespace SqExpress.Syntax.Names
             if (ReferenceEquals(null, obj)) return false;
             if (ReferenceEquals(this, obj)) return true;
             if (obj.GetType() != this.GetType()) return false;
-            return Equals((ExprColumnAlias) obj);
+            return Equals((ExprDatabaseName) obj);
         }
 
         public override int GetHashCode()

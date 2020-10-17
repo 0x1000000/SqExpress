@@ -2,17 +2,25 @@
 
 namespace SqExpress.Syntax.Names
 {
-    public class ExprAlias : IExprAlias, IEquatable<ExprAlias>
+    public class ExprAlias : IExprAlias, IExprName, IEquatable<ExprAlias>
     {
+        private string? _lowerInvariantName;
+
         public ExprAlias(string name)
         {
             this.Name = name.Trim();
-            this.LowerInvariantName = this.Name.ToLowerInvariant();
         }
 
         public string Name { get; }
 
-        public string LowerInvariantName { get; }
+        public string LowerInvariantName
+        {
+            get
+            {
+                this._lowerInvariantName ??= this.Name.ToLowerInvariant();
+                return this._lowerInvariantName;
+            }
+        }
 
         public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprAlias(this, arg);
@@ -21,7 +29,7 @@ namespace SqExpress.Syntax.Names
         {
             if (ReferenceEquals(null, other)) return false;
             if (ReferenceEquals(this, other)) return true;
-            return this.LowerInvariantName == other.LowerInvariantName;
+            return this.Name == other.Name;
         }
 
         public override bool Equals(object? obj)
@@ -29,9 +37,12 @@ namespace SqExpress.Syntax.Names
             if (ReferenceEquals(null, obj)) return false;
             if (ReferenceEquals(this, obj)) return true;
             if (obj.GetType() != this.GetType()) return false;
-            return this.Equals((ExprAlias) obj);
+            return Equals((ExprAlias) obj);
         }
 
-        public override int GetHashCode() => this.LowerInvariantName.GetHashCode();
+        public override int GetHashCode()
+        {
+            return this.Name.GetHashCode();
+        }
     }
 }

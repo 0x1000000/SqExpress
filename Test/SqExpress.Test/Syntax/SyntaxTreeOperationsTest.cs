@@ -27,15 +27,14 @@ namespace SqExpress.Test.Syntax
                 .InnerJoin(tCustomer, on: tCustomer.UserId == tUser.UserId)
                 .Done();
 
-            string expected = "0ExprQuerySpecification,1Int32TableColumn,2ExprTableAlias,3ExprAliasGuid,2ExprColumnName," +
-                              "1StringTableColumn,2ExprTableAlias,3ExprAliasGuid,2ExprColumnName," +
-                              "1Int32TableColumn,2ExprTableAlias,3ExprAliasGuid,2ExprColumnName," +
-                              "1ExprJoinedTable,2User,3ExprTableFullName,4ExprSchemaName,4ExprTableName," +
-                              "3ExprTableAlias,4ExprAliasGuid,2Customer,3ExprTableFullName,4ExprSchemaName," +
-                              "4ExprTableName,3ExprTableAlias,4ExprAliasGuid,2ExprBooleanEq," +
-                              "3NullableInt32TableColumn,4ExprTableAlias," +
-                              "5ExprAliasGuid,4ExprColumnName,3Int32TableColumn," +
-                              "4ExprTableAlias,5ExprAliasGuid,4ExprColumnName,";
+            string expected = "0ExprQuerySpecification,1Int32TableColumn,2ExprTableAlias,3ExprAliasGuid," +
+                              "2ExprColumnName,1StringTableColumn,2ExprTableAlias,3ExprAliasGuid," +
+                              "2ExprColumnName,1Int32TableColumn,2ExprTableAlias,3ExprAliasGuid,2ExprColumnName," +
+                              "1ExprJoinedTable,2User,3ExprTableFullName,4ExprDbSchema,5ExprSchemaName," +
+                              "4ExprTableName,3ExprTableAlias,4ExprAliasGuid,2Customer,3ExprTableFullName," +
+                              "4ExprDbSchema,5ExprSchemaName,4ExprTableName,3ExprTableAlias,4ExprAliasGuid," +
+                              "2ExprBooleanEq,3NullableInt32TableColumn,4ExprTableAlias,5ExprAliasGuid," +
+                              "4ExprColumnName,3Int32TableColumn,4ExprTableAlias,5ExprAliasGuid,4ExprColumnName,";
 
             StringBuilder builder = new StringBuilder();
 
@@ -48,6 +47,7 @@ namespace SqExpress.Test.Syntax
             }, 0);
 
             Assert.AreEqual(expected, builder.ToString());
+
         }
 
         [Test]

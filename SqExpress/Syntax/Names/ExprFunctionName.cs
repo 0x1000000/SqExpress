@@ -2,20 +2,28 @@
 
 namespace SqExpress.Syntax.Names
 {
-    public class ExprFunctionName : IExpr, IEquatable<ExprFunctionName>
+    public class ExprFunctionName : IExprName, IEquatable<ExprFunctionName>
     {
+        private string? _lowerInvariantName;
+
         public ExprFunctionName(bool builtIn, string name)
         {
             this.BuiltIn = builtIn;
-            this.Name = name;
-            this.LowerInvariantName = name.ToLowerInvariant();
+            this.Name = name.Trim();
         }
 
         public bool BuiltIn { get; }
 
         public string Name { get; }
 
-        public string LowerInvariantName { get; }
+        public string LowerInvariantName
+        {
+            get
+            {
+                this._lowerInvariantName ??= this.Name.ToLowerInvariant();
+                return this._lowerInvariantName;
+            }
+        }
 
         public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprFunctionName(this, arg);
@@ -24,7 +32,7 @@ namespace SqExpress.Syntax.Names
         {
             if (ReferenceEquals(null, other)) return false;
             if (ReferenceEquals(this, other)) return true;
-            return this.LowerInvariantName == other.LowerInvariantName;
+            return this.BuiltIn == other.BuiltIn && this.Name == other.Name;
         }
 
         public override bool Equals(object? obj)
@@ -32,12 +40,15 @@ namespace SqExpress.Syntax.Names
             if (ReferenceEquals(null, obj)) return false;
             if (ReferenceEquals(this, obj)) return true;
             if (obj.GetType() != this.GetType()) return false;
-            return this.Equals((ExprFunctionName) obj);
+            return Equals((ExprFunctionName) obj);
         }
 
         public override int GetHashCode()
         {
-            return this.LowerInvariantName.GetHashCode();
+            unchecked
+            {
+                return (this.BuiltIn.GetHashCode() * 397) ^ this.Name.GetHashCode();
+            }
         }
     }
 }

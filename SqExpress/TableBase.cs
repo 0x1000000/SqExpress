@@ -8,7 +8,12 @@ namespace SqExpress
     public class TableBase : ExprTable
     {
         public TableBase(string schema, string name, Alias alias = default) 
-            : base(new ExprTableFullName(new ExprSchemaName(schema), new ExprTableName(name)), BuildTableAlias(alias))
+            : base(new ExprTableFullName(new ExprDbSchema(null, new ExprSchemaName(schema)), new ExprTableName(name)), BuildTableAlias(alias))
+        {
+        }
+
+        public TableBase(string databaseName, string schema, string name, Alias alias = default) 
+            : base(new ExprTableFullName(new ExprDbSchema(new ExprDatabaseName(databaseName), new ExprSchemaName(schema)), new ExprTableName(name)), BuildTableAlias(alias))
         {
         }
 

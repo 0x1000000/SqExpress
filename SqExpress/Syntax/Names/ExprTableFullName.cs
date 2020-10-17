@@ -4,13 +4,13 @@ namespace SqExpress.Syntax.Names
 {
     public class ExprTableFullName : IExprColumnSource, IEquatable<ExprTableFullName>
     {
-        public ExprTableFullName(ExprSchemaName schema, ExprTableName tableName)
+        public ExprTableFullName(ExprDbSchema? dbSchema, ExprTableName tableName)
         {
-            this.Schema = schema;
+            this.DbSchema = dbSchema;
             this.TableName = tableName;
         }
 
-        public ExprSchemaName Schema { get; }
+        public ExprDbSchema? DbSchema { get; }
 
         public ExprTableName TableName { get; }
 
@@ -21,7 +21,7 @@ namespace SqExpress.Syntax.Names
         {
             if (ReferenceEquals(null, other)) return false;
             if (ReferenceEquals(this, other)) return true;
-            return this.Schema.Equals(other.Schema) && this.TableName.Equals(other.TableName);
+            return Equals(this.DbSchema, other.DbSchema) && this.TableName.Equals(other.TableName);
         }
 
         public override bool Equals(object? obj)
@@ -29,14 +29,14 @@ namespace SqExpress.Syntax.Names
             if (ReferenceEquals(null, obj)) return false;
             if (ReferenceEquals(this, obj)) return true;
             if (obj.GetType() != this.GetType()) return false;
-            return this.Equals((ExprTableFullName) obj);
+            return Equals((ExprTableFullName) obj);
         }
 
         public override int GetHashCode()
         {
             unchecked
             {
-                return (this.Schema.GetHashCode() * 397) ^ this.TableName.GetHashCode();
+                return ((this.DbSchema != null ? this.DbSchema.GetHashCode() : 0) * 397) ^ this.TableName.GetHashCode();
             }
         }
     }

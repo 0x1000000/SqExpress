@@ -6,14 +6,14 @@ namespace SqExpress.Syntax.Functions
 {
     public class ExprScalarFunction : ExprValue
     {
-        public ExprScalarFunction(ExprSchemaName? schema, ExprFunctionName name, IReadOnlyList<ExprValue> arguments)
+        public ExprScalarFunction(ExprDbSchema? schema, ExprFunctionName name, IReadOnlyList<ExprValue> arguments)
         {
             this.Schema = schema;
             this.Name = name;
             this.Arguments = arguments;
         }
 
-        public ExprSchemaName? Schema { get; }
+        public ExprDbSchema? Schema { get; }
 
         public ExprFunctionName Name { get; }
 
