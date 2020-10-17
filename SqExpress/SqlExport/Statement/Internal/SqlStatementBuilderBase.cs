@@ -88,20 +88,30 @@ namespace SqExpress.SqlExport.Statement.Internal
 
         private string BuildPkName(ExprTableFullName table)
         {
-            return $"PK_{this.Options.MapSchema(table.Schema.Name)}_{table.TableName.Name}";
+            var schemaName = table.DbSchema != null ? this.Options.MapSchema(table.DbSchema.Schema.Name) + "_" : null;
+
+            return $"PK_{schemaName}{table.TableName.Name}";
         }
 
         private string BuildFkName(ExprTableFullName table, ExprTableFullName foreignTable)
         {
             StringBuilder nameBuilder = new StringBuilder();
 
+            var schemaName = table.DbSchema != null ? this.Options.MapSchema(table.DbSchema.Schema.Name) + "_" : null;
+
             nameBuilder.Append("FK_");
-            nameBuilder.Append(this.Options.MapSchema(table.Schema.Name));
-            nameBuilder.Append('_');
+            if (schemaName != null)
+            {
+                nameBuilder.Append(schemaName);
+                nameBuilder.Append('_');
+            }
             nameBuilder.Append(table.TableName.Name);
             nameBuilder.Append("_to_");
-            nameBuilder.Append(this.Options.MapSchema(foreignTable.Schema.Name));
-            nameBuilder.Append('_');
+            if (schemaName != null)
+            {
+                nameBuilder.Append(schemaName);
+                nameBuilder.Append('_');
+            }
             nameBuilder.Append(foreignTable.TableName.Name);
 
             return nameBuilder.ToString();

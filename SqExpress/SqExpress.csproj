@@ -15,6 +15,7 @@
 -	expr.SyntaxTree().Find()
 -	expr.SyntaxTree().Modify
 -                 ExprDeserializer.Deserialize()
+-                 Database name can be specified in table names
 Braking Changes:
 -	SqlBuilderBase is now internal
 -	IExprVistor changed

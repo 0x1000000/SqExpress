@@ -77,6 +77,19 @@ namespace SqExpress
             {
                 return this._expr.Accept(ExprModifier.Instance, modifier);
             }
+
+            public IExpr? Modify<TExpr>(Func<TExpr, IExpr?> modifier) where TExpr: IExpr
+            {
+                return this._expr.Accept(ExprModifier.Instance,
+                    e =>
+                    {
+                        if (e is TExpr te)
+                        {
+                            return modifier(te);
+                        }
+                        return e;
+                    });
+            }
         }
     }
 }

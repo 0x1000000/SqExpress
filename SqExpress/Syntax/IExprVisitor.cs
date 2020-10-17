@@ -156,6 +156,10 @@ namespace SqExpress.Syntax
 
         TRes VisitExprSchemaName(ExprSchemaName schemaName, TArg arg);
 
+        TRes VisitExprDatabaseName(ExprDatabaseName databaseName, TArg arg);
+
+        TRes VisitExprDbSchema(ExprDbSchema exprDbSchema, TArg arg);
+
         TRes VisitExprFunctionName(ExprFunctionName exprFunctionName, TArg arg);
 
         TRes VisitExprRowValue(ExprRowValue rowValue, TArg arg);

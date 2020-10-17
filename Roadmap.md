@@ -14,6 +14,8 @@
 - [x] Tree Walker
 - [x] Tree Modifier
 - [ ] Serialization
+- [ ] Table Value Functions
+- [ ] Scalar Functions
 
 --Meta
 - [ ] Binary Type

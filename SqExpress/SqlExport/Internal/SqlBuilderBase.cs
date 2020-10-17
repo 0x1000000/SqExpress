@@ -712,8 +712,11 @@ namespace SqExpress.SqlExport.Internal
 
         public bool VisitExprTableFullName(ExprTableFullName exprTableFullName, object? arg)
         {
-            exprTableFullName.Schema.Accept(this, arg);
-            this.Builder.Append('.');
+            if (exprTableFullName.DbSchema != null)
+            {
+                exprTableFullName.DbSchema.Accept(this, arg);
+                this.Builder.Append('.');
+            }
             exprTableFullName.TableName.Accept(this, arg);
             return true;
         }
@@ -775,6 +778,24 @@ namespace SqExpress.SqlExport.Internal
         public bool VisitExprSchemaName(ExprSchemaName schemaName, object? arg)
         {
             this.AppendName(this.Options.MapSchema(schemaName.Name));
+            return true;
+        }
+
+        public bool VisitExprDatabaseName(ExprDatabaseName databaseName, object? arg)
+        {
+            this.AppendName(databaseName.Name);
+            return true;
+        }
+
+        public bool VisitExprDbSchema(ExprDbSchema exprDbSchema, object? arg)
+        {
+            if (exprDbSchema.Database != null)
+            {
+                exprDbSchema.Database.Accept(this, arg);
+                this.Builder.Append('.');
+            }
+
+            exprDbSchema.Schema.Accept(this, arg);
             return true;
         }
 

@@ -27,7 +27,7 @@ namespace SqExpress.SyntaxTreeOperations
             {
                 //CodeGenStart
                 case "BoolLiteral": return new ExprBoolLiteral(value: ReadNullableBoolean(rootElement, reader, "Value"));
-                case "ByteArrayLiteral": return new ExprByteArrayLiteral(value: ReadByte(rootElement, reader, "Value"));
+                case "ByteArrayLiteral": return new ExprByteArrayLiteral(value: ReadNullableByteList(rootElement, reader, "Value"));
                 case "ByteLiteral": return new ExprByteLiteral(value: ReadNullableByte(rootElement, reader, "Value"));
                 case "DateTimeLiteral": return new ExprDateTimeLiteral(value: ReadNullableDateTime(rootElement, reader, "Value"));
                 case "DecimalLiteral": return new ExprDecimalLiteral(value: ReadNullableDecimal(rootElement, reader, "Value"));
@@ -91,18 +91,20 @@ namespace SqExpress.SyntaxTreeOperations
                 case "Column": return new ExprColumn(source: GetNullableSubNode<TNode, IExprColumnSource>(rootElement, reader, "Source"), columnName: GetSubNode<TNode, ExprColumnName>(rootElement, reader, "ColumnName"));
                 case "ColumnAlias": return new ExprColumnAlias(name: ReadString(rootElement, reader, "Name"));
                 case "ColumnName": return new ExprColumnName(name: ReadString(rootElement, reader, "Name"));
+                case "DatabaseName": return new ExprDatabaseName(name: ReadString(rootElement, reader, "Name"));
+                case "DbSchema": return new ExprDbSchema(database: GetNullableSubNode<TNode, ExprDatabaseName>(rootElement, reader, "Database"), schema: GetSubNode<TNode, ExprSchemaName>(rootElement, reader, "Schema"));
                 case "FunctionName": return new ExprFunctionName(builtIn: ReadBoolean(rootElement, reader, "BuiltIn"), name: ReadString(rootElement, reader, "Name"));
                 case "SchemaName": return new ExprSchemaName(name: ReadString(rootElement, reader, "Name"));
                 case "Table": return new ExprTable(fullName: GetSubNode<TNode, ExprTableFullName>(rootElement, reader, "FullName"), alias: GetNullableSubNode<TNode, ExprTableAlias>(rootElement, reader, "Alias"));
                 case "TableAlias": return new ExprTableAlias(alias: GetSubNode<TNode, IExprAlias>(rootElement, reader, "Alias"));
-                case "TableFullName": return new ExprTableFullName(schema: GetSubNode<TNode, ExprSchemaName>(rootElement, reader, "Schema"), tableName: GetSubNode<TNode, ExprTableName>(rootElement, reader, "TableName"));
+                case "TableFullName": return new ExprTableFullName(dbSchema: GetNullableSubNode<TNode, ExprDbSchema>(rootElement, reader, "DbSchema"), tableName: GetSubNode<TNode, ExprTableName>(rootElement, reader, "TableName"));
                 case "TableName": return new ExprTableName(name: ReadString(rootElement, reader, "Name"));
                 case "AggregateFunction": return new ExprAggregateFunction(name: GetSubNode<TNode, ExprFunctionName>(rootElement, reader, "Name"), expression: GetSubNode<TNode, ExprValue>(rootElement, reader, "Expression"), isDistinct: ReadBoolean(rootElement, reader, "IsDistinct"));
                 case "AnalyticFunction": return new ExprAnalyticFunction(name: GetSubNode<TNode, ExprFunctionName>(rootElement, reader, "Name"), arguments: GetNullableSubNodeList<TNode, ExprValue>(rootElement, reader, "Arguments"), over: GetSubNode<TNode, ExprOver>(rootElement, reader, "Over"));
                 case "Case": return new ExprCase(cases: GetSubNodeList<TNode, ExprCaseWhenThen>(rootElement, reader, "Cases"), defaultValue: GetSubNode<TNode, ExprValue>(rootElement, reader, "DefaultValue"));
                 case "CaseWhenThen": return new ExprCaseWhenThen(condition: GetSubNode<TNode, ExprBoolean>(rootElement, reader, "Condition"), value: GetSubNode<TNode, ExprValue>(rootElement, reader, "Value"));
                 case "Over": return new ExprOver(partitions: GetNullableSubNodeList<TNode, ExprValue>(rootElement, reader, "Partitions"), orderBy: GetNullableSubNode<TNode, ExprOrderBy>(rootElement, reader, "OrderBy"));
-                case "ScalarFunction": return new ExprScalarFunction(schema: GetNullableSubNode<TNode, ExprSchemaName>(rootElement, reader, "Schema"), name: GetSubNode<TNode, ExprFunctionName>(rootElement, reader, "Name"), arguments: GetSubNodeList<TNode, ExprValue>(rootElement, reader, "Arguments"));
+                case "ScalarFunction": return new ExprScalarFunction(schema: GetNullableSubNode<TNode, ExprDbSchema>(rootElement, reader, "Schema"), name: GetSubNode<TNode, ExprFunctionName>(rootElement, reader, "Name"), arguments: GetSubNodeList<TNode, ExprValue>(rootElement, reader, "Arguments"));
                 case "FuncCoalesce": return new ExprFuncCoalesce(test: GetSubNode<TNode, ExprValue>(rootElement, reader, "Test"), alts: GetSubNodeList<TNode, ExprValue>(rootElement, reader, "Alts"));
                 case "FuncIsNull": return new ExprFuncIsNull(test: GetSubNode<TNode, ExprValue>(rootElement, reader, "Test"), alt: GetSubNode<TNode, ExprValue>(rootElement, reader, "Alt"));
                 case "GetDate": return ExprGetDate.Instance;
@@ -296,7 +298,7 @@ namespace SqExpress.SyntaxTreeOperations
             return null;
         }
 
-        private static IReadOnlyList<byte>? ReadByte<TNode>(TNode rootElement, IExprReader<TNode> reader, string value)
+        private static IReadOnlyList<byte>? ReadNullableByteList<TNode>(TNode rootElement, IExprReader<TNode> reader, string value)
         {
             if (reader.TryGetByteArray(rootElement, value, out var result))
             {
