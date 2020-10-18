@@ -18,11 +18,11 @@ namespace SqExpress.Syntax
         //Boolean Expressions
         TRes VisitExprBooleanAnd(ExprBooleanAnd expr, TArg arg);
 
-        //Boolean Predicates
         TRes VisitExprBooleanOr(ExprBooleanOr expr, TArg arg);
 
         TRes VisitExprBooleanNot(ExprBooleanNot expr, TArg arg);
 
+        //Boolean Predicates
         TRes VisitExprBooleanNotEq(ExprBooleanNotEq exprBooleanNotEq, TArg arg);
 
         TRes VisitExprBooleanEq(ExprBooleanEq exprBooleanEq, TArg arg);

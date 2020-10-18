@@ -16,6 +16,7 @@
 - [ ] Serialization
 - [ ] Table Value Functions
 - [ ] Scalar Functions
+- [ ] "Quick" derived tables
 
 --Meta
 - [ ] Binary Type

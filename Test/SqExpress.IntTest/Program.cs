@@ -16,15 +16,14 @@ namespace SqExpress.IntTest
         {
             try
             {
-                /*var scenario = new ScCreateTables()
+                var scenario = new ScCreateTables()
                     .Then(new ScInsertUserData())
                     .Then(new ScDeleteCustomersByTopUser())
                     .Then(new ScInsertCompanies())
                     .Then(new ScUpdateUsers())
                     .Then(new ScAllColumnTypes())
-                    .Then(new ScSelectLogic());*/
-
-                var scenario = new ScTempTables();
+                    .Then(new ScSelectLogic())
+                    .Then(new ScTempTables());
 
                 await ExecScenarioAll(scenario: scenario);
                 //After warming
