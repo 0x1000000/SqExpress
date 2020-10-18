@@ -327,6 +327,34 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public override bool VisitExprDateAdd(ExprDateAdd exprDateAdd, IExpr? arg)
+        {
+            var datePart = exprDateAdd.DatePart switch
+            {
+                DateAddDatePart.Year => "y",
+                DateAddDatePart.Month => "month",
+                DateAddDatePart.Day => "d",
+                DateAddDatePart.Week => "w",
+                DateAddDatePart.Hour => "h",
+                DateAddDatePart.Minute => "m",
+                DateAddDatePart.Second => "s",
+                DateAddDatePart.Millisecond => "ms",
+                _ => throw new ArgumentOutOfRangeException()
+            };
+
+            char sign = exprDateAdd.Number < 0 ? '-' : '+';
+            int val = exprDateAdd.Number < 0 ? exprDateAdd.Number * -1 : exprDateAdd.Number;
+
+            exprDateAdd.Date.Accept(this, exprDateAdd);
+            this.Builder.Append(sign);
+            this.Builder.Append("INTERVAL'");
+            this.Builder.Append(val);
+            this.Builder.Append(datePart);
+            this.Builder.Append('\'');
+
+            return true;
+        }
+
         public override void AppendName(string name, char? prefix = null)
         {
             this.Builder.Append("\"");

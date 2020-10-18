@@ -42,5 +42,7 @@ namespace SqExpress
         public static ExprFuncCoalesce Coalesce(ExprValue test, ExprValue alt, params ExprValue[] rest) => new ExprFuncCoalesce(test, Helpers.Combine(alt, rest));
         public static ExprGetDate GetDate()=> ExprGetDate.Instance;
         public static ExprGetUtcDate GetUtcDate()=> ExprGetUtcDate.Instance;
+        public static ExprDateAdd DateAdd(DateAddDatePart datePart, int number, ExprValue date) 
+            => new ExprDateAdd(datePart, number, date);
     }
 }

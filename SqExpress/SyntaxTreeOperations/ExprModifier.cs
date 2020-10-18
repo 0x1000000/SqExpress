@@ -732,6 +732,15 @@ namespace SqExpress.SyntaxTreeOperations
             }
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprDateAdd(ExprDateAdd exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newDate = this.AcceptItem(exprIn.Date, modifier);
+            if(!ReferenceEquals(exprIn.Date, newDate))
+            {
+                exprIn = new ExprDateAdd(date: newDate, datePart: exprIn.DatePart, number: exprIn.Number);
+            }
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprFuncCoalesce(ExprFuncCoalesce exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newTest = this.AcceptItem(exprIn.Test, modifier);
