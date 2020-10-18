@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Text;
 using SqExpress.Syntax;
 using SqExpress.Syntax.Boolean;
@@ -347,6 +348,33 @@ namespace SqExpress.SqlExport.Internal
         public override bool VisitExprGetUtcDate(ExprGetUtcDate exprGetUtcDate, IExpr? parent)
         {
             this.Builder.Append("GETUTCDATE()");
+            return true;
+        }
+
+        public override bool VisitExprDateAdd(ExprDateAdd exprDateAdd, IExpr? arg)
+        {
+            this.Builder.Append("DATEADD(");
+
+            var datePart = exprDateAdd.DatePart switch
+            {
+                DateAddDatePart.Year => "yy",
+                DateAddDatePart.Month => "m",
+                DateAddDatePart.Day => "d",
+                DateAddDatePart.Week => "wk",
+                DateAddDatePart.Hour => "hh",
+                DateAddDatePart.Minute => "mi",
+                DateAddDatePart.Second => "s",
+                DateAddDatePart.Millisecond => "ms",
+                _ => throw new ArgumentOutOfRangeException()
+            };
+
+            this.Builder.Append(datePart);
+            this.Builder.Append(',');
+            this.Builder.Append(exprDateAdd.Number);
+            this.Builder.Append(',');
+            exprDateAdd.Date.Accept(this, exprDateAdd);
+            this.Builder.Append(')');
+
             return true;
         }
 

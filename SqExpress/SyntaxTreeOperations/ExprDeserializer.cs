@@ -106,6 +106,7 @@ namespace SqExpress.SyntaxTreeOperations
                 case "CaseWhenThen": return new ExprCaseWhenThen(condition: GetSubNode<TNode, ExprBoolean>(rootElement, reader, "Condition"), value: GetSubNode<TNode, ExprValue>(rootElement, reader, "Value"));
                 case "Over": return new ExprOver(partitions: GetNullableSubNodeList<TNode, ExprValue>(rootElement, reader, "Partitions"), orderBy: GetNullableSubNode<TNode, ExprOrderBy>(rootElement, reader, "OrderBy"));
                 case "ScalarFunction": return new ExprScalarFunction(schema: GetNullableSubNode<TNode, ExprDbSchema>(rootElement, reader, "Schema"), name: GetSubNode<TNode, ExprFunctionName>(rootElement, reader, "Name"), arguments: GetSubNodeList<TNode, ExprValue>(rootElement, reader, "Arguments"));
+                case "DateAdd": return new ExprDateAdd(date: GetSubNode<TNode, ExprValue>(rootElement, reader, "Date"), datePart: ReadDateAddDatePart(rootElement, reader, "DatePart"), number: ReadInt32(rootElement, reader, "Number"));
                 case "FuncCoalesce": return new ExprFuncCoalesce(test: GetSubNode<TNode, ExprValue>(rootElement, reader, "Test"), alts: GetSubNodeList<TNode, ExprValue>(rootElement, reader, "Alts"));
                 case "FuncIsNull": return new ExprFuncIsNull(test: GetSubNode<TNode, ExprValue>(rootElement, reader, "Test"), alt: GetSubNode<TNode, ExprValue>(rootElement, reader, "Alt"));
                 case "GetDate": return ExprGetDate.Instance;
@@ -203,6 +204,15 @@ namespace SqExpress.SyntaxTreeOperations
         private static bool ReadBoolean<TNode>(TNode rootElement, IExprReader<TNode> reader, string name)
         {
             if (!reader.TryGetBoolean(rootElement, name, out var result))
+            {
+                throw new SqExpressException($"Property \"{name}\" is mandatory");
+            }
+            return result;
+        }
+
+        private static int ReadInt32<TNode>(TNode rootElement, IExprReader<TNode> reader, string name)
+        {
+            if (!reader.TryGetInt32(rootElement, name, out var result))
             {
                 throw new SqExpressException($"Property \"{name}\" is mandatory");
             }
@@ -347,6 +357,23 @@ namespace SqExpress.SyntaxTreeOperations
             if (!Enum.TryParse(str, false, out ExprJoinedTable.ExprJoinType result))
             {
                 throw new SqExpressException($"Could not recognize \"{str}\" as \"{nameof(ExprJoinedTable.ExprJoinType)}\"");
+            }
+
+            return result;
+        }
+
+
+        private static DateAddDatePart ReadDateAddDatePart<TNode>(TNode rootElement, IExprReader<TNode> reader, string name)
+        {
+            var str = ReadNullableString(rootElement, reader, name);
+            if (str == null)
+            {
+                throw new SqExpressException($"Property \"{name}\" is mandatory");
+            }
+
+            if (!Enum.TryParse(str, false, out DateAddDatePart result))
+            {
+                throw new SqExpressException($"Could not recognize \"{str}\" as \"{nameof(DateAddDatePart)}\"");
             }
 
             return result;

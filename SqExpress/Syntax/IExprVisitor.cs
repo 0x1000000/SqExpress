@@ -129,6 +129,17 @@ namespace SqExpress.Syntax
 
         TRes VisitExprCaseWhenThen(ExprCaseWhenThen exprCaseWhenThen, TArg arg);
 
+        //Functions - Known
+        TRes VisitExprFuncIsNull(ExprFuncIsNull exprFuncIsNull, TArg arg);
+
+        TRes VisitExprFuncCoalesce(ExprFuncCoalesce exprFuncCoalesce, TArg arg);
+
+        TRes VisitExprGetDate(ExprGetDate exprGetDate, TArg arg);
+
+        TRes VisitExprGetUtcDate(ExprGetUtcDate exprGetUtcDate, TArg arg);
+
+        TRes VisitExprDateAdd(ExprDateAdd exprDateAdd, TArg arg);
+
         //Meta
         TRes VisitExprColumn(ExprColumn exprColumn, TArg arg);
 
@@ -226,13 +237,5 @@ namespace SqExpress.Syntax
         TRes VisitExprTypeGuid(ExprTypeGuid exprTypeGuid, TArg arg);
 
         TRes VisitExprTypeString(ExprTypeString exprTypeString, TArg arg);
-
-        TRes VisitExprFuncIsNull(ExprFuncIsNull exprFuncIsNull, TArg arg);
-
-        TRes VisitExprFuncCoalesce(ExprFuncCoalesce exprFuncCoalesce, TArg arg);
-
-        TRes VisitExprGetDate(ExprGetDate exprGetDate, TArg arg);
-
-        TRes VisitExprGetUtcDate(ExprGetUtcDate exprGetUtcDate, TArg arg);
     }
 }

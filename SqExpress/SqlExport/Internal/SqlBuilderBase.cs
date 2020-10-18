@@ -716,6 +716,24 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        //Functions - Known
+        public bool VisitExprFuncCoalesce(ExprFuncCoalesce exprFuncCoalesce, IExpr? parent)
+        {
+            this.Builder.Append("COALESCE(");
+            exprFuncCoalesce.Test.Accept(this, exprFuncCoalesce);
+            this.Builder.Append(',');
+            this.AssertNotEmptyList(exprFuncCoalesce.Alts, "Alt argument list cannot be empty in 'COALESCE' function call");
+            this.AcceptListComaSeparated(exprFuncCoalesce.Alts, exprFuncCoalesce);
+            this.Builder.Append(')');
+            return true;
+        }
+
+        public abstract bool VisitExprGetDate(ExprGetDate exprGetDate, IExpr? parent);
+
+        public abstract bool VisitExprGetUtcDate(ExprGetUtcDate exprGetUtcDate, IExpr? parent);
+
+        public abstract bool VisitExprDateAdd(ExprDateAdd exprDateAdd, IExpr? arg);
+
         //Meta
 
         public bool VisitExprColumn(ExprColumn exprColumn, IExpr? parent)
@@ -1141,21 +1159,6 @@ namespace SqExpress.SqlExport.Internal
         public abstract bool VisitExprTypeString(ExprTypeString exprTypeString, IExpr? parent);
 
         public abstract bool VisitExprFuncIsNull(ExprFuncIsNull exprFuncIsNull, IExpr? parent);
-
-        public bool VisitExprFuncCoalesce(ExprFuncCoalesce exprFuncCoalesce, IExpr? parent)
-        {
-            this.Builder.Append("COALESCE(");
-            exprFuncCoalesce.Test.Accept(this, exprFuncCoalesce);
-            this.Builder.Append(',');
-            this.AssertNotEmptyList(exprFuncCoalesce.Alts, "Alt argument list cannot be empty in 'COALESCE' function call");
-            this.AcceptListComaSeparated(exprFuncCoalesce.Alts, exprFuncCoalesce);
-            this.Builder.Append(')');
-            return true;
-        }
-
-        public abstract bool VisitExprGetDate(ExprGetDate exprGetDate, IExpr? parent);
-
-        public abstract bool VisitExprGetUtcDate(ExprGetUtcDate exprGetUtcDate, IExpr? parent);
 
         public abstract void AppendName(string name, char? prefix = null);
 

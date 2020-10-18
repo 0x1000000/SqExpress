@@ -60,6 +60,11 @@ namespace SqExpress.SyntaxTreeOperations
             this._visitor.VisitPlainProperty(name, value.ToString(), ctx);
         }
 
+        void VisitPlainProperty(string name, DateAddDatePart value, TCtx ctx)
+        {
+            this._visitor.VisitPlainProperty(name, value.ToString(), ctx);
+        }
+
         private bool Accept(string name, IExpr? expr, TCtx context)
         {
             this._visitor.VisitProperty(name, false, expr == null, context);
@@ -600,6 +605,14 @@ namespace SqExpress.SyntaxTreeOperations
         public bool VisitExprScalarFunction(ExprScalarFunction expr, TCtx arg)
         {
             var res = this.Visit(expr, "ScalarFunction", arg, out var argOut) && this.Accept("Schema",expr.Schema, argOut) && this.Accept("Name",expr.Name, argOut) && this.Accept("Arguments",expr.Arguments, argOut);
+            this._visitor.EndVisitExpr(expr, arg);
+            return res;
+        }
+        public bool VisitExprDateAdd(ExprDateAdd expr, TCtx arg)
+        {
+            var res = this.Visit(expr, "DateAdd", arg, out var argOut) && this.Accept("Date",expr.Date, argOut);
+            this.VisitPlainProperty("DatePart",expr.DatePart, argOut);
+            this.VisitPlainProperty("Number",expr.Number, argOut);
             this._visitor.EndVisitExpr(expr, arg);
             return res;
         }
