@@ -14,7 +14,7 @@ using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Update;
 using SqExpress.Syntax.Value;
 
-namespace SqExpress.SyntaxTreeOperations
+namespace SqExpress.SyntaxTreeOperations.Internal
 {
     internal class ExprWalker<TCtx> : IExprVisitor<bool, TCtx>
     {

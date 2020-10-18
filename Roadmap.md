@@ -7,7 +7,7 @@
 ## After 0.0.2
 - [x] Make "Where" nullable
 - [ ] Insert Values (with DEFAULT)
-- [ ] Table Variable
+- [x] Temporary Tables
 - [ ] "Update Data" builder
 - [ ] Post "Done" modifications
 - [ ] Split Merge into Insert Update Delete

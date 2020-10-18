@@ -18,7 +18,8 @@
 -                 Database name can be specified in table names
 -                 Temp Tables
 -                 Top -&gt; Limit in PostgresSQL
--                  DateAdd
+-                 DateAdd
+-                 Export/Import to/from PlainList
 Braking Changes:
 -	SqlBuilderBase is now internal
 -	IExprVistor changed

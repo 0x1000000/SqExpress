@@ -5,6 +5,9 @@ using SqExpress.DataAccess;
 using SqExpress.QueryBuilders;
 using SqExpress.Syntax;
 using SqExpress.SyntaxTreeOperations;
+using SqExpress.SyntaxTreeOperations.ExportImport;
+using SqExpress.SyntaxTreeOperations.ExportImport.Internal;
+using SqExpress.SyntaxTreeOperations.Internal;
 
 namespace SqExpress
 {
@@ -89,6 +92,13 @@ namespace SqExpress
                         }
                         return e;
                     });
+            }
+
+            public IReadOnlyList<IPlainItem> ExportToPlainList(PlainItemFactory plainItemFactory)
+            {
+                var walkerVisitor = new PlainEncoder(plainItemFactory);
+                WalkThrough(walkerVisitor, 0);
+                return walkerVisitor.Result;
             }
         }
     }

@@ -9,6 +9,7 @@ using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Value;
 using SqExpress.SyntaxTreeOperations;
+using SqExpress.SyntaxTreeOperations.ExportImport.Internal;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.Test.Syntax
@@ -110,8 +111,6 @@ namespace SqExpress.Test.Syntax
                             "ON [A1].[UserNewId]=[A0].[UserNewId]", e.ToSql());
         }
 
-
-
         [Test]
         public void TestExportImportJson()
         {
@@ -138,6 +137,28 @@ namespace SqExpress.Test.Syntax
             var deserialized = ExprDeserializer.Deserialize(doc.RootElement, new JsonReader());
 
             Assert.AreEqual(selectExpr.ToSql(), deserialized.ToSql());
+        }
+
+        [Test]
+        public void TestExportImportPlain()
+        {
+            var tUser = Tables.User();
+            var tCustomer = Tables.Customer();
+
+            var selectExpr = Select(tUser.UserId, tUser.FirstName, tCustomer.CustomerId, Cast(Literal(12.8m), SqlType.Decimal((10, 2))).As("Salary"))
+                .From(tUser)
+                .InnerJoin(tCustomer, on: tCustomer.UserId == tUser.UserId)
+                .Where(tUser.Version == 5 & tUser.RegDate > new DateTime(2020, 10, 18, 1,2,3,400) & tUser.RegDate <= new DateTime(2021,01,01))
+                .OrderBy(tUser.FirstName)
+                .OffsetFetch(100, 5)
+                .Done();
+
+
+            var items = selectExpr.SyntaxTree().ExportToPlainList((id, parentId, arrayIndex, isTypeTag, tag, encodedValue) => new PlainItem(id, parentId, arrayIndex, isTypeTag, tag, encodedValue));
+
+            var res = ExprDeserializer.DeserializeFormPlainList(items);
+
+            Assert.AreEqual(selectExpr.ToSql(), res.ToSql());
         }
     }
 }

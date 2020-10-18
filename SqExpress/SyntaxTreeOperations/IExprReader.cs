@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using SqExpress.Utils;
 
 namespace SqExpress.SyntaxTreeOperations
 {
@@ -20,7 +21,7 @@ namespace SqExpress.SyntaxTreeOperations
         bool TryGetDecimal(TNode node, string propertyName, out decimal value);
         bool TryGetDouble(TNode node, string propertyName, out double value);
         bool TryGetDateTime(TNode node, string propertyName, out DateTime value);
-        bool TryGetString(TNode node, string propertyName, out string value);
-        bool TryGetByteArray(TNode node, string propertyName, out IReadOnlyList<byte> value);
+        bool TryGetString(TNode node, string propertyName, out string? value);
+        bool TryGetByteArray(TNode node, string propertyName, out IReadOnlyList<byte>? value);
     }
 }

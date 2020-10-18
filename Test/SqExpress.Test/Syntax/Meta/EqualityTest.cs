@@ -1,5 +1,4 @@
-﻿using System;
-using NUnit.Framework;
+﻿using NUnit.Framework;
 using SqExpress.Syntax.Names;
 
 namespace SqExpress.Test.Syntax.Meta
