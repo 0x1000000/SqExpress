@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using SqExpress.Syntax;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions.Known;
@@ -19,7 +20,7 @@ namespace SqExpress.SqlExport.Internal
         {
         }
 
-        public override bool VisitExprGuidLiteral(ExprGuidLiteral exprGuidLiteral, object? arg)
+        public override bool VisitExprGuidLiteral(ExprGuidLiteral exprGuidLiteral, IExpr? parent)
         {
             if (exprGuidLiteral.Value == null)
             {
@@ -34,7 +35,7 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
-        public override bool VisitExprBoolLiteral(ExprBoolLiteral boolLiteral, object? arg)
+        public override bool VisitExprBoolLiteral(ExprBoolLiteral boolLiteral, IExpr? parent)
         {
             if (boolLiteral.Value.HasValue)
             {
@@ -48,26 +49,41 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
-        public override bool VisitExprStringConcat(ExprStringConcat exprStringConcat, object? arg)
+        public override bool VisitExprStringConcat(ExprStringConcat exprStringConcat, IExpr? parent)
         {
-            exprStringConcat.Left.Accept(this, arg);
+            exprStringConcat.Left.Accept(this, exprStringConcat);
             this.Builder.Append("||");
-            exprStringConcat.Right.Accept(this, arg);
+            exprStringConcat.Right.Accept(this, exprStringConcat);
             return true;
         }
 
-        protected override void AppendSelectTop(ExprValue top, object? arg)
+        protected override void AppendSelectTop(ExprValue top, IExpr? parent)
         {
-            throw new NotSupportedException("PostgreSql does not support 'TOP x' expression");
+            //N/A
         }
 
-        public override bool VisitExprTempTableName(ExprTempTableName tempTableName, object? arg)
+        protected override void AppendSelectLimit(ExprValue top, IExpr? parent)
+        {
+            this.Builder.Append(" LIMIT ");
+            top.Accept(this, parent);
+        }
+
+        protected override bool ForceParenthesesForQueryExpressionPart(IExprSubQuery subQuery)
+        {
+            return subQuery switch
+            {
+                ExprQuerySpecification specification => !ReferenceEquals(specification.Top, null),
+                _ => true
+            };
+        }
+
+        public override bool VisitExprTempTableName(ExprTempTableName tempTableName, IExpr? parent)
         {
             this.AppendName(tempTableName.Name);
             return true;
         }
 
-        public override bool VisitExprInsertOutput(ExprInsertOutput exprInsertOutput, object? arg)
+        public override bool VisitExprInsertOutput(ExprInsertOutput exprInsertOutput, IExpr? parent)
         {
             this.GenericInsert(exprInsertOutput.Insert,
                 null,
@@ -75,18 +91,18 @@ namespace SqExpress.SqlExport.Internal
                 {
                     exprInsertOutput.OutputColumns.AssertNotEmpty("INSERT OUTPUT cannot be empty");
                     this.Builder.Append(" RETURNING ");
-                    this.AcceptListComaSeparated(exprInsertOutput.OutputColumns, arg);
+                    this.AcceptListComaSeparated(exprInsertOutput.OutputColumns, exprInsertOutput);
                 },
-                arg);
+                exprInsertOutput);
             return true;
         }
 
-        public override bool VisitExprUpdate(ExprUpdate exprUpdate, object? arg)
+        public override bool VisitExprUpdate(ExprUpdate exprUpdate, IExpr? parent)
         {
             this.AssertNotEmptyList(exprUpdate.SetClause, "'UPDATE' statement should have at least one set clause");
 
             this.Builder.Append("UPDATE ");
-            exprUpdate.Target.Accept(this, arg);
+            exprUpdate.Target.Accept(this, exprUpdate);
             this.Builder.Append(" SET ");
             for (int i = 0; i < exprUpdate.SetClause.Count; i++)
             {
@@ -95,9 +111,9 @@ namespace SqExpress.SqlExport.Internal
                 {
                     this.Builder.Append(',');
                 }
-                setClause.Column.ColumnName.Accept(this, arg);
+                setClause.Column.ColumnName.Accept(this, exprUpdate);
                 this.Builder.Append('=');
-                setClause.Value.Accept(this, arg);
+                setClause.Value.Accept(this, exprUpdate);
             }
 
             ExprBoolean? sourceFilter = null;
@@ -124,7 +140,7 @@ namespace SqExpress.SqlExport.Internal
                             this.Builder.Append(',');
                         }
 
-                        source.Accept(this, arg);
+                        source.Accept(this, exprUpdate);
                         itemAppendCount++;
                     }
 
@@ -140,15 +156,15 @@ namespace SqExpress.SqlExport.Internal
             if (filter != null)
             {
                 this.Builder.Append(" WHERE ");
-                filter.Accept(this, arg);
+                filter.Accept(this, exprUpdate);
             }
             return true;
         }
 
-        public override bool VisitExprDelete(ExprDelete exprDelete, object? arg)
+        public override bool VisitExprDelete(ExprDelete exprDelete, IExpr? parent)
         {
             this.Builder.Append("DELETE FROM ");
-            exprDelete.Target.Accept(this, arg);
+            exprDelete.Target.Accept(this, exprDelete);
 
             ExprBoolean? sourceFilter = null;
             if (exprDelete.Source != null)
@@ -176,7 +192,7 @@ namespace SqExpress.SqlExport.Internal
                             this.Builder.Append(',');
                         }
 
-                        source.Accept(this, arg);
+                        source.Accept(this, exprDelete);
                         itemAppendCount++;
                     }
 
@@ -192,53 +208,53 @@ namespace SqExpress.SqlExport.Internal
             if (filter != null)
             {
                 this.Builder.Append(" WHERE ");
-                filter.Accept(this, arg);
+                filter.Accept(this, exprDelete);
             }
             return true;
         }
 
-        public override bool VisitExprDeleteOutput(ExprDeleteOutput exprDeleteOutput, object? arg)
+        public override bool VisitExprDeleteOutput(ExprDeleteOutput exprDeleteOutput, IExpr? parent)
         {
-            exprDeleteOutput.Delete.Accept(this, arg);
+            exprDeleteOutput.Delete.Accept(this, exprDeleteOutput);
             this.AssertNotEmptyList(exprDeleteOutput.OutputColumns, "Output list in 'DELETE' statement cannot be empty");
 
             this.Builder.Append(" RETURNING ");
 
-            this.AcceptListComaSeparated(exprDeleteOutput.OutputColumns, arg);
+            this.AcceptListComaSeparated(exprDeleteOutput.OutputColumns, exprDeleteOutput);
 
             return true;
         }
 
-        public override bool VisitExprTypeBoolean(ExprTypeBoolean exprTypeBoolean, object? arg)
+        public override bool VisitExprTypeBoolean(ExprTypeBoolean exprTypeBoolean, IExpr? parent)
         {
             this.Builder.Append("bool");
             return true;
         }
 
-        public override bool VisitExprTypeByte(ExprTypeByte exprTypeByte, object? arg)
+        public override bool VisitExprTypeByte(ExprTypeByte exprTypeByte, IExpr? parent)
         {
             throw new NotSupportedException("PostgresSQL does not support 1 byte numeric");
         }
 
-        public override bool VisitExprTypeInt16(ExprTypeInt16 exprTypeInt16, object? arg)
+        public override bool VisitExprTypeInt16(ExprTypeInt16 exprTypeInt16, IExpr? parent)
         {
             this.Builder.Append("int2");
             return true;
         }
 
-        public override bool VisitExprTypeInt32(ExprTypeInt32 exprTypeInt32, object? arg)
+        public override bool VisitExprTypeInt32(ExprTypeInt32 exprTypeInt32, IExpr? parent)
         {
             this.Builder.Append("int4");
             return true;
         }
 
-        public override bool VisitExprTypeInt64(ExprTypeInt64 exprTypeInt64, object? arg)
+        public override bool VisitExprTypeInt64(ExprTypeInt64 exprTypeInt64, IExpr? parent)
         {
             this.Builder.Append("int8");
             return true;
         }
 
-        public override bool VisitExprTypeDecimal(ExprTypeDecimal exprTypeDecimal, object? arg)
+        public override bool VisitExprTypeDecimal(ExprTypeDecimal exprTypeDecimal, IExpr? parent)
         {
             this.Builder.Append("decimal");
             if (exprTypeDecimal.PrecisionScale.HasValue)
@@ -255,13 +271,13 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
-        public override bool VisitExprTypeDouble(ExprTypeDouble exprTypeDouble, object? arg)
+        public override bool VisitExprTypeDouble(ExprTypeDouble exprTypeDouble, IExpr? parent)
         {
             this.Builder.Append("float8");
             return true;
         }
 
-        public override bool VisitExprTypeDateTime(ExprTypeDateTime exprTypeDateTime, object? arg)
+        public override bool VisitExprTypeDateTime(ExprTypeDateTime exprTypeDateTime, IExpr? parent)
         {
             if (exprTypeDateTime.IsDate)
             {
@@ -275,13 +291,13 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
-        public override bool VisitExprTypeGuid(ExprTypeGuid exprTypeGuid, object? arg)
+        public override bool VisitExprTypeGuid(ExprTypeGuid exprTypeGuid, IExpr? parent)
         {
             this.Builder.Append("uuid");
             return true;
         }
 
-        public override bool VisitExprTypeString(ExprTypeString exprTypeString, object? arg)
+        public override bool VisitExprTypeString(ExprTypeString exprTypeString, IExpr? parent)
         {
             this.Builder.Append("character varying");
             if (exprTypeString.Size.HasValue)
@@ -293,19 +309,19 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
-        public override bool VisitExprFuncIsNull(ExprFuncIsNull exprFuncIsNull, object? arg)
+        public override bool VisitExprFuncIsNull(ExprFuncIsNull exprFuncIsNull, IExpr? parent)
         {
-            SqQueryBuilder.Coalesce(exprFuncIsNull.Test, exprFuncIsNull.Alt).Accept(this, arg);
+            SqQueryBuilder.Coalesce(exprFuncIsNull.Test, exprFuncIsNull.Alt).Accept(this, exprFuncIsNull);
             return true;
         }
 
-        public override bool VisitExprGetDate(ExprGetDate exprGetDate, object? arg)
+        public override bool VisitExprGetDate(ExprGetDate exprGetDate, IExpr? parent)
         {
             this.Builder.Append("now()");
             return true;
         }
 
-        public override bool VisitExprGetUtcDate(ExprGetUtcDate exprGetUtcDate, object? arg)
+        public override bool VisitExprGetUtcDate(ExprGetUtcDate exprGetUtcDate, IExpr? parent)
         {
             this.Builder.Append("now() at time zone 'utc'");
             return true;

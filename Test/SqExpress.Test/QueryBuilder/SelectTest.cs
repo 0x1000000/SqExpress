@@ -199,5 +199,35 @@ namespace SqExpress.Test.QueryBuilder
 
             Assert.AreEqual(expected, actual);
         }
+
+        [Test]
+        public void TopVsLimit()
+        {
+            var u = Tables.User();
+            var u2 = Tables.User();
+
+            IExprQuery expr = SelectTop(7, u.UserId).From(u).Done();
+            var actual = expr.ToSql();
+
+            Assert.AreEqual("SELECT TOP 7 [A0].[UserId] FROM [dbo].[user] [A0]", actual);
+            actual = expr.ToPgSql();
+            Assert.AreEqual("SELECT \"A0\".\"UserId\" FROM \"public\".\"user\" \"A0\" LIMIT 7", actual);
+
+            //Join
+            expr = SelectTop(7, u.UserId).From(u).InnerJoin(u2, on: u2.UserId == u.UserId).Done();
+
+            actual = expr.ToSql();
+            Assert.AreEqual("SELECT TOP 7 [A0].[UserId] FROM [dbo].[user] [A0] JOIN [dbo].[user] [A1] ON [A1].[UserId]=[A0].[UserId]", actual);
+            actual = expr.ToPgSql();
+            Assert.AreEqual("SELECT \"A0\".\"UserId\" FROM \"public\".\"user\" \"A0\" JOIN \"public\".\"user\" \"A1\" ON \"A1\".\"UserId\"=\"A0\".\"UserId\" LIMIT 7", actual);
+
+            //Except
+            expr = Select(u.UserId, CountOneOver()).From(u).Except(SelectTop(7, u2.UserId, CountOneOver()).From(u2)).Done();
+            actual = expr.ToSql();
+            Assert.AreEqual("SELECT [A0].[UserId],COUNT(1)OVER() FROM [dbo].[user] [A0] EXCEPT SELECT TOP 7 [A1].[UserId],COUNT(1)OVER() FROM [dbo].[user] [A1]", actual);
+            actual = expr.ToPgSql();
+            Assert.AreEqual("SELECT \"A0\".\"UserId\",COUNT(1)OVER() FROM \"public\".\"user\" \"A0\" EXCEPT (SELECT \"A1\".\"UserId\",COUNT(1)OVER() FROM \"public\".\"user\" \"A1\" LIMIT 7)", actual);
+            Console.WriteLine(actual);
+        }
     }
 }
