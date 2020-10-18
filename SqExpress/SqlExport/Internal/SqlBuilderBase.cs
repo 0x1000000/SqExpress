@@ -829,28 +829,18 @@ namespace SqExpress.SqlExport.Internal
 
         public bool VisitExprTableValueConstructor(ExprTableValueConstructor tableValueConstructor, object? arg)
         {
-            int initialLength = this.Builder.Length;
-            bool first = true;
-
             this.Builder.Append("VALUES ");
 
-            foreach (var rowValue in tableValueConstructor.Items)
+            for (var i = 0; i < tableValueConstructor.Items.Count; i++)
             {
-                if (!first)
+                var rowValue = tableValueConstructor.Items[i];
+
+                if (i>0)
                 {
                     this.Builder.Append(',');
                 }
-                else
-                {
-                    first = false;
-                }
 
                 rowValue.Accept(this, arg);
-            }
-
-            if (first)
-            {
-                return this.Rollback(initialLength);
             }
 
             return true;
@@ -891,11 +881,7 @@ namespace SqExpress.SqlExport.Internal
 
         public bool VisitExprDerivedTableValues(ExprDerivedTableValues derivedTableValues, object? arg)
         {
-            int initialLength = this.Builder.Length;
-            if (!this.AcceptPar('(', derivedTableValues.Values, ')', arg))
-            {
-                return this.Rollback(initialLength);
-            }
+            this.AcceptPar('(', derivedTableValues.Values, ')', arg);
             derivedTableValues.Alias.Accept(this, arg);
             derivedTableValues.Columns.AssertNotEmpty("List of columns in a derived table with values literals cannot be empty");
             this.AcceptListComaSeparatedPar('(', derivedTableValues.Columns, ')', arg);
@@ -914,15 +900,10 @@ namespace SqExpress.SqlExport.Internal
 
         public bool VisitExprMerge(ExprMerge merge, object? arg)
         {
-            int init = this.Builder.Length;
-
             this.Builder.Append("MERGE ");
             merge.TargetTable.Accept(this, arg);
             this.Builder.Append(" USING ");
-            if (!merge.Source.Accept(this, arg))
-            {
-                return this.Rollback(init);
-            }
+            merge.Source.Accept(this, arg);
             this.Builder.Append(" ON ");
             merge.On.Accept(this, arg);
             if (merge.WhenMatched != null)
@@ -1131,24 +1112,17 @@ namespace SqExpress.SqlExport.Internal
 
         protected bool AcceptPar(char start, IExpr list, char end, object? arg)
         {
-            int initial = this.Builder.Length;
             this.Builder.Append(start);
-            if (!list.Accept(this, arg))
-            {
-                return this.Rollback(initial);
-            }
+            list.Accept(this, arg);
             this.Builder.Append(end);
+
             return true;
         }
 
         internal bool AcceptListComaSeparatedPar(char start, IReadOnlyList<IExpr> list, char end, object? arg)
         {
-            int initial = this.Builder.Length;
             this.Builder.Append(start);
-            if (!this.AcceptListComaSeparated(list, arg))
-            {
-                return this.Rollback(initial);
-            }
+            this.AcceptListComaSeparated(list, arg);
             this.Builder.Append(end);
 
             return true;
@@ -1156,8 +1130,6 @@ namespace SqExpress.SqlExport.Internal
 
         protected bool AcceptListComaSeparated(IReadOnlyList<IExpr> list, object? arg)
         {
-            int initial = this.Builder.Length;
-
             for (int i = 0; i < list.Count; i++)
             {
                 if (i != 0)
@@ -1165,10 +1137,7 @@ namespace SqExpress.SqlExport.Internal
                     this.Builder.Append(',');
                 }
 
-                if (!list[i].Accept(this, arg))
-                {
-                    return this.Rollback(initial);
-                }
+                list[i].Accept(this, arg);
             }
 
             return true;
@@ -1187,12 +1156,6 @@ namespace SqExpress.SqlExport.Internal
         public override string ToString()
         {
             return this.Builder.ToString();
-        }
-
-        private bool Rollback(int initialLength)
-        {
-            this.Builder.Length = initialLength;
-            return false;
         }
     }
 }
