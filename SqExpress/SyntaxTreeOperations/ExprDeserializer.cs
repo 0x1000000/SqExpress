@@ -14,11 +14,19 @@ using SqExpress.Syntax.Select.SelectItems;
 using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Update;
 using SqExpress.Syntax.Value;
+using SqExpress.SyntaxTreeOperations.ExportImport;
+using SqExpress.SyntaxTreeOperations.ExportImport.Internal;
 
 namespace SqExpress.SyntaxTreeOperations
 {
     public class ExprDeserializer
     {
+        public static IExpr DeserializeFormPlainList(IEnumerable<IPlainItem> list)
+        {
+            var reader = PlainReader.Create(list, out var root);
+            return Deserialize(root, reader);
+        }
+
         public static IExpr Deserialize<TNode>(TNode rootElement, IExprReader<TNode> reader)
         {
             var typeTag = reader.GetNodeTypeTag(rootElement);
@@ -198,7 +206,7 @@ namespace SqExpress.SyntaxTreeOperations
             {
                 throw new SqExpressException($"Property \"{name}\" is mandatory");
             }
-            return result;
+            return result!;
         }
 
         private static bool ReadBoolean<TNode>(TNode rootElement, IExprReader<TNode> reader, string name)
