@@ -43,15 +43,28 @@ namespace SqExpress.QueryBuilders.Insert.Internal
 
         public ExprInsert Done()
         {
+            var useDerivedTable = this._targetInsertSelectMapping != null;
+
             var mapping =  this._dataMapping.AssertFatalNotNull(nameof(this._dataMapping));
 
-            var records = this._data.TryToCheckLength(out var capacity)
-                ? capacity > 0 ? new List<ExprRowValue>(capacity) : null
-                : new List<ExprRowValue>();
+            int? capacity = this._data.TryToCheckLength(out var c) ? c : (int?)null;
 
-            if (records == null)
+            if (capacity != null && capacity.Value < 1)
             {
                 throw new SqExpressException("Input data should not be empty");
+            }
+
+
+            List<ExprValueRow>? recordsS = null;
+            List<ExprInsertValueRow>? recordsI = null;
+
+            if (useDerivedTable)
+            {
+                recordsS = capacity.HasValue ? new List<ExprValueRow>(capacity.Value) : new List<ExprValueRow>();
+            }
+            else
+            {
+                recordsI = capacity.HasValue ? new List<ExprInsertValueRow>(capacity.Value) : new List<ExprInsertValueRow>();
             }
 
             DataMapSetter<TTable, TItem>? dataMapSetter = null;
@@ -68,24 +81,25 @@ namespace SqExpress.QueryBuilders.Insert.Internal
 
                 dataMapSetter.EnsureRecordLength();
 
-                records.Add(new ExprRowValue(dataMapSetter.Record.AssertFatalNotNull(nameof(dataMapSetter.Record))));
+                recordsS?.Add(new ExprValueRow(dataMapSetter.Record.AssertFatalNotNull(nameof(dataMapSetter.Record))));
+                recordsI?.Add(new ExprInsertValueRow(dataMapSetter.Record.AssertFatalNotNull(nameof(dataMapSetter.Record))));
             }
 
-            if (records.Count < 1 || columns == null)
+            if ( (recordsS?.Count ?? 0 + recordsI?.Count ?? 0) < 1 || columns == null)
             {
+                //In case of empty IEnumerable
                 throw new SqExpressException("Input data should not be empty");
             }
 
             IExprInsertSource insertSource;
 
-            var valuesConstructor = new ExprTableValueConstructor(records);
-
-            if (this._targetInsertSelectMapping == null)
+            if (recordsI != null)
             {
-                insertSource = new ExprInsertValues(valuesConstructor);
+                insertSource = new ExprInsertValues(recordsI);
             }
-            else
+            else if(recordsS != null && this._targetInsertSelectMapping != null)
             {
+                var valuesConstructor = new ExprTableValueConstructor(recordsS);
                 var values = new ExprDerivedTableValues(
                     valuesConstructor,
                     new ExprTableAlias(Alias.Auto.BuildAliasExpression().AssertNotNull("Alias cannot be null")),
@@ -118,6 +132,11 @@ namespace SqExpress.QueryBuilders.Insert.Internal
 
                 columns = Helpers.Combine(columns, extraInsertCols);
 
+            }
+            else
+            {
+                //Actually C# should have detected that this brunch cannot be invoked
+                throw new SqExpressException("Fatal logic error!");
             }
 
             return new ExprInsert(this._target.FullName, columns, insertSource);

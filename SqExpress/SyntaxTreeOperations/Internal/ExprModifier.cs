@@ -222,10 +222,10 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         }
         public IExpr? VisitExprInsertValues(ExprInsertValues exprIn, Func<IExpr, IExpr?> modifier)
         {
-            var newValues = this.AcceptItem(exprIn.Values, modifier);
-            if(!ReferenceEquals(exprIn.Values, newValues))
+            var newItems = this.AcceptNotNullCollection(exprIn.Items, modifier);
+            if(!ReferenceEquals(exprIn.Items, newItems))
             {
-                exprIn = new ExprInsertValues(values: newValues);
+                exprIn = new ExprInsertValues(items: newItems);
             }
             return modifier.Invoke(exprIn);
         }
@@ -235,6 +235,15 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             if(!ReferenceEquals(exprIn.Query, newQuery))
             {
                 exprIn = new ExprInsertQuery(query: newQuery);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprInsertValueRow(ExprInsertValueRow exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newItems = this.AcceptNotNullCollection(exprIn.Items, modifier);
+            if(!ReferenceEquals(exprIn.Items, newItems))
+            {
+                exprIn = new ExprInsertValueRow(items: newItems);
             }
             return modifier.Invoke(exprIn);
         }
@@ -472,15 +481,6 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             return modifier.Invoke(exprIn);
         }
-        public IExpr? VisitExprRowValue(ExprRowValue exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newItems = this.AcceptNotNullCollection(exprIn.Items, modifier);
-            if(!ReferenceEquals(exprIn.Items, newItems))
-            {
-                exprIn = new ExprRowValue(items: newItems);
-            }
-            return modifier.Invoke(exprIn);
-        }
         public IExpr? VisitExprSelect(ExprSelect exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newSelectQuery = this.AcceptItem(exprIn.SelectQuery, modifier);
@@ -507,6 +507,15 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             if(!ReferenceEquals(exprIn.Items, newItems))
             {
                 exprIn = new ExprTableValueConstructor(items: newItems);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprValueRow(ExprValueRow exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newItems = this.AcceptNotNullCollection(exprIn.Items, modifier);
+            if(!ReferenceEquals(exprIn.Items, newItems))
+            {
+                exprIn = new ExprValueRow(items: newItems);
             }
             return modifier.Invoke(exprIn);
         }

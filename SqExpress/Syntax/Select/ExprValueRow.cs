@@ -3,16 +3,16 @@ using SqExpress.Syntax.Value;
 
 namespace SqExpress.Syntax.Select
 {
-    public class ExprRowValue : IExpr
+    public class ExprValueRow : IExpr
     {
-        public ExprRowValue(IReadOnlyList<ExprLiteral> items)
+        public ExprValueRow(IReadOnlyList<ExprValue> items)
         {
             this.Items = items;
         }
 
-        public IReadOnlyList<ExprLiteral> Items { get; }
+        public IReadOnlyList<ExprValue> Items { get; }
 
         public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
-            => visitor.VisitExprRowValue(this, arg);
+            => visitor.VisitExprValueRow(this, arg);
     }
 }

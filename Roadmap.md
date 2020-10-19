@@ -11,7 +11,7 @@
 - [x] Tree Modifier
 - [v] Serialization
 - [x] Scalar Functions
-- [ ] Insert Values (with DEFAULT)
+- [x] Insert Values (with DEFAULT)
 ## After 0.0.5
 - [ ] "Update Data" builder
 - [ ] Post "Done" modifications

@@ -169,8 +169,8 @@ namespace SqExpress.QueryBuilders.Merge.Internal
         public ExprMerge Done()
         {
             var records = this._data.TryToCheckLength(out var capacity)
-                ? capacity > 0 ? new List<ExprRowValue>(capacity) : null
-                : new List<ExprRowValue>();
+                ? capacity > 0 ? new List<ExprValueRow>(capacity) : null
+                : new List<ExprValueRow>();
 
             if (records == null)
             {
@@ -211,7 +211,7 @@ namespace SqExpress.QueryBuilders.Merge.Internal
                 }
 
                 setter.EnsureRecordLength();
-                records.Add(new ExprRowValue(setter.Record.AssertFatalNotNull(nameof(setter.Record))));
+                records.Add(new ExprValueRow(setter.Record.AssertFatalNotNull(nameof(setter.Record))));
             }
 
             if (records.Count < 1)
