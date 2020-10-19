@@ -15,6 +15,24 @@ namespace SqExpress
         public static ExprAnalyticFunction AnalyticFunction(string name, IReadOnlyList<ExprValue>? arguments, ExprOver over)
             =>new ExprAnalyticFunction(new ExprFunctionName(true, name), arguments, over);
 
+        public static ExprScalarFunction ScalarFunctionSys(string name, IReadOnlyList<ExprValue>? arguments = null)
+            =>new ExprScalarFunction(null, new ExprFunctionName(true, name), arguments);
+
+        public static ExprScalarFunction ScalarFunctionSys(string name, ExprValue argument1, params ExprValue[] rest)
+            =>new ExprScalarFunction(null, new ExprFunctionName(true, name), Helpers.Combine(argument1, rest));
+
+        public static ExprScalarFunction ScalarFunctionCustom(string schemaName, string name, IReadOnlyList<ExprValue>? arguments = null)
+            =>new ExprScalarFunction(new ExprDbSchema(null, new ExprSchemaName(schemaName)), new ExprFunctionName(false, name), arguments);
+
+        public static ExprScalarFunction ScalarFunctionCustom(string schemaName, string name, ExprValue argument1, params ExprValue[] rest)
+            =>new ExprScalarFunction(new ExprDbSchema(null, new ExprSchemaName(schemaName)), new ExprFunctionName(false, name), Helpers.Combine(argument1, rest));
+
+        public static ExprScalarFunction ScalarFunctionDbCustom(string databaseName, string schemaName, string name, IReadOnlyList<ExprValue>? arguments = null)
+            =>new ExprScalarFunction(new ExprDbSchema(new ExprDatabaseName(databaseName), new ExprSchemaName(schemaName)), new ExprFunctionName(false, name), arguments);
+
+        public static ExprScalarFunction ScalarFunctionDbCustom(string databaseName, string schemaName, string name, ExprValue argument1, params ExprValue[] rest)
+            =>new ExprScalarFunction(new ExprDbSchema(new ExprDatabaseName(databaseName), new ExprSchemaName(schemaName)), new ExprFunctionName(false, name), Helpers.Combine(argument1, rest));
+
         //Known agg and analytic functions
 
         public static ExprAggregateFunction CountOne() => AggregateFunction("COUNT", false, Literal(1));
@@ -39,9 +57,14 @@ namespace SqExpress
         //Known scalar functions
 
         public static ExprFuncIsNull IsNull(ExprValue test, ExprValue alt) => new ExprFuncIsNull(test, alt);
-        public static ExprFuncCoalesce Coalesce(ExprValue test, ExprValue alt, params ExprValue[] rest) => new ExprFuncCoalesce(test, Helpers.Combine(alt, rest));
+
+        public static ExprFuncCoalesce Coalesce(ExprValue test, ExprValue alt, params ExprValue[] rest) 
+            => new ExprFuncCoalesce(test, Helpers.Combine(alt, rest));
+
         public static ExprGetDate GetDate()=> ExprGetDate.Instance;
+
         public static ExprGetUtcDate GetUtcDate()=> ExprGetUtcDate.Instance;
+
         public static ExprDateAdd DateAdd(DateAddDatePart datePart, int number, ExprValue date) 
             => new ExprDateAdd(datePart, number, date);
     }

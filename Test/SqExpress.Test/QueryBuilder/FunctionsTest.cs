@@ -1,4 +1,5 @@
-﻿using NUnit.Framework;
+﻿using System;
+using NUnit.Framework;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.Test.QueryBuilder
@@ -43,6 +44,25 @@ namespace SqExpress.Test.QueryBuilder
                 .ToSql();
 
             Assert.AreEqual("SELECT CASE WHEN [A0].[FirstName]='John' THEN 'J' WHEN [A0].[FirstName]='Bob' THEN CAST(0 AS bit) ELSE 5 END [Result] FROM [dbo].[user] [A0]", actual);
+        }
+
+        [Test]
+        public void ScalarFunctionTest()
+        {
+            Assert.AreEqual("COUNT()", ScalarFunctionSys("COUNT").ToSql());
+            Assert.AreEqual("COUNT(1)", ScalarFunctionSys("COUNT", 1).ToSql());
+            Assert.AreEqual("COUNT(1,'5')", ScalarFunctionSys("COUNT", 1, "5").ToSql());
+            Assert.AreEqual("COUNT(1,'5','2020-10-19')", ScalarFunctionSys("COUNT", 1, "5", new DateTime(2020, 10, 19)).ToSql());
+
+            Assert.AreEqual("[dbo].[m]]yFun'c]()", ScalarFunctionCustom("dbo", "m]yFun'c").ToSql());
+            Assert.AreEqual("[dbo].[m]]yFun'c](1)", ScalarFunctionCustom("dbo", "m]yFun'c", 1).ToSql());
+            Assert.AreEqual("[dbo].[m]]yFun'c](1,'5')", ScalarFunctionCustom("dbo", "m]yFun'c", 1, "5").ToSql());
+            Assert.AreEqual("[dbo].[m]]yFun'c](1,'5','2020-10-19')", ScalarFunctionCustom("dbo", "m]yFun'c", 1, "5", new DateTime(2020,10,19)).ToSql());
+
+            Assert.AreEqual("[db1].[dbo].[m]]yFun'c]()", ScalarFunctionDbCustom("db1", "dbo", "m]yFun'c").ToSql());
+            Assert.AreEqual("[db1].[dbo].[m]]yFun'c](1)", ScalarFunctionDbCustom("db1", "dbo", "m]yFun'c", 1).ToSql());
+            Assert.AreEqual("[db1].[dbo].[m]]yFun'c](1,'5')", ScalarFunctionDbCustom("db1", "dbo", "m]yFun'c", 1, "5").ToSql());
+            Assert.AreEqual("[db1].[dbo].[m]]yFun'c](1,'5','2020-10-19')", ScalarFunctionDbCustom("db1", "dbo", "m]yFun'c", 1, "5", new DateTime(2020,10,19)).ToSql());
         }
     }
 }

@@ -20,6 +20,7 @@
 -                 Top -&gt; Limit in PostgresSQL
 -                 DateAdd
 -                 Export/Import to/from PlainList
+-                 Custom scalar functions
 Braking Changes:
 -	SqlBuilderBase is now internal
 -	IExprVistor changed

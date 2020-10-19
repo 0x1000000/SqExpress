@@ -646,9 +646,25 @@ namespace SqExpress.SqlExport.Internal
 
         public bool VisitExprScalarFunction(ExprScalarFunction exprScalarFunction, IExpr? parent)
         {
-            exprScalarFunction.Name.Accept(this, exprScalarFunction);
-            this.AcceptListComaSeparatedPar('(', exprScalarFunction.Arguments, ')', exprScalarFunction);
+            if (exprScalarFunction.Schema != null)
+            {
+                exprScalarFunction.Schema.Accept(this, exprScalarFunction);
+                this.Builder.Append('.');
+            }
 
+            exprScalarFunction.Name.Accept(this, exprScalarFunction);
+
+            if (exprScalarFunction.Arguments != null)
+            {
+                this.AssertNotEmptyList(exprScalarFunction.Arguments, "Argument list cannot be empty");
+                this.AcceptListComaSeparatedPar('(', exprScalarFunction.Arguments, ')', exprScalarFunction);
+            }
+            else
+            {
+                this.Builder.Append('(');
+                this.Builder.Append(')');
+            }
+            
             return true;
         }
 

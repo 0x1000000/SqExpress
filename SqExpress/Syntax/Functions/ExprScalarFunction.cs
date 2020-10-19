@@ -6,7 +6,7 @@ namespace SqExpress.Syntax.Functions
 {
     public class ExprScalarFunction : ExprValue
     {
-        public ExprScalarFunction(ExprDbSchema? schema, ExprFunctionName name, IReadOnlyList<ExprValue> arguments)
+        public ExprScalarFunction(ExprDbSchema? schema, ExprFunctionName name, IReadOnlyList<ExprValue>? arguments)
         {
             this.Schema = schema;
             this.Name = name;
@@ -17,7 +17,7 @@ namespace SqExpress.Syntax.Functions
 
         public ExprFunctionName Name { get; }
 
-        public IReadOnlyList<ExprValue> Arguments { get; }
+        public IReadOnlyList<ExprValue>? Arguments { get; }
 
         public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprScalarFunction(this, arg);

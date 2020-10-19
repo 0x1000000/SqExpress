@@ -4,18 +4,19 @@
 - [x] Update Expression
 - [x] "CASE WHEN"
 - [x] Arifmetic Expressions
-## After 0.0.2
+## After 0.0.3
 - [x] Make "Where" nullable
-- [ ] Insert Values (with DEFAULT)
 - [x] Temporary Tables
+- [x] Tree Walker
+- [x] Tree Modifier
+- [v] Serialization
+- [x] Scalar Functions
+- [ ] Insert Values (with DEFAULT)
+## After 0.0.5
 - [ ] "Update Data" builder
 - [ ] Post "Done" modifications
 - [ ] Split Merge into Insert Update Delete
-- [x] Tree Walker
-- [x] Tree Modifier
-- [ ] Serialization
 - [ ] Table Value Functions
-- [ ] Scalar Functions
 - [ ] "Quick" derived tables
 
 --Meta
