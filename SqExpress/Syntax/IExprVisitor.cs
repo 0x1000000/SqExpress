@@ -175,7 +175,7 @@ namespace SqExpress.Syntax
 
         TRes VisitExprFunctionName(ExprFunctionName exprFunctionName, TArg arg);
 
-        TRes VisitExprRowValue(ExprRowValue rowValue, TArg arg);
+        TRes VisitExprValueRow(ExprValueRow valueRow, TArg arg);
 
         TRes VisitExprTableValueConstructor(ExprTableValueConstructor tableValueConstructor, TArg arg);
 
@@ -204,6 +204,8 @@ namespace SqExpress.Syntax
         TRes VisitExprInsertOutput(ExprInsertOutput exprInsertOutput, TArg arg);
 
         TRes VisitExprInsertValues(ExprInsertValues exprInsertValues, TArg arg);
+
+        TRes VisitExprInsertValueRow(ExprInsertValueRow exprInsertValueRow, TArg arg);
 
         TRes VisitExprInsertQuery(ExprInsertQuery exprInsertQuery, TArg arg);
 

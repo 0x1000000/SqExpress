@@ -52,12 +52,12 @@ namespace SqExpress.Syntax.Update
 
     public class ExprInsertValues : IExprInsertSource
     {
-        public ExprInsertValues(ExprTableValueConstructor values)
+        public ExprInsertValues(IReadOnlyList<ExprInsertValueRow> items)
         {
-            this.Values = values;
+            this.Items = items;
         }
 
-        public ExprTableValueConstructor Values { get; }
+        public IReadOnlyList<ExprInsertValueRow> Items { get; }
 
         public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprInsertValues(this, arg);

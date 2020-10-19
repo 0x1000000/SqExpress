@@ -218,13 +218,19 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         }
         public bool VisitExprInsertValues(ExprInsertValues expr, TCtx arg)
         {
-            var res = this.Visit(expr, "InsertValues", arg, out var argOut) && this.Accept("Values",expr.Values, argOut);
+            var res = this.Visit(expr, "InsertValues", arg, out var argOut) && this.Accept("Items",expr.Items, argOut);
             this._visitor.EndVisitExpr(expr, arg);
             return res;
         }
         public bool VisitExprInsertQuery(ExprInsertQuery expr, TCtx arg)
         {
             var res = this.Visit(expr, "InsertQuery", arg, out var argOut) && this.Accept("Query",expr.Query, argOut);
+            this._visitor.EndVisitExpr(expr, arg);
+            return res;
+        }
+        public bool VisitExprInsertValueRow(ExprInsertValueRow expr, TCtx arg)
+        {
+            var res = this.Visit(expr, "InsertValueRow", arg, out var argOut) && this.Accept("Items",expr.Items, argOut);
             this._visitor.EndVisitExpr(expr, arg);
             return res;
         }
@@ -405,12 +411,6 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             this._visitor.EndVisitExpr(expr, arg);
             return res;
         }
-        public bool VisitExprRowValue(ExprRowValue expr, TCtx arg)
-        {
-            var res = this.Visit(expr, "RowValue", arg, out var argOut) && this.Accept("Items",expr.Items, argOut);
-            this._visitor.EndVisitExpr(expr, arg);
-            return res;
-        }
         public bool VisitExprSelect(ExprSelect expr, TCtx arg)
         {
             var res = this.Visit(expr, "Select", arg, out var argOut) && this.Accept("SelectQuery",expr.SelectQuery, argOut) && this.Accept("OrderBy",expr.OrderBy, argOut);
@@ -426,6 +426,12 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         public bool VisitExprTableValueConstructor(ExprTableValueConstructor expr, TCtx arg)
         {
             var res = this.Visit(expr, "TableValueConstructor", arg, out var argOut) && this.Accept("Items",expr.Items, argOut);
+            this._visitor.EndVisitExpr(expr, arg);
+            return res;
+        }
+        public bool VisitExprValueRow(ExprValueRow expr, TCtx arg)
+        {
+            var res = this.Visit(expr, "ValueRow", arg, out var argOut) && this.Accept("Items",expr.Items, argOut);
             this._visitor.EndVisitExpr(expr, arg);
             return res;
         }

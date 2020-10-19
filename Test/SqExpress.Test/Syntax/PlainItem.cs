@@ -4,6 +4,9 @@ namespace SqExpress.Test.Syntax
 {
     public class PlainItem : IPlainItem
     {
+        public static PlainItem Create(int id, int parentId, int? arrayIndex, bool isTypeTag, string tag, string encodedValue)
+            => new PlainItem(id, parentId, arrayIndex, isTypeTag, tag, encodedValue);
+
         public PlainItem(int id, int parentId, int? arrayIndex, bool isTypeTag, string tag, string encodedValue)
         {
             this.Id = id;

@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using NUnit.Framework;
+using SqExpress.SyntaxTreeOperations;
+using SqExpress.Test.Syntax;
+using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.Test.QueryBuilder
 {
@@ -8,7 +11,7 @@ namespace SqExpress.Test.QueryBuilder
     public class InsertTest
     {
         [Test]
-        public void Test()
+        public void InsertDataTest()
         {
             const int usersCount = 3;
 
@@ -28,8 +31,7 @@ namespace SqExpress.Test.QueryBuilder
 
             var tbl = Tables.User();
 
-            var expr = SqQueryBuilder
-                .InsertDataInto(tbl, data)
+            var expr = InsertDataInto(tbl, data)
                 .MapData(i => i
                     .Set(i.Target.FirstName, i.Source.FirstName)
                     .Set(i.Target.LastName, i.Source.LastName)
@@ -44,7 +46,7 @@ namespace SqExpress.Test.QueryBuilder
         }
 
         [Test]
-        public void TestExtra()
+        public void InsertDataWithExtraTest()
         {
             const int usersCount = 3;
 
@@ -64,8 +66,7 @@ namespace SqExpress.Test.QueryBuilder
 
             var tbl = Tables.User();
 
-            var expr = SqQueryBuilder
-                .InsertDataInto(tbl, data)
+            var expr = InsertDataInto(tbl, data)
                 .MapData(i => i
                     .Set(i.Target.FirstName, i.Source.FirstName)
                     .Set(i.Target.LastName, i.Source.LastName)
@@ -79,6 +80,26 @@ namespace SqExpress.Test.QueryBuilder
 
             var expected = "INSERT INTO [dbo].[user]([FirstName],[LastName],[Email],[RegDate],[Version],[Created]) OUTPUT INSERTED.[UserId] SELECT [FirstName],[LastName],[Email],[RegDate],5,'2020-01-02' FROM (VALUES ('First0','Last0','user0@company.com','2020-01-02'),('First1','Last1','user1@company.com','2020-01-02'),('First2','Last2','user2@company.com','2020-01-02'))[A0]([FirstName],[LastName],[Email],[RegDate])";
             Assert.AreEqual(actual, expected);
+
+            //Serialization
+            var list = expr.SyntaxTree().ExportToPlainList(PlainItem.Create);
+            var after = ExprDeserializer.DeserializeFormPlainList(list);
+
+            Assert.AreEqual(expected, after.ToSql());
+        }
+
+        [Test]
+        public void InsertExprTest()
+        {
+            var tbl = Tables.User();
+
+            var actual = InsertInto(tbl, tbl.FirstName, tbl.LastName, tbl.Modified, tbl.Version)
+                .From(Select(tbl.FirstName, tbl.LastName, GetUtcDate(), Literal(1)+1).From(tbl))
+                .ToSql();
+            var expected = "INSERT INTO [dbo].[user]([FirstName],[LastName],[Modified],[Version]) " +
+                           "SELECT [A0].[FirstName],[A0].[LastName],GETUTCDATE(),1+1 FROM [dbo].[user] [A0]";
+
+            Assert.AreEqual(expected, actual);
         }
     }
 }

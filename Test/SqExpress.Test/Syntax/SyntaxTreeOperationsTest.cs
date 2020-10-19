@@ -154,7 +154,7 @@ namespace SqExpress.Test.Syntax
                 .Done();
 
 
-            var items = selectExpr.SyntaxTree().ExportToPlainList((id, parentId, arrayIndex, isTypeTag, tag, encodedValue) => new PlainItem(id, parentId, arrayIndex, isTypeTag, tag, encodedValue));
+            var items = selectExpr.SyntaxTree().ExportToPlainList(PlainItem.Create);
 
             var res = ExprDeserializer.DeserializeFormPlainList(items);
 

@@ -893,14 +893,14 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
-        public bool VisitExprRowValue(ExprRowValue rowValue, IExpr? parent)
+        public bool VisitExprValueRow(ExprValueRow valueRow, IExpr? parent)
         {
-            if (rowValue.Items == null || rowValue.Items.Count < 1)
+            if (valueRow.Items == null || valueRow.Items.Count < 1)
             {
                 throw new SqExpressException("Row value should have at least one column");
             }
 
-            this.AcceptListComaSeparatedPar('(',rowValue.Items, ')', rowValue);
+            this.AcceptListComaSeparatedPar('(',valueRow.Items, ')', valueRow);
 
             return true;
         }
@@ -1122,7 +1122,30 @@ namespace SqExpress.SqlExport.Internal
 
         public bool VisitExprInsertValues(ExprInsertValues exprInsertValues, IExpr? parent)
         {
-            exprInsertValues.Values.Accept(this, exprInsertValues);
+            this.Builder.Append("VALUES ");
+
+            for (var i = 0; i < exprInsertValues.Items.Count; i++)
+            {
+                var rowValue = exprInsertValues.Items[i];
+                if (i > 0)
+                {
+                    this.Builder.Append(',');
+                }
+                rowValue.Accept(this, exprInsertValues);
+            }
+
+            return true;
+        }
+
+        public bool VisitExprInsertValueRow(ExprInsertValueRow exprInsertValueRow, IExpr? arg)
+        {
+            if (exprInsertValueRow.Items == null || exprInsertValueRow.Items.Count < 1)
+            {
+                throw new SqExpressException("Row value should have at least one column");
+            }
+
+            this.AcceptListComaSeparatedPar('(', exprInsertValueRow.Items, ')', exprInsertValueRow);
+
             return true;
         }
 

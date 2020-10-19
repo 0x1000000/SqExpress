@@ -227,7 +227,6 @@ namespace SqExpress.Test.QueryBuilder
             Assert.AreEqual("SELECT [A0].[UserId],COUNT(1)OVER() FROM [dbo].[user] [A0] EXCEPT SELECT TOP 7 [A1].[UserId],COUNT(1)OVER() FROM [dbo].[user] [A1]", actual);
             actual = expr.ToPgSql();
             Assert.AreEqual("SELECT \"A0\".\"UserId\",COUNT(1)OVER() FROM \"public\".\"user\" \"A0\" EXCEPT (SELECT \"A1\".\"UserId\",COUNT(1)OVER() FROM \"public\".\"user\" \"A1\" LIMIT 7)", actual);
-            Console.WriteLine(actual);
         }
     }
 }

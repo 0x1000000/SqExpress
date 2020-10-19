@@ -19,7 +19,6 @@ namespace SqExpress.Test.QueryBuilder
             actual = TSqlExporter.Default.ToSql(tbl.Script.DropAndCreate());
             expected = "IF OBJECT_ID('tempdb..[#t -- mpU\"s''er]') IS NOT NULL DROP TABLE [#t -- mpU\"s'er]CREATE TABLE [#t -- mpU\"s'er]([Id] int NOT NULL  IDENTITY (1, 1),[Modified] date NOT NULL,CONSTRAINT [PK_t -- mpU\"s'er] PRIMARY KEY ([Id]));";
             Assert.AreEqual(expected, actual);
-            Console.WriteLine(actual);
         }
 
         private class IdModified : TempTableBase
