@@ -6,24 +6,26 @@ using SqExpress.Syntax;
 
 namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
 {
-    public delegate IPlainItem PlainItemFactory(int id, int parentId, int? arrayIndex, bool isTypeTag, string tag, string? value);
+    public delegate T PlainItemFactory<T>(int id, int parentId, int? arrayIndex, bool isTypeTag, string tag, string? value)
+        where T : IPlainItem;
 
-    internal class ExprPlainWriter : IWalkerVisitor<int>
+    internal class ExprPlainWriter<T> : IWalkerVisitor<int>
+        where T : IPlainItem
     {
-        private readonly List<IPlainItem> _buffer = new List<IPlainItem>();
+        private readonly List<T> _buffer = new List<T>();
 
-        private readonly PlainItemFactory _factory;
+        private readonly PlainItemFactory<T> _factory;
 
         private int _currentId;
 
         private int GetNewId() => ++this._currentId;
 
-        public ExprPlainWriter(PlainItemFactory factory)
+        public ExprPlainWriter(PlainItemFactory<T> factory)
         {
             this._factory = factory;
         }
 
-        public IReadOnlyList<IPlainItem> Result => this._buffer;
+        public IReadOnlyList<T> Result => this._buffer;
 
         public VisitorResult<int> VisitExpr(IExpr expr, string typeTag, int ctx)
         {

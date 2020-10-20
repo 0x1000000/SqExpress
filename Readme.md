@@ -23,12 +23,16 @@ It can be used together with the “Code First” concept when you declare SQL t
 9. [Derived Table](#derived-table)
 10. [Postgres Sql](#postgres-sql)
 11. [Merge](#merge)
+12. [Temporary Tables](#temporary-tables)
+13. [Syntax Tree](#syntax-tree)
+14. [Serialization to XML](#Serialization-to-XML)
+15. [Serialization to Plain List](#Serialization-to-Plain-List)
 
 # Get Started
 
 Add a reference to the library: 
 ```
-Install-Package SqExpress -Version 0.0.3.1
+Install-Package SqExpress
 ```
 and start with "Hello World":
 ```cs
@@ -631,4 +635,270 @@ OUTPUT INSERTED.[UserId] [Inserted],DELETED.[UserId] [Deleted],$ACTION [Actions]
 UserId Inserted: 4,UserId Deleted:  , Action: INSERT
 UserId Inserted: 1,UserId Deleted: 1 , Action: UPDATE
 UserId Inserted: 2,UserId Deleted: 2 , Action: UPDATE
+```
+
+## Temporary Tables
+In some scenarios temporary tables might be very useful and you can create such table such tables as follows:
+```cs
+public class TempTable : TempTableBase
+{
+    public TempTable(Alias alias = default) : base("tempTable", alias)
+    {
+        this.Id = CreateInt32Column(nameof(Id),
+            ColumnMeta.PrimaryKey().Identity());
+
+        this.Name = CreateStringColumn(nameof(Name), 255);
+    }
+
+    public readonly Int32TableColumn Id;
+
+    public readonly StringTableColumn Name;
+}
+```
+and then use it:
+```cs
+var tmp = new TempTable();
+
+var tableUser = new TableUser();
+var tableCompany = new TableCompany();
+
+await database.Statement(tmp.Script.Create());
+
+//Users
+await InsertInto(tmp, tmp.Name)
+    .From(Select(tableUser.FirstName + " "+ tableUser.LastName)
+    .From(tableUser))
+    .Exec(database);
+
+//Companies
+await InsertInto(tmp, tmp.Name)
+    .From(Select(tableCompany.CompanyName)
+    .From(tableCompany))
+    .Exec(database);
+
+await Select(tmp.Columns)
+    .From(tmp)
+    .OrderBy(tmp.Name)
+    .Query(database,
+        (object)null,
+        (agg, r) =>
+        {
+            Console.WriteLine($"Id: {tmp.Id.Read(r)}, Name: {tmp.Name.Read(r)}");
+            return agg;
+        });
+
+//Dropping the temp table is optional
+//It will be automatically removed when
+//the connection is closed
+await database.Statement(tmp.Script.Drop());
+```
+The result will be:
+```
+Id: 2, Name: Allina Freeborne
+Id: 1, Name: Francois Sturman
+Id: 4, Name: Google
+Id: 3, Name: Microsoft
+```
+
+## Syntax Tree
+You can go through an existing syntax tree object and modify if it is required:
+```cs
+//Var some external filter..
+ExprBoolean filter = CustomColumnFactory.Int16("Type") == 2 /*Company*/;
+
+var tableCustomer = new TableCustomer();
+
+var baseSelect = Select(tableCustomer.CustomerId)
+    .From(tableCustomer)
+    .Where(filter)
+    .Done();
+
+//Checking that filter has "Type" column
+var hasVirtualColumn = filter.SyntaxTree()
+    .FirstOrDefault<ExprColumnName>(e => e.Name == "Type") != null;
+
+if (hasVirtualColumn)
+{
+    baseSelect = (ExprQuerySpecification) baseSelect.SyntaxTree()
+        .Modify(e =>
+        {
+            var result = e;
+            //Joining with the sub query
+            if (e is TableCustomer table)
+            {
+                var derivedTable = new DerivedTableCustomer();
+
+                result = new ExprJoinedTable(
+                    table,
+                    ExprJoinedTable.ExprJoinType.Inner,
+                    derivedTable,
+                    table.CustomerId == derivedTable.CustomerId);
+            }
+
+            return result;
+        });
+}
+
+await baseSelect!
+    .Query(database,
+        (object) null,
+        (agg, r) =>
+        {
+            Console.WriteLine($"Id: {tableCustomer.CustomerId.Read(r)}");
+            return agg;
+        });
+```
+
+## Serialization to XML
+Each expression can be exported to a xml string and then restored back. It can be useful to pass expressions over network:
+```cs
+var tableUser = new TableUser(Alias.Empty);
+
+var selectExpr = Select(tableUser.FirstName, tableUser.LastName)
+    .From(tableUser)
+    .Where(tableUser.LastName == "Sturman")
+    .Done();
+
+//Exporting
+var stringBuilder = new StringBuilder();
+using XmlWriter writer = XmlWriter.Create(stringBuilder);
+selectExpr.SyntaxTree().ExportToXml(writer);
+
+//Importing
+XmlDocument document = new XmlDocument();
+document.LoadXml(stringBuilder.ToString());
+var restored = (ExprQuerySpecification)ExprDeserializer
+    .DeserializeFormXml(document.DocumentElement!);
+
+var result = await restored
+    .QueryList(database, r => (tableUser.FirstName.Read(r), tableUser.LastName.Read(r)));
+
+foreach (var name in result)
+{
+    Console.WriteLine(name);
+}
+```
+This an example of the XML text:
+```xml
+<Expr typeTag="QuerySpecification">
+   <SelectList>
+      <SelectList0 typeTag="Column">
+         <ColumnName typeTag="ColumnName">
+            <Name>FirstName</Name>
+         </ColumnName>
+      </SelectList0>
+      <SelectList1 typeTag="Column">
+         <ColumnName typeTag="ColumnName">
+            <Name>LastName</Name>
+         </ColumnName>
+      </SelectList1>
+   </SelectList>
+   <From typeTag="Table">
+      <FullName typeTag="TableFullName">
+         <DbSchema typeTag="DbSchema">
+            <Schema typeTag="SchemaName">
+               <Name>dbo</Name>
+            </Schema>
+         </DbSchema>
+         <TableName typeTag="TableName">
+            <Name>User</Name>
+         </TableName>
+      </FullName>
+   </From>
+   <Where typeTag="BooleanEq">
+      <Left typeTag="Column">
+         <ColumnName typeTag="ColumnName">
+            <Name>LastName</Name>
+         </ColumnName>
+      </Left>
+      <Right typeTag="StringLiteral">
+         <Value>Sturman</Value>
+      </Right>
+   </Where>
+   <Distinct>false</Distinct>
+</Expr>
+```
+## Serialization to Plain List
+Also an expression can be exported into a list of plain entities. It might be useful if you want to store some expressions (e.g. "Favorites Filters") in a plain structure:
+
+```cs
+var tableUser = new TableUser(Alias.Empty);
+
+ExprBoolean filter1 = tableUser.LastName == "Sturman";
+ExprBoolean filter2 = tableUser.LastName == "Freeborne";
+
+var tableFavoriteFilter = new TableFavoriteFilter();
+var tableFavoriteFilterItem = new TableFavoriteFilterItem();
+
+var filterIds = await InsertDataInto(tableFavoriteFilter, new[] {"Filter 1", "Filter 2"})
+    .MapData(s => s.Set(s.Target.Name, s.Source))
+    .Output(tableFavoriteFilter.FavoriteFilterId)
+    .QueryList(database, r => tableFavoriteFilterItem.FavoriteFilterId.Read(r));
+
+var filter1Items = 
+    filter1.SyntaxTree().ExportToPlainList((i, id, index, b, s, value) =>
+    FilterPlainItem.Create(filterIds[0], i, id, index, b, s, value));
+
+var filter2Items = 
+    filter2.SyntaxTree().ExportToPlainList((i, id, index, b, s, value) =>
+    FilterPlainItem.Create(filterIds[1], i, id, index, b, s, value));
+
+await InsertDataInto(tableFavoriteFilterItem, filter1Items.Concat(filter2Items))
+    .MapData(s => s
+        .Set(s.Target.FavoriteFilterId, s.Source.FavoriteFilterId)
+        .Set(s.Target.Id, s.Source.Id)
+        .Set(s.Target.ParentId, s.Source.ParentId)
+        .Set(s.Target.IsTypeTag, s.Source.IsTypeTag)
+        .Set(s.Target.ArrayIndex, s.Source.ArrayIndex)
+        .Set(s.Target.Tag, s.Source.Tag)
+        .Set(s.Target.Value, s.Source.Value)
+    )
+    .Exec(database);
+
+//Restoring
+var restoredFilterItems = await Select(tableFavoriteFilterItem.Columns)
+    .From(tableFavoriteFilterItem)
+    .Where(tableFavoriteFilterItem.FavoriteFilterId.In(filterIds))
+    .QueryList(
+        database,
+        r => new FilterPlainItem(
+        favoriteFilterId: tableFavoriteFilterItem.FavoriteFilterId.Read(r),
+        id: tableFavoriteFilterItem.Id.Read(r),
+        parentId: tableFavoriteFilterItem.ParentId.Read(r),
+        isTypeTag: tableFavoriteFilterItem.IsTypeTag.Read(r),
+        arrayIndex: tableFavoriteFilterItem.ArrayIndex.Read(r),
+        tag: tableFavoriteFilterItem.Tag.Read(r),
+        value: tableFavoriteFilterItem.Value.Read(r)));
+
+var restoredFilter1 = (ExprBoolean)ExprDeserializer
+    .DeserializeFormPlainList(restoredFilterItems.Where(fi =>
+        fi.FavoriteFilterId == filterIds[0]));
+
+var restoredFilter2 = (ExprBoolean)ExprDeserializer
+    .DeserializeFormPlainList(restoredFilterItems.Where(fi =>
+        fi.FavoriteFilterId == filterIds[1]));
+
+Console.WriteLine("Filter 1");
+await Select(tableUser.FirstName, tableUser.LastName)
+    .From(tableUser)
+    .Where(restoredFilter1)
+    .Query(database,
+        (object?) null,
+        (s, r) =>
+        {
+            Console.WriteLine($"{tableUser.FirstName.Read(r)} {tableUser.LastName.Read(r)}");
+            return s;
+        });
+
+Console.WriteLine("Filter 2");
+await Select(tableUser.FirstName, tableUser.LastName)
+    .From(tableUser)
+    .Where(restoredFilter2)
+    .Query(database,
+        (object?) null,
+        (s, r) =>
+        {
+            Console.WriteLine($"{tableUser.FirstName.Read(r)} {tableUser.LastName.Read(r)}");
+            return s;
+        });
 ```
