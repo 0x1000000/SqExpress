@@ -95,9 +95,9 @@ namespace SqExpress
                     });
             }
 
-            public IReadOnlyList<IPlainItem> ExportToPlainList(PlainItemFactory plainItemFactory)
+            public IReadOnlyList<T> ExportToPlainList<T>(PlainItemFactory<T> plainItemFactory) where T : IPlainItem
             {
-                var walkerVisitor = new ExprPlainWriter(plainItemFactory);
+                var walkerVisitor = new ExprPlainWriter<T>(plainItemFactory);
                 WalkThrough(walkerVisitor, 0);
                 return walkerVisitor.Result;
             }
