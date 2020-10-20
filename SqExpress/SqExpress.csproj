@@ -20,18 +20,19 @@
 -                 Top -&gt; Limit in PostgresSQL
 -                 DateAdd
 -                 Export/Import to/from PlainList
+-                 Export/Import to/from Xml
 -                 Custom scalar functions
 Braking Changes:
 -	SqlBuilderBase is now internal
 -	IExprVistor changed
 </PackageReleaseNotes>
-    <Description>SqExpress is a sql query builder which allows creating SQL expression in C# code with strong typing and intellisense.
+    <Description>SqExpress is a sql query builder which allows creating SQL expression in C# code with strong typing and intellisense (without LINQ!).
 The library provides a generic sql syntax tree with exports to MS t-SQL and Postgres SQL text.
 It also provides a set of builders and operators which will help you building complex Sql expressions.
 It does not use Linq and your C# code will be close to real SQL as much as possible, so it can be used when you need the full SQL flexibility to create efficient Db requests.
 It is delivered with a simple but efficient data access mechanism which warps ADO.Net DbConnection and can be used with MS SQL Client or Npgsql.
 It can be used together with the “Code First” concept when you declare SQL tables as C# classes with possibility to generate recreation scripts for a target platform (MS SQL or Postgres SQL)
-    </Description>
+</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageIcon>Icon.png</PackageIcon>
     <Copyright>Dmitry Tikhonov</Copyright>

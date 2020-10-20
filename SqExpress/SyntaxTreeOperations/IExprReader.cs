@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using SqExpress.Utils;
 
 namespace SqExpress.SyntaxTreeOperations
 {
-    public interface IExprReader<TNode>
+    public interface IExprReader<TNode> 
     {
         string GetNodeTypeTag(TNode node);
 

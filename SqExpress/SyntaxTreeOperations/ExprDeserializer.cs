@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Xml;
 using SqExpress.Syntax;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Boolean.Predicate;
@@ -23,8 +24,13 @@ namespace SqExpress.SyntaxTreeOperations
     {
         public static IExpr DeserializeFormPlainList(IEnumerable<IPlainItem> list)
         {
-            var reader = PlainReader.Create(list, out var root);
+            var reader = ExprPlainReader.Create(list, out var root);
             return Deserialize(root, reader);
+        }
+
+        public static IExpr DeserializeFormXml(XmlElement node)
+        {
+            return Deserialize(node, ExprXmlReader.Instance);
         }
 
         public static IExpr Deserialize<TNode>(TNode rootElement, IExprReader<TNode> reader)

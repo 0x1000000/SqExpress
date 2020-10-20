@@ -8,7 +8,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
 {
     public delegate IPlainItem PlainItemFactory(int id, int parentId, int? arrayIndex, bool isTypeTag, string tag, string? value);
 
-    public class PlainEncoder : IWalkerVisitor<int>
+    internal class ExprPlainWriter : IWalkerVisitor<int>
     {
         private readonly List<IPlainItem> _buffer = new List<IPlainItem>();
 
@@ -18,7 +18,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
 
         private int GetNewId() => ++this._currentId;
 
-        public PlainEncoder(PlainItemFactory factory)
+        public ExprPlainWriter(PlainItemFactory factory)
         {
             this._factory = factory;
         }
