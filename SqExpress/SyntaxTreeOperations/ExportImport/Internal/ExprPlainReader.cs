@@ -4,12 +4,12 @@ using System.Globalization;
 
 namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
 {
-    public class PlainReader : IExprReader<IPlainItem>
+    internal class ExprPlainReader : IExprReader<IPlainItem>
     {
         private readonly IReadOnlyDictionary<PropKey, IPlainItem> _properties;
         private readonly IReadOnlyDictionary<int, IPlainItem> _types;
 
-        public static PlainReader Create(IEnumerable<IPlainItem> buffer,out IPlainItem root)
+        public static ExprPlainReader Create(IEnumerable<IPlainItem> buffer,out IPlainItem root)
         {
             var properties = new Dictionary<PropKey, IPlainItem>();
             var types = new Dictionary<int, IPlainItem>();
@@ -40,10 +40,10 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
 
             root = rootFound ?? throw new SqExpressException("Could not find a root item (with Id == 0)");
 
-            return new PlainReader(properties, types);
+            return new ExprPlainReader(properties, types);
         }
 
-        private PlainReader(IReadOnlyDictionary<PropKey, IPlainItem> properties, IReadOnlyDictionary<int, IPlainItem> types)
+        private ExprPlainReader(IReadOnlyDictionary<PropKey, IPlainItem> properties, IReadOnlyDictionary<int, IPlainItem> types)
         {
             this._properties = properties;
             this._types = types;

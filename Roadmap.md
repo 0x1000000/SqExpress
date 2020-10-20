@@ -9,7 +9,7 @@
 - [x] Temporary Tables
 - [x] Tree Walker
 - [x] Tree Modifier
-- [v] Serialization
+- [x] Serialization
 - [x] Scalar Functions
 - [x] Insert Values (with DEFAULT)
 ## After 0.0.5

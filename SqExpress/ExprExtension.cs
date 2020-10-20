@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Xml;
 using SqExpress.DataAccess;
 using SqExpress.QueryBuilders;
 using SqExpress.Syntax;
@@ -96,9 +97,15 @@ namespace SqExpress
 
             public IReadOnlyList<IPlainItem> ExportToPlainList(PlainItemFactory plainItemFactory)
             {
-                var walkerVisitor = new PlainEncoder(plainItemFactory);
+                var walkerVisitor = new ExprPlainWriter(plainItemFactory);
                 WalkThrough(walkerVisitor, 0);
                 return walkerVisitor.Result;
+            }
+
+            public void ExportToXml(XmlWriter xmlWriter)
+            {
+                var walkerVisitor = new ExprXmlWriter();
+                WalkThrough(walkerVisitor, xmlWriter);
             }
         }
     }
