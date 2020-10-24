@@ -21,12 +21,14 @@ It can be used together with the “Code First” concept when you declare SQL t
 7. [More Tables and foreign keys](#more-tables-and-foreign-keys)
 8. [Joining Tables](#joining-tables)
 9. [Derived Table](#derived-table)
-10. [Postgres Sql](#postgres-sql)
-11. [Merge](#merge)
-12. [Temporary Tables](#temporary-tables)
-13. [Syntax Tree](#syntax-tree)
-14. [Serialization to XML](#Serialization-to-XML)
-15. [Serialization to Plain List](#Serialization-to-Plain-List)
+10. [Set Operators](#set-operators)
+11. [Postgres Sql](#postgres-sql)
+12. [Merge](#merge)
+13. [Temporary Tables](#temporary-tables)
+14. [Syntax Tree](#syntax-tree)
+15. [Serialization to XML](#serialization-to-xml)
+16. [Serialization to Plain List](#serialization-to-plain-list)
+17. [Auto-Mapper](#auto-mapper)
 
 # Get Started
 
@@ -451,8 +453,7 @@ Id: 3, Name: Microsoft, Type: 2
 Id: 4, Name: Google, Type: 2
 ```
 ## Derived Table
-
-This query is quite complex so it makes sense to store it as a derived table and reuse it in future:
+The previous query is quite complex so it makes sense to store it as a derived table and reuse it in future:
 ```cs
 public class DerivedTableCustomer : DerivedTableBase
 {
@@ -555,6 +556,46 @@ OFFSET 1 ROW FETCH NEXT 2 ROW ONLY
 ```
 Id: 4, Name: Google, Type: 2
 Id: 2, Name: Allina Freeborne, Type: 1
+```
+## Set Operators
+The library supports all the SET operators:
+```cs
+//If you need to repeat one query several times 
+// you can store it in a variable
+var select1 = Select(Literal(1));
+var select2 = Select(Literal(2));
+
+var result = await select1
+    .Union(select2)
+    .UnionAll(select2)
+    .Except(select2)
+    .Intersect(select1.Union(select2))
+    .QueryList(database, r => r.GetInt32(0));
+
+Console.WriteLine("Result Of Set Operators:");
+Console.WriteLine(result[0]);
+```
+Ans actual SQL will be:
+```sql
+(
+    (
+        (
+            SELECT 1 
+            UNION 
+            SELECT 2
+        ) 
+        UNION ALL 
+        SELECT 2
+    ) 
+    EXCEPT 
+    SELECT 2
+) 
+INTERSECT 
+(
+    SELECT 1 
+    UNION 
+    SELECT 2
+)
 ```
 ## Postgres SQL
 You can run all the scenarios using Postgres SQL (of course the actual sql will be different):
@@ -902,3 +943,24 @@ await Select(tableUser.FirstName, tableUser.LastName)
             return s;
         });
 ```
+## Auto-Mapper
+Since the DAL works on top the ADO you can use Auto-Mapper (if you like it):
+```cs
+var mapper = new Mapper(new MapperConfiguration(cfg =>
+{
+    cfg.AddDataReaderMapping();
+    var map = cfg.CreateMap<IDataRecord, AllColumnTypesDto>();
+
+    if (context.IsPostgresSql)
+    {
+        map
+            .ForMember(nameof(table.ColByte), c => c.Ignore())
+            .ForMember(nameof(table.ColNullableByte), c => c.Ignore());
+    }
+}));
+
+var result = await Select(table.Columns)
+    .From(table)
+    .QueryList(context.Database, r => mapper.Map<IDataRecord, AllColumnTypesDto>(r));
+```
+[(taken from "Test/SqExpress.IntTest/Scenarios/ScAllColumnTypes.cs")](https://github.com/0x1000000/SqExpress/blob/main/Test/SqExpress.IntTest/Scenarios/ScAllColumnTypes.cs#L26)

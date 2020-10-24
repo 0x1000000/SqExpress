@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
 using System.Linq;
@@ -95,6 +96,7 @@ namespace SqExpress.GetStarted
             await Step7CreatingCustomers(database);
             await Step8JoinTables(database);
             await Step9UseDerivedTables(database);
+            await Step9SetOperations(database);
             if (!postgres)
             {
                 await Step10Merge(database);
@@ -296,6 +298,22 @@ namespace SqExpress.GetStarted
             {
                 Console.WriteLine($"Id: {customer.Id}, Name: {customer.Name}, Type: {customer.CustomerType}");
             }
+        }
+
+        private static async Task Step9SetOperations(ISqDatabase database)
+        {
+            var select1 = Select(Literal(1));
+            var select2 = Select(Literal(2));
+
+            var result = await select1
+                .Union(select2)
+                .UnionAll(select2)
+                .Except(select2)
+                .Intersect(select1.Union(select2))
+                .QueryList(database, r => r.GetInt32(0));
+
+            Console.WriteLine("Result Of Set Operators:");
+            Console.WriteLine(result[0]);
         }
 
         private static async Task Step9UseDerivedTables(ISqDatabase database)
