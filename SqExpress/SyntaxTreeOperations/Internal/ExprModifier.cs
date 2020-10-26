@@ -116,407 +116,22 @@ namespace SqExpress.SyntaxTreeOperations.Internal
 
 
         //CodeGenStart
-        public IExpr? VisitExprBoolLiteral(ExprBoolLiteral exprIn, Func<IExpr, IExpr?> modifier)
+        public IExpr? VisitExprAggregateFunction(ExprAggregateFunction exprIn, Func<IExpr, IExpr?> modifier)
         {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprByteArrayLiteral(ExprByteArrayLiteral exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprByteLiteral(ExprByteLiteral exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprDateTimeLiteral(ExprDateTimeLiteral exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprDecimalLiteral(ExprDecimalLiteral exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprDefault(ExprDefault exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprDoubleLiteral(ExprDoubleLiteral exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprGuidLiteral(ExprGuidLiteral exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprInt16Literal(ExprInt16Literal exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprInt32Literal(ExprInt32Literal exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprInt64Literal(ExprInt64Literal exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprNull(ExprNull exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprStringLiteral(ExprStringLiteral exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprColumnSetClause(ExprColumnSetClause exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newColumn = this.AcceptItem(exprIn.Column, modifier);
-            var newValue = this.AcceptItem(exprIn.Value, modifier);
-            if(!ReferenceEquals(exprIn.Column, newColumn) || !ReferenceEquals(exprIn.Value, newValue))
-            {
-                exprIn = new ExprColumnSetClause(column: newColumn, value: newValue);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprDelete(ExprDelete exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newTarget = this.AcceptItem(exprIn.Target, modifier);
-            var newSource = this.AcceptNullableItem(exprIn.Source, modifier);
-            var newFilter = this.AcceptNullableItem(exprIn.Filter, modifier);
-            if(!ReferenceEquals(exprIn.Target, newTarget) || !ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.Filter, newFilter))
-            {
-                exprIn = new ExprDelete(target: newTarget, source: newSource, filter: newFilter);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprDeleteOutput(ExprDeleteOutput exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newDelete = this.AcceptItem(exprIn.Delete, modifier);
-            var newOutputColumns = this.AcceptNotNullCollection(exprIn.OutputColumns, modifier);
-            if(!ReferenceEquals(exprIn.Delete, newDelete) || !ReferenceEquals(exprIn.OutputColumns, newOutputColumns))
-            {
-                exprIn = new ExprDeleteOutput(delete: newDelete, outputColumns: newOutputColumns);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprInsert(ExprInsert exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newTarget = this.AcceptItem(exprIn.Target, modifier);
-            var newTargetColumns = this.AcceptNullCollection(exprIn.TargetColumns, modifier);
-            var newSource = this.AcceptItem(exprIn.Source, modifier);
-            if(!ReferenceEquals(exprIn.Target, newTarget) || !ReferenceEquals(exprIn.TargetColumns, newTargetColumns) || !ReferenceEquals(exprIn.Source, newSource))
-            {
-                exprIn = new ExprInsert(target: newTarget, targetColumns: newTargetColumns, source: newSource);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprInsertOutput(ExprInsertOutput exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newInsert = this.AcceptItem(exprIn.Insert, modifier);
-            var newOutputColumns = this.AcceptNotNullCollection(exprIn.OutputColumns, modifier);
-            if(!ReferenceEquals(exprIn.Insert, newInsert) || !ReferenceEquals(exprIn.OutputColumns, newOutputColumns))
-            {
-                exprIn = new ExprInsertOutput(insert: newInsert, outputColumns: newOutputColumns);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprInsertValues(ExprInsertValues exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newItems = this.AcceptNotNullCollection(exprIn.Items, modifier);
-            if(!ReferenceEquals(exprIn.Items, newItems))
-            {
-                exprIn = new ExprInsertValues(items: newItems);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprInsertQuery(ExprInsertQuery exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newQuery = this.AcceptItem(exprIn.Query, modifier);
-            if(!ReferenceEquals(exprIn.Query, newQuery))
-            {
-                exprIn = new ExprInsertQuery(query: newQuery);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprInsertValueRow(ExprInsertValueRow exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newItems = this.AcceptNotNullCollection(exprIn.Items, modifier);
-            if(!ReferenceEquals(exprIn.Items, newItems))
-            {
-                exprIn = new ExprInsertValueRow(items: newItems);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprMerge(ExprMerge exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newTargetTable = this.AcceptItem(exprIn.TargetTable, modifier);
-            var newSource = this.AcceptItem(exprIn.Source, modifier);
-            var newOn = this.AcceptItem(exprIn.On, modifier);
-            var newWhenMatched = this.AcceptNullableItem(exprIn.WhenMatched, modifier);
-            var newWhenNotMatchedByTarget = this.AcceptNullableItem(exprIn.WhenNotMatchedByTarget, modifier);
-            var newWhenNotMatchedBySource = this.AcceptNullableItem(exprIn.WhenNotMatchedBySource, modifier);
-            if(!ReferenceEquals(exprIn.TargetTable, newTargetTable) || !ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.On, newOn) || !ReferenceEquals(exprIn.WhenMatched, newWhenMatched) || !ReferenceEquals(exprIn.WhenNotMatchedByTarget, newWhenNotMatchedByTarget) || !ReferenceEquals(exprIn.WhenNotMatchedBySource, newWhenNotMatchedBySource))
-            {
-                exprIn = new ExprMerge(targetTable: newTargetTable, source: newSource, on: newOn, whenMatched: newWhenMatched, whenNotMatchedByTarget: newWhenNotMatchedByTarget, whenNotMatchedBySource: newWhenNotMatchedBySource);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprMergeOutput(ExprMergeOutput exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newTargetTable = this.AcceptItem(exprIn.TargetTable, modifier);
-            var newSource = this.AcceptItem(exprIn.Source, modifier);
-            var newOn = this.AcceptItem(exprIn.On, modifier);
-            var newWhenMatched = this.AcceptNullableItem(exprIn.WhenMatched, modifier);
-            var newWhenNotMatchedByTarget = this.AcceptNullableItem(exprIn.WhenNotMatchedByTarget, modifier);
-            var newWhenNotMatchedBySource = this.AcceptNullableItem(exprIn.WhenNotMatchedBySource, modifier);
-            var newOutput = this.AcceptItem(exprIn.Output, modifier);
-            if(!ReferenceEquals(exprIn.TargetTable, newTargetTable) || !ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.On, newOn) || !ReferenceEquals(exprIn.WhenMatched, newWhenMatched) || !ReferenceEquals(exprIn.WhenNotMatchedByTarget, newWhenNotMatchedByTarget) || !ReferenceEquals(exprIn.WhenNotMatchedBySource, newWhenNotMatchedBySource) || !ReferenceEquals(exprIn.Output, newOutput))
-            {
-                exprIn = new ExprMergeOutput(targetTable: newTargetTable, source: newSource, on: newOn, whenMatched: newWhenMatched, whenNotMatchedByTarget: newWhenNotMatchedByTarget, whenNotMatchedBySource: newWhenNotMatchedBySource, output: newOutput);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprMergeMatchedUpdate(ExprMergeMatchedUpdate exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newAnd = this.AcceptNullableItem(exprIn.And, modifier);
-            var newSet = this.AcceptNotNullCollection(exprIn.Set, modifier);
-            if(!ReferenceEquals(exprIn.And, newAnd) || !ReferenceEquals(exprIn.Set, newSet))
-            {
-                exprIn = new ExprMergeMatchedUpdate(and: newAnd, set: newSet);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprMergeMatchedDelete(ExprMergeMatchedDelete exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newAnd = this.AcceptNullableItem(exprIn.And, modifier);
-            if(!ReferenceEquals(exprIn.And, newAnd))
-            {
-                exprIn = new ExprMergeMatchedDelete(and: newAnd);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprExprMergeNotMatchedInsert(ExprExprMergeNotMatchedInsert exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newAnd = this.AcceptNullableItem(exprIn.And, modifier);
-            var newColumns = this.AcceptNotNullCollection(exprIn.Columns, modifier);
-            var newValues = this.AcceptNotNullCollection(exprIn.Values, modifier);
-            if(!ReferenceEquals(exprIn.And, newAnd) || !ReferenceEquals(exprIn.Columns, newColumns) || !ReferenceEquals(exprIn.Values, newValues))
-            {
-                exprIn = new ExprExprMergeNotMatchedInsert(and: newAnd, columns: newColumns, values: newValues);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprExprMergeNotMatchedInsertDefault(ExprExprMergeNotMatchedInsertDefault exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newAnd = this.AcceptNullableItem(exprIn.And, modifier);
-            if(!ReferenceEquals(exprIn.And, newAnd))
-            {
-                exprIn = new ExprExprMergeNotMatchedInsertDefault(and: newAnd);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprUpdate(ExprUpdate exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newTarget = this.AcceptItem(exprIn.Target, modifier);
-            var newSetClause = this.AcceptNotNullCollection(exprIn.SetClause, modifier);
-            var newSource = this.AcceptNullableItem(exprIn.Source, modifier);
-            var newFilter = this.AcceptNullableItem(exprIn.Filter, modifier);
-            if(!ReferenceEquals(exprIn.Target, newTarget) || !ReferenceEquals(exprIn.SetClause, newSetClause) || !ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.Filter, newFilter))
-            {
-                exprIn = new ExprUpdate(target: newTarget, setClause: newSetClause, source: newSource, filter: newFilter);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprCast(ExprCast exprIn, Func<IExpr, IExpr?> modifier)
-        {
+            var newName = this.AcceptItem(exprIn.Name, modifier);
             var newExpression = this.AcceptItem(exprIn.Expression, modifier);
-            var newSqlType = this.AcceptItem(exprIn.SqlType, modifier);
-            if(!ReferenceEquals(exprIn.Expression, newExpression) || !ReferenceEquals(exprIn.SqlType, newSqlType))
+            if(!ReferenceEquals(exprIn.Name, newName) || !ReferenceEquals(exprIn.Expression, newExpression))
             {
-                exprIn = new ExprCast(expression: newExpression, sqlType: newSqlType);
+                exprIn = new ExprAggregateFunction(name: newName, expression: newExpression, isDistinct: exprIn.IsDistinct);
             }
             return modifier.Invoke(exprIn);
         }
-        public IExpr? VisitExprTypeBoolean(ExprTypeBoolean exprIn, Func<IExpr, IExpr?> modifier)
+        public IExpr? VisitExprAlias(ExprAlias exprIn, Func<IExpr, IExpr?> modifier)
         {
             return modifier.Invoke(exprIn);
         }
-        public IExpr? VisitExprTypeByte(ExprTypeByte exprIn, Func<IExpr, IExpr?> modifier)
+        public IExpr? VisitExprAliasGuid(ExprAliasGuid exprIn, Func<IExpr, IExpr?> modifier)
         {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprTypeInt16(ExprTypeInt16 exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprTypeInt32(ExprTypeInt32 exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprTypeInt64(ExprTypeInt64 exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprTypeDecimal(ExprTypeDecimal exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprTypeDouble(ExprTypeDouble exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprTypeDateTime(ExprTypeDateTime exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprTypeGuid(ExprTypeGuid exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprTypeString(ExprTypeString exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprCrossedTable(ExprCrossedTable exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newLeft = this.AcceptItem(exprIn.Left, modifier);
-            var newRight = this.AcceptItem(exprIn.Right, modifier);
-            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
-            {
-                exprIn = new ExprCrossedTable(left: newLeft, right: newRight);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprDerivedTableValues(ExprDerivedTableValues exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newValues = this.AcceptItem(exprIn.Values, modifier);
-            var newAlias = this.AcceptItem(exprIn.Alias, modifier);
-            var newColumns = this.AcceptNotNullCollection(exprIn.Columns, modifier);
-            if(!ReferenceEquals(exprIn.Values, newValues) || !ReferenceEquals(exprIn.Alias, newAlias) || !ReferenceEquals(exprIn.Columns, newColumns))
-            {
-                exprIn = new ExprDerivedTableValues(values: newValues, alias: newAlias, columns: newColumns);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprDerivedTableQuery(ExprDerivedTableQuery exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newQuery = this.AcceptItem(exprIn.Query, modifier);
-            var newAlias = this.AcceptItem(exprIn.Alias, modifier);
-            var newColumns = this.AcceptNullCollection(exprIn.Columns, modifier);
-            if(!ReferenceEquals(exprIn.Query, newQuery) || !ReferenceEquals(exprIn.Alias, newAlias) || !ReferenceEquals(exprIn.Columns, newColumns))
-            {
-                exprIn = new ExprDerivedTableQuery(query: newQuery, alias: newAlias, columns: newColumns);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprJoinedTable(ExprJoinedTable exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newLeft = this.AcceptItem(exprIn.Left, modifier);
-            var newRight = this.AcceptItem(exprIn.Right, modifier);
-            var newSearchCondition = this.AcceptItem(exprIn.SearchCondition, modifier);
-            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight) || !ReferenceEquals(exprIn.SearchCondition, newSearchCondition))
-            {
-                exprIn = new ExprJoinedTable(left: newLeft, right: newRight, searchCondition: newSearchCondition, joinType: exprIn.JoinType);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprOrderBy(ExprOrderBy exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newOrderList = this.AcceptNotNullCollection(exprIn.OrderList, modifier);
-            if(!ReferenceEquals(exprIn.OrderList, newOrderList))
-            {
-                exprIn = new ExprOrderBy(orderList: newOrderList);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprOrderByOffsetFetch(ExprOrderByOffsetFetch exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newOrderList = this.AcceptNotNullCollection(exprIn.OrderList, modifier);
-            var newOffsetFetch = this.AcceptItem(exprIn.OffsetFetch, modifier);
-            if(!ReferenceEquals(exprIn.OrderList, newOrderList) || !ReferenceEquals(exprIn.OffsetFetch, newOffsetFetch))
-            {
-                exprIn = new ExprOrderByOffsetFetch(orderList: newOrderList, offsetFetch: newOffsetFetch);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprOrderByItem(ExprOrderByItem exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newValue = this.AcceptItem(exprIn.Value, modifier);
-            if(!ReferenceEquals(exprIn.Value, newValue))
-            {
-                exprIn = new ExprOrderByItem(value: newValue, descendant: exprIn.Descendant);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprOffsetFetch(ExprOffsetFetch exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newOffset = this.AcceptItem(exprIn.Offset, modifier);
-            var newFetch = this.AcceptNullableItem(exprIn.Fetch, modifier);
-            if(!ReferenceEquals(exprIn.Offset, newOffset) || !ReferenceEquals(exprIn.Fetch, newFetch))
-            {
-                exprIn = new ExprOffsetFetch(offset: newOffset, fetch: newFetch);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprQueryExpression(ExprQueryExpression exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newLeft = this.AcceptItem(exprIn.Left, modifier);
-            var newRight = this.AcceptItem(exprIn.Right, modifier);
-            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
-            {
-                exprIn = new ExprQueryExpression(left: newLeft, right: newRight, queryExpressionType: exprIn.QueryExpressionType);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprQuerySpecification(ExprQuerySpecification exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newSelectList = this.AcceptNotNullCollection(exprIn.SelectList, modifier);
-            var newTop = this.AcceptNullableItem(exprIn.Top, modifier);
-            var newFrom = this.AcceptNullableItem(exprIn.From, modifier);
-            var newWhere = this.AcceptNullableItem(exprIn.Where, modifier);
-            var newGroupBy = this.AcceptNullCollection(exprIn.GroupBy, modifier);
-            if(!ReferenceEquals(exprIn.SelectList, newSelectList) || !ReferenceEquals(exprIn.Top, newTop) || !ReferenceEquals(exprIn.From, newFrom) || !ReferenceEquals(exprIn.Where, newWhere) || !ReferenceEquals(exprIn.GroupBy, newGroupBy))
-            {
-                exprIn = new ExprQuerySpecification(selectList: newSelectList, top: newTop, from: newFrom, where: newWhere, groupBy: newGroupBy, distinct: exprIn.Distinct);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprSelect(ExprSelect exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newSelectQuery = this.AcceptItem(exprIn.SelectQuery, modifier);
-            var newOrderBy = this.AcceptItem(exprIn.OrderBy, modifier);
-            if(!ReferenceEquals(exprIn.SelectQuery, newSelectQuery) || !ReferenceEquals(exprIn.OrderBy, newOrderBy))
-            {
-                exprIn = new ExprSelect(selectQuery: newSelectQuery, orderBy: newOrderBy);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprSelectOffsetFetch(ExprSelectOffsetFetch exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newSelectQuery = this.AcceptItem(exprIn.SelectQuery, modifier);
-            var newOrderBy = this.AcceptItem(exprIn.OrderBy, modifier);
-            if(!ReferenceEquals(exprIn.SelectQuery, newSelectQuery) || !ReferenceEquals(exprIn.OrderBy, newOrderBy))
-            {
-                exprIn = new ExprSelectOffsetFetch(selectQuery: newSelectQuery, orderBy: newOrderBy);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprTableValueConstructor(ExprTableValueConstructor exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newItems = this.AcceptNotNullCollection(exprIn.Items, modifier);
-            if(!ReferenceEquals(exprIn.Items, newItems))
-            {
-                exprIn = new ExprTableValueConstructor(items: newItems);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprValueRow(ExprValueRow exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newItems = this.AcceptNotNullCollection(exprIn.Items, modifier);
-            if(!ReferenceEquals(exprIn.Items, newItems))
-            {
-                exprIn = new ExprValueRow(items: newItems);
-            }
             return modifier.Invoke(exprIn);
         }
         public IExpr? VisitExprAliasedColumn(ExprAliasedColumn exprIn, Func<IExpr, IExpr?> modifier)
@@ -549,146 +164,6 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             return modifier.Invoke(exprIn);
         }
-        public IExpr? VisitExprOutput(ExprOutput exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newColumns = this.AcceptNotNullCollection(exprIn.Columns, modifier);
-            if(!ReferenceEquals(exprIn.Columns, newColumns))
-            {
-                exprIn = new ExprOutput(columns: newColumns);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprOutputColumnInserted(ExprOutputColumnInserted exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newColumnName = this.AcceptItem(exprIn.ColumnName, modifier);
-            if(!ReferenceEquals(exprIn.ColumnName, newColumnName))
-            {
-                exprIn = new ExprOutputColumnInserted(columnName: newColumnName);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprOutputColumnDeleted(ExprOutputColumnDeleted exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newColumnName = this.AcceptItem(exprIn.ColumnName, modifier);
-            if(!ReferenceEquals(exprIn.ColumnName, newColumnName))
-            {
-                exprIn = new ExprOutputColumnDeleted(columnName: newColumnName);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprOutputColumn(ExprOutputColumn exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newColumn = this.AcceptItem(exprIn.Column, modifier);
-            if(!ReferenceEquals(exprIn.Column, newColumn))
-            {
-                exprIn = new ExprOutputColumn(column: newColumn);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprOutputAction(ExprOutputAction exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newAlias = this.AcceptNullableItem(exprIn.Alias, modifier);
-            if(!ReferenceEquals(exprIn.Alias, newAlias))
-            {
-                exprIn = new ExprOutputAction(alias: newAlias);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprAlias(ExprAlias exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprAliasGuid(ExprAliasGuid exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprColumn(ExprColumn exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newSource = this.AcceptNullableItem(exprIn.Source, modifier);
-            var newColumnName = this.AcceptItem(exprIn.ColumnName, modifier);
-            if(!ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.ColumnName, newColumnName))
-            {
-                exprIn = new ExprColumn(source: newSource, columnName: newColumnName);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprColumnAlias(ExprColumnAlias exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprColumnName(ExprColumnName exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprDatabaseName(ExprDatabaseName exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprDbSchema(ExprDbSchema exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newDatabase = this.AcceptNullableItem(exprIn.Database, modifier);
-            var newSchema = this.AcceptItem(exprIn.Schema, modifier);
-            if(!ReferenceEquals(exprIn.Database, newDatabase) || !ReferenceEquals(exprIn.Schema, newSchema))
-            {
-                exprIn = new ExprDbSchema(database: newDatabase, schema: newSchema);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprFunctionName(ExprFunctionName exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprSchemaName(ExprSchemaName exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprTable(ExprTable exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newFullName = this.AcceptItem(exprIn.FullName, modifier);
-            var newAlias = this.AcceptNullableItem(exprIn.Alias, modifier);
-            if(!ReferenceEquals(exprIn.FullName, newFullName) || !ReferenceEquals(exprIn.Alias, newAlias))
-            {
-                exprIn = new ExprTable(fullName: newFullName, alias: newAlias);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprTableAlias(ExprTableAlias exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newAlias = this.AcceptItem(exprIn.Alias, modifier);
-            if(!ReferenceEquals(exprIn.Alias, newAlias))
-            {
-                exprIn = new ExprTableAlias(alias: newAlias);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprTableFullName(ExprTableFullName exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newDbSchema = this.AcceptNullableItem(exprIn.DbSchema, modifier);
-            var newTableName = this.AcceptItem(exprIn.TableName, modifier);
-            if(!ReferenceEquals(exprIn.DbSchema, newDbSchema) || !ReferenceEquals(exprIn.TableName, newTableName))
-            {
-                exprIn = new ExprTableFullName(dbSchema: newDbSchema, tableName: newTableName);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprTableName(ExprTableName exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprTempTableName(ExprTempTableName exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprAggregateFunction(ExprAggregateFunction exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newName = this.AcceptItem(exprIn.Name, modifier);
-            var newExpression = this.AcceptItem(exprIn.Expression, modifier);
-            if(!ReferenceEquals(exprIn.Name, newName) || !ReferenceEquals(exprIn.Expression, newExpression))
-            {
-                exprIn = new ExprAggregateFunction(name: newName, expression: newExpression, isDistinct: exprIn.IsDistinct);
-            }
-            return modifier.Invoke(exprIn);
-        }
         public IExpr? VisitExprAnalyticFunction(ExprAnalyticFunction exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newName = this.AcceptItem(exprIn.Name, modifier);
@@ -700,132 +175,8 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             return modifier.Invoke(exprIn);
         }
-        public IExpr? VisitExprCase(ExprCase exprIn, Func<IExpr, IExpr?> modifier)
+        public IExpr? VisitExprBoolLiteral(ExprBoolLiteral exprIn, Func<IExpr, IExpr?> modifier)
         {
-            var newCases = this.AcceptNotNullCollection(exprIn.Cases, modifier);
-            var newDefaultValue = this.AcceptItem(exprIn.DefaultValue, modifier);
-            if(!ReferenceEquals(exprIn.Cases, newCases) || !ReferenceEquals(exprIn.DefaultValue, newDefaultValue))
-            {
-                exprIn = new ExprCase(cases: newCases, defaultValue: newDefaultValue);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprCaseWhenThen(ExprCaseWhenThen exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newCondition = this.AcceptItem(exprIn.Condition, modifier);
-            var newValue = this.AcceptItem(exprIn.Value, modifier);
-            if(!ReferenceEquals(exprIn.Condition, newCondition) || !ReferenceEquals(exprIn.Value, newValue))
-            {
-                exprIn = new ExprCaseWhenThen(condition: newCondition, value: newValue);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprOver(ExprOver exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newPartitions = this.AcceptNullCollection(exprIn.Partitions, modifier);
-            var newOrderBy = this.AcceptNullableItem(exprIn.OrderBy, modifier);
-            if(!ReferenceEquals(exprIn.Partitions, newPartitions) || !ReferenceEquals(exprIn.OrderBy, newOrderBy))
-            {
-                exprIn = new ExprOver(partitions: newPartitions, orderBy: newOrderBy);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprScalarFunction(ExprScalarFunction exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newSchema = this.AcceptNullableItem(exprIn.Schema, modifier);
-            var newName = this.AcceptItem(exprIn.Name, modifier);
-            var newArguments = this.AcceptNullCollection(exprIn.Arguments, modifier);
-            if(!ReferenceEquals(exprIn.Schema, newSchema) || !ReferenceEquals(exprIn.Name, newName) || !ReferenceEquals(exprIn.Arguments, newArguments))
-            {
-                exprIn = new ExprScalarFunction(schema: newSchema, name: newName, arguments: newArguments);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprDateAdd(ExprDateAdd exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newDate = this.AcceptItem(exprIn.Date, modifier);
-            if(!ReferenceEquals(exprIn.Date, newDate))
-            {
-                exprIn = new ExprDateAdd(date: newDate, datePart: exprIn.DatePart, number: exprIn.Number);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprFuncCoalesce(ExprFuncCoalesce exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newTest = this.AcceptItem(exprIn.Test, modifier);
-            var newAlts = this.AcceptNotNullCollection(exprIn.Alts, modifier);
-            if(!ReferenceEquals(exprIn.Test, newTest) || !ReferenceEquals(exprIn.Alts, newAlts))
-            {
-                exprIn = new ExprFuncCoalesce(test: newTest, alts: newAlts);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprFuncIsNull(ExprFuncIsNull exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newTest = this.AcceptItem(exprIn.Test, modifier);
-            var newAlt = this.AcceptItem(exprIn.Alt, modifier);
-            if(!ReferenceEquals(exprIn.Test, newTest) || !ReferenceEquals(exprIn.Alt, newAlt))
-            {
-                exprIn = new ExprFuncIsNull(test: newTest, alt: newAlt);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprGetDate(ExprGetDate exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprGetUtcDate(ExprGetUtcDate exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprDiv(ExprDiv exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newLeft = this.AcceptItem(exprIn.Left, modifier);
-            var newRight = this.AcceptItem(exprIn.Right, modifier);
-            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
-            {
-                exprIn = new ExprDiv(left: newLeft, right: newRight);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprMul(ExprMul exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newLeft = this.AcceptItem(exprIn.Left, modifier);
-            var newRight = this.AcceptItem(exprIn.Right, modifier);
-            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
-            {
-                exprIn = new ExprMul(left: newLeft, right: newRight);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprSub(ExprSub exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newLeft = this.AcceptItem(exprIn.Left, modifier);
-            var newRight = this.AcceptItem(exprIn.Right, modifier);
-            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
-            {
-                exprIn = new ExprSub(left: newLeft, right: newRight);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprSum(ExprSum exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newLeft = this.AcceptItem(exprIn.Left, modifier);
-            var newRight = this.AcceptItem(exprIn.Right, modifier);
-            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
-            {
-                exprIn = new ExprSum(left: newLeft, right: newRight);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprStringConcat(ExprStringConcat exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newLeft = this.AcceptItem(exprIn.Left, modifier);
-            var newRight = this.AcceptItem(exprIn.Right, modifier);
-            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
-            {
-                exprIn = new ExprStringConcat(left: newLeft, right: newRight);
-            }
             return modifier.Invoke(exprIn);
         }
         public IExpr? VisitExprBooleanAnd(ExprBooleanAnd exprIn, Func<IExpr, IExpr?> modifier)
@@ -835,25 +186,6 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
             {
                 exprIn = new ExprBooleanAnd(left: newLeft, right: newRight);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprBooleanNot(ExprBooleanNot exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newExpr = this.AcceptItem(exprIn.Expr, modifier);
-            if(!ReferenceEquals(exprIn.Expr, newExpr))
-            {
-                exprIn = new ExprBooleanNot(expr: newExpr);
-            }
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprBooleanOr(ExprBooleanOr exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newLeft = this.AcceptItem(exprIn.Left, modifier);
-            var newRight = this.AcceptItem(exprIn.Right, modifier);
-            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
-            {
-                exprIn = new ExprBooleanOr(left: newLeft, right: newRight);
             }
             return modifier.Invoke(exprIn);
         }
@@ -907,6 +239,15 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprBooleanNot(ExprBooleanNot exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newExpr = this.AcceptItem(exprIn.Expr, modifier);
+            if(!ReferenceEquals(exprIn.Expr, newExpr))
+            {
+                exprIn = new ExprBooleanNot(expr: newExpr);
+            }
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprBooleanNotEq(ExprBooleanNotEq exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newLeft = this.AcceptItem(exprIn.Left, modifier);
@@ -917,6 +258,184 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprBooleanOr(ExprBooleanOr exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newLeft = this.AcceptItem(exprIn.Left, modifier);
+            var newRight = this.AcceptItem(exprIn.Right, modifier);
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            {
+                exprIn = new ExprBooleanOr(left: newLeft, right: newRight);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprByteArrayLiteral(ExprByteArrayLiteral exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprByteLiteral(ExprByteLiteral exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprCase(ExprCase exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newCases = this.AcceptNotNullCollection(exprIn.Cases, modifier);
+            var newDefaultValue = this.AcceptItem(exprIn.DefaultValue, modifier);
+            if(!ReferenceEquals(exprIn.Cases, newCases) || !ReferenceEquals(exprIn.DefaultValue, newDefaultValue))
+            {
+                exprIn = new ExprCase(cases: newCases, defaultValue: newDefaultValue);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprCaseWhenThen(ExprCaseWhenThen exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newCondition = this.AcceptItem(exprIn.Condition, modifier);
+            var newValue = this.AcceptItem(exprIn.Value, modifier);
+            if(!ReferenceEquals(exprIn.Condition, newCondition) || !ReferenceEquals(exprIn.Value, newValue))
+            {
+                exprIn = new ExprCaseWhenThen(condition: newCondition, value: newValue);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprCast(ExprCast exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newExpression = this.AcceptItem(exprIn.Expression, modifier);
+            var newSqlType = this.AcceptItem(exprIn.SqlType, modifier);
+            if(!ReferenceEquals(exprIn.Expression, newExpression) || !ReferenceEquals(exprIn.SqlType, newSqlType))
+            {
+                exprIn = new ExprCast(expression: newExpression, sqlType: newSqlType);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprColumn(ExprColumn exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newSource = this.AcceptNullableItem(exprIn.Source, modifier);
+            var newColumnName = this.AcceptItem(exprIn.ColumnName, modifier);
+            if(!ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.ColumnName, newColumnName))
+            {
+                exprIn = new ExprColumn(source: newSource, columnName: newColumnName);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprColumnAlias(ExprColumnAlias exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprColumnName(ExprColumnName exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprColumnSetClause(ExprColumnSetClause exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newColumn = this.AcceptItem(exprIn.Column, modifier);
+            var newValue = this.AcceptItem(exprIn.Value, modifier);
+            if(!ReferenceEquals(exprIn.Column, newColumn) || !ReferenceEquals(exprIn.Value, newValue))
+            {
+                exprIn = new ExprColumnSetClause(column: newColumn, value: newValue);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprCrossedTable(ExprCrossedTable exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newLeft = this.AcceptItem(exprIn.Left, modifier);
+            var newRight = this.AcceptItem(exprIn.Right, modifier);
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            {
+                exprIn = new ExprCrossedTable(left: newLeft, right: newRight);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprDatabaseName(ExprDatabaseName exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprDateAdd(ExprDateAdd exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newDate = this.AcceptItem(exprIn.Date, modifier);
+            if(!ReferenceEquals(exprIn.Date, newDate))
+            {
+                exprIn = new ExprDateAdd(date: newDate, datePart: exprIn.DatePart, number: exprIn.Number);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprDateTimeLiteral(ExprDateTimeLiteral exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprDbSchema(ExprDbSchema exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newDatabase = this.AcceptNullableItem(exprIn.Database, modifier);
+            var newSchema = this.AcceptItem(exprIn.Schema, modifier);
+            if(!ReferenceEquals(exprIn.Database, newDatabase) || !ReferenceEquals(exprIn.Schema, newSchema))
+            {
+                exprIn = new ExprDbSchema(database: newDatabase, schema: newSchema);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprDecimalLiteral(ExprDecimalLiteral exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprDefault(ExprDefault exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprDelete(ExprDelete exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newTarget = this.AcceptItem(exprIn.Target, modifier);
+            var newSource = this.AcceptNullableItem(exprIn.Source, modifier);
+            var newFilter = this.AcceptNullableItem(exprIn.Filter, modifier);
+            if(!ReferenceEquals(exprIn.Target, newTarget) || !ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.Filter, newFilter))
+            {
+                exprIn = new ExprDelete(target: newTarget, source: newSource, filter: newFilter);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprDeleteOutput(ExprDeleteOutput exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newDelete = this.AcceptItem(exprIn.Delete, modifier);
+            var newOutputColumns = this.AcceptNotNullCollection(exprIn.OutputColumns, modifier);
+            if(!ReferenceEquals(exprIn.Delete, newDelete) || !ReferenceEquals(exprIn.OutputColumns, newOutputColumns))
+            {
+                exprIn = new ExprDeleteOutput(delete: newDelete, outputColumns: newOutputColumns);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprDerivedTableQuery(ExprDerivedTableQuery exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newQuery = this.AcceptItem(exprIn.Query, modifier);
+            var newAlias = this.AcceptItem(exprIn.Alias, modifier);
+            var newColumns = this.AcceptNullCollection(exprIn.Columns, modifier);
+            if(!ReferenceEquals(exprIn.Query, newQuery) || !ReferenceEquals(exprIn.Alias, newAlias) || !ReferenceEquals(exprIn.Columns, newColumns))
+            {
+                exprIn = new ExprDerivedTableQuery(query: newQuery, alias: newAlias, columns: newColumns);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprDerivedTableValues(ExprDerivedTableValues exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newValues = this.AcceptItem(exprIn.Values, modifier);
+            var newAlias = this.AcceptItem(exprIn.Alias, modifier);
+            var newColumns = this.AcceptNotNullCollection(exprIn.Columns, modifier);
+            if(!ReferenceEquals(exprIn.Values, newValues) || !ReferenceEquals(exprIn.Alias, newAlias) || !ReferenceEquals(exprIn.Columns, newColumns))
+            {
+                exprIn = new ExprDerivedTableValues(values: newValues, alias: newAlias, columns: newColumns);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprDiv(ExprDiv exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newLeft = this.AcceptItem(exprIn.Left, modifier);
+            var newRight = this.AcceptItem(exprIn.Right, modifier);
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            {
+                exprIn = new ExprDiv(left: newLeft, right: newRight);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprDoubleLiteral(ExprDoubleLiteral exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprExists(ExprExists exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newSubQuery = this.AcceptItem(exprIn.SubQuery, modifier);
@@ -924,6 +443,62 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             {
                 exprIn = new ExprExists(subQuery: newSubQuery);
             }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprExprMergeNotMatchedInsert(ExprExprMergeNotMatchedInsert exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newAnd = this.AcceptNullableItem(exprIn.And, modifier);
+            var newColumns = this.AcceptNotNullCollection(exprIn.Columns, modifier);
+            var newValues = this.AcceptNotNullCollection(exprIn.Values, modifier);
+            if(!ReferenceEquals(exprIn.And, newAnd) || !ReferenceEquals(exprIn.Columns, newColumns) || !ReferenceEquals(exprIn.Values, newValues))
+            {
+                exprIn = new ExprExprMergeNotMatchedInsert(and: newAnd, columns: newColumns, values: newValues);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprExprMergeNotMatchedInsertDefault(ExprExprMergeNotMatchedInsertDefault exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newAnd = this.AcceptNullableItem(exprIn.And, modifier);
+            if(!ReferenceEquals(exprIn.And, newAnd))
+            {
+                exprIn = new ExprExprMergeNotMatchedInsertDefault(and: newAnd);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprFuncCoalesce(ExprFuncCoalesce exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newTest = this.AcceptItem(exprIn.Test, modifier);
+            var newAlts = this.AcceptNotNullCollection(exprIn.Alts, modifier);
+            if(!ReferenceEquals(exprIn.Test, newTest) || !ReferenceEquals(exprIn.Alts, newAlts))
+            {
+                exprIn = new ExprFuncCoalesce(test: newTest, alts: newAlts);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprFuncIsNull(ExprFuncIsNull exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newTest = this.AcceptItem(exprIn.Test, modifier);
+            var newAlt = this.AcceptItem(exprIn.Alt, modifier);
+            if(!ReferenceEquals(exprIn.Test, newTest) || !ReferenceEquals(exprIn.Alt, newAlt))
+            {
+                exprIn = new ExprFuncIsNull(test: newTest, alt: newAlt);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprFunctionName(ExprFunctionName exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprGetDate(ExprGetDate exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprGetUtcDate(ExprGetUtcDate exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprGuidLiteral(ExprGuidLiteral exprIn, Func<IExpr, IExpr?> modifier)
+        {
             return modifier.Invoke(exprIn);
         }
         public IExpr? VisitExprInSubQuery(ExprInSubQuery exprIn, Func<IExpr, IExpr?> modifier)
@@ -946,6 +521,86 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprInsert(ExprInsert exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newTarget = this.AcceptItem(exprIn.Target, modifier);
+            var newTargetColumns = this.AcceptNullCollection(exprIn.TargetColumns, modifier);
+            var newSource = this.AcceptItem(exprIn.Source, modifier);
+            if(!ReferenceEquals(exprIn.Target, newTarget) || !ReferenceEquals(exprIn.TargetColumns, newTargetColumns) || !ReferenceEquals(exprIn.Source, newSource))
+            {
+                exprIn = new ExprInsert(target: newTarget, targetColumns: newTargetColumns, source: newSource);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprInsertOutput(ExprInsertOutput exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newInsert = this.AcceptItem(exprIn.Insert, modifier);
+            var newOutputColumns = this.AcceptNotNullCollection(exprIn.OutputColumns, modifier);
+            if(!ReferenceEquals(exprIn.Insert, newInsert) || !ReferenceEquals(exprIn.OutputColumns, newOutputColumns))
+            {
+                exprIn = new ExprInsertOutput(insert: newInsert, outputColumns: newOutputColumns);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprInsertQuery(ExprInsertQuery exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newQuery = this.AcceptItem(exprIn.Query, modifier);
+            if(!ReferenceEquals(exprIn.Query, newQuery))
+            {
+                exprIn = new ExprInsertQuery(query: newQuery);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprInsertValueRow(ExprInsertValueRow exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newItems = this.AcceptNotNullCollection(exprIn.Items, modifier);
+            if(!ReferenceEquals(exprIn.Items, newItems))
+            {
+                exprIn = new ExprInsertValueRow(items: newItems);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprInsertValues(ExprInsertValues exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newItems = this.AcceptNotNullCollection(exprIn.Items, modifier);
+            if(!ReferenceEquals(exprIn.Items, newItems))
+            {
+                exprIn = new ExprInsertValues(items: newItems);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprInt16Literal(ExprInt16Literal exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprInt32Literal(ExprInt32Literal exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprInt64Literal(ExprInt64Literal exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprIsNull(ExprIsNull exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newTest = this.AcceptItem(exprIn.Test, modifier);
+            if(!ReferenceEquals(exprIn.Test, newTest))
+            {
+                exprIn = new ExprIsNull(test: newTest, not: exprIn.Not);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprJoinedTable(ExprJoinedTable exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newLeft = this.AcceptItem(exprIn.Left, modifier);
+            var newRight = this.AcceptItem(exprIn.Right, modifier);
+            var newSearchCondition = this.AcceptItem(exprIn.SearchCondition, modifier);
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight) || !ReferenceEquals(exprIn.SearchCondition, newSearchCondition))
+            {
+                exprIn = new ExprJoinedTable(left: newLeft, right: newRight, searchCondition: newSearchCondition, joinType: exprIn.JoinType);
+            }
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprLike(ExprLike exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newTest = this.AcceptItem(exprIn.Test, modifier);
@@ -956,12 +611,357 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             return modifier.Invoke(exprIn);
         }
-        public IExpr? VisitExprIsNull(ExprIsNull exprIn, Func<IExpr, IExpr?> modifier)
+        public IExpr? VisitExprMerge(ExprMerge exprIn, Func<IExpr, IExpr?> modifier)
         {
-            var newTest = this.AcceptItem(exprIn.Test, modifier);
-            if(!ReferenceEquals(exprIn.Test, newTest))
+            var newTargetTable = this.AcceptItem(exprIn.TargetTable, modifier);
+            var newSource = this.AcceptItem(exprIn.Source, modifier);
+            var newOn = this.AcceptItem(exprIn.On, modifier);
+            var newWhenMatched = this.AcceptNullableItem(exprIn.WhenMatched, modifier);
+            var newWhenNotMatchedByTarget = this.AcceptNullableItem(exprIn.WhenNotMatchedByTarget, modifier);
+            var newWhenNotMatchedBySource = this.AcceptNullableItem(exprIn.WhenNotMatchedBySource, modifier);
+            if(!ReferenceEquals(exprIn.TargetTable, newTargetTable) || !ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.On, newOn) || !ReferenceEquals(exprIn.WhenMatched, newWhenMatched) || !ReferenceEquals(exprIn.WhenNotMatchedByTarget, newWhenNotMatchedByTarget) || !ReferenceEquals(exprIn.WhenNotMatchedBySource, newWhenNotMatchedBySource))
             {
-                exprIn = new ExprIsNull(test: newTest, not: exprIn.Not);
+                exprIn = new ExprMerge(targetTable: newTargetTable, source: newSource, on: newOn, whenMatched: newWhenMatched, whenNotMatchedByTarget: newWhenNotMatchedByTarget, whenNotMatchedBySource: newWhenNotMatchedBySource);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprMergeMatchedDelete(ExprMergeMatchedDelete exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newAnd = this.AcceptNullableItem(exprIn.And, modifier);
+            if(!ReferenceEquals(exprIn.And, newAnd))
+            {
+                exprIn = new ExprMergeMatchedDelete(and: newAnd);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprMergeMatchedUpdate(ExprMergeMatchedUpdate exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newAnd = this.AcceptNullableItem(exprIn.And, modifier);
+            var newSet = this.AcceptNotNullCollection(exprIn.Set, modifier);
+            if(!ReferenceEquals(exprIn.And, newAnd) || !ReferenceEquals(exprIn.Set, newSet))
+            {
+                exprIn = new ExprMergeMatchedUpdate(and: newAnd, set: newSet);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprMergeOutput(ExprMergeOutput exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newTargetTable = this.AcceptItem(exprIn.TargetTable, modifier);
+            var newSource = this.AcceptItem(exprIn.Source, modifier);
+            var newOn = this.AcceptItem(exprIn.On, modifier);
+            var newWhenMatched = this.AcceptNullableItem(exprIn.WhenMatched, modifier);
+            var newWhenNotMatchedByTarget = this.AcceptNullableItem(exprIn.WhenNotMatchedByTarget, modifier);
+            var newWhenNotMatchedBySource = this.AcceptNullableItem(exprIn.WhenNotMatchedBySource, modifier);
+            var newOutput = this.AcceptItem(exprIn.Output, modifier);
+            if(!ReferenceEquals(exprIn.TargetTable, newTargetTable) || !ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.On, newOn) || !ReferenceEquals(exprIn.WhenMatched, newWhenMatched) || !ReferenceEquals(exprIn.WhenNotMatchedByTarget, newWhenNotMatchedByTarget) || !ReferenceEquals(exprIn.WhenNotMatchedBySource, newWhenNotMatchedBySource) || !ReferenceEquals(exprIn.Output, newOutput))
+            {
+                exprIn = new ExprMergeOutput(targetTable: newTargetTable, source: newSource, on: newOn, whenMatched: newWhenMatched, whenNotMatchedByTarget: newWhenNotMatchedByTarget, whenNotMatchedBySource: newWhenNotMatchedBySource, output: newOutput);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprMul(ExprMul exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newLeft = this.AcceptItem(exprIn.Left, modifier);
+            var newRight = this.AcceptItem(exprIn.Right, modifier);
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            {
+                exprIn = new ExprMul(left: newLeft, right: newRight);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprNull(ExprNull exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprOffsetFetch(ExprOffsetFetch exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newOffset = this.AcceptItem(exprIn.Offset, modifier);
+            var newFetch = this.AcceptNullableItem(exprIn.Fetch, modifier);
+            if(!ReferenceEquals(exprIn.Offset, newOffset) || !ReferenceEquals(exprIn.Fetch, newFetch))
+            {
+                exprIn = new ExprOffsetFetch(offset: newOffset, fetch: newFetch);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprOrderBy(ExprOrderBy exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newOrderList = this.AcceptNotNullCollection(exprIn.OrderList, modifier);
+            if(!ReferenceEquals(exprIn.OrderList, newOrderList))
+            {
+                exprIn = new ExprOrderBy(orderList: newOrderList);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprOrderByItem(ExprOrderByItem exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newValue = this.AcceptItem(exprIn.Value, modifier);
+            if(!ReferenceEquals(exprIn.Value, newValue))
+            {
+                exprIn = new ExprOrderByItem(value: newValue, descendant: exprIn.Descendant);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprOrderByOffsetFetch(ExprOrderByOffsetFetch exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newOrderList = this.AcceptNotNullCollection(exprIn.OrderList, modifier);
+            var newOffsetFetch = this.AcceptItem(exprIn.OffsetFetch, modifier);
+            if(!ReferenceEquals(exprIn.OrderList, newOrderList) || !ReferenceEquals(exprIn.OffsetFetch, newOffsetFetch))
+            {
+                exprIn = new ExprOrderByOffsetFetch(orderList: newOrderList, offsetFetch: newOffsetFetch);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprOutput(ExprOutput exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newColumns = this.AcceptNotNullCollection(exprIn.Columns, modifier);
+            if(!ReferenceEquals(exprIn.Columns, newColumns))
+            {
+                exprIn = new ExprOutput(columns: newColumns);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprOutputAction(ExprOutputAction exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newAlias = this.AcceptNullableItem(exprIn.Alias, modifier);
+            if(!ReferenceEquals(exprIn.Alias, newAlias))
+            {
+                exprIn = new ExprOutputAction(alias: newAlias);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprOutputColumn(ExprOutputColumn exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newColumn = this.AcceptItem(exprIn.Column, modifier);
+            if(!ReferenceEquals(exprIn.Column, newColumn))
+            {
+                exprIn = new ExprOutputColumn(column: newColumn);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprOutputColumnDeleted(ExprOutputColumnDeleted exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newColumnName = this.AcceptItem(exprIn.ColumnName, modifier);
+            if(!ReferenceEquals(exprIn.ColumnName, newColumnName))
+            {
+                exprIn = new ExprOutputColumnDeleted(columnName: newColumnName);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprOutputColumnInserted(ExprOutputColumnInserted exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newColumnName = this.AcceptItem(exprIn.ColumnName, modifier);
+            if(!ReferenceEquals(exprIn.ColumnName, newColumnName))
+            {
+                exprIn = new ExprOutputColumnInserted(columnName: newColumnName);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprOver(ExprOver exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newPartitions = this.AcceptNullCollection(exprIn.Partitions, modifier);
+            var newOrderBy = this.AcceptNullableItem(exprIn.OrderBy, modifier);
+            if(!ReferenceEquals(exprIn.Partitions, newPartitions) || !ReferenceEquals(exprIn.OrderBy, newOrderBy))
+            {
+                exprIn = new ExprOver(partitions: newPartitions, orderBy: newOrderBy);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprQueryExpression(ExprQueryExpression exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newLeft = this.AcceptItem(exprIn.Left, modifier);
+            var newRight = this.AcceptItem(exprIn.Right, modifier);
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            {
+                exprIn = new ExprQueryExpression(left: newLeft, right: newRight, queryExpressionType: exprIn.QueryExpressionType);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprQuerySpecification(ExprQuerySpecification exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newSelectList = this.AcceptNotNullCollection(exprIn.SelectList, modifier);
+            var newTop = this.AcceptNullableItem(exprIn.Top, modifier);
+            var newFrom = this.AcceptNullableItem(exprIn.From, modifier);
+            var newWhere = this.AcceptNullableItem(exprIn.Where, modifier);
+            var newGroupBy = this.AcceptNullCollection(exprIn.GroupBy, modifier);
+            if(!ReferenceEquals(exprIn.SelectList, newSelectList) || !ReferenceEquals(exprIn.Top, newTop) || !ReferenceEquals(exprIn.From, newFrom) || !ReferenceEquals(exprIn.Where, newWhere) || !ReferenceEquals(exprIn.GroupBy, newGroupBy))
+            {
+                exprIn = new ExprQuerySpecification(selectList: newSelectList, top: newTop, from: newFrom, where: newWhere, groupBy: newGroupBy, distinct: exprIn.Distinct);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprScalarFunction(ExprScalarFunction exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newSchema = this.AcceptNullableItem(exprIn.Schema, modifier);
+            var newName = this.AcceptItem(exprIn.Name, modifier);
+            var newArguments = this.AcceptNullCollection(exprIn.Arguments, modifier);
+            if(!ReferenceEquals(exprIn.Schema, newSchema) || !ReferenceEquals(exprIn.Name, newName) || !ReferenceEquals(exprIn.Arguments, newArguments))
+            {
+                exprIn = new ExprScalarFunction(schema: newSchema, name: newName, arguments: newArguments);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprSchemaName(ExprSchemaName exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprSelect(ExprSelect exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newSelectQuery = this.AcceptItem(exprIn.SelectQuery, modifier);
+            var newOrderBy = this.AcceptItem(exprIn.OrderBy, modifier);
+            if(!ReferenceEquals(exprIn.SelectQuery, newSelectQuery) || !ReferenceEquals(exprIn.OrderBy, newOrderBy))
+            {
+                exprIn = new ExprSelect(selectQuery: newSelectQuery, orderBy: newOrderBy);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprSelectOffsetFetch(ExprSelectOffsetFetch exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newSelectQuery = this.AcceptItem(exprIn.SelectQuery, modifier);
+            var newOrderBy = this.AcceptItem(exprIn.OrderBy, modifier);
+            if(!ReferenceEquals(exprIn.SelectQuery, newSelectQuery) || !ReferenceEquals(exprIn.OrderBy, newOrderBy))
+            {
+                exprIn = new ExprSelectOffsetFetch(selectQuery: newSelectQuery, orderBy: newOrderBy);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprStringConcat(ExprStringConcat exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newLeft = this.AcceptItem(exprIn.Left, modifier);
+            var newRight = this.AcceptItem(exprIn.Right, modifier);
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            {
+                exprIn = new ExprStringConcat(left: newLeft, right: newRight);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprStringLiteral(ExprStringLiteral exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprSub(ExprSub exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newLeft = this.AcceptItem(exprIn.Left, modifier);
+            var newRight = this.AcceptItem(exprIn.Right, modifier);
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            {
+                exprIn = new ExprSub(left: newLeft, right: newRight);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprSum(ExprSum exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newLeft = this.AcceptItem(exprIn.Left, modifier);
+            var newRight = this.AcceptItem(exprIn.Right, modifier);
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            {
+                exprIn = new ExprSum(left: newLeft, right: newRight);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprTable(ExprTable exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newFullName = this.AcceptItem(exprIn.FullName, modifier);
+            var newAlias = this.AcceptNullableItem(exprIn.Alias, modifier);
+            if(!ReferenceEquals(exprIn.FullName, newFullName) || !ReferenceEquals(exprIn.Alias, newAlias))
+            {
+                exprIn = new ExprTable(fullName: newFullName, alias: newAlias);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprTableAlias(ExprTableAlias exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newAlias = this.AcceptItem(exprIn.Alias, modifier);
+            if(!ReferenceEquals(exprIn.Alias, newAlias))
+            {
+                exprIn = new ExprTableAlias(alias: newAlias);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprTableFullName(ExprTableFullName exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newDbSchema = this.AcceptNullableItem(exprIn.DbSchema, modifier);
+            var newTableName = this.AcceptItem(exprIn.TableName, modifier);
+            if(!ReferenceEquals(exprIn.DbSchema, newDbSchema) || !ReferenceEquals(exprIn.TableName, newTableName))
+            {
+                exprIn = new ExprTableFullName(dbSchema: newDbSchema, tableName: newTableName);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprTableName(ExprTableName exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprTableValueConstructor(ExprTableValueConstructor exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newItems = this.AcceptNotNullCollection(exprIn.Items, modifier);
+            if(!ReferenceEquals(exprIn.Items, newItems))
+            {
+                exprIn = new ExprTableValueConstructor(items: newItems);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprTempTableName(ExprTempTableName exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprTypeBoolean(ExprTypeBoolean exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprTypeByte(ExprTypeByte exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprTypeDateTime(ExprTypeDateTime exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprTypeDecimal(ExprTypeDecimal exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprTypeDouble(ExprTypeDouble exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprTypeGuid(ExprTypeGuid exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprTypeInt16(ExprTypeInt16 exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprTypeInt32(ExprTypeInt32 exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprTypeInt64(ExprTypeInt64 exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprTypeString(ExprTypeString exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprUpdate(ExprUpdate exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newTarget = this.AcceptItem(exprIn.Target, modifier);
+            var newSetClause = this.AcceptNotNullCollection(exprIn.SetClause, modifier);
+            var newSource = this.AcceptNullableItem(exprIn.Source, modifier);
+            var newFilter = this.AcceptNullableItem(exprIn.Filter, modifier);
+            if(!ReferenceEquals(exprIn.Target, newTarget) || !ReferenceEquals(exprIn.SetClause, newSetClause) || !ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.Filter, newFilter))
+            {
+                exprIn = new ExprUpdate(target: newTarget, setClause: newSetClause, source: newSource, filter: newFilter);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprValueRow(ExprValueRow exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newItems = this.AcceptNotNullCollection(exprIn.Items, modifier);
+            if(!ReferenceEquals(exprIn.Items, newItems))
+            {
+                exprIn = new ExprValueRow(items: newItems);
             }
             return modifier.Invoke(exprIn);
         }
