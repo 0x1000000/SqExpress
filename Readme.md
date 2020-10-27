@@ -11,6 +11,8 @@ It is delivered with a simple but efficient data access mechanism which warps AD
 
 It can be used together with the “Code First” concept when you declare SQL tables as C# classes with possibility to generate recreation scripts for a target platform (MS SQL or Postgres SQL)
 
+This an article that explains the library principles: ["Syntax Tree and Alternative to LINQ in Interaction with SQL Databases"](https://itnext.io/syntax-tree-and-alternative-to-linq-in-interaction-with-sql-databases-656b78fe00dc?source=friends_link&sk=f5f0587c08166d8824b96b48fe2cf33c)
+
 # Content
 1. [Get Started](#get-started)
 2. [Recreating Table](#recreating-table)
@@ -32,7 +34,7 @@ It can be used together with the “Code First” concept when you declare SQL t
 
 # Get Started
 
-Add a reference to the library: 
+Add a reference to [the library package on Nuget.org](https://www.nuget.org/packages/SqExpress/): 
 ```
 Install-Package SqExpress
 ```
@@ -679,7 +681,7 @@ UserId Inserted: 2,UserId Deleted: 2 , Action: UPDATE
 ```
 
 ## Temporary Tables
-In some scenarios temporary tables might be very useful and you can create such table such tables as follows:
+In some scenarios temporary tables might be very useful and you can create such table as follows:
 ```cs
 public class TempTable : TempTableBase
 {
