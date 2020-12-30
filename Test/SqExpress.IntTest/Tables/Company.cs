@@ -13,12 +13,17 @@
 
         public Company(Alias alias) : base("public", "ItCompany", alias)
         {
+            //Columns
             this.CompanyId = this.CreateInt32Column(nameof(this.CompanyId), ColumnMeta.PrimaryKey().Identity());
             this.ExternalId = this.CreateGuidColumn(nameof(this.ExternalId));
             this.CompanyName = this.CreateStringColumn(nameof(this.CompanyName), 250);
             this.Version = this.CreateInt32Column("Version");
             this.Created = this.CreateDateTimeColumn("Created");
             this.Modified = this.CreateDateTimeColumn("Modified");
+
+            //Indexes
+            this.AddUniqueIndex(this.ExternalId);
+            this.AddIndex(this.CompanyName);
         }
     }
 }

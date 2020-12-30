@@ -28,18 +28,4 @@ namespace SqExpress
 
         public ColumnMeta? ColumnMeta { get; }
     }
-
-    public enum TableColumnTypeTag
-    {
-        Boolean,
-        Byte,
-        Int16,
-        Int32,
-        Int64,
-        Decimal,
-        Double,
-        DateTime,
-        Guid,
-        String
-    }
 }

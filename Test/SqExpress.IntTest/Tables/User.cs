@@ -16,6 +16,7 @@
 
         public User(Alias alias = default) : base("public", "ItUser", alias)
         {
+            //Columns
             this.UserId = this.CreateInt32Column("UserId", ColumnMeta.PrimaryKey().Identity());
             this.ExternalId = this.CreateGuidColumn("ExternalId");
             this.FirstName = this.CreateStringColumn("FirstName", 255);
@@ -25,6 +26,11 @@
             this.Version = this.CreateInt32Column("Version");
             this.Created = this.CreateDateTimeColumn("Created");
             this.Modified = this.CreateDateTimeColumn("Modified");
+
+            //Indexes
+            this.AddUniqueClusteredIndex("IX_ItUser_ExternalId_CustomName", this.ExternalId);
+            this.AddIndex(IndexMetaColumn.Asc(this.FirstName));
+            this.AddIndex(IndexMetaColumn.Desc(this.LastName));
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Linq;
+using System.Text;
 using SqExpress.SqlExport.Internal;
 using SqExpress.StatementSyntax;
 using SqExpress.Syntax.Names;
@@ -47,9 +48,12 @@ namespace SqExpress.SqlExport.Statement.Internal
             this.AppendPkConstraints(table, analysis);
             this.AppendFkConstraints(table, analysis);
 
+            this.AppendIndexesInside(table);
+
             this.Builder.Append(')');
             this.Builder.Append(';');
 
+            this.AppendIndexesOutside(table);
         }
 
         protected abstract void AppendColumn(TableColumn column);
@@ -88,6 +92,49 @@ namespace SqExpress.SqlExport.Statement.Internal
                 foreignTable.Accept(this.ExprBuilder, null);
                 this.ExprBuilder.AcceptListComaSeparatedPar('(', pairList.SelectToReadOnlyList(i => i.External), ')', null);
             }
+        }
+
+        protected abstract void AppendIndexesInside(TableBase table);
+
+        protected abstract void AppendIndexesOutside(TableBase table);
+
+        protected void AppendIndexColumnList(IndexMeta tableIndex)
+        {
+            tableIndex.Columns.AssertNotEmpty("Table index has to contain at least one column");
+
+            this.Builder.Append('(');
+            for (var index = 0; index < tableIndex.Columns.Count; index++)
+            {
+                var column = tableIndex.Columns[index];
+                if (index != 0)
+                {
+                    this.Builder.Append(',');
+                }
+
+                column.Column.ColumnName.Accept(this.ExprBuilder, null);
+                if (column.Descending)
+                {
+                    this.Builder.Append(" DESC");
+                }
+            }
+
+            this.Builder.Append(')');
+        }
+
+        protected string BuildIndexName(IExprTableFullName tableIn, IndexMeta index)
+        {
+            if (index.Name != null && !string.IsNullOrEmpty(index.Name))
+            {
+                return index.Name;
+            }
+
+            var table = tableIn.AsExprTableFullName();
+
+            var schemaName = table.DbSchema != null ? this.Options.MapSchema(table.DbSchema.Schema.Name) + "_" : null;
+
+            var columns = string.Join("_", index.Columns.Select(c => c.Column.ColumnName.Name + (c.Descending ? "_DESC" : null)));
+
+            return $"IX_{schemaName}{table.TableName.Name}_{columns}";
         }
 
         private string BuildPkName(IExprTableFullName tableIn)
