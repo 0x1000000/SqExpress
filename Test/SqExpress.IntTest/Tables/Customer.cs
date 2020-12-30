@@ -10,9 +10,14 @@
 
         public Customer(Alias alias) : base("public", "ItCustomer", alias)
         {
+            //Columns
             this.CustomerId = this.CreateInt32Column(nameof(this.CustomerId), ColumnMeta.PrimaryKey().Identity());
             this.UserId = this.CreateNullableInt32Column(nameof(this.UserId), ColumnMeta.ForeignKey<User>(u=>u.UserId));
             this.CompanyId = this.CreateNullableInt32Column(nameof(this.CompanyId), ColumnMeta.ForeignKey<Company>(u=>u.CompanyId));
+
+            //Indexes
+            this.AddUniqueIndex(this.UserId, this.CompanyId);
+            this.AddUniqueIndex(this.CompanyId, this.UserId);
         }
     }
 }

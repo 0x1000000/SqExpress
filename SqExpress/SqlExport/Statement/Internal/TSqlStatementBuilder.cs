@@ -4,6 +4,7 @@ using SqExpress.StatementSyntax;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Names;
+using SqExpress.Utils;
 
 namespace SqExpress.SqlExport.Statement.Internal
 {
@@ -44,6 +45,30 @@ namespace SqExpress.SqlExport.Statement.Internal
 
         protected override void AppendTempKeyword(IExprTableFullName tableName)
         {
+        }
+
+        protected override void AppendIndexesInside(TableBase table)
+        {
+            foreach (var tableIndex in table.Indexes)
+            {
+                this.Builder.Append(",INDEX ");
+                this.AppendName(this.BuildIndexName(table.FullName, tableIndex));
+                if (tableIndex.Unique)
+                {
+                    this.Builder.Append(" UNIQUE");
+                }
+                if (tableIndex.Clustered)
+                {
+                    this.Builder.Append(" CLUSTERED");
+                }
+
+                this.AppendIndexColumnList(tableIndex: tableIndex);
+            }
+        }
+
+        protected override void AppendIndexesOutside(TableBase table)
+        {
+            //All indexes are created inside CREATE TABLE
         }
 
         public void VisitDropTable(StatementDropTable statementDropTable)

@@ -2,6 +2,7 @@
 using SqExpress.Meta;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Type;
+using SqExpress.Utils;
 
 namespace SqExpress
 {
@@ -27,8 +28,12 @@ namespace SqExpress
         }
 
         private readonly List<TableColumn> _columns = new List<TableColumn>();
+        
+        private readonly List<IndexMeta> _indexes = new List<IndexMeta>();
 
         public IReadOnlyList<TableColumn> Columns => this._columns;
+
+        public IReadOnlyList<IndexMeta> Indexes => this._indexes;
 
         public TableBaseScript Script => new TableBaseScript(this);
 
@@ -182,6 +187,24 @@ namespace SqExpress
             }
 
             return null;
+        }
+
+        protected void AddIndex(params IndexMetaColumn[] columns) => this._indexes.Add(new IndexMeta(AssertIndexColumnsNotEmpty(columns), null, false, false));
+        protected void AddIndex(string name, params IndexMetaColumn[] columns) => this._indexes.Add(new IndexMeta(AssertIndexColumnsNotEmpty(columns), name, false, false));
+        
+        protected void AddUniqueIndex(params IndexMetaColumn[] columns) => this._indexes.Add(new IndexMeta(AssertIndexColumnsNotEmpty(columns), null, true, false));
+        protected void AddUniqueIndex(string name, params IndexMetaColumn[] columns) => this._indexes.Add(new IndexMeta(columns, name, true, false));
+        
+        protected void AddClusteredIndex(params IndexMetaColumn[] columns) => this._indexes.Add(new IndexMeta(AssertIndexColumnsNotEmpty(columns), null, false, true));
+        protected void AddClusteredIndex(string name, params IndexMetaColumn[] columns) => this._indexes.Add(new IndexMeta(AssertIndexColumnsNotEmpty(columns), name, false, true));
+        
+        protected void AddUniqueClusteredIndex(params IndexMetaColumn[] columns) => this._indexes.Add(new IndexMeta(AssertIndexColumnsNotEmpty(columns), null, true, true));
+        protected void AddUniqueClusteredIndex(string name, params IndexMetaColumn[] columns) => this._indexes.Add(new IndexMeta(AssertIndexColumnsNotEmpty(columns), name, true, true));
+
+        private static IndexMetaColumn[] AssertIndexColumnsNotEmpty(IndexMetaColumn[] columns)
+        {
+            columns.AssertNotEmpty("Table index has to contain at least one column");
+            return columns;
         }
     }
 }

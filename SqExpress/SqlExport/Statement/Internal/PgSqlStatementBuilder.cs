@@ -52,6 +52,49 @@ namespace SqExpress.SqlExport.Statement.Internal
             }
         }
 
+        protected override void AppendIndexesInside(TableBase table)
+        {
+            //Postgres requires separate statements for indexes 
+        }
+
+        protected override void AppendIndexesOutside(TableBase table)
+        {
+            IndexMeta? clusteredIndex = null;
+            foreach (var tableIndex in table.Indexes)
+            {
+                this.Builder.Append("CREATE ");
+                if (tableIndex.Unique)
+                {
+                    this.Builder.Append("UNIQUE ");
+                }
+                this.Builder.Append("INDEX ");
+                if (tableIndex.Clustered)
+                {
+                    if (clusteredIndex != null)
+                    {
+                        throw new SqExpressException("Table can have only one clustered index");
+                    }
+
+                    clusteredIndex = tableIndex;
+                }
+                this.AppendName(this.BuildIndexName(table.FullName, tableIndex));
+                this.Builder.Append(" ON ");
+                table.FullName.Accept(this.ExprBuilder, null);
+
+                this.AppendIndexColumnList(tableIndex: tableIndex);
+                this.Builder.Append(";");
+            }
+
+            if (clusteredIndex != null)
+            {
+                this.Builder.Append(";CLUSTER ");
+                table.FullName.Accept(this.ExprBuilder, null);
+                this.Builder.Append(" USING ");
+                this.AppendName(this.BuildIndexName(table.FullName, clusteredIndex));
+                this.Builder.Append(";");
+            }
+        }
+
         public void VisitDropTable(StatementDropTable statementDropTable)
         {
             this.Builder.Append("DROP TABLE ");
