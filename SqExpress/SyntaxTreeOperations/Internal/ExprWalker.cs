@@ -749,6 +749,13 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             this._visitor.EndVisitExpr(expr, arg);
             return res;
         }
+        public bool VisitExprUnsafeValue(ExprUnsafeValue expr, TCtx arg)
+        {
+            var res = this.Visit(expr, "UnsafeValue", arg, out var argOut);
+            this.VisitPlainProperty("UnsafeValue",expr.UnsafeValue, argOut);
+            this._visitor.EndVisitExpr(expr, arg);
+            return res;
+        }
         public bool VisitExprUpdate(ExprUpdate expr, TCtx arg)
         {
             var res = this.Visit(expr, "Update", arg, out var argOut) && this.Accept("Target",expr.Target, argOut) && this.Accept("SetClause",expr.SetClause, argOut) && this.Accept("Source",expr.Source, argOut) && this.Accept("Filter",expr.Filter, argOut);

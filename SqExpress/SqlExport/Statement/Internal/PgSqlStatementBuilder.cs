@@ -41,6 +41,13 @@ namespace SqExpress.SqlExport.Statement.Internal
                 {
                     this.Builder.Append("  GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 )");
                 }
+
+                if (!ReferenceEquals(column.ColumnMeta.ColumnDefaultValue, null))
+                {
+                    this.Builder.Append(" DEFAULT (");
+                    column.ColumnMeta.ColumnDefaultValue.Accept(this.ExprBuilder, null);
+                    this.Builder.Append(')');
+                }
             }
         }
 

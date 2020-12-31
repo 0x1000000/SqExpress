@@ -64,5 +64,11 @@ namespace SqExpress.Test.QueryBuilder
             Assert.AreEqual("[db1].[dbo].[m]]yFun'c](1,'5')", ScalarFunctionDbCustom("db1", "dbo", "m]yFun'c", 1, "5").ToSql());
             Assert.AreEqual("[db1].[dbo].[m]]yFun'c](1,'5','2020-10-19')", ScalarFunctionDbCustom("db1", "dbo", "m]yFun'c", 1, "5", new DateTime(2020,10,19)).ToSql());
         }
+
+        [Test]
+        public void UnsafeValueTest()
+        {
+            Assert.AreEqual("SELECT 'Wh' + 'at ever'", Select(UnsafeValue("'Wh' + 'at ever'")).Done().ToSql());
+        }
     }
 }

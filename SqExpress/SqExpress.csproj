@@ -7,25 +7,12 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <Authors>Dmitry Tikhonov</Authors>
     <Company />
-    <Version>0.0.5.0</Version>
+    <Version>0.0.6.0</Version>
     <Summary>SqExpress is a sql query builder which allows creating SQL expression directly in C# code with strong typing and intellisense.</Summary>
     <PackageReleaseNotes>New Features
--	“Where” now accepts nulls
--	expr.SyntaxTree().WalkThrough()
--	expr.SyntaxTree().Find()
--	expr.SyntaxTree().Modify
--                 ExprDeserializer.Deserialize()
--                 Database name can be specified in table names
--                 Temp Tables
--                 Top -&gt; Limit in PostgresSQL
--                 DateAdd
--                 Export/Import to/from PlainList
--                 Export/Import to/from Xml
--                 Custom scalar functions
-Braking Changes:
--	SqlBuilderBase is now internal
--	IExprVistor changed
-</PackageReleaseNotes>
+- Table descriptors support indexes declarations
+- Table descriptors support default values for columns
+- Unsafe value expression</PackageReleaseNotes>
     <Description>SqExpress is a sql query builder which allows creating SQL expression in C# code with strong typing and intellisense (without LINQ!).
 The library provides a generic sql syntax tree with exports to MS t-SQL and Postgres SQL text.
 It also provides a set of builders and operators which will help you building complex Sql expressions.
@@ -39,6 +26,8 @@ It can be used together with the “Code First” concept when you declare SQL t
     <AssemblyOriginatorKeyFile>SqExpress.pfx</AssemblyOriginatorKeyFile>
     <PackageProjectUrl>https://github.com/0x1000000/SqExpress</PackageProjectUrl>
     <PackageTags>query postgres sql tsql builder mssql dataaccess</PackageTags>
+    <AssemblyVersion>0.0.6.0</AssemblyVersion>
+    <FileVersion>0.0.6.0</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

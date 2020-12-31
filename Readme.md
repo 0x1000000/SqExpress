@@ -84,8 +84,14 @@ public class TableUser : TableBase
         this.LastName = this.CreateStringColumn("LastName", 
             size: 255, isUnicode: true);
 
-        this.Version = this.CreateInt32Column("Version");
-        this.ModifiedAt = this.CreateDateTimeColumn("ModifiedAt");
+        this.Version = this.CreateInt32Column("Version",
+            ColumnMeta.DefaultValue(0));
+        this.ModifiedAt = this.CreateDateTimeColumn("ModifiedAt",
+            columnMeta: ColumnMeta.DefaultValue(GetUtcDate()));
+
+        //Indexes
+        this.AddIndex(this.FirstName);
+        this.AddIndex(this.LastName);
     }
 }
 ```
@@ -299,12 +305,21 @@ public class TableCustomer : TableBase
         this.CompanyId = this.CreateNullableInt32Column(
             nameof(this.CompanyId), 
             ColumnMeta.ForeignKey<TableCompany>(u => u.CompanyId));
+
+        //Indexes            
+        this.AddUniqueIndex(this.UserId, this.CompanyId);
+        this.AddUniqueIndex(this.CompanyId, this.UserId);
     }
 }
 ```
 Pay attention to the way how the foreign keys are defined:
 ```cs
 ColumnMeta.ForeignKey<TableUser>(u => u.UserId)
+```
+And indexes:
+```cs
+this.AddUniqueIndex(this.UserId, this.CompanyId);
+this.AddUniqueIndex(this.CompanyId, this.UserId);
 ```
 Since now we have the foreign keys we have to delete and create the table in the specific order:
 ```cs

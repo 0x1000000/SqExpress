@@ -40,6 +40,13 @@ namespace SqExpress.SqlExport.Statement.Internal
                 {
                     this.Builder.Append("  IDENTITY (1, 1)");
                 }
+
+                if (!ReferenceEquals(column.ColumnMeta.ColumnDefaultValue, null))
+                {
+                    this.Builder.Append(" DEFAULT (");
+                    column.ColumnMeta.ColumnDefaultValue.Accept(this.ExprBuilder, null);
+                    this.Builder.Append(')');
+                }
             }
         }
 
