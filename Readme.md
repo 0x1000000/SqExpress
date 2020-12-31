@@ -87,7 +87,7 @@ public class TableUser : TableBase
         this.Version = this.CreateInt32Column("Version",
             ColumnMeta.DefaultValue(0));
         this.ModifiedAt = this.CreateDateTimeColumn("ModifiedAt",
-            columnMeta: ColumnMeta.DefaultValue(GetUtcDate()));
+            columnMeta: ColumnMeta.DefaultValue(SqQueryBuilder.GetUtcDate()));
 
         //Indexes
         this.AddIndex(this.FirstName);
@@ -278,8 +278,10 @@ public class TableCompany : TableBase
         this.CompanyName = this.CreateStringColumn(
             nameof(this.CompanyName), 250);
 
-        this.Version = this.CreateInt32Column("Version");
-        this.ModifiedAt = this.CreateDateTimeColumn("ModifiedAt");
+        this.Version = this.CreateInt32Column("Version",
+            ColumnMeta.DefaultValue(0));
+        this.ModifiedAt = this.CreateDateTimeColumn("ModifiedAt",
+            columnMeta: ColumnMeta.DefaultValue(SqQueryBuilder.GetUtcDate()));
     }
 }
 ```
