@@ -24,6 +24,8 @@ namespace SqExpress
 
         public static ExprDefault Default => ExprDefault.Instance;
 
+        public static ExprUnsafeValue UnsafeValue(string unsafeValueExpr) => new ExprUnsafeValue(unsafeValueExpr);
+
         public static ExprIsNull IsNull(ExprValue value) => new ExprIsNull(value, not: false);
 
         public static ExprIsNull IsNotNull(ExprValue value) => new ExprIsNull(value, not: true);

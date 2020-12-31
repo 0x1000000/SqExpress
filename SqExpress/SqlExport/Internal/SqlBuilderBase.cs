@@ -348,6 +348,12 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public bool VisitExprUnsafeValue(ExprUnsafeValue exprUnsafeValue, IExpr? parent)
+        {
+            this.Builder.Append(exprUnsafeValue.UnsafeValue);
+            return true;
+        }
+
         //Arithmetic Expressions
 
         public bool VisitExprSum(ExprSum exprSum, IExpr? parent)

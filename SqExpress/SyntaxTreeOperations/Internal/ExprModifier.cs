@@ -944,6 +944,10 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         {
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprUnsafeValue(ExprUnsafeValue exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprUpdate(ExprUpdate exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newTarget = this.AcceptItem(exprIn.Target, modifier);

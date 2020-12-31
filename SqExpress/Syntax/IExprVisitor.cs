@@ -73,6 +73,8 @@ namespace SqExpress.Syntax
 
         TRes VisitExprDefault(ExprDefault exprDefault, TArg arg);
 
+        TRes VisitExprUnsafeValue(ExprUnsafeValue exprUnsafeValue, TArg arg);
+
         //Arithmetic Expressions
         TRes VisitExprSum(ExprSum exprSum, TArg arg);
 

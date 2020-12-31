@@ -4,7 +4,7 @@
 - [x] Update Expression
 - [x] "CASE WHEN"
 - [x] Arifmetic Expressions
-## After 0.0.3
+## 0.0.5
 - [x] Make "Where" nullable
 - [x] Temporary Tables
 - [x] Tree Walker
@@ -12,7 +12,12 @@
 - [x] Serialization
 - [x] Scalar Functions
 - [x] Insert Values (with DEFAULT)
-## After 0.0.5
+## 0.0.6
+- [x] Column Indexes
+- [x] Column Default Values
+- [x] Unsafe Value Expression
+- [ ] Table Value Functions
+## After 0.0.6
 - [ ] "Update Data" builder
 - [ ] Post "Done" modifications
 - [ ] Split Merge into Insert Update Delete
@@ -21,9 +26,6 @@
 
 --Meta
 - [ ] Binary Type
-- [ ] Column Indexes 
-- [ ] Column Default Values
-
 
 --Tools
 - [ ] Tables Meta Codegenerator (simple version)

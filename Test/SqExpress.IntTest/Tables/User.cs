@@ -1,4 +1,7 @@
-﻿namespace SqExpress.IntTest.Tables
+﻿using System;
+using static SqExpress.SqQueryBuilder;
+
+namespace SqExpress.IntTest.Tables
 {
     public class User : TableBase
     {
@@ -23,9 +26,9 @@
             this.LastName = this.CreateStringColumn("LastName", 255);
             this.Email = this.CreateStringColumn("Email", 255);
             this.RegDate = this.CreateDateTimeColumn("RegDate");
-            this.Version = this.CreateInt32Column("Version");
-            this.Created = this.CreateDateTimeColumn("Created");
-            this.Modified = this.CreateDateTimeColumn("Modified");
+            this.Version = this.CreateInt32Column("Version", ColumnMeta.DefaultValue(0));
+            this.Created = this.CreateDateTimeColumn("Created", columnMeta: ColumnMeta.DefaultValue(GetUtcDate()));
+            this.Modified = this.CreateDateTimeColumn("Modified", columnMeta: ColumnMeta.DefaultValue(GetUtcDate()));
 
             //Indexes
             this.AddUniqueClusteredIndex("IX_ItUser_ExternalId_CustomName", this.ExternalId);
