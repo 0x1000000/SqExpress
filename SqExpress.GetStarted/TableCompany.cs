@@ -16,8 +16,10 @@
             this.CompanyId = this.CreateInt32Column(nameof(this.CompanyId), ColumnMeta.PrimaryKey().Identity());
             this.CompanyName = this.CreateStringColumn(nameof(this.CompanyName), 250);
 
-            this.Version = this.CreateInt32Column("Version");
-            this.ModifiedAt = this.CreateDateTimeColumn("ModifiedAt");
+            this.Version = this.CreateInt32Column("Version",
+                ColumnMeta.DefaultValue(0));
+            this.ModifiedAt = this.CreateDateTimeColumn("ModifiedAt",
+                columnMeta: ColumnMeta.DefaultValue(SqQueryBuilder.GetUtcDate()));
         }
     }
 }
