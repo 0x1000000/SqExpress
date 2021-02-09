@@ -16,8 +16,9 @@
 - [x] Column Indexes
 - [x] Column Default Values
 - [x] Unsafe Value Expression
-- [ ] Table Value Functions
-## After 0.0.6
+## 0.0.7
+- [ ] Support of MySQL
+## After 0.0.7
 - [ ] "Update Data" builder
 - [ ] Post "Done" modifications
 - [ ] Split Merge into Insert Update Delete
