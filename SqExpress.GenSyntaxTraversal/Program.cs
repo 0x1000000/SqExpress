@@ -44,6 +44,7 @@ namespace SqExpress.GenSyntaxTraversal
                 Generate(projDir, @"SyntaxTreeOperations\ExprDeserializer.cs", buffer, GenerateDeserializer);
                 Generate(projDir, @"SyntaxTreeOperations\Internal\ExprModifier.cs", buffer, GenerateModifier);
                 Generate(projDir, @"SyntaxTreeOperations\Internal\ExprWalker.cs", buffer, GenerateWalker);
+                Generate(projDir, @"SyntaxModifyExtensions.cs", buffer, GenerateSyntaxModify);
                 Console.WriteLine("Done!");
             }
             catch (Exception e)
@@ -233,6 +234,36 @@ namespace SqExpress.GenSyntaxTraversal
 
                 builder.AppendLineStart(0, "}");
             }
+        }        
+        
+        private static void GenerateSyntaxModify(IReadOnlyList<NodeModel> models, StringBuilder stringBuilder)
+        {
+            CodeBuilder builder = new CodeBuilder(stringBuilder, 2);
+            foreach (var nodeModel in models)
+            {
+                var subNodes = nodeModel.SubNodes.Concat(nodeModel.Properties).ToList();
+
+                foreach (var subNode in subNodes)
+                {
+                    builder.AppendLineStart(0, $"public static {nodeModel.TypeName} With{subNode.PropertyName}(this {nodeModel.TypeName} original, {subNode.GetFullPropertyTypeName()} new{subNode.PropertyName}) ");
+                    builder.AppendStart(1, $"=> new {nodeModel.TypeName}(");
+                    for (var index = 0; index < subNodes.Count; index++)
+                    {
+                        var subNodeConst = subNodes[index];
+                        if (index != 0)
+                        {
+                            builder.Append(", ");
+                        }
+
+                        builder.Append(subNodeConst == subNode
+                            ? $"{subNode.ConstructorArgumentName}: new{subNode.PropertyName}"
+                            : $"{subNodeConst.ConstructorArgumentName}: original.{subNodeConst.PropertyName}");
+                    }
+
+                    builder.AppendLine(");");
+                    builder.AppendLine(null);
+                }
+            }
         }
 
         public static IReadOnlyList<NodeModel> BuildModelRoslyn(string projectFolder)
@@ -280,7 +311,7 @@ namespace SqExpress.GenSyntaxTraversal
 
                                 var ta = AnalyzeSymbol(ref pType);
 
-                                var subNodeModel = new SubNodeModel(correspondingProperty.Name, parameter.Name, pType.Name, ta.IsList, ta.IsNullable);
+                                var subNodeModel = new SubNodeModel(correspondingProperty.Name, parameter.Name, pType.Name, ta.ListName, ta.IsNullable, ta.HostTypeName);
                                 if (ta.Expr)
                                 {
                                     subNodes.Add(subNodeModel);
@@ -339,9 +370,16 @@ namespace SqExpress.GenSyntaxTraversal
                 return result;
             }
 
-            (bool IsNullable, bool IsList, bool Expr) AnalyzeSymbol(ref INamedTypeSymbol typeSymbol)
+            SymbolAnalysis AnalyzeSymbol(ref INamedTypeSymbol typeSymbol)
             {
-                bool isList = false;
+                string listName = null;
+                string hostType = null;
+                if (typeSymbol.ContainingType != null)
+                {
+                    var host = typeSymbol.ContainingType;
+                    hostType = host.Name;
+                }
+
                 var nullable = typeSymbol.NullableAnnotation == NullableAnnotation.Annotated;
 
                 if (nullable && typeSymbol.Name == "Nullable")
@@ -353,7 +391,7 @@ namespace SqExpress.GenSyntaxTraversal
                 {
                     if (typeSymbol.Name.Contains("List"))
                     {
-                        isList = true;
+                        listName = typeSymbol.Name;
                     }
 
                     if (typeSymbol.Name == "Nullable")
@@ -364,7 +402,7 @@ namespace SqExpress.GenSyntaxTraversal
                     typeSymbol = (INamedTypeSymbol)typeSymbol.TypeArguments.Single();
                 }
 
-                return (nullable, isList, IsExpr(typeSymbol));
+                return new SymbolAnalysis(nullable, listName, IsExpr(typeSymbol), hostType);
             }
         }
 
@@ -394,6 +432,23 @@ namespace SqExpress.GenSyntaxTraversal
 
             return typeName.Substring(4);
         }
+
+
+        class SymbolAnalysis
+        {
+            public readonly bool IsNullable;
+            public readonly string ListName;
+            public readonly bool Expr;
+            public readonly string HostTypeName;
+
+            public SymbolAnalysis(bool isNullable, string listName, bool expr, string hostTypeName)
+            {
+                this.IsNullable = isNullable;
+                this.ListName = listName;
+                this.Expr = expr;
+                this.HostTypeName = hostTypeName;
+            }
+        }
     }
 
     public class NodeModel
@@ -417,12 +472,13 @@ namespace SqExpress.GenSyntaxTraversal
 
     public class SubNodeModel
     {
-        public SubNodeModel(string propertyName, string constructorArgumentName, string propertyType, bool isList, bool isNullable)
+        public SubNodeModel(string propertyName, string constructorArgumentName, string propertyType, string listName, bool isNullable, string hostTypeName)
         {
             this.PropertyName = propertyName;
             this.PropertyType = propertyType;
-            this.IsList = isList;
+            this.ListName = listName;
             this.IsNullable = isNullable;
+            this.HostTypeName = hostTypeName;
             this.ConstructorArgumentName = constructorArgumentName;
         }
 
@@ -432,9 +488,36 @@ namespace SqExpress.GenSyntaxTraversal
 
         public string PropertyType { get; }
 
-        public bool IsList { get; }
+        public string ListName { get; }
+
+        public bool IsList => this.ListName != null;
 
         public bool IsNullable { get; }
+
+        public string HostTypeName { get; }
+
+
+        public string GetFullPropertyTypeName()
+        {
+            string res = this.PropertyType;
+
+            if (!string.IsNullOrEmpty(this.HostTypeName))
+            {
+                res = $"{this.HostTypeName}.{res}";
+            }
+
+            if (this.IsList)
+            {
+                res = $"{this.ListName}<{res}>";
+            }
+            if (this.IsNullable)
+            {
+                res += "?";
+            }
+
+            return res;
+        }
+
     }
 
     public class CodeBuilder

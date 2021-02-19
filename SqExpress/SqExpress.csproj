@@ -17,6 +17,7 @@
 -Query Handler
 -Analytic Functions
 - Subqueries without derived tables 
+- Post "Done" modifications
 Bugfix
 - '+' instead of '-' in arithmetic expressions
 - Double “LIMIT” with “ORDER BY”</PackageReleaseNotes>
