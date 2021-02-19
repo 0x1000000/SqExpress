@@ -1,12 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
+using MySql.Data.MySqlClient;
 using Npgsql;
 using SqExpress.DataAccess;
 using SqExpress.GetStarted.FavoriteFilters;
@@ -27,6 +26,7 @@ namespace SqExpress.GetStarted
             {
                 await RunMsSql();
                 await RunPostgresSql();
+                await RunMySql();
             }
             catch (Exception e)
             {
@@ -46,8 +46,8 @@ namespace SqExpress.GetStarted
                 return new SqlCommand(sqlText, connection);
             }
 
-            using (var connection =
-                new SqlConnection("Data Source = (local); Initial Catalog = TestDatabase; Integrated Security = True"))
+            const string connectionString = "Data Source = (local); Initial Catalog = TestDatabase; Integrated Security = True";
+            using (var connection = new SqlConnection(connectionString))
             {
                 using (var database = new SqDatabase<SqlConnection>(
                     connection: connection,
@@ -71,14 +71,39 @@ namespace SqExpress.GetStarted
                 return new NpgsqlCommand(sqlText, connection);
             }
 
-            using (var connection =
-                new NpgsqlConnection("Host=localhost;Port=5432;Username=postgres;Password=test;Database=test"))
+            const string connectionString = "Host=localhost;Port=5432;Username=postgres;Password=test;Database=test";
+            using (var connection = new NpgsqlConnection(connectionString))
             {
                 using (var database = new SqDatabase<NpgsqlConnection>(
                     connection: connection,
                     commandFactory: NpgsqlCommandFactory,
                     sqlExporter: new PgSqlExporter(builderOptions: SqlBuilderOptions.Default
                         .WithSchemaMap(schemaMap: new[] {new SchemaMap(@from: "dbo", to: "public")}))))
+                {
+                    await Script(database: database, true);
+                }
+            }
+        }
+
+        private static async Task RunMySql()
+        {
+            int commandCounter = 0;
+
+            DbCommand MySqlCommandFactory(MySqlConnection connection, string sqlText)
+            {
+                Console.WriteLine($"Command #{++commandCounter}");
+                Console.WriteLine(sqlText);
+                Console.WriteLine();
+                return new MySqlCommand(sqlText, connection);
+            }
+
+            const string connectionString = "server=127.0.0.1;uid=test;pwd=test;database=test";
+            using (var connection = new MySqlConnection(connectionString))
+            {
+                using (var database = new SqDatabase<MySqlConnection>(
+                    connection: connection,
+                    commandFactory: MySqlCommandFactory,
+                    sqlExporter: new MySqlExporter(builderOptions: SqlBuilderOptions.Default)))
                 {
                     await Script(database: database, true);
                 }
@@ -95,16 +120,18 @@ namespace SqExpress.GetStarted
             await Step6CreatingOrganizations(database);
             await Step7CreatingCustomers(database);
             await Step8JoinTables(database);
-            await Step9UseDerivedTables(database);
+            await Step10UseDerivedTables(database);
+            await Step11SubQueries(database);
             await Step9SetOperations(database);
             if (!postgres)
             {
-                await Step10Merge(database);
+                await Step12Merge(database);
             }
-            await Step11TempTables(database);
-            await Step12TreeExploring(database);
-            await Step13ExportToXml(database);
-            await Step14ExportToPlain(database);
+            await Step13TempTables(database);
+            await Step14TreeExploring(database);
+            await Step15SyntaxModification(database);
+            await Step16ExportToXml(database);
+            await Step17ExportToPlain(database);
         }
 
         private static async Task Step1CreatingTables(ISqDatabase database)
@@ -184,15 +211,13 @@ namespace SqExpress.GetStarted
             await Select(tUser.Columns)
                 .From(tUser)
                 .Query(database,
-                    (object) null,
-                    (agg, record) =>
+                    record =>
                     {
                         Console.Write(tUser.UserId.Read(record) + ",");
                         Console.Write(tUser.FirstName.Read(record) + " ");
                         Console.Write(tUser.LastName.Read(record) + ",");
                         Console.Write(tUser.Version.Read(record) + ",");
                         Console.WriteLine(tUser.ModifiedAt.Read(record).ToString("s"));
-                        return agg;
                     });
         }
 
@@ -203,13 +228,7 @@ namespace SqExpress.GetStarted
             await Delete(tUser)
                 .Where(tUser.FirstName.Like("May%"))
                 .Output(tUser.UserId)
-                .Query(database,
-                    (object) null,
-                    (agg, record) =>
-                    {
-                        Console.WriteLine("Removed user id: " + tUser.UserId.Read(record));
-                        return agg;
-                    });
+                .Query(database, record => Console.WriteLine("Removed user id: " + tUser.UserId.Read(record)));
         }
 
         private static async Task Step6CreatingOrganizations(ISqDatabase database)
@@ -224,12 +243,7 @@ namespace SqExpress.GetStarted
                     .Set(s.Target.ModifiedAt, GetUtcDate()))
                 .Output(tCompany.CompanyId, tCompany.CompanyName)
                 .Query(database,
-                    (object) null,
-                    (agg, r) =>
-                    {
-                        Console.WriteLine($"Id: {tCompany.CompanyId.Read(r)}, Name: {tCompany.CompanyName.Read(r)}");
-                        return null;
-                    });
+                    r => Console.WriteLine($"Id: {tCompany.CompanyId.Read(r)}, Name: {tCompany.CompanyName.Read(r)}"));
         }
 
         private static async Task Step7CreatingCustomers(ISqDatabase database)
@@ -316,7 +330,7 @@ namespace SqExpress.GetStarted
             Console.WriteLine(result[0]);
         }
 
-        private static async Task Step9UseDerivedTables(ISqDatabase database)
+        private static async Task Step10UseDerivedTables(ISqDatabase database)
         {
             var tCustomer = new DerivedTableCustomer("CUST");
 
@@ -335,7 +349,32 @@ namespace SqExpress.GetStarted
             }
         }
 
-        private static async Task Step10Merge(ISqDatabase database)
+        private static async Task Step11SubQueries(ISqDatabase database)
+        {
+            var num = CustomColumnFactory.Int32("3");
+            //Note: "3" (the first value) is for compatibility with MySql
+            //which does not properly support values constructors
+
+            var sum = CustomColumnFactory.Int32("Sum");
+
+            var numbers = Values(3, 1, 1, 7, 3, 7, 3, 7, 7, 8).AsColumns(num);
+            var numbersSubQuery = TableAlias();
+
+            var mostFrequentNum = (int) await
+                SelectTop(1, numbersSubQuery.Column(num))
+                    .From(
+                        Select(numbers.Column(num), CountOne().As(sum))
+                            .From(numbers)
+                            .GroupBy(numbers.Column(num))
+                            .As(numbersSubQuery)
+                    )
+                    .OrderBy(Desc(numbersSubQuery.Column(sum)))
+                    .QueryScalar(database);
+
+            Console.WriteLine("The most frequent number: "  + mostFrequentNum);
+        }
+
+        private static async Task Step12Merge(ISqDatabase database)
         {
             var data = new[]
             {
@@ -365,16 +404,11 @@ namespace SqExpress.GetStarted
                 .Output((t, s, m) => m.Inserted(t.UserId.As(inserted)).Deleted(t.UserId.As(deleted)).Action(action))
                 .Done()
                 .Query(database,
-                    (object) null,
-                    (agg, r) =>
-                    {
-                        Console.WriteLine(
-                            $"UserId Inserted: {inserted.Read(r)},UserId Deleted: {deleted.Read(r)} , Action: {action.Read(r)}");
-                        return agg;
-                    });
+                    r => Console.WriteLine(
+                        $"UserId Inserted: {inserted.Read(r)},UserId Deleted: {deleted.Read(r)} , Action: {action.Read(r)}"));
         }
 
-        private static async Task Step11TempTables(ISqDatabase database)
+        private static async Task Step13TempTables(ISqDatabase database)
         {
             var tmp = new TempTable();
 
@@ -399,12 +433,7 @@ namespace SqExpress.GetStarted
                 .From(tmp)
                 .OrderBy(tmp.Name)
                 .Query(database,
-                    (object) null,
-                    (agg, r) =>
-                    {
-                        Console.WriteLine($"Id: {tmp.Id.Read(r)}, Name: {tmp.Name.Read(r)}");
-                        return agg;
-                    });
+                    r => Console.WriteLine($"Id: {tmp.Id.Read(r)}, Name: {tmp.Name.Read(r)}"));
 
             //Dropping the temp table is optional
             //It will be automatically removed when
@@ -412,7 +441,7 @@ namespace SqExpress.GetStarted
             await database.Statement(tmp.Script.Drop());
         }
 
-        private static async Task Step12TreeExploring(ISqDatabase database)
+        private static async Task Step14TreeExploring(ISqDatabase database)
         {
             //Var some external filter..
             ExprBoolean filter = CustomColumnFactory.Int16("Type") == 2 /*Company*/;
@@ -452,15 +481,35 @@ namespace SqExpress.GetStarted
 
             await baseSelect!
                 .Query(database,
-                    (object) null,
-                    (agg, r) =>
-                    {
-                        Console.WriteLine($"Id: {tableCustomer.CustomerId.Read(r)}");
-                        return agg;
-                    });
+                    r => Console.WriteLine($"Id: {tableCustomer.CustomerId.Read(r)}"));
         }
 
-        private static async Task Step13ExportToXml(ISqDatabase database)
+        private static async Task Step15SyntaxModification(ISqDatabase database)
+        {
+            var tUser = new TableUser();
+
+            Console.WriteLine("Original expression:");
+            var expression = SelectTop(1, tUser.FirstName).From(tUser).Done();
+
+            await expression.QueryScalar(database);
+
+            expression = expression
+                .WithTop(null)
+                .WithSelectList(tUser.UserId, tUser.FirstName + " " + tUser.LastName)
+                .WithWhere(tUser.UserId == 7);
+
+            Console.WriteLine("With changed selection list  and filter:");
+            await expression.QueryScalar(database);
+
+            var tCustomer = new TableCustomer();
+            expression = expression
+                .WithInnerJoin(tCustomer, on: tCustomer.UserId == tUser.UserId);
+
+            Console.WriteLine("With joined table");
+            await expression.QueryScalar(database);
+        }
+
+        private static async Task Step16ExportToXml(ISqDatabase database)
         {
             var tableUser = new TableUser(Alias.Empty);
 
@@ -489,7 +538,7 @@ namespace SqExpress.GetStarted
             }
         }
 
-        private static async Task Step14ExportToPlain(ISqDatabase database)
+        private static async Task Step17ExportToPlain(ISqDatabase database)
         {
             var tableUser = new TableUser(Alias.Empty);
 
@@ -552,7 +601,7 @@ namespace SqExpress.GetStarted
                 .From(tableUser)
                 .Where(restoredFilter1)
                 .Query(database,
-                    (object?) null,
+                    (object) null,
                     (s, r) =>
                     {
                         Console.WriteLine($"{tableUser.FirstName.Read(r)} {tableUser.LastName.Read(r)}");
@@ -564,7 +613,7 @@ namespace SqExpress.GetStarted
                 .From(tableUser)
                 .Where(restoredFilter2)
                 .Query(database,
-                    (object?) null,
+                    (object) null,
                     (s, r) =>
                     {
                         Console.WriteLine($"{tableUser.FirstName.Read(r)} {tableUser.LastName.Read(r)}");

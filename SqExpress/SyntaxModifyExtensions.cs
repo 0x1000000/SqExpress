@@ -13,6 +13,7 @@ using SqExpress.Syntax.Select.SelectItems;
 using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Update;
 using SqExpress.Syntax.Value;
+using SqExpress.Utils;
 
 namespace SqExpress
 {
@@ -91,6 +92,9 @@ namespace SqExpress
             => select.SelectQuery is ExprQuerySpecification specification
                 ? select.WithSelectQuery(specification.WithCrossJoin(tableSource))
                 : throw new SqExpressException("Join can be done only with a query specification");
+
+        public static ExprQuerySpecification WithSelectList(this ExprQuerySpecification original, SelectingProxy selection, params SelectingProxy[] selections)
+            => new ExprQuerySpecification(selectList: Helpers.Combine(selection, selections, SelectingProxy.MapSelectionProxy), top: original.Top, from: original.From, where: original.Where, groupBy: original.GroupBy, distinct: original.Distinct);
 
         //CodeGenStart
         public static ExprAggregateFunction WithName(this ExprAggregateFunction original, ExprFunctionName newName) 

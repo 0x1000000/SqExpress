@@ -51,6 +51,34 @@ namespace SqExpress.Test.QueryBuilder
 
             actual = SelectTop(Literal(6), Literal(2)).Done().ToSql();
             Assert.AreEqual("SELECT TOP 6 2", actual);
+
+            actual = SelectDistinct(2).Done().ToSql();
+            Assert.AreEqual("SELECT DISTINCT 2", actual);
+
+            actual = SelectTopDistinct(Literal(3), 2).Done().ToSql();
+            Assert.AreEqual("SELECT DISTINCT TOP 3 2", actual);
+
+            actual = SelectTopDistinct(4, 2).Done().ToSql();
+            Assert.AreEqual("SELECT DISTINCT TOP 4 2", actual);
+
+            actual = SelectTop(5, 2).Done().ToSql();
+            Assert.AreEqual("SELECT TOP 5 2", actual);
+
+            actual = SelectTop(Literal(6), 2, "Hi").Done().ToSql();
+            Assert.AreEqual("SELECT TOP 6 2,'Hi'", actual);
+
+            actual = SelectTop(Literal(9) % 7, 2, AllColumns()).Done().ToSql();
+            Assert.AreEqual("SELECT TOP 9%7 2,*", actual);
+
+            actual = SelectDistinct(2, AllColumns()).Done().ToSql();
+            Assert.AreEqual("SELECT DISTINCT 2,*", actual);
+
+            actual = SelectTopDistinct(Literal(3), 2, AllColumns()).Done().ToSql();
+            Assert.AreEqual("SELECT DISTINCT TOP 3 2,*", actual);
+
+            actual = SelectTopDistinct(4, 2, AllColumns()).Done().ToSql();
+            Assert.AreEqual("SELECT DISTINCT TOP 4 2,*", actual);
+
         }
 
         [Test]

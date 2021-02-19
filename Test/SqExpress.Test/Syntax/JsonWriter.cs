@@ -59,7 +59,7 @@ namespace SqExpress.Test.Syntax
             
         }
 
-        public void VisitPlainProperty(string name, string? value, Utf8JsonWriter ctx)
+        public void VisitPlainProperty(string name, string value, Utf8JsonWriter ctx)
         {
             if (value != null)
             {
@@ -139,7 +139,7 @@ namespace SqExpress.Test.Syntax
             }
         }
 
-        public void VisitPlainProperty(string name, IReadOnlyList<byte>? value, Utf8JsonWriter ctx)
+        public void VisitPlainProperty(string name, IReadOnlyList<byte> value, Utf8JsonWriter ctx)
         {
             if (value != null)
             {
