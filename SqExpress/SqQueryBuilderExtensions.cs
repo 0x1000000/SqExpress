@@ -17,9 +17,6 @@ namespace SqExpress
 {
     public static class SqQueryBuilderExtensions
     {
-        public static ExprColumn WithSource(this ExprColumn column, IExprColumnSource? newColumnSource)
-            => new ExprColumn(newColumnSource, column.ColumnName);
-
         public static ExprColumn WithSource(this ExprColumnName columnName, IExprColumnSource? newColumnSource)
             => new ExprColumn(newColumnSource, columnName);
 

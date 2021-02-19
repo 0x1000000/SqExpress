@@ -19,11 +19,12 @@
 ## 0.0.7
 - [x] Support of MySQL
 - [x] Subqueries without derived tables
+- [x] Post "Done" modifications
 ## After 0.0.7
 - [ ] "Update Data" builder
-- [ ] Post "Done" modifications
 - [ ] Split Merge into Insert Update Delete
 - [ ] Table Value Functions
+- [ ] CTE
 
 --Meta
 - [ ] Binary Type
