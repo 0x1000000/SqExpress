@@ -5,10 +5,8 @@ using SqExpress.Syntax.Select;
 
 namespace SqExpress.Syntax.Value
 {
-    public abstract class ExprValue : IExprSelecting, IExprAssigning
+    public abstract class ExprValue : ExprSelecting, IExprAssigning
     {
-        public abstract TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg);
-
         public bool Equals(ExprValue? other) 
             => base.Equals(other);
 

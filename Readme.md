@@ -1,15 +1,15 @@
 # SqExpress
 ![Logo](https://github.com/0x1000000/SqExpress/blob/main/SqExpress/Icon.png)
 
-The library provides a generic sql syntax tree with export to MS t-SQL and Postgres SQL text.
+The library provides a generic sql syntax tree with export to MS t-SQL, PostgreSQL and MySQL text.
 
 It also provides a set of builders and operators which will help you building complex Sql expressions.
 
 It does not use LINQ and your C# code will be close to real SQL as much as possible, so it can be used when you need the full SQL flexibility to create efficient Db requests.
 
-It is delivered with a simple but efficient data access mechanism which warps ADO.Net DbConnection and can be used with MS SQL Client or Npgsql.
+It is delivered with a simple but efficient data access mechanism which warps ADO.Net DbConnection and can be used with MS SQL Client or Npgsql or MySQL Connector.
 
-It can be used together with the “Code First” concept when you declare SQL tables as C# classes with possibility to generate recreation scripts for a target platform (MS SQL or Postgres SQL)
+It can be used together with the “Code First” concept when you declare SQL tables as C# classes with possibility to generate recreation scripts for a target platform (MS SQL or PostgreSQL or MySQL)
 
 This an article that explains the library principles: ["Syntax Tree and Alternative to LINQ in Interaction with SQL Databases"](https://itnext.io/syntax-tree-and-alternative-to-linq-in-interaction-with-sql-databases-656b78fe00dc?source=friends_link&sk=f5f0587c08166d8824b96b48fe2cf33c)
 
@@ -22,9 +22,12 @@ This an article that explains the library principles: ["Syntax Tree and Alternat
 6. [Deleting Data](#deleting-data)
 7. [More Tables and foreign keys](#more-tables-and-foreign-keys)
 8. [Joining Tables](#joining-tables)
+8. [Aliasing](#aliasing)
 9. [Derived Table](#derived-table)
+9. [Subquries](#subquries)
 10. [Set Operators](#set-operators)
 11. [Postgres Sql](#postgres-sql)
+11. [My Sql](#mysql)
 12. [Merge](#merge)
 13. [Temporary Tables](#temporary-tables)
 14. [Syntax Tree](#syntax-tree)
@@ -42,8 +45,7 @@ and start with "Hello World":
 ```cs
 static void Main()
 {
-    var query = SqQueryBuilder
-        .Select(SqQueryBuilder.Literal("Hello World!")).Done();
+    var query = SqQueryBuilder.Select("Hello World!").Done();
 
     Console.WriteLine(TSqlExporter.Default.ToSql(query));
 }
@@ -52,7 +54,7 @@ Now let's get rid of the necessity in writing __"SqQueryBuilder."__:
 ```cs
 using static SqExpress.SqQueryBuilder;
 ...
-    var query = Select(Literal("Hello World!")).Done();
+    var query = Select("Hello World!").Done();
 
     Console.WriteLine(TSqlExporter.Default.ToSql(query));
 
@@ -122,7 +124,8 @@ IF EXISTS
     FROM [INFORMATION_SCHEMA].[TABLES] 
     WHERE [TABLE_SCHEMA]='dbo' AND [TABLE_NAME]='User'
 ) 
-    DROP TABLE [dbo].[User]
+    DROP TABLE [dbo].[User];
+
 CREATE TABLE [dbo].[User]
 (
     [UserId] int NOT NULL  IDENTITY (1, 1),
@@ -237,10 +240,9 @@ Unfortunately, regardless the fact the typo is fixed, we have to say "Good Bye" 
 await Delete(tUser)
     .Where(tUser.FirstName.Like("May%"))
     .Output(tUser.UserId)
-    .Query(database, (object)null, (agg, record)=>
+    .Query(database, (record)=>
     {
         Console.WriteLine("Removed user id: " + tUser.UserId.Read(record));
-        return agg;
     });
 ```
 *Actual T-SQL:*
@@ -348,10 +350,9 @@ await InsertDataInto(tCompany, new[] {"Microsoft", "Google"})
         .Set(s.Target.Version, 1)
         .Set(s.Target.ModifiedAt, GetUtcDate()))
     .Output(tCompany.CompanyId, tCompany.CompanyName)
-    .Query(database, (object) null, (agg,r) =>
+    .Query(database, (r) =>
     {
         Console.WriteLine($"Id: {tCompany.CompanyId.Read(r)}, Name: {tCompany.CompanyName.Read(r)}");
-        return null;
     });
 ```
 and create "Customers":
@@ -471,6 +472,24 @@ Id: 2, Name: Allina Freeborne, Type: 1
 Id: 3, Name: Microsoft, Type: 2
 Id: 4, Name: Google, Type: 2
 ```
+## Aliasing
+Every time you create a table object, it is associated by default with an alias that will be used wherever you refer to the table. Each new instance will use a new alias. However you can explicitly specify your own alias or omit it:
+
+```cs
+var tUser = new User("USR");
+var tUserNoAlias = new User(Alias.Empty);
+
+Select(tUser.UserId).From(tUser);
+Select(tUserNoAlias.UserId).From(tUserNoAlias);
+```
+*Actual T-SQL:*
+```sql
+--var tUser = new User("USR");
+SELECT [USR].[UserId] FROM [dbo].[user] [USR]
+
+--var tUserNoAlias = new User(Alias.Empty);
+SELECT [UserId] FROM [dbo].[user]
+```
 ## Derived Table
 The previous query is quite complex so it makes sense to store it as a derived table and reuse it in future:
 ```cs
@@ -576,6 +595,44 @@ OFFSET 1 ROW FETCH NEXT 2 ROW ONLY
 Id: 4, Name: Google, Type: 2
 Id: 2, Name: Allina Freeborne, Type: 1
 ```
+## Subquries
+It is not necessary to create a new class when you need a subquery - it can be directly described in an original expression. It is enough just to predefine the aliases for columns and tables:
+```cs
+var num = CustomColumnFactory.Int32("3");
+//Note: "3" (the first value) is for compatibility with MySql
+//which does not properly support values constructors
+
+var sum = CustomColumnFactory.Int32("Sum");
+
+var numbers = Values(3, 1, 1, 7, 3, 7, 3, 7, 7, 8).AsColumns(num);
+var numbersSubQuery = TableAlias();
+
+var mostFrequentNum = (int) await
+    SelectTop(1, numbersSubQuery.Column(num))
+        .From(
+            Select(numbers.Column(num), CountOne().As(sum))
+                .From(numbers)
+                .GroupBy(numbers.Column(num))
+                .As(numbersSubQuery)
+        )
+        .OrderBy(Desc(numbersSubQuery.Column(sum)))
+        .QueryScalar(database);
+
+Console.WriteLine("The most frequent number: "  + mostFrequentNum);
+```
+*Actual T-SQL:*
+```sql
+SELECT 
+    TOP 1 [A0].[3] 
+FROM 
+(
+    SELECT [A1].[3],COUNT(1) [Sum] 
+    FROM (VALUES (3),(1),(1),(7),(3),(7),(3),(7),(7),(8))[A1]([3]) 
+    GROUP BY [A1].[3]
+) [A0] 
+ORDER BY [A0].[Sum] DESC
+```
+*Note: In this example you can see how to use **Table Value Constructor***
 ## Set Operators
 The library supports all the SET operators:
 ```cs
@@ -618,24 +675,53 @@ INTERSECT
 ```
 ## Postgres SQL
 You can run all the scenarios using Postgres SQL (of course the actual sql will be different):
-```
+```Cs
 DbCommand NpgsqlCommandFactory(NpgsqlConnection connection, string sqlText)
 {
     return new NpgsqlCommand(sqlText, connection);
 }
 
-using (var connection = new NpgsqlConnection("Host=localhost;Port=5432;Username=postgres;Password=test;Database=test"))
+const string connectionString = 
+    "Host=localhost;Port=5432;Username=postgres;Password=test;Database=test";
+
+using (var connection = new NpgsqlConnection(connectionString))
 {
     using (var database = new SqDatabase<NpgsqlConnection>(
         connection: connection,
         commandFactory: NpgsqlCommandFactory,
         sqlExporter: new PgSqlExporter(builderOptions: SqlBuilderOptions.Default
-            .WithSchemaMap(schemaMap: new[] {new SchemaMap(@from: "dbo", to: "public")}))))
+            .WithSchemaMap(schemaMap: new[] {
+                new SchemaMap(@from: "dbo", to: "public")}))))
     {
         ...
     }
 }
 ```
+*Note: You need to add **Npgsql** package to your project.*
+## MySQL
+You also can run all the scenarios using My SQL:
+```Cs
+DbCommand MySqlCommandFactory(MySqlConnection connection, string sqlText)
+{
+    return new MySqlCommand(sqlText, connection);
+}
+
+const string connectionString = 
+    "server=127.0.0.1;uid=test;pwd=test;database=test";
+
+using (var connection = new MySqlConnection(connectionString))
+{
+    using (var database = new SqDatabase<MySqlConnection>(
+        connection: connection,
+        commandFactory: MySqlCommandFactory,
+        sqlExporter: new MySqlExporter(
+            builderOptions: SqlBuilderOptions.Default)))
+    {
+        ...
+    }
+}
+```
+*Note: You need to add **MySql.Data** or **MySqlConnector** package to your project.*
 ## Merge
 As a bonus, if you use MS SQL Server, you can use **Merge** statement:
 ```cs
@@ -667,11 +753,9 @@ await MergeDataInto(tableUser, data)
     .Output((t, s, m) => m.Inserted(t.UserId.As(inserted)).Deleted(t.UserId.As(deleted)).Action(action))
     .Done()
     .Query(database,
-        (object) null,
-        (agg, r) =>
+        (r) =>
         {
             Console.WriteLine($"UserId Inserted: {inserted.Read(r)},UserId Deleted: {deleted.Read(r)} , Action: {action.Read(r)}");
-            return agg;
         });
 ```
 *Actual T-SQL:*
@@ -740,11 +824,9 @@ await Select(tmp.Columns)
     .From(tmp)
     .OrderBy(tmp.Name)
     .Query(database,
-        (object)null,
-        (agg, r) =>
+        (r) =>
         {
             Console.WriteLine($"Id: {tmp.Id.Read(r)}, Name: {tmp.Name.Read(r)}");
-            return agg;
         });
 
 //Dropping the temp table is optional
@@ -801,14 +883,63 @@ if (hasVirtualColumn)
 
 await baseSelect!
     .Query(database,
-        (object) null,
-        (agg, r) =>
+        (r) =>
         {
             Console.WriteLine($"Id: {tableCustomer.CustomerId.Read(r)}");
-            return agg;
         });
 ```
+For simpler scenarios you can just use “With…” functions:
+```cs
+var tUser = new TableUser();
 
+Console.WriteLine("Original expression:");
+var expression = SelectTop(1, tUser.FirstName).From(tUser).Done();
+
+await expression.QueryScalar(database);
+
+expression = expression
+    .WithTop(null)
+    .WithSelectList(tUser.UserId, tUser.FirstName + " " + tUser.LastName)
+    .WithWhere(tUser.UserId == 7);
+
+Console.WriteLine("With changed selection list and filter:");
+await expression.QueryScalar(database);
+
+var tCustomer = new TableCustomer();
+expression = expression
+    .WithInnerJoin(tCustomer, on: tCustomer.UserId == tUser.UserId);
+
+Console.WriteLine("With joined table");
+await expression.QueryScalar(database);
+```
+*Actual T-SQL:*
+```sql
+--Original expression:
+SELECT TOP 1 
+    [A0].[FirstName] 
+FROM [dbo].[User] [A0]
+
+--With changed selection list  and filter:
+SELECT 
+    [A0].[UserId],
+    [A0].[FirstName]+' '+[A0].[LastName] 
+FROM [dbo].[User] 
+    [A0] 
+WHERE 
+    [A0].[UserId]=7
+
+--With joined table
+SELECT 
+    [A0].[UserId],
+    [A0].[FirstName]+' '+[A0].[LastName] 
+FROM [dbo].[User] 
+    [A0] 
+JOIN [dbo].[Customer] 
+    [A1] ON 
+    [A1].[UserId]=[A0].[UserId] 
+WHERE 
+    [A0].[UserId]=7
+```
 ## Serialization to XML
 Each expression can be exported to a xml string and then restored back. It can be useful to pass expressions over network:
 ```cs
@@ -943,11 +1074,9 @@ await Select(tableUser.FirstName, tableUser.LastName)
     .From(tableUser)
     .Where(restoredFilter1)
     .Query(database,
-        (object?) null,
-        (s, r) =>
+        (r) =>
         {
             Console.WriteLine($"{tableUser.FirstName.Read(r)} {tableUser.LastName.Read(r)}");
-            return s;
         });
 
 Console.WriteLine("Filter 2");
@@ -955,11 +1084,9 @@ await Select(tableUser.FirstName, tableUser.LastName)
     .From(tableUser)
     .Where(restoredFilter2)
     .Query(database,
-        (object?) null,
-        (s, r) =>
+        (r) =>
         {
             Console.WriteLine($"{tableUser.FirstName.Read(r)} {tableUser.LastName.Read(r)}");
-            return s;
         });
 ```
 ## Auto-Mapper

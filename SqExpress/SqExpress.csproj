@@ -22,18 +22,23 @@ Bugfix
 - '+' instead of '-' in arithmetic expressions
 - Double “LIMIT” with “ORDER BY”</PackageReleaseNotes>
     <Description>SqExpress is a sql query builder which allows creating SQL expression in C# code with strong typing and intellisense (without LINQ!).
-The library provides a generic sql syntax tree with exports to MS t-SQL and Postgres SQL text.
+The library provides a generic sql syntax tree with export to MS t-SQL, PostgreSQL and MySQL text.
+
 It also provides a set of builders and operators which will help you building complex Sql expressions.
-It does not use Linq and your C# code will be close to real SQL as much as possible, so it can be used when you need the full SQL flexibility to create efficient Db requests.
-It is delivered with a simple but efficient data access mechanism which warps ADO.Net DbConnection and can be used with MS SQL Client or Npgsql.
-It can be used together with the “Code First” concept when you declare SQL tables as C# classes with possibility to generate recreation scripts for a target platform (MS SQL or Postgres SQL)
-</Description>
+
+It does not use LINQ and your C# code will be close to real SQL as much as possible, so it can be used when you need the full SQL flexibility to create efficient Db requests.
+
+It is delivered with a simple but efficient data access mechanism which warps ADO.Net DbConnection and can be used with MS SQL Client or Npgsql or MySQL Connector.
+
+It can be used together with the “Code First” concept when you declare SQL tables as C# classes with possibility to generate recreation scripts for a target platform (MS SQL or PostgreSQL or MySQL)
+
+This an article that explains the library principles: ["Syntax Tree and Alternative to LINQ in Interaction with SQL Databases"](https://itnext.io/syntax-tree-and-alternative-to-linq-in-interaction-with-sql-databases-656b78fe00dc?source=friends_link&amp;sk=f5f0587c08166d8824b96b48fe2cf33c)</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageIcon>Icon.png</PackageIcon>
     <Copyright>Dmitry Tikhonov</Copyright>
     <AssemblyOriginatorKeyFile>SqExpress.pfx</AssemblyOriginatorKeyFile>
     <PackageProjectUrl>https://github.com/0x1000000/SqExpress</PackageProjectUrl>
-    <PackageTags>query postgres sql tsql builder mssql dataaccess</PackageTags>
+    <PackageTags>query postgresql  tsql mysql builder mssql dataaccess</PackageTags>
     <AssemblyVersion>0.0.7.0</AssemblyVersion>
     <FileVersion>0.0.7.0</FileVersion>
   </PropertyGroup>
@@ -45,7 +50,6 @@ It can be used together with the “Code First” concept when you declare SQL t
   </PropertyGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="SqExpress.Test" />
     <None Include="Icon.png">
       <Pack>True</Pack>
       <PackagePath></PackagePath>
