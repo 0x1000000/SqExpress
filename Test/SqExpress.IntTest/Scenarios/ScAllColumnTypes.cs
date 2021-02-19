@@ -10,14 +10,22 @@ using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.IntTest.Scenarios
 {
+    class CustomMapper: IValueConverter<IDataRecord, object>
+    {
+        public object Convert(IDataRecord sourceMember, ResolutionContext context)
+        {
+            throw new NotImplementedException();
+        }
+    }
     public class ScAllColumnTypes : IScenario
     {
         public async Task Exec(IScenarioContext context)
         {
-            var table = new AllColumnTypes(context.IsPostgresSql);
+            bool isPostgres = context.Dialect == SqlDialect.PgSql;
+            var table = new AllColumnTypes(isPostgres);
             await context.Database.Statement(table.Script.DropAndCreate());
 
-            var testData = GetTestData(context.IsPostgresSql);
+            var testData = GetTestData(isPostgres);
 
             await InsertDataInto(table, testData)
                 .MapData(Mapping)
@@ -28,11 +36,19 @@ namespace SqExpress.IntTest.Scenarios
                 cfg.AddDataReaderMapping();
                 var map = cfg.CreateMap<IDataRecord, AllColumnTypesDto>();
 
-                if (context.IsPostgresSql)
+                if (isPostgres)
                 {
                     map
                         .ForMember(nameof(table.ColByte), c => c.Ignore())
                         .ForMember(nameof(table.ColNullableByte), c => c.Ignore());
+                }
+                if (context.Dialect == SqlDialect.MySql)
+                {
+                    map
+                        .ForMember(nameof(table.ColBoolean), c => c.MapFrom((r, dto) => r.GetBoolean(r.GetOrdinal(nameof(table.ColBoolean)))))
+                        .ForMember(nameof(table.ColNullableBoolean), c => c.MapFrom((r, dto) => r.IsDBNull(r.GetOrdinal(nameof(table.ColNullableBoolean))) ? (bool?)null : r.GetBoolean(r.GetOrdinal(nameof(table.ColNullableBoolean)))))
+                        .ForMember(nameof(table.ColGuid), c => c.MapFrom((r, dto) => r.GetGuid(r.GetOrdinal(nameof(table.ColGuid)))))
+                        .ForMember(nameof(table.ColNullableGuid), c=>c.MapFrom((r, dto) => r.IsDBNull(r.GetOrdinal(nameof(table.ColNullableGuid)))? (Guid?)null : r.GetGuid(r.GetOrdinal(nameof(table.ColNullableGuid)))));
                 }
             }));
 

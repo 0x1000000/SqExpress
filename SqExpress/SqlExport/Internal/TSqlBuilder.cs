@@ -36,6 +36,11 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        protected override void EscapeStringLiteral(StringBuilder builder, string literal)
+        {
+            SqlInjectionChecker.AppendStringEscapeSingleQuote(builder, literal);
+        }
+
         public override bool VisitExprBoolLiteral(ExprBoolLiteral boolLiteral, IExpr? parent)
         {
             if (boolLiteral.Value.HasValue)
@@ -74,6 +79,11 @@ namespace SqExpress.SqlExport.Internal
             return false;
         }
 
+        public override bool VisitExprOffsetFetch(ExprOffsetFetch exprOffsetFetch, IExpr? parent)
+        {
+            return this.VisitExprOffsetFetchCommon(exprOffsetFetch, parent);
+        }
+
         public override bool VisitExprTempTableName(ExprTempTableName tempTableName, IExpr? parent)
         {
             char? prefix = null;
@@ -83,6 +93,16 @@ namespace SqExpress.SqlExport.Internal
             }
             this.AppendName(tempTableName.Name, prefix);
             return true;
+        }
+
+        public override bool VisitExprDbSchema(ExprDbSchema exprDbSchema, IExpr? parent)
+        {
+            return this.VisitExprDbSchemaCommon(exprDbSchema, parent);
+        }
+
+        public override bool VisitExprDerivedTableValues(ExprDerivedTableValues derivedTableValues, IExpr? parent)
+        {
+            return this.VisitExprDerivedTableValuesCommon(derivedTableValues, parent);
         }
 
         public override bool VisitExprInsertOutput(ExprInsertOutput exprInsertOutput, IExpr? parent)
@@ -103,9 +123,13 @@ namespace SqExpress.SqlExport.Internal
                         exprInsertOutput.OutputColumns[i].Accept(this, exprInsertOutput);
                     }
                 },
-                null,
-                exprInsertOutput);
+                null);
             return true;
+        }
+
+        public override bool VisitExprInsertQuery(ExprInsertQuery exprInsertQuery, IExpr? parent)
+        {
+            return this.VisitExprInsertQueryCommon(exprInsertQuery, parent);
         }
 
         public override bool VisitExprUpdate(ExprUpdate exprUpdate, IExpr? parent)
@@ -154,6 +178,11 @@ namespace SqExpress.SqlExport.Internal
         {
             this.GenericDelete(exprDeleteOutput.Delete.Target, exprDeleteOutput.OutputColumns, exprDeleteOutput.Delete.Source, exprDeleteOutput.Delete.Filter, exprDeleteOutput);
             return true;
+        }
+
+        public override bool VisitExprCast(ExprCast exprCast, IExpr? parent)
+        {
+            return this.VisitExprCastCommon(exprCast, parent);
         }
 
         private void GenericDelete(ExprTable targetIn, IReadOnlyList<ExprAliasedColumn>? output, IExprTableSource? source, ExprBoolean? filter, IExpr? parent)

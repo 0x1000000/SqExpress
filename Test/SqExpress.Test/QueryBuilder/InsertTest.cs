@@ -86,6 +86,11 @@ namespace SqExpress.Test.QueryBuilder
             var after = ExprDeserializer.DeserializeFormPlainList(list);
 
             Assert.AreEqual(expected, after.ToSql());
+
+            //My SQL
+            expected = "INSERT INTO `user`(`FirstName`,`LastName`,`Email`,`RegDate`,`Version`,`Created`) SELECT `A0`.*,5,'2020-01-02' FROM (VALUES ('First0','Last0','user0@company.com','2020-01-02'),('First1','Last1','user1@company.com','2020-01-02'),('First2','Last2','user2@company.com','2020-01-02'))`A0`  RETURNING `UserId`";
+            Assert.AreEqual(expected,after.ToMySql());
+
         }
 
         [Test]

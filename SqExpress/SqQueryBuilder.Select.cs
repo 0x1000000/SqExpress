@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using SqExpress.QueryBuilders.Select;
 using SqExpress.QueryBuilders.Select.Internal;
+using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Value;
 using SqExpress.Utils;
@@ -39,5 +40,13 @@ namespace SqExpress
         public static ExprOrderByItem Asc(ExprValue value)=>new ExprOrderByItem(value, false);
 
         public static ExprOrderByItem Desc(ExprValue value)=>new ExprOrderByItem(value, true);
+
+        public static ExprAllColumns AllColumns() => new ExprAllColumns(null);
+
+        public static ExprTableValueConstructor Values(IReadOnlyList<IReadOnlyList<ExprValue>> valueRows) 
+            => new ExprTableValueConstructor(valueRows.SelectToReadOnlyList(i=> new ExprValueRow(i)));
+
+        public static ExprTableValueConstructor Values(IReadOnlyList<ExprValue> values) 
+            => new ExprTableValueConstructor(values.SelectToReadOnlyList(i=> new ExprValueRow(new[]{i})));
     }
 }

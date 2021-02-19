@@ -164,6 +164,15 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprAllColumns(ExprAllColumns exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newSource = this.AcceptNullableItem(exprIn.Source, modifier);
+            if(!ReferenceEquals(exprIn.Source, newSource))
+            {
+                exprIn = new ExprAllColumns(source: newSource);
+            }
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprAnalyticFunction(ExprAnalyticFunction exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newName = this.AcceptItem(exprIn.Name, modifier);
@@ -344,6 +353,10 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprCurrentRowFrameBorder(ExprCurrentRowFrameBorder exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprDatabaseName(ExprDatabaseName exprIn, Func<IExpr, IExpr?> modifier)
         {
             return modifier.Invoke(exprIn);
@@ -462,6 +475,16 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             if(!ReferenceEquals(exprIn.And, newAnd))
             {
                 exprIn = new ExprExprMergeNotMatchedInsertDefault(and: newAnd);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprFrameClause(ExprFrameClause exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newStart = this.AcceptItem(exprIn.Start, modifier);
+            var newEnd = this.AcceptNullableItem(exprIn.End, modifier);
+            if(!ReferenceEquals(exprIn.Start, newStart) || !ReferenceEquals(exprIn.End, newEnd))
+            {
+                exprIn = new ExprFrameClause(start: newStart, end: newEnd);
             }
             return modifier.Invoke(exprIn);
         }
@@ -659,6 +682,16 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprModulo(ExprModulo exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newLeft = this.AcceptItem(exprIn.Left, modifier);
+            var newRight = this.AcceptItem(exprIn.Right, modifier);
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            {
+                exprIn = new ExprModulo(left: newLeft, right: newRight);
+            }
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprMul(ExprMul exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newLeft = this.AcceptItem(exprIn.Left, modifier);
@@ -760,9 +793,10 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         {
             var newPartitions = this.AcceptNullCollection(exprIn.Partitions, modifier);
             var newOrderBy = this.AcceptNullableItem(exprIn.OrderBy, modifier);
-            if(!ReferenceEquals(exprIn.Partitions, newPartitions) || !ReferenceEquals(exprIn.OrderBy, newOrderBy))
+            var newFrameClause = this.AcceptNullableItem(exprIn.FrameClause, modifier);
+            if(!ReferenceEquals(exprIn.Partitions, newPartitions) || !ReferenceEquals(exprIn.OrderBy, newOrderBy) || !ReferenceEquals(exprIn.FrameClause, newFrameClause))
             {
-                exprIn = new ExprOver(partitions: newPartitions, orderBy: newOrderBy);
+                exprIn = new ExprOver(partitions: newPartitions, orderBy: newOrderBy, frameClause: newFrameClause);
             }
             return modifier.Invoke(exprIn);
         }
@@ -944,6 +978,10 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         {
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprUnboundedFrameBorder(ExprUnboundedFrameBorder exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprUnsafeValue(ExprUnsafeValue exprIn, Func<IExpr, IExpr?> modifier)
         {
             return modifier.Invoke(exprIn);
@@ -957,6 +995,15 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             if(!ReferenceEquals(exprIn.Target, newTarget) || !ReferenceEquals(exprIn.SetClause, newSetClause) || !ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.Filter, newFilter))
             {
                 exprIn = new ExprUpdate(target: newTarget, setClause: newSetClause, source: newSource, filter: newFilter);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprValueFrameBorder(ExprValueFrameBorder exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newValue = this.AcceptItem(exprIn.Value, modifier);
+            if(!ReferenceEquals(exprIn.Value, newValue))
+            {
+                exprIn = new ExprValueFrameBorder(value: newValue, frameBorderDirection: exprIn.FrameBorderDirection);
             }
             return modifier.Invoke(exprIn);
         }

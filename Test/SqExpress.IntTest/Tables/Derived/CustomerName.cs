@@ -4,7 +4,7 @@ namespace SqExpress.IntTest.Tables.Derived
 {
     public class CustomerName : DerivedTableBase
     {
-        private readonly Customer _tCustomer = Tables.Customer();
+        private readonly Customer _tCustomer = TableList.Customer();
 
         public enum CustomerType : short
         {
@@ -27,8 +27,8 @@ namespace SqExpress.IntTest.Tables.Derived
 
         protected override IExprSubQuery CreateQuery()
         {
-            var tUser = Tables.User();
-            var tCompany = Tables.Company();
+            var tUser = TableList.User();
+            var tCompany = TableList.Company();
 
             return Select(
                     this._tCustomer.CustomerId,
@@ -44,14 +44,16 @@ namespace SqExpress.IntTest.Tables.Derived
                     Case()
                         .When(IsNotNull(tUser.UserId))
                         .Then(tUser.FirstName + " " + tUser.LastName)
+
                         .When(IsNotNull(tCompany.CompanyId))
                         .Then(tCompany.CompanyName)
+
                         .Else("-")
                         .As(this.Name)
                     )
                 .From(this._tCustomer)
-                .LeftJoin(tUser, @on: this._tCustomer.UserId == tUser.UserId)
-                .LeftJoin(tCompany, @on: this._tCustomer.CompanyId == tCompany.CompanyId)
+                .LeftJoin(tUser, on: this._tCustomer.UserId == tUser.UserId)
+                .LeftJoin(tCompany, on: this._tCustomer.CompanyId == tCompany.CompanyId)
                 .Done();
         }
     }

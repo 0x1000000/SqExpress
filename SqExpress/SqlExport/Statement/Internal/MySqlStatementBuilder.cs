@@ -2,17 +2,16 @@
 using SqExpress.SqlExport.Internal;
 using SqExpress.StatementSyntax;
 using SqExpress.Syntax.Names;
-using SqExpress.Utils;
 
 namespace SqExpress.SqlExport.Statement.Internal
 {
-    internal class PgSqlStatementBuilder : SqlStatementBuilderBase
+    internal class MySqlStatementBuilder : SqlStatementBuilderBase
     {
-        private readonly PgSqlBuilder _exprBuilder;
+        private readonly MySqlBuilder _exprBuilder;
 
-        public PgSqlStatementBuilder(SqlBuilderOptions? options) : base(options)
+        public MySqlStatementBuilder(SqlBuilderOptions? options) : base(options)
         {
-            this._exprBuilder = new PgSqlBuilder(this.Options, this.Builder);
+            this._exprBuilder = new MySqlBuilder(this.Options, this.Builder);
         }
 
         public string Build() => this.Builder.ToString();
@@ -21,7 +20,6 @@ namespace SqExpress.SqlExport.Statement.Internal
         {
             column.ColumnName.Accept(this.ExprBuilder, null);
             this.Builder.Append(' ');
-
 
             column.SqlType.Accept(this.ExprBuilder, null);
 
@@ -34,7 +32,7 @@ namespace SqExpress.SqlExport.Statement.Internal
             {
                 if (column.ColumnMeta.IsIdentity)
                 {
-                    this.Builder.Append("  GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 )");
+                    this.Builder.Append(" AUTO_INCREMENT");
                 }
 
                 if (!ReferenceEquals(column.ColumnMeta.ColumnDefaultValue, null))
@@ -50,51 +48,32 @@ namespace SqExpress.SqlExport.Statement.Internal
         {
             if (tableName is ExprTempTableName)
             {
-                this.Builder.Append("TEMP ");
+                this.Builder.Append("TEMPORARY ");
             }
         }
 
         protected override void AppendIndexesInside(TableBase table)
         {
-            //Postgres requires separate statements for indexes 
+            foreach (var tableIndex in table.Indexes)
+            {
+                if (!tableIndex.Unique)
+                {
+                    this.Builder.Append(",INDEX ");
+                }
+                else
+                {
+                    this.Builder.Append(",UNIQUE KEY ");
+                }
+
+                this.AppendName(this.BuildIndexName(table.FullName, tableIndex));
+
+                this.AppendIndexColumnList(tableIndex: tableIndex);
+            }
         }
 
         protected override void AppendIndexesOutside(TableBase table)
         {
-            IndexMeta? clusteredIndex = null;
-            foreach (var tableIndex in table.Indexes)
-            {
-                this.Builder.Append("CREATE ");
-                if (tableIndex.Unique)
-                {
-                    this.Builder.Append("UNIQUE ");
-                }
-                this.Builder.Append("INDEX ");
-                if (tableIndex.Clustered)
-                {
-                    if (clusteredIndex != null)
-                    {
-                        throw new SqExpressException("Table can have only one clustered index");
-                    }
-
-                    clusteredIndex = tableIndex;
-                }
-                this.AppendName(this.BuildIndexName(table.FullName, tableIndex));
-                this.Builder.Append(" ON ");
-                table.FullName.Accept(this.ExprBuilder, null);
-
-                this.AppendIndexColumnList(tableIndex: tableIndex);
-                this.Builder.Append(";");
-            }
-
-            if (clusteredIndex != null)
-            {
-                this.Builder.Append(";CLUSTER ");
-                table.FullName.Accept(this.ExprBuilder, null);
-                this.Builder.Append(" USING ");
-                this.AppendName(this.BuildIndexName(table.FullName, clusteredIndex));
-                this.Builder.Append(";");
-            }
+            //All indexes are created inside CREATE TABLE
         }
 
         public override void VisitCreateTable(StatementCreateTable statementCreateTable)
@@ -117,6 +96,7 @@ namespace SqExpress.SqlExport.Statement.Internal
         {
             throw new NotSupportedException("Not supported");
         }
+
 
         public override void VisitIfTableExists(StatementIfTableExists statementIfExists)
         {

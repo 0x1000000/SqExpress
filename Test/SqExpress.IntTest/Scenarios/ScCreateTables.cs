@@ -11,10 +11,10 @@ namespace SqExpress.IntTest.Scenarios
         {
             IReadOnlyList<TableBase> createList = new List<TableBase>
             {
-                Tables.Tables.User(),
-                Tables.Tables.Company(),
-                Tables.Tables.Customer(),
-                Tables.Tables.CustomerOrder()
+                Tables.TableList.User(),
+                Tables.TableList.Company(),
+                Tables.TableList.Customer(),
+                Tables.TableList.Order()
             };
 
             var dropping = createList.Reverse().Select(i => i.Script.DropIfExist()).Combine();
@@ -22,7 +22,6 @@ namespace SqExpress.IntTest.Scenarios
 
             var creating = createList.Select(i => i.Script.Create()).Combine();
             await context.Database.Statement(creating);
-
         }
     }
 }

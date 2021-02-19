@@ -2,6 +2,7 @@
 using System.Data;
 using System.Threading.Tasks;
 using SqExpress.IntTest.Context;
+using SqExpress.IntTest.Tables;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.IntTest.Scenarios
@@ -16,6 +17,7 @@ namespace SqExpress.IntTest.Scenarios
             await CaseWhenThenIsNull(context: context);
             await CaseWhenThenCoalesce(context: context);
             await GetUtcDateFunc(context: context);
+            await SelectAllColumns(context: context);
         }
 
         private static async Task CaseWhenThen(IScenarioContext context)
@@ -81,6 +83,32 @@ namespace SqExpress.IntTest.Scenarios
             var result = await Select(GetUtcDate())
                 .Query(context.Database, (DateTime?)null, (agg, next)=> next.GetDateTime(0));
             Console.WriteLine($"Utc now: {result}");
+        }
+
+        private static async Task SelectAllColumns(IScenarioContext context)
+        {
+            void PrintColumns(ISqDataRecordReader r)
+            {
+                for (int i = 0; i < r.FieldCount; i++)
+                {
+                    context.Write(r.GetName(i) + ",");
+                }
+
+                context.WriteLine(null);
+            }
+
+            var tUser = TableList.User();
+            var tCustomer = TableList.Customer();
+
+            await SelectTop(1, AllColumns()).From(tUser).Query(context.Database, PrintColumns);
+
+            await SelectTop(1, tUser.AllColumns()).From(tUser).Query(context.Database, PrintColumns);
+
+            await SelectTop(1, tUser.AllColumns(), tCustomer.AllColumns())
+                .From(tUser)
+                .InnerJoin(tCustomer, on: tCustomer.UserId == tUser.UserId)
+                .Query(context.Database, PrintColumns);
+
         }
     }
 }

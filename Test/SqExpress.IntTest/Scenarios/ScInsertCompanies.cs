@@ -15,7 +15,7 @@ namespace SqExpress.IntTest.Scenarios
     {
         public async Task Exec(IScenarioContext context)
         {
-            var company = Tables.Tables.Company();
+            var company = Tables.TableList.Company();
 
             DateTime now = DateTime.UtcNow;
 
@@ -30,7 +30,7 @@ namespace SqExpress.IntTest.Scenarios
                 .Output(company.CompanyId)
                 .QueryList(context.Database, r=> company.CompanyId.Read(r));
 
-            var customer = Tables.Tables.Customer();
+            var customer = Tables.TableList.Customer();
 
             //Insert customer
             await InsertDataInto(customer, inserted)

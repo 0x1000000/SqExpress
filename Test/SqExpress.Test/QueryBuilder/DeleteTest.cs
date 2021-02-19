@@ -1,4 +1,5 @@
-﻿using NUnit.Framework;
+﻿using System;
+using NUnit.Framework;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.Test.QueryBuilder
@@ -10,15 +11,29 @@ namespace SqExpress.Test.QueryBuilder
         public void DeleteFromTableTest()
         {
             var table = Tables.User(Alias.Empty);
+            var tableA = Tables.User();
 
-            Assert.AreEqual("DELETE [dbo].[user]", Delete(table).All().ToSql());
-            Assert.AreEqual("DELETE [dbo].[user] WHERE [UserId] IN(1,2)",
-                Delete(table).Where(table.UserId.In(1, 2)).ToSql());
+            var deleteAll = Delete(table).All();
+            var deleteWhere = Delete(table).Where(table.UserId.In(1, 2));
 
-            table = Tables.User();
-            Assert.AreEqual("DELETE [A0] FROM [dbo].[user] [A0]", Delete(table).All().ToSql());
-            Assert.AreEqual("DELETE [A0] FROM [dbo].[user] [A0] WHERE [A0].[UserId] IN(1,2)",
-                Delete(table).Where(table.UserId.In(1, 2)).ToSql());
+            var deleteAllA = Delete(tableA).All();
+            var deleteWhereA = Delete(tableA).Where(tableA.UserId.In(1, 2));
+
+            Assert.AreEqual("DELETE [dbo].[user]", deleteAll.ToSql());
+            Assert.AreEqual("DELETE FROM `user`", deleteAll.ToMySql());
+            Assert.AreEqual("DELETE FROM \"public\".\"user\"", deleteAll.ToPgSql());
+
+            Assert.AreEqual("DELETE [dbo].[user] WHERE [UserId] IN(1,2)", deleteWhere.ToSql());
+            Assert.AreEqual("DELETE FROM `user` WHERE `UserId` IN(1,2)", deleteWhere.ToMySql());
+            Assert.AreEqual("DELETE FROM \"public\".\"user\" WHERE \"UserId\" IN(1,2)", deleteWhere.ToPgSql());
+
+            Assert.AreEqual("DELETE [A0] FROM [dbo].[user] [A0]", deleteAllA.ToSql());
+            Assert.AreEqual("DELETE FROM `user`", deleteAllA.ToMySql());
+            Assert.AreEqual("DELETE FROM \"public\".\"user\" \"A0\"", deleteAllA.ToPgSql());
+
+            Assert.AreEqual("DELETE [A0] FROM [dbo].[user] [A0] WHERE [A0].[UserId] IN(1,2)", deleteWhereA.ToSql());
+            Assert.AreEqual("DELETE FROM `user` WHERE `UserId` IN(1,2)", deleteWhereA.ToMySql());
+            Assert.AreEqual("DELETE FROM \"public\".\"user\" \"A0\" WHERE \"A0\".\"UserId\" IN(1,2)", deleteWhereA.ToPgSql());
         }
 
         [Test]
@@ -28,20 +43,29 @@ namespace SqExpress.Test.QueryBuilder
             var tUser = Tables.User();
             var tCustomer = Tables.Customer();
 
-            Assert.AreEqual("DELETE [dbo].[user] FROM [dbo].[user]",
-                Delete(tUserSinAlias).From(tUserSinAlias).All().ToSql());
-            Assert.AreEqual("DELETE [A0] FROM [dbo].[user] [A0]", Delete(tUser).From(tUser).All().ToSql());
+            var exprDeleteSinAlias = Delete(tUserSinAlias).From(tUserSinAlias).All();
+            Assert.AreEqual("DELETE [dbo].[user] FROM [dbo].[user]", exprDeleteSinAlias.ToSql());
+            Assert.AreEqual("DELETE FROM \"public\".\"user\"", exprDeleteSinAlias.ToPgSql());
+            Assert.AreEqual("DELETE `user` FROM `user`", exprDeleteSinAlias.ToMySql());
+
+            var exprDeleteConAlias = Delete(tUser).From(tUser).All();
+            Assert.AreEqual("DELETE [A0] FROM [dbo].[user] [A0]", exprDeleteConAlias.ToSql());
+            Assert.AreEqual("DELETE `user` FROM `user`", exprDeleteSinAlias.ToMySql());
 
 
             //Join
 
-            var actual = Delete(tUser)
+            var deleteInnerJoin = Delete(tUser)
                 .From(tUser)
-                .InnerJoin(tCustomer, on: tCustomer.UserId == tUser.UserId)
-                .All()
-                .ToSql();
-            var expected =
-                "DELETE [A0] FROM [dbo].[user] [A0] JOIN [dbo].[Customer] [A1] ON [A1].[UserId]=[A0].[UserId]";
+                .InnerJoin(tCustomer, @on: tCustomer.UserId == tUser.UserId)
+                .All();
+
+            var actual = deleteInnerJoin.ToSql();
+            var expected = "DELETE [A0] FROM [dbo].[user] [A0] JOIN [dbo].[Customer] [A1] ON [A1].[UserId]=[A0].[UserId]";
+            Assert.AreEqual(expected, actual);
+
+            actual = deleteInnerJoin.ToMySql();
+            expected = "DELETE `A0` FROM `user` `A0` JOIN `Customer` `A1` ON `A1`.`UserId`=`A0`.`UserId`";
             Assert.AreEqual(expected, actual);
 
             actual = Delete(tUser).From(tUser).LeftJoin(tCustomer, on: tCustomer.UserId == tUser.UserId).All().ToSql();

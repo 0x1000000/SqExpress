@@ -7,7 +7,7 @@ using SqExpress.Utils;
 
 namespace SqExpress.SqlExport.Statement.Internal
 {
-    internal abstract class SqlStatementBuilderBase
+    internal abstract class SqlStatementBuilderBase : IStatementVisitor
     {
         protected readonly StringBuilder Builder = new StringBuilder();
 
@@ -173,5 +173,21 @@ namespace SqExpress.SqlExport.Statement.Internal
 
             return nameBuilder.ToString();
         }
+
+        public abstract void VisitCreateTable(StatementCreateTable statementCreateTable);
+        public abstract void VisitDropTable(StatementDropTable statementDropTable);
+        public abstract void VisitIf(StatementIf statementIf);
+
+        public void VisitStatementList(StatementList statementList)
+        {
+            statementList.Statements.AssertNotEmpty("Statement list cannot be empty");
+            for (int i = 0; i < statementList.Statements.Count; i++)
+            {
+                statementList.Statements[i].Accept(this);
+            }
+
+        }
+        public abstract void VisitIfTableExists(StatementIfTableExists statementIfExists);
+        public abstract void VisitIfTempTableExists(StatementIfTempTableExists statementIfTempTableExists);
     }
 }

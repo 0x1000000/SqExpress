@@ -1,10 +1,22 @@
 ﻿using System;
-using System.Collections.Generic;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Value;
 
 namespace SqExpress.Syntax.Names
 {
+    public class ExprAllColumns : IExprSelecting
+    {
+        public ExprAllColumns(IExprColumnSource? source)
+        {
+            this.Source = source;
+        }
+
+        public IExprColumnSource? Source { get; }
+
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprAllColumns(this, arg);
+    }
+
     public class ExprColumn : ExprValue, IExprNamedSelecting, IEquatable<ExprColumn>
     {
         public IExprColumnSource? Source { get; }

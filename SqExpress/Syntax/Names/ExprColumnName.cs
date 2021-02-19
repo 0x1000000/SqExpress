@@ -28,6 +28,8 @@ namespace SqExpress.Syntax.Names
 
         public static implicit operator ExprColumnName(ExprColumn column) => column.ColumnName;
 
+        public static implicit operator ExprColumnName(string columnName) => new ExprColumnName(columnName);
+
         string IExprNamedSelecting.OutputName => this.Name;
 
         public bool Equals(ExprColumnName? other)

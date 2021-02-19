@@ -91,7 +91,7 @@ namespace SqExpress.IntTest.Scenarios
             {
                 if (expected != actual)
                 {
-                    throw new SqExpressException($"{(context.IsPostgresSql ? "PostgresSql" : "MS Sql")} {mode} - Expected '{expected:O}' does not equal to actual '{actual:O}'");
+                    throw new SqExpressException($"{context.Dialect} {mode} - Expected '{expected:O}' does not equal to actual '{actual:O}'");
                 }
             }
         }

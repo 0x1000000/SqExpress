@@ -1,4 +1,5 @@
-﻿using NUnit.Framework;
+﻿using System;
+using NUnit.Framework;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.Test.QueryBuilder
@@ -211,6 +212,24 @@ namespace SqExpress.Test.QueryBuilder
             Assert.AreEqual("SELECT TOP 7 [A0].[UserId] FROM [dbo].[user] [A0]", actual);
             actual = expr.ToPgSql();
             Assert.AreEqual("SELECT \"A0\".\"UserId\" FROM \"public\".\"user\" \"A0\" LIMIT 7", actual);
+
+            //OrderBy OFFSET
+            expr = SelectTop(7, u.UserId).From(u).OrderBy(u.FirstName).Done();
+            actual = expr.ToSql();
+            Assert.AreEqual("SELECT TOP 7 [A0].[UserId] FROM [dbo].[user] [A0] ORDER BY [A0].[FirstName]", actual);
+            actual = expr.ToPgSql();
+            Assert.AreEqual("SELECT \"A0\".\"UserId\" FROM \"public\".\"user\" \"A0\" ORDER BY \"A0\".\"FirstName\" LIMIT 7", actual);
+            actual = expr.ToMySql();
+            Assert.AreEqual("SELECT `A0`.`UserId` FROM `user` `A0` ORDER BY `A0`.`FirstName` LIMIT 7", actual);
+
+            //OrderBy OFFSET
+            expr = SelectTop(7, u.UserId).From(u).OrderBy(u.FirstName).Offset(5).Done();
+            actual = expr.ToSql();
+            Assert.AreEqual("SELECT TOP 7 [A0].[UserId] FROM [dbo].[user] [A0] ORDER BY [A0].[FirstName] OFFSET 5 ROW", actual);
+            actual = expr.ToPgSql();
+            Assert.AreEqual("SELECT \"A0\".\"UserId\" FROM \"public\".\"user\" \"A0\" ORDER BY \"A0\".\"FirstName\" LIMIT 7 OFFSET 5 ROW", actual);
+            actual = expr.ToMySql();
+            Assert.AreEqual("SELECT `A0`.`UserId` FROM `user` `A0` ORDER BY `A0`.`FirstName` LIMIT 7 OFFSET 5", actual);
 
             //Join
             expr = SelectTop(7, u.UserId).From(u).InnerJoin(u2, on: u2.UserId == u.UserId).Done();

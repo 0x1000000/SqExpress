@@ -4,11 +4,10 @@ using SqExpress.StatementSyntax;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Names;
-using SqExpress.Utils;
 
 namespace SqExpress.SqlExport.Statement.Internal
 {
-    internal class TSqlStatementBuilder : SqlStatementBuilderBase, IStatementVisitor
+    internal class TSqlStatementBuilder : SqlStatementBuilderBase
     {
         private readonly TSqlBuilder _exprBuilder;
 
@@ -17,7 +16,7 @@ namespace SqExpress.SqlExport.Statement.Internal
             this._exprBuilder = new TSqlBuilder(this.Options, this.Builder);
         }
 
-        public void VisitCreateTable(StatementCreateTable statementCreateTable)
+        public override void VisitCreateTable(StatementCreateTable statementCreateTable)
         {
             this.AppendTable(statementCreateTable);
         }
@@ -78,7 +77,7 @@ namespace SqExpress.SqlExport.Statement.Internal
             //All indexes are created inside CREATE TABLE
         }
 
-        public void VisitDropTable(StatementDropTable statementDropTable)
+        public override void VisitDropTable(StatementDropTable statementDropTable)
         {
             if (!statementDropTable.IfExists)
             {
@@ -102,7 +101,7 @@ namespace SqExpress.SqlExport.Statement.Internal
             }
         }
 
-        public void VisitIf(StatementIf statementIf)
+        public override void VisitIf(StatementIf statementIf)
         {
             this.Builder.Append("IF ");
             statementIf.Condition.Accept(this.ExprBuilder, null);
@@ -132,15 +131,7 @@ namespace SqExpress.SqlExport.Statement.Internal
             }
         }
 
-        public void VisitStatementList(StatementList statementList)
-        {
-            for (int i = 0; i < statementList.Statements.Count; i++)
-            {
-                statementList.Statements[i].Accept(this);
-            }
-        }
-
-        public void VisitIfTableExists(StatementIfTableExists statementIfExists)
+        public override void VisitIfTableExists(StatementIfTableExists statementIfExists)
         {
             if (statementIfExists.ExprTable.DbSchema == null)
             {
@@ -161,7 +152,7 @@ namespace SqExpress.SqlExport.Statement.Internal
             new StatementIf(SqQueryBuilder.Exists(test), statementIfExists.Statements, statementIfExists.ElseStatements).Accept(this);
         }
 
-        public void VisitIfTempTableExists(StatementIfTempTableExists statementIfTempTableExists)
+        public override void VisitIfTempTableExists(StatementIfTempTableExists statementIfTempTableExists)
         {
             var tableName =  TSqlExporter.Default.ToSql(statementIfTempTableExists.Table);
 

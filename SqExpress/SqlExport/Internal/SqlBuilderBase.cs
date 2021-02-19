@@ -217,12 +217,14 @@ namespace SqExpress.SqlExport.Internal
             this.Builder.Append('\'');
             if (stringLiteral.Value != null)
             {
-                SqlInjectionChecker.AppendStringEscapeSingleQuote(this.Builder, stringLiteral.Value);
+                this.EscapeStringLiteral(this.Builder, stringLiteral.Value);
             }
 
             this.Builder.Append('\'');
             return true;
         }
+
+        protected abstract void EscapeStringLiteral(StringBuilder builder, string literal);
 
         public bool VisitExprDateTimeLiteral(ExprDateTimeLiteral dateTimeLiteral, IExpr? parent)
         {
@@ -388,6 +390,14 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public bool VisitExprModulo(ExprModulo exprModulo, IExpr? arg)
+        {
+            this.CheckPlusMinusParenthesizes(exprModulo.Left, exprModulo);
+            this.Builder.Append('%');
+            this.CheckPlusMinusParenthesizes(exprModulo.Right, exprModulo);
+            return true;
+        }
+
         public abstract bool VisitExprStringConcat(ExprStringConcat exprStringConcat, IExpr? parent);
 
         private void CheckPlusMinusParenthesizes(ExprValue exp, IExpr? parent)
@@ -442,9 +452,9 @@ namespace SqExpress.SqlExport.Internal
                 this.AcceptListComaSeparated(exprQuerySpecification.GroupBy, exprQuerySpecification);
             }
 
-            if (!ReferenceEquals(exprQuerySpecification.Top, null))
+            if (!ReferenceEquals(exprQuerySpecification.Top, null) && !(parent is ExprSelect) && !(parent is ExprSelectOffsetFetch))
             {
-                //For PostgresSQL
+                //For non T-SQL (PostgresSQL, My SQL)
                 this.AppendSelectLimit(exprQuerySpecification.Top, exprQuerySpecification);
             }
 
@@ -563,6 +573,20 @@ namespace SqExpress.SqlExport.Internal
         public bool VisitExprOrderByOffsetFetch(ExprOrderByOffsetFetch exprOrderByOffsetFetch, IExpr? parent)
         {
             this.AcceptListComaSeparated(exprOrderByOffsetFetch.OrderList, exprOrderByOffsetFetch);
+
+            if (parent is ExprSelectOffsetFetch exprSelectOffsetFetch && exprSelectOffsetFetch.SelectQuery is ExprQuerySpecification specification)
+            {
+                if (!ReferenceEquals(specification.Top, null))
+                {
+                    if (!ReferenceEquals(exprSelectOffsetFetch.OrderBy.OffsetFetch.Fetch, null) && exprSelectOffsetFetch.OrderBy.OffsetFetch.Fetch.Value.HasValue)
+                    {
+                        throw new SqExpressException("Query with \"FETCH\" cannot be limited");
+                    }
+
+                    this.AppendSelectLimit(specification.Top, exprSelectOffsetFetch);
+                }
+            }
+
             exprOrderByOffsetFetch.OffsetFetch.Accept(this, exprOrderByOffsetFetch);
             return true;
         }
@@ -577,7 +601,9 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
-        public bool VisitExprOffsetFetch(ExprOffsetFetch exprOffsetFetch, IExpr? parent)
+        public abstract bool VisitExprOffsetFetch(ExprOffsetFetch exprOffsetFetch, IExpr? parent);
+
+        protected bool VisitExprOffsetFetchCommon(ExprOffsetFetch exprOffsetFetch, IExpr? parent)
         {
             this.Builder.Append(" OFFSET ");
             exprOffsetFetch.Offset.Accept(this, exprOffsetFetch);
@@ -654,8 +680,10 @@ namespace SqExpress.SqlExport.Internal
         {
             if (exprScalarFunction.Schema != null)
             {
-                exprScalarFunction.Schema.Accept(this, exprScalarFunction);
-                this.Builder.Append('.');
+                if (exprScalarFunction.Schema.Accept(this, exprScalarFunction))
+                {
+                    this.Builder.Append('.');
+                }
             }
 
             exprScalarFunction.Name.Accept(this, exprScalarFunction);
@@ -708,7 +736,73 @@ namespace SqExpress.SqlExport.Internal
                 this.Builder.Append("ORDER BY ");
                 exprOver.OrderBy.Accept(this, exprOver);
             }
+
+            if (exprOver.FrameClause != null)
+            {
+                this.Builder.Append(' ');
+                exprOver.FrameClause.Accept(this, exprOver);
+            }
+
             this.Builder.Append(")");
+            return true;
+        }
+
+        public bool VisitExprFrameClause(ExprFrameClause exprFrameClause, IExpr? arg)
+        {
+            this.Builder.Append("ROWS ");
+            
+            if (exprFrameClause.End != null)
+            {
+                this.Builder.Append("BETWEEN ");
+                exprFrameClause.Start.Accept(this, exprFrameClause);
+                this.Builder.Append(" AND ");
+                exprFrameClause.End.Accept(this, exprFrameClause);
+            }
+            else
+            {
+                exprFrameClause.Start.Accept(this, exprFrameClause);
+            }
+
+            return true;
+        }
+
+        public bool VisitExprValueFrameBorder(ExprValueFrameBorder exprValueFrameBorder, IExpr? arg)
+        {
+            exprValueFrameBorder.Value.Accept(this, exprValueFrameBorder);
+            switch (exprValueFrameBorder.FrameBorderDirection)
+            {
+                case FrameBorderDirection.Preceding:
+                    this.Builder.Append(" PRECEDING");
+                    break;
+                case FrameBorderDirection.Following:
+                    this.Builder.Append(" FOLLOWING");
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+            return true;
+        }
+
+        public bool VisitExprCurrentRowFrameBorder(ExprCurrentRowFrameBorder exprCurrentRowFrameBorder, IExpr? arg)
+        {
+            this.Builder.Append("CURRENT ROW");
+            return true;
+        }
+
+        public bool VisitExprUnboundedFrameBorder(ExprUnboundedFrameBorder exprUnboundedFrameBorder, IExpr? arg)
+        {
+            switch (exprUnboundedFrameBorder.FrameBorderDirection)
+            {
+                case FrameBorderDirection.Preceding:
+                    this.Builder.Append("UNBOUNDED PRECEDING");
+                    break;
+                case FrameBorderDirection.Following:
+                    this.Builder.Append("UNBOUNDED FOLLOWING");
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+
             return true;
         }
 
@@ -782,6 +876,19 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public bool VisitExprAllColumns(ExprAllColumns exprAllColumns, IExpr? parent)
+        {
+            if (exprAllColumns.Source != null)
+            {
+                exprAllColumns.Source.Accept(this, exprAllColumns);
+                this.Builder.Append('.');
+            }
+
+            this.Builder.Append('*');
+
+            return true;
+        }
+
         public bool VisitExprColumnName(ExprColumnName columnName, IExpr? parent)
         {
             this.AppendName(columnName.Name);
@@ -798,8 +905,10 @@ namespace SqExpress.SqlExport.Internal
         {
             if (exprTableFullName.DbSchema != null)
             {
-                exprTableFullName.DbSchema.Accept(this, exprTableFullName);
-                this.Builder.Append('.');
+                if (exprTableFullName.DbSchema.Accept(this, exprTableFullName))
+                {
+                    this.Builder.Append('.');
+                }
             }
             exprTableFullName.TableName.Accept(this, exprTableFullName);
             return true;
@@ -873,7 +982,9 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
-        public bool VisitExprDbSchema(ExprDbSchema exprDbSchema, IExpr? parent)
+        public abstract bool VisitExprDbSchema(ExprDbSchema exprDbSchema, IExpr? parent);
+
+        public bool VisitExprDbSchemaCommon(ExprDbSchema exprDbSchema, IExpr? parent)
         {
             if (exprDbSchema.Database != null)
             {
@@ -963,7 +1074,9 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
-        public bool VisitExprDerivedTableValues(ExprDerivedTableValues derivedTableValues, IExpr? parent)
+        public abstract bool VisitExprDerivedTableValues(ExprDerivedTableValues derivedTableValues, IExpr? parent);
+
+        protected bool VisitExprDerivedTableValuesCommon(ExprDerivedTableValues derivedTableValues, IExpr? parent)
         {
             this.AcceptPar('(', derivedTableValues.Values, ')', derivedTableValues);
             derivedTableValues.Alias.Accept(this, derivedTableValues);
@@ -1096,11 +1209,11 @@ namespace SqExpress.SqlExport.Internal
 
         public bool VisitExprInsert(ExprInsert exprInsert, IExpr? parent)
         {
-            this.GenericInsert(exprInsert, null, null, exprInsert);
+            this.GenericInsert(exprInsert, null, null);
             return true;
         }
 
-        protected void GenericInsert(ExprInsert exprInsert, Action? middleHandler, Action? endHandler, IExpr? parent)
+        protected void GenericInsert(ExprInsert exprInsert, Action? middleHandler, Action? endHandler)
         {
             this.Builder.Append("INSERT INTO ");
             exprInsert.Target.Accept(this, exprInsert);
@@ -1155,7 +1268,9 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
-        public bool VisitExprInsertQuery(ExprInsertQuery exprInsertQuery, IExpr? parent)
+        public abstract bool VisitExprInsertQuery(ExprInsertQuery exprInsertQuery, IExpr? parent);
+
+        protected bool VisitExprInsertQueryCommon(ExprInsertQuery exprInsertQuery, IExpr? parent)
         {
             exprInsertQuery.Query.Accept(this, exprInsertQuery);
             return true;
@@ -1171,7 +1286,9 @@ namespace SqExpress.SqlExport.Internal
 
         public abstract bool VisitExprDeleteOutput(ExprDeleteOutput exprDeleteOutput, IExpr? parent);
 
-        public bool VisitExprCast(ExprCast exprCast, IExpr? parent)
+        public abstract bool VisitExprCast(ExprCast exprCast, IExpr? parent);
+
+        protected bool VisitExprCastCommon(ExprCast exprCast, IExpr? parent)
         {
             this.Builder.Append("CAST(");
             exprCast.Expression.Accept(this, exprCast);
