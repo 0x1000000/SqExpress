@@ -5,15 +5,20 @@ namespace SqExpress.IntTest.Context
 {
     public class ScenarioContext : IScenarioContext
     {
-        public ScenarioContext(ISqDatabase database, bool isPostgresSql)
+        public ScenarioContext(ISqDatabase database, SqlDialect dialect)
         {
             this.Database = database;
-            this.IsPostgresSql = isPostgresSql;
+            this.Dialect = dialect;
         }
 
         public ISqDatabase Database { get; }
 
-        public bool IsPostgresSql { get; }
+        public SqlDialect Dialect { get; }
+
+        public void Write(string? line)
+        {
+            Console.Write(line);
+        }
 
         public void WriteLine(string? line)
         {

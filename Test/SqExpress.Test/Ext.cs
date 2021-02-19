@@ -15,5 +15,11 @@ namespace SqExpress.Test
             return new PgSqlExporter(SqlBuilderOptions.Default.WithSchemaMap(new[] {new SchemaMap("dbo", "public")}))
                 .ToSql(expr);
         }
+
+        public static string ToMySql(this IExpr expr)
+        {
+            return new MySqlExporter(SqlBuilderOptions.Default)
+                .ToSql(expr);
+        }
     }
 }

@@ -65,6 +65,11 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             this._visitor.VisitPlainProperty(name, value.ToString(), ctx);
         }
 
+        void VisitPlainProperty(string name, FrameBorderDirection value, TCtx ctx)
+        {
+            this._visitor.VisitPlainProperty(name, value.ToString(), ctx);
+        }
+
         private bool Accept(string name, IExpr? expr, TCtx context)
         {
             this._visitor.VisitProperty(name, false, expr == null, context);
@@ -133,6 +138,12 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         public bool VisitExprAliasedSelecting(ExprAliasedSelecting expr, TCtx arg)
         {
             var res = this.Visit(expr, "AliasedSelecting", arg, out var argOut) && this.Accept("Value",expr.Value, argOut) && this.Accept("Alias",expr.Alias, argOut);
+            this._visitor.EndVisitExpr(expr, arg);
+            return res;
+        }
+        public bool VisitExprAllColumns(ExprAllColumns expr, TCtx arg)
+        {
+            var res = this.Visit(expr, "AllColumns", arg, out var argOut) && this.Accept("Source",expr.Source, argOut);
             this._visitor.EndVisitExpr(expr, arg);
             return res;
         }
@@ -267,6 +278,12 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             this._visitor.EndVisitExpr(expr, arg);
             return res;
         }
+        public bool VisitExprCurrentRowFrameBorder(ExprCurrentRowFrameBorder expr, TCtx arg)
+        {
+            var res = this.Visit(expr, "CurrentRowFrameBorder", arg, out var argOut);
+            this._visitor.EndVisitExpr(expr, arg);
+            return res;
+        }
         public bool VisitExprDatabaseName(ExprDatabaseName expr, TCtx arg)
         {
             var res = this.Visit(expr, "DatabaseName", arg, out var argOut);
@@ -360,6 +377,12 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         public bool VisitExprExprMergeNotMatchedInsertDefault(ExprExprMergeNotMatchedInsertDefault expr, TCtx arg)
         {
             var res = this.Visit(expr, "ExprMergeNotMatchedInsertDefault", arg, out var argOut) && this.Accept("And",expr.And, argOut);
+            this._visitor.EndVisitExpr(expr, arg);
+            return res;
+        }
+        public bool VisitExprFrameClause(ExprFrameClause expr, TCtx arg)
+        {
+            var res = this.Visit(expr, "FrameClause", arg, out var argOut) && this.Accept("Start",expr.Start, argOut) && this.Accept("End",expr.End, argOut);
             this._visitor.EndVisitExpr(expr, arg);
             return res;
         }
@@ -509,6 +532,12 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             this._visitor.EndVisitExpr(expr, arg);
             return res;
         }
+        public bool VisitExprModulo(ExprModulo expr, TCtx arg)
+        {
+            var res = this.Visit(expr, "Modulo", arg, out var argOut) && this.Accept("Left",expr.Left, argOut) && this.Accept("Right",expr.Right, argOut);
+            this._visitor.EndVisitExpr(expr, arg);
+            return res;
+        }
         public bool VisitExprMul(ExprMul expr, TCtx arg)
         {
             var res = this.Visit(expr, "Mul", arg, out var argOut) && this.Accept("Left",expr.Left, argOut) && this.Accept("Right",expr.Right, argOut);
@@ -578,7 +607,7 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         }
         public bool VisitExprOver(ExprOver expr, TCtx arg)
         {
-            var res = this.Visit(expr, "Over", arg, out var argOut) && this.Accept("Partitions",expr.Partitions, argOut) && this.Accept("OrderBy",expr.OrderBy, argOut);
+            var res = this.Visit(expr, "Over", arg, out var argOut) && this.Accept("Partitions",expr.Partitions, argOut) && this.Accept("OrderBy",expr.OrderBy, argOut) && this.Accept("FrameClause",expr.FrameClause, argOut);
             this._visitor.EndVisitExpr(expr, arg);
             return res;
         }
@@ -749,6 +778,13 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             this._visitor.EndVisitExpr(expr, arg);
             return res;
         }
+        public bool VisitExprUnboundedFrameBorder(ExprUnboundedFrameBorder expr, TCtx arg)
+        {
+            var res = this.Visit(expr, "UnboundedFrameBorder", arg, out var argOut);
+            this.VisitPlainProperty("FrameBorderDirection",expr.FrameBorderDirection, argOut);
+            this._visitor.EndVisitExpr(expr, arg);
+            return res;
+        }
         public bool VisitExprUnsafeValue(ExprUnsafeValue expr, TCtx arg)
         {
             var res = this.Visit(expr, "UnsafeValue", arg, out var argOut);
@@ -759,6 +795,13 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         public bool VisitExprUpdate(ExprUpdate expr, TCtx arg)
         {
             var res = this.Visit(expr, "Update", arg, out var argOut) && this.Accept("Target",expr.Target, argOut) && this.Accept("SetClause",expr.SetClause, argOut) && this.Accept("Source",expr.Source, argOut) && this.Accept("Filter",expr.Filter, argOut);
+            this._visitor.EndVisitExpr(expr, arg);
+            return res;
+        }
+        public bool VisitExprValueFrameBorder(ExprValueFrameBorder expr, TCtx arg)
+        {
+            var res = this.Visit(expr, "ValueFrameBorder", arg, out var argOut) && this.Accept("Value",expr.Value, argOut);
+            this.VisitPlainProperty("FrameBorderDirection",expr.FrameBorderDirection, argOut);
             this._visitor.EndVisitExpr(expr, arg);
             return res;
         }

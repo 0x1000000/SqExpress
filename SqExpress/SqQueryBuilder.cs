@@ -53,6 +53,9 @@ namespace SqExpress
         public static ExprCast Cast(IExprSelecting expression, ExprType asType) 
             => new ExprCast(expression, asType);
 
+        public static ExprTableAlias TableAlias(Alias alias = default)
+            => new ExprTableAlias(alias.BuildAliasExpression() ?? Alias.Auto.BuildAliasExpression()!);
+
         public static ExprExists Exists(IExprSubQueryFinal subQuery) 
             => new ExprExists(subQuery.Done());
 

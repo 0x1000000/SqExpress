@@ -44,5 +44,18 @@ namespace SqExpress.Test.Export
             SqlInjectionChecker.AppendStringEscapeSingleQuote(builder, original);
             return builder.ToString();
         }
+
+        private static string AppendStringEscape2(string original)
+        {
+            StringBuilder builder = new StringBuilder();
+            SqlInjectionChecker.AppendStringEscapeSingleQuoteAndBackslash(builder, original);
+            return builder.ToString();
+        }
+
+        [Test]
+        public void Test()
+        {
+            Assert.AreEqual("''\\\\''", AppendStringEscape2("'\\'"));
+        }
     }
 }

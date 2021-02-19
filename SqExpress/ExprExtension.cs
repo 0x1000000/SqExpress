@@ -20,6 +20,12 @@ namespace SqExpress
         public static Task<TAgg> Query<TAgg>(this IExprQueryFinal query, ISqDatabase database, TAgg seed, Func<TAgg,ISqDataRecordReader, TAgg> aggregator) 
             => database.Query(query.Done(), seed, aggregator);
 
+        public static Task Query(this IExprQuery query, ISqDatabase database, Action<ISqDataRecordReader> handler) 
+            => database.Query(query, handler);
+
+        public static Task Query(this IExprQueryFinal query, ISqDatabase database, Action<ISqDataRecordReader> handler) 
+            => database.Query(query.Done(), handler);
+
         public static Task<List<T>> QueryList<T>(this IExprQuery query, ISqDatabase database, Func<ISqDataRecordReader, T> factory) 
             => database.QueryList(query, factory);
 
@@ -62,12 +68,12 @@ namespace SqExpress
                 this._expr.Accept(new ExprWalker<TCtx>(new DefaultWalkerVisitor<TCtx>(walker)), context);
             }
 
-            public TExpr? FirstOrDefault<TExpr>(Predicate<TExpr> filter) where TExpr : class, IExpr
+            public TExpr? FirstOrDefault<TExpr>(Predicate<TExpr>? filter = null) where TExpr : class, IExpr
             {
                 TExpr? result = null;
                 this._expr.Accept(new ExprWalker<object?>(new DefaultWalkerVisitor<object?>((e, c) =>
                 {
-                    if (e is TExpr te && filter.Invoke(te))
+                    if (e is TExpr te && (filter == null || filter.Invoke(te)))
                     {
                         result = te;
                         return VisitorResult<object?>.Stop(c);

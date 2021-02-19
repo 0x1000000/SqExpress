@@ -84,6 +84,8 @@ namespace SqExpress.Syntax
 
         TRes VisitExprDiv(ExprDiv exprDiv, TArg arg);
 
+        TRes VisitExprModulo(ExprModulo exprModulo, TArg arg);
+
         TRes VisitExprStringConcat(ExprStringConcat exprStringConcat, TArg arg);
 
         //Select
@@ -127,6 +129,14 @@ namespace SqExpress.Syntax
 
         TRes VisitExprOver(ExprOver exprOver, TArg arg);
 
+        TRes VisitExprFrameClause(ExprFrameClause exprFrameClause, TArg arg);
+
+        TRes VisitExprValueFrameBorder(ExprValueFrameBorder exprValueFrameBorder, TArg arg);
+
+        TRes VisitExprCurrentRowFrameBorder(ExprCurrentRowFrameBorder exprCurrentRowFrameBorder, TArg arg);
+
+        TRes VisitExprUnboundedFrameBorder(ExprUnboundedFrameBorder exprUnboundedFrameBorder, TArg arg);
+
         TRes VisitExprCase(ExprCase exprCase, TArg arg);
 
         TRes VisitExprCaseWhenThen(ExprCaseWhenThen exprCaseWhenThen, TArg arg);
@@ -146,6 +156,8 @@ namespace SqExpress.Syntax
         TRes VisitExprColumn(ExprColumn exprColumn, TArg arg);
 
         TRes VisitExprTable(ExprTable exprTable, TArg arg);
+
+        TRes VisitExprAllColumns(ExprAllColumns exprAllColumns, TArg arg);
 
         TRes VisitExprColumnName(ExprColumnName columnName, TArg arg);
 

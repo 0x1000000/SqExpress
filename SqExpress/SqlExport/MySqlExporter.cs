@@ -5,20 +5,20 @@ using SqExpress.Syntax;
 
 namespace SqExpress.SqlExport
 {
-    public class TSqlExporter : ISqlExporter
+    public class MySqlExporter : ISqlExporter
     {
-        public static readonly TSqlExporter Default = new TSqlExporter(SqlBuilderOptions.Default);
+        public static readonly MySqlExporter Default = new MySqlExporter(SqlBuilderOptions.Default);
 
         private readonly SqlBuilderOptions _builderOptions;
 
-        public TSqlExporter(SqlBuilderOptions builderOptions)
+        public MySqlExporter(SqlBuilderOptions builderOptions)
         {
             this._builderOptions = builderOptions;
         }
 
         public string ToSql(IExpr expr)
         {
-            var sqlExporter = new TSqlBuilder(this._builderOptions);
+            var sqlExporter = new MySqlBuilder(this._builderOptions);
             if (expr.Accept(sqlExporter, null))
             {
                 return sqlExporter.ToString();
@@ -29,7 +29,7 @@ namespace SqExpress.SqlExport
 
         public string ToSql(IStatement statement)
         {
-            var builder = new TSqlStatementBuilder(this._builderOptions);
+            var builder = new MySqlStatementBuilder(this._builderOptions);
             statement.Accept(builder);
             return builder.Build();
         }

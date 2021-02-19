@@ -35,6 +35,11 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        protected override void EscapeStringLiteral(StringBuilder builder, string literal)
+        {
+            SqlInjectionChecker.AppendStringEscapeSingleQuote(builder, literal);
+        }
+
         public override bool VisitExprBoolLiteral(ExprBoolLiteral boolLiteral, IExpr? parent)
         {
             if (boolLiteral.Value.HasValue)
@@ -77,10 +82,25 @@ namespace SqExpress.SqlExport.Internal
             };
         }
 
+        public override bool VisitExprOffsetFetch(ExprOffsetFetch exprOffsetFetch, IExpr? parent)
+        {
+            return this.VisitExprOffsetFetchCommon(exprOffsetFetch, parent);
+        }
+
         public override bool VisitExprTempTableName(ExprTempTableName tempTableName, IExpr? parent)
         {
             this.AppendName(tempTableName.Name);
             return true;
+        }
+
+        public override bool VisitExprDbSchema(ExprDbSchema exprDbSchema, IExpr? parent)
+        {
+            return this.VisitExprDbSchemaCommon(exprDbSchema, parent);
+        }
+
+        public override bool VisitExprDerivedTableValues(ExprDerivedTableValues derivedTableValues, IExpr? parent)
+        {
+            return this.VisitExprDerivedTableValuesCommon(derivedTableValues, parent);
         }
 
         public override bool VisitExprInsertOutput(ExprInsertOutput exprInsertOutput, IExpr? parent)
@@ -92,9 +112,13 @@ namespace SqExpress.SqlExport.Internal
                     exprInsertOutput.OutputColumns.AssertNotEmpty("INSERT OUTPUT cannot be empty");
                     this.Builder.Append(" RETURNING ");
                     this.AcceptListComaSeparated(exprInsertOutput.OutputColumns, exprInsertOutput);
-                },
-                exprInsertOutput);
+                });
             return true;
+        }
+
+        public override bool VisitExprInsertQuery(ExprInsertQuery exprInsertQuery, IExpr? parent)
+        {
+            return this.VisitExprInsertQueryCommon(exprInsertQuery, parent);
         }
 
         public override bool VisitExprUpdate(ExprUpdate exprUpdate, IExpr? parent)
@@ -223,6 +247,11 @@ namespace SqExpress.SqlExport.Internal
             this.AcceptListComaSeparated(exprDeleteOutput.OutputColumns, exprDeleteOutput);
 
             return true;
+        }
+
+        public override bool VisitExprCast(ExprCast exprCast, IExpr? parent)
+        {
+            return this.VisitExprCastCommon(exprCast, parent);
         }
 
         public override bool VisitExprTypeBoolean(ExprTypeBoolean exprTypeBoolean, IExpr? parent)
@@ -357,13 +386,13 @@ namespace SqExpress.SqlExport.Internal
 
         public override void AppendName(string name, char? prefix = null)
         {
-            this.Builder.Append("\"");
+            this.Builder.Append('\"');
             if (prefix.HasValue)
             {
                 this.Builder.Append(prefix.Value);
             }
             SqlInjectionChecker.AppendStringEscapeDoubleQuote(this.Builder, name);
-            this.Builder.Append("\"");
+            this.Builder.Append('\"');
         }
 
         protected override void AppendUnicodePrefix(string str) { }

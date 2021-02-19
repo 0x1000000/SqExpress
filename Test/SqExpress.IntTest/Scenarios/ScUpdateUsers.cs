@@ -9,14 +9,14 @@ namespace SqExpress.IntTest.Scenarios
     {
         public async Task Exec(IScenarioContext context)
         {
-            var tUser = Tables.Tables.User();
-            var tCustomer = Tables.Tables.Customer();
+            var tUser = Tables.TableList.User();
+            var tCustomer = Tables.TableList.Customer();
 
             var maxVersion = (int) await Select(Max(tUser.Version))
                 .From(tUser)
                 .QueryScalar(context.Database);
 
-            var countBefore = (int)await Select(Cast(CountOne(), SqlType.Int32))
+            var countBefore = (long)await Select(Cast(CountOne(), SqlType.Int64))
                 .From(tUser)
                 .Where(tUser.Version == maxVersion & Exists(SelectOne().From(tCustomer).Where(tCustomer.UserId == tUser.UserId)))
                 .QueryScalar(context.Database);
@@ -24,11 +24,11 @@ namespace SqExpress.IntTest.Scenarios
             await Update(tUser)
                 .Set(tUser.Version, tUser.Version + 1)
                 .From(tUser)
-                .InnerJoin(tCustomer, @on: tCustomer.UserId == tUser.UserId)
+                .InnerJoin(tCustomer, on: tCustomer.UserId == tUser.UserId)
                 .All()
                 .Exec(context.Database);
 
-            var countAfter = (int)await Select(Cast(CountOne(), SqlType.Int32))
+            var countAfter = (long)await Select(Cast(CountOne(), SqlType.Int64))
                 .From(tUser)
                 .Where(tUser.Version == maxVersion + 1)
                 .QueryScalar(context.Database);

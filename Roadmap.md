@@ -17,13 +17,13 @@
 - [x] Column Default Values
 - [x] Unsafe Value Expression
 ## 0.0.7
-- [ ] Support of MySQL
+- [x] Support of MySQL
+- [x] Subqueries without derived tables
 ## After 0.0.7
 - [ ] "Update Data" builder
 - [ ] Post "Done" modifications
 - [ ] Split Merge into Insert Update Delete
 - [ ] Table Value Functions
-- [ ] "Quick" derived tables
 
 --Meta
 - [ ] Binary Type
