@@ -25,7 +25,7 @@ This an article that explains the library principles: ["Syntax Tree and Alternat
 9. [Aliasing](#aliasing)
 10. [Derived Tables](#derived-tables)
 11. [Subquries](#subquries)
-12. [Analytic And Window Functions](analytic-and-window-functions)
+12. [Analytic And Window Functions](#analytic-and-window-functions)
 13. [Set Operators](#set-operators)
 14. [PostgreSQL](#postgreSQL)
 15. [MySQL](#mysql)
