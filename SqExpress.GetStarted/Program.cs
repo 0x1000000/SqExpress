@@ -22,11 +22,12 @@ namespace SqExpress.GetStarted
     {
         static async Task Main()
         {
+            Console.WriteLine("SqExpress - get started");
             try
             {
-                await RunMsSql();
-                await RunPostgresSql();
-                await RunMySql();
+                await RunMsSql("Data Source = (local); Initial Catalog = TestDatabase; Integrated Security = True");
+                await RunPostgreSql("Host=localhost;Port=5432;Username=postgres;Password=test;Database=test");
+                await RunMySql("server=127.0.0.1;uid=test;pwd=test;database=test");
             }
             catch (Exception e)
             {
@@ -34,8 +35,9 @@ namespace SqExpress.GetStarted
             }
         }
 
-        private static async Task RunMsSql()
+        private static async Task RunMsSql(string connectionString)
         {
+            Console.WriteLine("Running on MsSQL database...");
             int commandCounter = 0;
 
             DbCommand SqlCommandFactory(SqlConnection connection, string sqlText)
@@ -46,9 +48,15 @@ namespace SqExpress.GetStarted
                 return new SqlCommand(sqlText, connection);
             }
 
-            const string connectionString = "Data Source = (local); Initial Catalog = TestDatabase; Integrated Security = True";
             using (var connection = new SqlConnection(connectionString))
             {
+
+                if (!await CheckConnection(connection, "MsSQL"))
+                {
+                    return;
+                }
+                await connection.OpenAsync();
+
                 using (var database = new SqDatabase<SqlConnection>(
                     connection: connection,
                     commandFactory: SqlCommandFactory,
@@ -59,8 +67,10 @@ namespace SqExpress.GetStarted
             }
         }
 
-        private static async Task RunPostgresSql()
+        private static async Task RunPostgreSql(string connectionString)
         {
+            Console.WriteLine("Running on PostgreSQL database...");
+
             int commandCounter = 0;
 
             DbCommand NpgsqlCommandFactory(NpgsqlConnection connection, string sqlText)
@@ -71,9 +81,13 @@ namespace SqExpress.GetStarted
                 return new NpgsqlCommand(sqlText, connection);
             }
 
-            const string connectionString = "Host=localhost;Port=5432;Username=postgres;Password=test;Database=test";
             using (var connection = new NpgsqlConnection(connectionString))
             {
+                if (!await CheckConnection(connection, "PostgreSQL"))
+                {  
+                    return;
+                }
+
                 using (var database = new SqDatabase<NpgsqlConnection>(
                     connection: connection,
                     commandFactory: NpgsqlCommandFactory,
@@ -85,8 +99,9 @@ namespace SqExpress.GetStarted
             }
         }
 
-        private static async Task RunMySql()
+        private static async Task RunMySql(string connectionString)
         {
+            Console.WriteLine("Running on MySQL database...");
             int commandCounter = 0;
 
             DbCommand MySqlCommandFactory(MySqlConnection connection, string sqlText)
@@ -97,9 +112,13 @@ namespace SqExpress.GetStarted
                 return new MySqlCommand(sqlText, connection);
             }
 
-            const string connectionString = "server=127.0.0.1;uid=test;pwd=test;database=test";
             using (var connection = new MySqlConnection(connectionString))
             {
+                if (!await CheckConnection(connection, "MySQL"))
+                {
+                    return;
+                }
+
                 using (var database = new SqDatabase<MySqlConnection>(
                     connection: connection,
                     commandFactory: MySqlCommandFactory,
@@ -107,6 +126,21 @@ namespace SqExpress.GetStarted
                 {
                     await Script(database: database, true);
                 }
+            }
+        }
+
+        private static async Task<bool> CheckConnection(DbConnection connection, string dbName)
+        {
+            try
+            {
+                await connection.OpenAsync();
+                await connection.CloseAsync();
+                return true;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Could not open {dbName} database ({e.Message}). Check that the connection string is correct \"{connection.ConnectionString}\".");
+                return false;
             }
         }
 
@@ -122,6 +156,7 @@ namespace SqExpress.GetStarted
             await Step8JoinTables(database);
             await Step10UseDerivedTables(database);
             await Step11SubQueries(database);
+            await Step11AnalyticAndWindowFunctions(database);
             await Step9SetOperations(database);
             if (!postgres)
             {
@@ -316,8 +351,8 @@ namespace SqExpress.GetStarted
 
         private static async Task Step9SetOperations(ISqDatabase database)
         {
-            var select1 = Select(Literal(1));
-            var select2 = Select(Literal(2));
+            var select1 = Select(1);
+            var select2 = Select(2);
 
             var result = await select1
                 .Union(select2)
@@ -372,6 +407,41 @@ namespace SqExpress.GetStarted
                     .QueryScalar(database);
 
             Console.WriteLine("The most frequent number: "  + mostFrequentNum);
+        }
+
+        private static async Task Step11AnalyticAndWindowFunctions(ISqDatabase database)
+        {
+            var cUserName = CustomColumnFactory.String("Name");
+            var cNum = CustomColumnFactory.Int64("Num");
+            var cFirst = CustomColumnFactory.String("First");
+            var cLast = CustomColumnFactory.String("Last");
+
+            var user = new TableUser();
+
+            await Select(
+                    (user.FirstName + " " + user.LastName)
+                    .As(cUserName),
+                    RowNumber()
+                        /*.OverPartitionBy(some fields)*/
+                        .OverOrderBy(user.FirstName)
+                        .As(cNum),
+                    FirstValue(user.FirstName + " " + user.LastName)
+                        /*.OverPartitionBy(some fields)*/
+                        .OverOrderBy(user.FirstName)
+                        .FrameClauseEmpty()
+                        .As(cFirst),
+                    LastValue(user.FirstName + " " + user.LastName)
+                        /*.OverPartitionBy(some fields)*/
+                        .OverOrderBy(user.FirstName)
+                        .FrameClause(
+                            FrameBorder.UnboundedPreceding,
+                            FrameBorder.UnboundedFollowing)
+                        .As(cLast))
+                .From(user)
+                .Query(database,
+                    r => Console.WriteLine(
+                        $"Num: {cNum.Read(r)}, Name: {cUserName.Read(r)}, " +
+                        $"First: {cFirst.Read(r)}, Last: {cLast.Read(r)}"));
         }
 
         private static async Task Step12Merge(ISqDatabase database)

@@ -23,11 +23,11 @@ This an article that explains the library principles: ["Syntax Tree and Alternat
 7. [More Tables and foreign keys](#more-tables-and-foreign-keys)
 8. [Joining Tables](#joining-tables)
 8. [Aliasing](#aliasing)
-9. [Derived Table](#derived-table)
+9. [Derived Tables](#derived-tables)
 9. [Subquries](#subquries)
 10. [Set Operators](#set-operators)
-11. [Postgres Sql](#postgres-sql)
-11. [My Sql](#mysql)
+11. [PostgreSQL](#postgreSQL)
+11. [MySQL](#mysql)
 12. [Merge](#merge)
 13. [Temporary Tables](#temporary-tables)
 14. [Syntax Tree](#syntax-tree)
@@ -81,13 +81,16 @@ public class TableUser : TableBase
     {
         this.UserId = this.CreateInt32Column("UserId", 
             ColumnMeta.PrimaryKey().Identity());
+
         this.FirstName = this.CreateStringColumn("FirstName", 
             size: 255, isUnicode: true);
+
         this.LastName = this.CreateStringColumn("LastName", 
             size: 255, isUnicode: true);
 
         this.Version = this.CreateInt32Column("Version",
             ColumnMeta.DefaultValue(0));
+
         this.ModifiedAt = this.CreateDateTimeColumn("ModifiedAt",
             columnMeta: ColumnMeta.DefaultValue(SqQueryBuilder.GetUtcDate()));
 
@@ -110,6 +113,7 @@ static async Task Main()
             sqlExporter: TSqlExporter.Default))
         {
             var tUser = new TableUser();
+
             await database.Statement(tUser.Script.DropAndCreate());
         }
     }
@@ -209,7 +213,7 @@ await Update(tUser)
 //Writing to console without storing data in memory
 await Select(tUser.Columns)
     .From(tUser)
-    .Query(database, (object)null, (agg, record)=>
+    .Query(database, record=>
     {
         Console.Write(tUser.UserId.Read(record) + ",");
         Console.Write(tUser.FirstName.Read(record) + " ");
@@ -282,6 +286,7 @@ public class TableCompany : TableBase
 
         this.Version = this.CreateInt32Column("Version",
             ColumnMeta.DefaultValue(0));
+
         this.ModifiedAt = this.CreateDateTimeColumn("ModifiedAt",
             columnMeta: ColumnMeta.DefaultValue(SqQueryBuilder.GetUtcDate()));
     }
@@ -490,7 +495,7 @@ SELECT [USR].[UserId] FROM [dbo].[user] [USR]
 --var tUserNoAlias = new User(Alias.Empty);
 SELECT [UserId] FROM [dbo].[user]
 ```
-## Derived Table
+## Derived Tables
 The previous query is quite complex so it makes sense to store it as a derived table and reuse it in future:
 ```cs
 public class DerivedTableCustomer : DerivedTableBase
@@ -633,13 +638,66 @@ FROM
 ORDER BY [A0].[Sum] DESC
 ```
 *Note: In this example you can see how to use **Table Value Constructor***
+## Analytic And Window Functions
+SqExpress supports common analytic and window functions like **ROW_NUMBER**, **RANK**, **FIRST_VALUE**, **LAST_VALUE** etc.
+```cs
+var cUserName = CustomColumnFactory.String("Name");
+var cNum = CustomColumnFactory.Int64("Num");
+var cFirst = CustomColumnFactory.String("First");
+var cLast = CustomColumnFactory.String("Last");
+
+var user = new TableUser();
+
+await Select(
+        (user.FirstName + " " + user.LastName)
+        .As(cUserName),
+        RowNumber()
+            /*.OverPartitionBy(some fields)*/
+            .OverOrderBy(user.FirstName)
+            .As(cNum),
+        FirstValue(user.FirstName + " " + user.LastName)
+            /*.OverPartitionBy(some fields)*/
+            .OverOrderBy(user.FirstName)
+            .FrameClauseEmpty()
+            .As(cFirst),
+        LastValue(user.FirstName + " " + user.LastName)
+            /*.OverPartitionBy(some fields)*/
+            .OverOrderBy(user.FirstName)
+            .FrameClause(
+                FrameBorder.UnboundedPreceding,
+                FrameBorder.UnboundedFollowing)
+            .As(cLast))
+    .From(user)
+    .Query(database,
+        r => Console.WriteLine(
+            $"Num: {cNum.Read(r)}, Name: {cUserName.Read(r)}, " +
+            $"First: {cFirst.Read(r)}, Last: {cLast.Read(r)}"));
+```
+*Actual T-SQL:*
+```sql
+SELECT 
+    [A0].[FirstName]+' '+[A0].[LastName] 
+        [Name],
+    ROW_NUMBER()OVER(ORDER BY [A0].[FirstName]) 
+        [Num],
+    FIRST_VALUE([A0].[FirstName]+' '+[A0].[LastName])
+        OVER(ORDER BY [A0].[FirstName]) 
+        [First],
+    LAST_VALUE([A0].[FirstName]+' '+[A0].[LastName])
+        OVER(ORDER BY [A0].[FirstName] 
+            ROWS BETWEEN 
+            UNBOUNDED PRECEDING 
+            AND UNBOUNDED FOLLOWING) 
+        [Last] 
+FROM [dbo].[User] [A0]
+```
 ## Set Operators
 The library supports all the SET operators:
 ```cs
 //If you need to repeat one query several times 
 // you can store it in a variable
-var select1 = Select(Literal(1));
-var select2 = Select(Literal(2));
+var select1 = Select(1);
+var select2 = Select(2);
 
 var result = await select1
     .Union(select2)
@@ -673,7 +731,7 @@ INTERSECT
     SELECT 2
 )
 ```
-## Postgres SQL
+## PostgreSQL
 You can run all the scenarios using Postgres SQL (of course the actual sql will be different):
 ```Cs
 DbCommand NpgsqlCommandFactory(NpgsqlConnection connection, string sqlText)
