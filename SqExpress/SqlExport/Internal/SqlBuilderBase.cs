@@ -901,7 +901,9 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
-        public bool VisitExprTableFullName(ExprTableFullName exprTableFullName, IExpr? parent)
+        public abstract bool VisitExprTableFullName(ExprTableFullName exprTableFullName, IExpr? parent);
+
+        protected bool VisitExprTableFullNameCommon(ExprTableFullName exprTableFullName, IExpr? parent)
         {
             if (exprTableFullName.DbSchema != null)
             {

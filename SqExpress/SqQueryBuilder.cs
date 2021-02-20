@@ -50,6 +50,9 @@ namespace SqExpress
             public ExprTypeString String(int? size=null, bool isUnicode=true, bool isText = false) =>new ExprTypeString(size, isUnicode, isText);
         }
 
+        public static ExprCast Cast(ExprValue expression, ExprType asType) 
+            => new ExprCast(expression, asType);
+
         public static ExprCast Cast(IExprSelecting expression, ExprType asType) 
             => new ExprCast(expression, asType);
 

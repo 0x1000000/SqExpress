@@ -24,6 +24,10 @@
         {
         }
 
+        public User(string databaseName, Alias alias = default) : base(databaseName, "dbo", "user", alias)
+        {
+        }
+
         public User(Alias alias) : base("dbo", "user", alias)
         {
             this.UserId = this.CreateInt32Column("UserId");

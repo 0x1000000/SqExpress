@@ -324,9 +324,9 @@ namespace SqExpress.GetStarted
                     tCustomer.CustomerId,
                     Case()
                         .When(IsNotNull(tUser.UserId))
-                        .Then(Cast(Literal(1), SqlType.Int16))
+                        .Then(Cast(1, SqlType.Int16))
                         .When(IsNotNull(tCompany.CompanyId))
-                        .Then(Cast(Literal(2), SqlType.Int16))
+                        .Then(Cast(2, SqlType.Int16))
                         .Else(Null)
                         .As(cType),
                     Case()

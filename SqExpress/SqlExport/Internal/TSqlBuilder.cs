@@ -407,6 +407,9 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public override bool VisitExprTableFullName(ExprTableFullName exprTableFullName, IExpr? parent) 
+            => this.VisitExprTableFullNameCommon(exprTableFullName, parent);
+
         public override void AppendName(string name, char? prefix = null)
         {
             this.Builder.Append('[');

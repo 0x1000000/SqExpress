@@ -152,6 +152,19 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public override bool VisitExprTableFullName(ExprTableFullName exprTableFullName, IExpr? parent)
+        {
+            if (exprTableFullName.DbSchema?.Database != null)
+            {
+                if (exprTableFullName.DbSchema.Database.Accept(this, exprTableFullName.DbSchema))
+                {
+                    this.Builder.Append('.');
+                }
+            }
+            exprTableFullName.TableName.Accept(this, exprTableFullName);
+            return true;
+        }
+
         public override bool VisitExprTempTableName(ExprTempTableName tempTableName, IExpr? parent)
         {
             this.AppendName(tempTableName.Name);

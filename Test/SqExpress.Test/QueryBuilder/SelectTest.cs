@@ -35,6 +35,18 @@ namespace SqExpress.Test.QueryBuilder
         }
 
         [Test]
+        public void TestDbName()
+        {
+            var u = new User("SomeDB", Alias.Empty);
+
+            var e = SelectOne().From(u).Done();
+
+            Assert.AreEqual("SELECT 1 FROM [SomeDB].[dbo].[user]", e.ToSql());
+            Assert.AreEqual("SELECT 1 FROM \"SomeDB\".\"public\".\"user\"", e.ToPgSql());
+            Assert.AreEqual("SELECT 1 FROM `SomeDB`.`user`", e.ToMySql());
+        }
+
+        [Test]
         public void TopTest()
         {
             var actual = SelectDistinct(Literal(2)).Done().ToSql();

@@ -7,20 +7,12 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <Authors>Dmitry Tikhonov</Authors>
     <Company />
-    <Version>0.0.7.0</Version>
+    <Version>0.0.7.1</Version>
     <Summary>SqExpress is a sql query builder which allows creating SQL expression directly in C# code with strong typing and intellisense.</Summary>
-    <PackageReleaseNotes>New Features
--My SQL
--All Columns .*
--Values Constructor as Subquery
--Modulo operator
--Query Handler
--Analytic Functions
-- Subqueries without derived tables 
-- Post "Done" modifications
+    <PackageReleaseNotes>Feature
+-Cast does not require "Literal" for literals.
 Bugfix
-- '+' instead of '-' in arithmetic expressions
-- Double “LIMIT” with “ORDER BY”</PackageReleaseNotes>
+- Explicit database name for tabbles in MySql</PackageReleaseNotes>
     <Description>SqExpress is a sql query builder which allows creating SQL expression in C# code with strong typing and intellisense (without LINQ!).
 The library provides a generic sql syntax tree with export to MS t-SQL, PostgreSQL and MySQL text.
 
@@ -39,8 +31,8 @@ This an article that explains the library principles: ["Syntax Tree and Alternat
     <AssemblyOriginatorKeyFile>SqExpress.pfx</AssemblyOriginatorKeyFile>
     <PackageProjectUrl>https://github.com/0x1000000/SqExpress</PackageProjectUrl>
     <PackageTags>query postgresql  tsql mysql builder mssql dataaccess</PackageTags>
-    <AssemblyVersion>0.0.7.0</AssemblyVersion>
-    <FileVersion>0.0.7.0</FileVersion>
+    <AssemblyVersion>0.0.7.1</AssemblyVersion>
+    <FileVersion>0.0.7.1</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
