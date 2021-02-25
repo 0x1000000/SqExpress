@@ -18,15 +18,16 @@
 - [x] Unsafe Value Expression
 ## 0.0.7
 - [x] Support of MySQL
-- [x] Subqueries without derived tables
+- [x] Sub-Queries without derived tables
 - [x] Post "Done" modifications
 ## After 0.0.7
 - [ ] "Update Data" builder
 - [ ] Split Merge into Insert Update Delete
 - [ ] Table Value Functions
 - [ ] CTE
-
---Meta
+- [ ] Export to JSON (for .Net Standard 2.1)
+- [ ] "Create If Not Exists"
+- [ ] Stored Procedures Call
 - [ ] Binary Type
 
 --Tools
