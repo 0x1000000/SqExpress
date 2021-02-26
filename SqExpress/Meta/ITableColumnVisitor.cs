@@ -10,6 +10,10 @@
 
         TRes VisitNullableByte(NullableByteTableColumn nullableByteTableColumn);
 
+        TRes VisitByteArray(ByteArrayTableColumn byteTableColumn);
+
+        TRes VisitNullableByteArray(NullableByteArrayTableColumn nullableByteTableColumn);
+
         TRes VisitInt16(Int16TableColumn int16TableColumn);
 
         TRes VisitNullableInt16(NullableInt16TableColumn nullableInt16TableColumn);

@@ -65,6 +65,20 @@ namespace SqExpress
             return result;
         }
 
+        protected ByteArrayTableColumn CreateByteArrayColumn(string name, int? size, ColumnMeta? columnMeta = null)
+        {
+            var result = new ByteArrayTableColumn(this.Alias, new ExprColumnName(name), this, new ExprTypeByteArray(size), columnMeta);
+            this._columns.Add(result);
+            return result;
+        }
+
+        protected NullableByteArrayTableColumn CreateNullableByteArrayColumn(string name, int? size, ColumnMeta? columnMeta = null)
+        {
+            var result = new NullableByteArrayTableColumn(this.Alias, new ExprColumnName(name), this, new ExprTypeByteArray(size), columnMeta);
+            this._columns.Add(result);
+            return result;
+        }
+
         protected Int16TableColumn CreateInt16Column(string name, ColumnMeta? columnMeta = null)
         {
             var result = new Int16TableColumn(this.Alias, new ExprColumnName(name), this, columnMeta);

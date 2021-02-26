@@ -321,6 +321,7 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+
         public bool VisitExprByteArrayLiteral(ExprByteArrayLiteral byteArrayLiteral, IExpr? parent)
         {
             if (byteArrayLiteral.Value == null || byteArrayLiteral.Value.Count < 1)
@@ -329,14 +330,20 @@ namespace SqExpress.SqlExport.Internal
             }
             else
             {
+                this.AppendByteArrayLiteralPrefix();
                 for (int i = 0; i < byteArrayLiteral.Value.Count; i++)
                 {
                     this.Builder.AppendFormat("{0:x2}", byteArrayLiteral.Value[i]);
                 }
+                this.AppendByteArrayLiteralSuffix();
             }
 
             return true;
         }
+
+        protected abstract void AppendByteArrayLiteralPrefix();
+
+        protected abstract void AppendByteArrayLiteralSuffix();
 
         public bool VisitExprNull(ExprNull exprNull, IExpr? parent)
         {
@@ -1305,6 +1312,8 @@ namespace SqExpress.SqlExport.Internal
         public abstract bool VisitExprTypeBoolean(ExprTypeBoolean exprTypeBoolean, IExpr? parent);
 
         public abstract bool VisitExprTypeByte(ExprTypeByte exprTypeByte, IExpr? parent);
+
+        public abstract bool VisitExprTypeByteArray(ExprTypeByteArray exprTypeByte, IExpr? arg);
 
         public abstract bool VisitExprTypeInt16(ExprTypeInt16 exprTypeInt16, IExpr? parent);
 

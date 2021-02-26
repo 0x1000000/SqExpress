@@ -139,6 +139,7 @@ namespace SqExpress.SyntaxTreeOperations
                 case "TempTableName": return new ExprTempTableName(name: ReadString(rootElement, reader, "Name"));
                 case "TypeBoolean": return ExprTypeBoolean.Instance;
                 case "TypeByte": return ExprTypeByte.Instance;
+                case "TypeByteArray": return new ExprTypeByteArray(size: ReadNullableInt32(rootElement, reader, "Size"));
                 case "TypeDateTime": return new ExprTypeDateTime(isDate: ReadBoolean(rootElement, reader, "IsDate"));
                 case "TypeDecimal": return new ExprTypeDecimal(precisionScale: ReadNullableDecimalPrecisionScale(rootElement, reader, "PrecisionScale"));
                 case "TypeDouble": return ExprTypeDouble.Instance;

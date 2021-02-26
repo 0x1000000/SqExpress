@@ -54,6 +54,16 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        protected override void AppendByteArrayLiteralPrefix()
+        {
+            this.Builder.Append("E'\\\\x");
+        }
+
+        protected override void AppendByteArrayLiteralSuffix()
+        {
+            this.Builder.Append('\'');
+        }
+
         public override bool VisitExprStringConcat(ExprStringConcat exprStringConcat, IExpr? parent)
         {
             exprStringConcat.Left.Accept(this, exprStringConcat);
@@ -265,6 +275,12 @@ namespace SqExpress.SqlExport.Internal
             throw new NotSupportedException("PostgresSQL does not support 1 byte numeric");
         }
 
+        public override bool VisitExprTypeByteArray(ExprTypeByteArray exprTypeByte, IExpr? arg)
+        {
+            this.Builder.Append("bytea");
+            return true;
+        }
+
         public override bool VisitExprTypeInt16(ExprTypeInt16 exprTypeInt16, IExpr? parent)
         {
             this.Builder.Append("int2");
@@ -385,8 +401,41 @@ namespace SqExpress.SqlExport.Internal
         }
 
         public override bool VisitExprTableFullName(ExprTableFullName exprTableFullName, IExpr? parent)
-            => this.VisitExprTableFullNameCommon(exprTableFullName, parent);
+        {
+            if (exprTableFullName.DbSchema != null &&
+                exprTableFullName.DbSchema.Schema.LowerInvariantName == "information_schema" &&
+                exprTableFullName.DbSchema.Database == null &&
+                IsSafeName(exprTableFullName.TableName.Name))
+            {
+                //Preventing quoting
+                this.Builder.Append(exprTableFullName.DbSchema.Schema.Name);
+                this.Builder.Append('.');
+                this.Builder.Append(exprTableFullName.TableName.Name);
+                return true;
+            }
 
+            return this.VisitExprTableFullNameCommon(exprTableFullName, parent);
+
+            bool IsSafeName(string name)
+            {
+                for (var index = 0; index < name.Length; index++)
+                {
+                    char ch = name[index];
+
+                    if (index == 0 && !char.IsLetter(ch))
+                    {
+                        return false;
+                    }
+
+                    if (!char.IsLetter(ch) && ch != '_')
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+        }
 
         public override void AppendName(string name, char? prefix = null)
         {

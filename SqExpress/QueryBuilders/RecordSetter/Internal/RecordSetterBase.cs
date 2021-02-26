@@ -19,6 +19,11 @@ namespace SqExpress.QueryBuilders.RecordSetter.Internal
             return this.SetGeneric(column, SqQueryBuilder.Literal(value));
         }
 
+        public TNext Set(ByteArrayTableColumn column, IReadOnlyList<byte> value)
+        {
+            return this.SetGeneric(column, SqQueryBuilder.Literal(value));
+        }
+
         public TNext Set(Int16TableColumn column, short value)
         {
             return this.SetGeneric(column, SqQueryBuilder.Literal(value));
@@ -65,6 +70,11 @@ namespace SqExpress.QueryBuilders.RecordSetter.Internal
         }
 
         public TNext Set(NullableByteTableColumn column, byte? value)
+        {
+            return this.SetGeneric(column, SqQueryBuilder.Literal(value));
+        }
+
+        public TNext Set(NullableByteArrayTableColumn column, IReadOnlyList<byte>? value)
         {
             return this.SetGeneric(column, SqQueryBuilder.Literal(value));
         }
@@ -119,6 +129,11 @@ namespace SqExpress.QueryBuilders.RecordSetter.Internal
             return this.SetGeneric(column, SqQueryBuilder.Literal(value));
         }
 
+        public TNext Set(ByteArrayCustomColumn column, IReadOnlyList<byte> value)
+        {
+            return this.SetGeneric(column, SqQueryBuilder.Literal(value));
+        }
+
         public TNext Set(Int16CustomColumn column, short value)
         {
             return this.SetGeneric(column, SqQueryBuilder.Literal(value));
@@ -165,6 +180,11 @@ namespace SqExpress.QueryBuilders.RecordSetter.Internal
         }
 
         public TNext Set(NullableByteCustomColumn column, byte? value)
+        {
+            return this.SetGeneric(column, SqQueryBuilder.Literal(value));
+        }
+
+        public TNext Set(NullableByteArrayCustomColumn column, IReadOnlyList<byte>? value)
         {
             return this.SetGeneric(column, SqQueryBuilder.Literal(value));
         }

@@ -71,6 +71,20 @@ namespace SqExpress
             return result;
         }
 
+        protected ByteArrayCustomColumn CreateByteArrayColumn(string name)
+        {
+            var result = new ByteArrayCustomColumn(name, this.Alias);
+            this._columns.Add(result);
+            return result;
+        }
+
+        protected NullableByteArrayCustomColumn CreateNullableByteArrayColumn(string name)
+        {
+            var result = new NullableByteArrayCustomColumn(name, this.Alias);
+            this._columns.Add(result);
+            return result;
+        }
+
         protected Int16CustomColumn CreateInt16Column(string name)
         {
             var result = new Int16CustomColumn(name, this.Alias);

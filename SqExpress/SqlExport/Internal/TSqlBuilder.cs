@@ -55,6 +55,16 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        protected override void AppendByteArrayLiteralPrefix()
+        {
+            this.Builder.Append('0');
+            this.Builder.Append('x');
+        }
+
+        protected override void AppendByteArrayLiteralSuffix()
+        {
+        }
+
         public override bool VisitExprStringConcat(ExprStringConcat exprStringConcat, IExpr? parent)
         {
             exprStringConcat.Left.Accept(this, exprStringConcat);
@@ -245,6 +255,22 @@ namespace SqExpress.SqlExport.Internal
         public override bool VisitExprTypeByte(ExprTypeByte exprTypeByte, IExpr? parent)
         {
             this.Builder.Append("tinyint");
+            return true;
+        }
+
+        public override bool VisitExprTypeByteArray(ExprTypeByteArray exprTypeByte, IExpr? arg)
+        {
+            this.Builder.Append("varbinary(");
+            if (exprTypeByte.Size.HasValue)
+            {
+                this.Builder.Append(exprTypeByte.Size.Value.ToString());
+                this.Builder.Append(')');
+            }
+            else
+            {
+                this.Builder.Append("MAX)");
+            }
+
             return true;
         }
 

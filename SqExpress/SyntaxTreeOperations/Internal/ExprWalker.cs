@@ -725,6 +725,13 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             this._visitor.EndVisitExpr(expr, arg);
             return res;
         }
+        public bool VisitExprTypeByteArray(ExprTypeByteArray expr, TCtx arg)
+        {
+            var res = this.Visit(expr, "TypeByteArray", arg, out var argOut);
+            this.VisitPlainProperty("Size",expr.Size, argOut);
+            this._visitor.EndVisitExpr(expr, arg);
+            return res;
+        }
         public bool VisitExprTypeDateTime(ExprTypeDateTime expr, TCtx arg)
         {
             var res = this.Visit(expr, "TypeDateTime", arg, out var argOut);

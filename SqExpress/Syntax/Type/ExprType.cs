@@ -21,6 +21,19 @@
             => visitor.VisitExprTypeByte(this, arg);
     }
 
+    public class ExprTypeByteArray : ExprType
+    {
+        public ExprTypeByteArray(int? size)
+        {
+            this.Size = size;
+        }
+
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprTypeByteArray(this, arg);
+
+        public int? Size { get; }
+    }
+
     public class ExprTypeInt16 : ExprType
     {
         public static readonly ExprTypeInt16 Instance = new ExprTypeInt16();

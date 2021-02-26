@@ -10,6 +10,8 @@ namespace SqExpress
         public static NullableBooleanCustomColumn NullableBoolean(string columnName) => new NullableBooleanCustomColumn(columnName);
         public static ByteCustomColumn Byte(string columnName) => new ByteCustomColumn(columnName);
         public static NullableByteCustomColumn NullableByte(string columnName) => new NullableByteCustomColumn(columnName);
+        public static ByteArrayCustomColumn ByteArray(string columnName) => new ByteArrayCustomColumn(columnName);
+        public static NullableByteArrayCustomColumn NullableByteArray(string columnName) => new NullableByteArrayCustomColumn(columnName);
         public static Int16CustomColumn Int16(string columnName) => new Int16CustomColumn(columnName);
         public static NullableInt16CustomColumn NullableInt16(string columnName) => new NullableInt16CustomColumn(columnName);
         public static Int32CustomColumn Int32(string columnName) => new Int32CustomColumn(columnName);

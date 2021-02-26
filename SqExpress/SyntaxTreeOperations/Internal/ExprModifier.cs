@@ -946,6 +946,10 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         {
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprTypeByteArray(ExprTypeByteArray exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprTypeDateTime(ExprTypeDateTime exprIn, Func<IExpr, IExpr?> modifier)
         {
             return modifier.Invoke(exprIn);

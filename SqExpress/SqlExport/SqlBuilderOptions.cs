@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using SqExpress.Utils;
 
 namespace SqExpress.SqlExport
 {
@@ -9,11 +10,14 @@ namespace SqExpress.SqlExport
 
         public IReadOnlyList<SchemaMap>? SchemaMap { get; private set; }
 
-        private SqlBuilderOptions() : this(null) { }
+        public bool AvoidNameQuoting { get; private set; }
 
-        public SqlBuilderOptions(IReadOnlyList<SchemaMap>? schemaMap)
+        private SqlBuilderOptions() : this(null, false) { }
+
+        public SqlBuilderOptions(IReadOnlyList<SchemaMap>? schemaMap, bool avoidNameQuoting)
         {
             this.SchemaMap = schemaMap;
+            this.AvoidNameQuoting = avoidNameQuoting;
         }
 
         public SqlBuilderOptions WithSchemaMap(IReadOnlyList<SchemaMap>? schemaMap)
@@ -23,9 +27,15 @@ namespace SqExpress.SqlExport
             return result;
         }
 
-        private SqlBuilderOptions Clone() 
-            => new SqlBuilderOptions(schemaMap: this.SchemaMap);
+        public SqlBuilderOptions WithAvoidQuoteName(bool avoidQuoteName)
+        {
+            var result = this.Clone();
+            result.AvoidNameQuoting = avoidQuoteName;
+            return result;
+        }
 
+        private SqlBuilderOptions Clone()
+            => new SqlBuilderOptions(schemaMap: this.SchemaMap, avoidNameQuoting: this.AvoidNameQuoting);
 
         internal string MapSchema(string schemaName)
         {

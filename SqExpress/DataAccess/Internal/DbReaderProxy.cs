@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Data;
 using System.Data.Common;
+using System.IO;
 
 namespace SqExpress.DataAccess.Internal
 {
@@ -54,6 +55,50 @@ namespace SqExpress.DataAccess.Internal
                 return null;
             }
             return this._dataReader.GetByte(ordinal);
+        }
+
+        public byte[] GetByteArray(string name)
+        {
+            var ordinal = this._dataReader.GetOrdinal(name);
+            if (this._dataReader.IsDBNull(ordinal))
+            {
+                this.ThrowNull(name);
+            }
+
+            return (byte[])this._dataReader.GetValue(ordinal);
+        }
+
+        public byte[]? GetNullableByteArray(string name)
+        {
+            var ordinal = this._dataReader.GetOrdinal(name);
+            if (this._dataReader.IsDBNull(ordinal))
+            {
+                return null;
+            }
+
+            return (byte[])this._dataReader.GetValue(ordinal);
+        }
+
+        public Stream GetStream(string name)
+        {
+            var ordinal = this._dataReader.GetOrdinal(name);
+            if (this._dataReader.IsDBNull(ordinal))
+            {
+                this.ThrowNull(name);
+            }
+
+            return this._dataReader.GetStream(ordinal);
+        }
+
+        public Stream? GetNullableStream(string name)
+        {
+            var ordinal = this._dataReader.GetOrdinal(name);
+            if (this._dataReader.IsDBNull(ordinal))
+            {
+                return null;
+            }
+
+            return this._dataReader.GetStream(ordinal);
         }
 
         public short GetInt16(string name)

@@ -17,6 +17,7 @@ namespace SqExpress.QueryBuilders.RecordSetter
     {
         TNext Set(BooleanTableColumn column, bool value);
         TNext Set(ByteTableColumn column, byte value);
+        TNext Set(ByteArrayTableColumn column, IReadOnlyList<byte> value);
         TNext Set(Int16TableColumn column, short value);
         TNext Set(Int32TableColumn column, int value);
         TNext Set(Int64TableColumn column, long value);
@@ -28,6 +29,7 @@ namespace SqExpress.QueryBuilders.RecordSetter
 
         TNext Set(NullableBooleanTableColumn column, bool? value);
         TNext Set(NullableByteTableColumn column, byte? value);
+        TNext Set(NullableByteArrayTableColumn column, IReadOnlyList<byte>? value);
         TNext Set(NullableInt16TableColumn column, short? value);
         TNext Set(NullableInt32TableColumn column, int? value);
         TNext Set(NullableInt64TableColumn column, long? value);
@@ -39,6 +41,7 @@ namespace SqExpress.QueryBuilders.RecordSetter
 
         TNext Set(BooleanCustomColumn column, bool value);
         TNext Set(ByteCustomColumn column, byte value);
+        TNext Set(ByteArrayCustomColumn column, IReadOnlyList<byte> value);
         TNext Set(Int16CustomColumn column, short value);
         TNext Set(Int32CustomColumn column, int value);
         TNext Set(Int64CustomColumn column, long value);
@@ -50,6 +53,7 @@ namespace SqExpress.QueryBuilders.RecordSetter
 
         TNext Set(NullableBooleanCustomColumn column, bool? value);
         TNext Set(NullableByteCustomColumn column, byte? value);
+        TNext Set(NullableByteArrayCustomColumn column, IReadOnlyList<byte>? value);
         TNext Set(NullableInt16CustomColumn column, short? value);
         TNext Set(NullableInt32CustomColumn column, int? value);
         TNext Set(NullableInt64CustomColumn column, long? value);

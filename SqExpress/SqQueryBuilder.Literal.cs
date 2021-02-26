@@ -25,7 +25,7 @@ namespace SqExpress
         public static ExprDecimalLiteral Literal(decimal value) => new ExprDecimalLiteral(value);
         public static ExprDoubleLiteral Literal(double? value) => new ExprDoubleLiteral(value);
         public static ExprDoubleLiteral Literal(double value) => new ExprDoubleLiteral(value);
-        public static ExprByteArrayLiteral Literal(IReadOnlyList<byte> value) => new ExprByteArrayLiteral(value);
+        public static ExprByteArrayLiteral Literal(IReadOnlyList<byte>? value) => new ExprByteArrayLiteral(value);
         public static ExprCast LiteralCast(Guid? value) => Cast(Literal(value), SqlType.Guid);
         public static ExprCast LiteralCast(Guid value) => Cast(Literal(value), SqlType.Guid);
         public static ExprCast LiteralCast(DateTime? value, bool isDate = false) => Cast(Literal(value), SqlType.DateTime(isDate));

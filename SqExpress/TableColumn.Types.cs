@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using SqExpress.Meta;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Names;
@@ -76,6 +77,58 @@ namespace SqExpress
         public NullableByteCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableByteCustomColumn(this.ColumnName, columnSource);
 
         public NullableByteCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableByteCustomColumn(this.ColumnName, derivedTable.Alias));
+    }
+
+    public class ByteArrayTableColumn : TableColumn
+    {
+        internal ByteArrayTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ExprTypeByteArray typeByteArray, ColumnMeta? columnMeta) : base(source, columnName, table, typeByteArray, false, columnMeta)
+        {
+            this.SqlType = typeByteArray;
+        }
+
+        public new ExprTypeByteArray SqlType { get; }
+
+        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitByteArray(this);
+
+        public byte[] Read(ISqDataRecordReader recordReader) => recordReader.GetByteArray(this.ColumnName.Name);
+
+        public byte[]? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableByteArray(this.ColumnName.Name);
+
+        public Stream GetStream(ISqDataRecordReader recordReader) => recordReader.GetStream(this.ColumnName.Name);
+
+        public Stream? ReadNullableStream(ISqDataRecordReader recordReader) => recordReader.GetNullableStream(this.ColumnName.Name);
+
+        public new ByteTableColumn WithSource(IExprColumnSource? source) => new ByteTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
+
+        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        public ByteCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new ByteCustomColumn(this.ColumnName, columnSource);
+
+        public ByteCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new ByteCustomColumn(this.ColumnName, derivedTable.Alias));
+    }
+
+    public class NullableByteArrayTableColumn : TableColumn
+    {
+        internal NullableByteArrayTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ExprTypeByteArray typeByteArray, ColumnMeta? columnMeta) : base(source, columnName, table, typeByteArray, true, columnMeta)
+        {
+            this.SqlType = typeByteArray;
+        }
+
+        public new ExprTypeByteArray SqlType { get; }
+
+        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableByteArray(this);
+
+        public byte[]? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableByteArray(this.ColumnName.Name);
+
+        public Stream? GetStream(ISqDataRecordReader recordReader) => recordReader.GetStream(this.ColumnName.Name);
+
+        public new ByteTableColumn WithSource(IExprColumnSource? source) => new ByteTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
+
+        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        public ByteCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new ByteCustomColumn(this.ColumnName, columnSource);
+
+        public ByteCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new ByteCustomColumn(this.ColumnName, derivedTable.Alias));
     }
 
     public class Int16TableColumn : TableColumn
@@ -299,7 +352,7 @@ namespace SqExpress
             this.IsDate = isDate;
         }
 
-    public bool IsDate { get; }
+        public bool IsDate { get; }
 
         public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableDateTime(this);
 

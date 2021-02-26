@@ -36,7 +36,20 @@
 
             this.ColString5 = this.CreateStringColumn(nameof(ColString5), 5);
 
+
+            this.ColByteArraySmall = this.CreateByteArrayColumn(nameof(ColByteArraySmall), 255);
+            this.ColByteArrayBig = this.CreateByteArrayColumn(nameof(ColByteArrayBig), null);
+
+            this.ColNullableByteArraySmall = this.CreateNullableByteArrayColumn(nameof(ColNullableByteArraySmall), 255);
+            this.ColNullableByteArrayBig = this.CreateNullableByteArrayColumn(nameof(ColNullableByteArrayBig), null);
+
         }
+
+        public ByteArrayTableColumn ColByteArraySmall { get; }
+        public ByteArrayTableColumn ColByteArrayBig { get; }
+
+        public NullableByteArrayTableColumn ColNullableByteArraySmall { get; }
+        public NullableByteArrayTableColumn ColNullableByteArrayBig { get; }
 
         public Int32TableColumn Id { get; set; }
 

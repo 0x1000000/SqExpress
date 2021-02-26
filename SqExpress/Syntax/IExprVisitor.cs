@@ -238,6 +238,8 @@ namespace SqExpress.Syntax
 
         TRes VisitExprTypeByte(ExprTypeByte exprTypeByte, TArg arg);
 
+        TRes VisitExprTypeByteArray(ExprTypeByteArray exprTypeByte, TArg arg);
+
         TRes VisitExprTypeInt16(ExprTypeInt16 exprTypeInt16, TArg arg);
 
         TRes VisitExprTypeInt32(ExprTypeInt32 exprTypeInt32, TArg arg);

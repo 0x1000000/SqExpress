@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Names;
 
@@ -35,6 +36,26 @@ namespace SqExpress
         internal NullableByteCustomColumn(ExprColumnName name, IExprColumnSource? columnSource) : base(columnSource, name) { }
 
         public byte? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableByte(this.ColumnName.Name);
+    }
+    public class ByteArrayCustomColumn : ExprColumn
+    {
+        internal ByteArrayCustomColumn(string name, IExprColumnSource? columnSource = null) : base(columnSource, new ExprColumnName(name)) { }
+
+        internal ByteArrayCustomColumn(ExprColumnName name, IExprColumnSource? columnSource) : base(columnSource, name) { }
+
+        public byte[] Read(ISqDataRecordReader recordReader) => recordReader.GetByteArray(this.ColumnName.Name);
+
+        public Stream GetStream(ISqDataRecordReader recordReader) => recordReader.GetStream(this.ColumnName.Name);
+    }
+    public class NullableByteArrayCustomColumn : ExprColumn
+    {
+        internal NullableByteArrayCustomColumn(string name, IExprColumnSource? columnSource = null) : base(columnSource, new ExprColumnName(name)) { }
+
+        internal NullableByteArrayCustomColumn(ExprColumnName name, IExprColumnSource? columnSource) : base(columnSource, name) { }
+
+        public byte? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableByte(this.ColumnName.Name);
+
+        public Stream? GetStream(ISqDataRecordReader recordReader) => recordReader.GetNullableStream(this.ColumnName.Name);
     }
     public class Int16CustomColumn : ExprColumn
     {

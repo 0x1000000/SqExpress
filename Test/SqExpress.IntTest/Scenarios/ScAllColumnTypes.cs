@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Data;
+using System.IO;
 using System.Threading.Tasks;
 using AutoMapper;
 using AutoMapper.Data;
 using SqExpress.IntTest.Context;
 using SqExpress.IntTest.Tables;
 using SqExpress.QueryBuilders.RecordSetter;
+using SqExpress.SqlExport;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.IntTest.Scenarios
@@ -36,6 +38,12 @@ namespace SqExpress.IntTest.Scenarios
                 cfg.AddDataReaderMapping();
                 var map = cfg.CreateMap<IDataRecord, AllColumnTypesDto>();
 
+                map
+                    .ForMember(nameof(table.ColByteArraySmall), c => c.Ignore())
+                    .ForMember(nameof(table.ColByteArrayBig), c => c.Ignore())
+                    .ForMember(nameof(table.ColNullableByteArraySmall), c => c.Ignore())
+                    .ForMember(nameof(table.ColNullableByteArrayBig), c => c.Ignore());
+
                 if (isPostgres)
                 {
                     map
@@ -52,9 +60,38 @@ namespace SqExpress.IntTest.Scenarios
                 }
             }));
 
-            var result = await Select(table.Columns)
-                .From(table)
-                .QueryList(context.Database, r => mapper.Map<IDataRecord, AllColumnTypesDto>(r));
+            var expr = Select(table.Columns)
+                .From(table).Done();
+
+            context.WriteLine(PgSqlExporter.Default.ToSql(expr));
+
+            var result = await expr
+                .QueryList(context.Database, r =>
+                {
+                    var allColumnTypesDto = mapper.Map<IDataRecord, AllColumnTypesDto>(r);
+
+                    allColumnTypesDto.ColByteArrayBig = StreamToByteArray(table.ColByteArrayBig.GetStream(r));
+                    allColumnTypesDto.ColByteArraySmall = table.ColByteArraySmall.Read(r);
+                    allColumnTypesDto.ColNullableByteArrayBig = table.ColNullableByteArrayBig.Read(r);
+                    allColumnTypesDto.ColNullableByteArraySmall = table.ColNullableByteArraySmall.Read(r);
+
+                    return allColumnTypesDto;
+                });
+
+            static byte[] StreamToByteArray(Stream stream)
+            {
+                var buffer = new byte[stream.Length];
+
+                using MemoryStream ms = new MemoryStream(buffer);
+
+                stream.CopyTo(ms);
+
+                var result = buffer;
+
+                stream.Dispose();
+
+                return result;
+            }
 
             for (int i = 0; i < testData.Length; i++)
             {
@@ -110,13 +147,32 @@ namespace SqExpress.IntTest.Scenarios
 
                 .Set(s.Target.ColStringUnicode, s.Source.ColStringUnicode)
                 .Set(s.Target.ColNullableStringUnicode, s.Source.ColNullableStringUnicode)
-                .Set(s.Target.ColString5, s.Source.ColString5);
+                .Set(s.Target.ColString5, s.Source.ColString5)
+                .Set(s.Target.ColByteArraySmall, s.Source.ColByteArraySmall)
+                .Set(s.Target.ColNullableByteArraySmall, s.Source.ColNullableByteArraySmall)
+                .Set(s.Target.ColByteArrayBig, s.Source.ColByteArrayBig)
+                .Set(s.Target.ColNullableByteArrayBig, s.Source.ColNullableByteArrayBig)
+                ;
 
             return recordSetterNext;
         }
 
         private static AllColumnTypesDto[] GetTestData(bool isPostgres)
         {
+            byte[] GenerateTestArray(int shift, int size)
+            {
+                byte[] result = new byte[size];
+                for(int i = 0; i< size; i++)
+                {
+                    unchecked
+                    {
+                        result[i] = (byte)(i + shift);
+                    }
+                }
+
+                return result;
+            }
+
             var result = new[]
             {
                 new AllColumnTypesDto
@@ -133,6 +189,8 @@ namespace SqExpress.IntTest.Scenarios
                     ColStringMax = "abcdef",
                     ColStringUnicode = "\u0430\u0431\u0441\u0434\u0435\u0444",
                     ColString5 = "abcd",
+                    ColByteArraySmall = GenerateTestArray(3, 255),
+                    ColByteArrayBig = GenerateTestArray(29, 65535*2),
 
                     ColNullableBoolean = true,
                     ColNullableByte = isPostgres ? (byte?)null : byte.MaxValue,
@@ -144,7 +202,9 @@ namespace SqExpress.IntTest.Scenarios
                     ColNullableInt32 = int.MaxValue,
                     ColNullableInt64 = long.MaxValue,
                     ColNullableStringMax = "abcdef",
-                    ColNullableStringUnicode = "\u0430\u0431\u0441\u0434\u0435\u0444"
+                    ColNullableStringUnicode = "\u0430\u0431\u0441\u0434\u0435\u0444",
+                    ColNullableByteArraySmall = GenerateTestArray(17, 255),
+                    ColNullableByteArrayBig = GenerateTestArray(17, 65535*2),
                 },
 
                 new AllColumnTypesDto
@@ -161,6 +221,8 @@ namespace SqExpress.IntTest.Scenarios
                     ColStringMax = "",
                     ColStringUnicode = "",
                     ColString5 = "",
+                    ColByteArraySmall = GenerateTestArray(7, 13),
+                    ColByteArrayBig = GenerateTestArray(13, 17),
 
                     ColNullableBoolean = null,
                     ColNullableByte = null,
@@ -172,7 +234,9 @@ namespace SqExpress.IntTest.Scenarios
                     ColNullableInt32 = null,
                     ColNullableInt64 = null,
                     ColNullableStringMax = null,
-                    ColNullableStringUnicode = null
+                    ColNullableStringUnicode = null,
+                    ColNullableByteArraySmall = null,
+                    ColNullableByteArrayBig = null
                 }
             };
             return result;
@@ -228,6 +292,14 @@ namespace SqExpress.IntTest.Scenarios
 
             public bool ColBoolean { get; set; }
 
+            public byte[] ColByteArraySmall { get; set; }
+
+            public byte[]? ColNullableByteArraySmall { get; set; }
+
+            public byte[] ColByteArrayBig { get; set; }
+
+            public byte[]? ColNullableByteArrayBig { get; set; }
+
             public bool Equals(AllColumnTypesDto? other)
             {
                 if (ReferenceEquals(null, other)) return false;
@@ -254,7 +326,39 @@ namespace SqExpress.IntTest.Scenarios
                        this.ColNullableByte == other.ColNullableByte &&
                        this.ColByte == other.ColByte &&
                        this.ColNullableBoolean == other.ColNullableBoolean &&
-                       this.ColBoolean == other.ColBoolean;
+                       this.ColBoolean == other.ColBoolean &&
+                       CompareArrays(this.ColByteArrayBig, other.ColByteArrayBig) &&
+                       CompareArrays(this.ColByteArraySmall, other.ColByteArraySmall) &&
+                       CompareArrays(this.ColNullableByteArrayBig, other.ColNullableByteArrayBig) &&
+                       CompareArrays(this.ColNullableByteArraySmall, other.ColNullableByteArraySmall);
+
+
+                static bool CompareArrays(byte[]? arr1, byte[]? arr2)
+                {
+                    if (arr1 == arr2)
+                    {
+                        return true;
+                    }
+
+                    if (arr1 == null || arr2 == null)
+                    {
+                        return false;
+                    }
+
+                    if (arr1.Length != arr2.Length)
+                    {
+                        return false;
+                    }
+
+                    for (int i = 0; i < arr1.Length; i++)
+                    {
+                        if (arr1[i] != arr2[i])
+                        {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
             }
 
             public override bool Equals(object? obj)
@@ -291,6 +395,10 @@ namespace SqExpress.IntTest.Scenarios
                 hashCode.Add(this.ColByte);
                 hashCode.Add(this.ColNullableBoolean);
                 hashCode.Add(this.ColBoolean);
+                hashCode.Add(this.ColByteArrayBig);
+                hashCode.Add(this.ColByteArraySmall);
+                hashCode.Add(this.ColNullableByteArrayBig);
+                hashCode.Add(this.ColNullableByteArraySmall);
                 return hashCode.ToHashCode();
             }
         }

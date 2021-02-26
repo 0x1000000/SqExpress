@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Data;
+using System.IO;
 
 namespace SqExpress
 {
@@ -9,6 +10,10 @@ namespace SqExpress
         bool? GetNullableBoolean(string name);
         byte GetByte(string name);
         byte? GetNullableByte(string name);
+        byte[] GetByteArray(string name);
+        byte[]? GetNullableByteArray(string name);
+        Stream GetStream(string name);
+        Stream? GetNullableStream(string name);
         short GetInt16(string name);
         short? GetNullableInt16(string name);
         int GetInt32(string name);

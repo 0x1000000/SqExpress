@@ -622,6 +622,9 @@ namespace SqExpress
         public static ExprTempTableName WithName(this ExprTempTableName original, String newName) 
             => new ExprTempTableName(name: newName);
 
+        public static ExprTypeByteArray WithSize(this ExprTypeByteArray original, Int32? newSize) 
+            => new ExprTypeByteArray(size: newSize);
+
         public static ExprTypeDateTime WithIsDate(this ExprTypeDateTime original, Boolean newIsDate) 
             => new ExprTypeDateTime(isDate: newIsDate);
 
