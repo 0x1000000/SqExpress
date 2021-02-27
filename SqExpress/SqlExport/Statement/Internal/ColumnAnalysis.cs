@@ -7,11 +7,11 @@ namespace SqExpress.SqlExport.Statement.Internal
     {
         public readonly List<ExprColumnName> Pk;
 
-        public readonly Dictionary<IExprTableFullName, List<(ExprColumnName Internal, ExprColumnName External)>> Fks;
+        public readonly Dictionary<IExprTableFullName, List<ColumnRelationship>> Fks;
 
-        public static ColumnAnalysis Build() => new ColumnAnalysis(new List<ExprColumnName>(4), new Dictionary<IExprTableFullName, List<(ExprColumnName Internal, ExprColumnName External)>>(4));
+        public static ColumnAnalysis Build() => new ColumnAnalysis(new List<ExprColumnName>(4), new Dictionary<IExprTableFullName, List<ColumnRelationship>>(4));
 
-        private ColumnAnalysis(List<ExprColumnName> pk, Dictionary<IExprTableFullName, List<(ExprColumnName Internal, ExprColumnName External)>> fks)
+        private ColumnAnalysis(List<ExprColumnName> pk, Dictionary<IExprTableFullName, List<ColumnRelationship>> fks)
         {
             this.Pk = pk;
             this.Fks = fks;
@@ -34,10 +34,22 @@ namespace SqExpress.SqlExport.Statement.Internal
 
                     if (!this.Fks.ContainsKey(foreignTable))
                     {
-                        this.Fks.Add(foreignTable, new List<(ExprColumnName Internal, ExprColumnName External)>(4));
+                        this.Fks.Add(foreignTable, new List<ColumnRelationship>(4));
                     }
-                    this.Fks[foreignTable].Add((Internal: column.ColumnName, External: foreignKeyColumn.ColumnName));
+                    this.Fks[foreignTable].Add(new ColumnRelationship(@internal: column.ColumnName, external: foreignKeyColumn.ColumnName));
                 }
+            }
+        }
+
+        public readonly struct ColumnRelationship
+        {
+            public readonly ExprColumnName Internal;
+            public readonly ExprColumnName External;
+
+            public ColumnRelationship(ExprColumnName @internal, ExprColumnName external)
+            {
+                this.Internal = @internal;
+                this.External = external;
             }
         }
     }

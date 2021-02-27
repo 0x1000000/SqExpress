@@ -1,13 +1,13 @@
 ﻿using System;
 using System.IO;
 using System.Text;
-using System.Text.Json;
 using System.Xml;
 using NUnit.Framework;
 using SqExpress.Syntax;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Names;
+using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Value;
 using SqExpress.SyntaxTreeOperations;
 using static SqExpress.SqQueryBuilder;
@@ -111,6 +111,7 @@ namespace SqExpress.Test.Syntax
                             "ON [A1].[UserNewId]=[A0].[UserNewId]", e.ToSql());
         }
 
+#if !NETFRAMEWORK
         [Test]
         public void TestExportImportJson()
         {
@@ -128,16 +129,17 @@ namespace SqExpress.Test.Syntax
             using MemoryStream writer = new MemoryStream();
             selectExpr
                 .SyntaxTree()
-                .WalkThrough(new JsonWriter(), new Utf8JsonWriter(writer));
+                .WalkThrough(new JsonWriter(), new System.Text.Json.Utf8JsonWriter(writer));
 
             var jsonText = Encoding.UTF8.GetString(writer.ToArray());
 
-            var doc = JsonDocument.Parse(jsonText);
+            var doc = System.Text.Json.JsonDocument.Parse(jsonText);
 
             var deserialized = ExprDeserializer.Deserialize(doc.RootElement, new JsonReader());
 
             Assert.AreEqual(selectExpr.ToSql(), deserialized.ToSql());
         }
+#endif
 
         [Test]
         public void TestExportImportPlain()
@@ -145,7 +147,7 @@ namespace SqExpress.Test.Syntax
             var tUser = Tables.User();
             var tCustomer = Tables.Customer();
 
-            var selectExpr = Select(tUser.UserId, tUser.FirstName, tCustomer.CustomerId, Cast(Literal(12.8m), SqlType.Decimal((10, 2))).As("Salary"))
+            var selectExpr = Select(tUser.UserId, tUser.FirstName, tCustomer.CustomerId, Cast(Literal(12.8m), SqlType.Decimal(new DecimalPrecisionScale(10, 2))).As("Salary"))
                 .From(tUser)
                 .InnerJoin(tCustomer, on: tCustomer.UserId == tUser.UserId)
                 .Where(tUser.Version == 5 & tUser.RegDate > new DateTime(2020, 10, 18, 1,2,3,400) & tUser.RegDate <= new DateTime(2021,01,01))
@@ -160,13 +162,14 @@ namespace SqExpress.Test.Syntax
 
             Assert.AreEqual(selectExpr.ToSql(), res.ToSql());
         }
+
         [Test]
         public void TestExportImportXml()
         {
             var tUser = Tables.User();
             var tCustomer = Tables.Customer();
 
-            var selectExpr = Select(tUser.UserId, tUser.FirstName, tCustomer.CustomerId, Cast(Literal(12.8m), SqlType.Decimal((10, 2))).As("Salary"))
+            var selectExpr = Select(tUser.UserId, tUser.FirstName, tCustomer.CustomerId, Cast(Literal(12.8m), SqlType.Decimal(new DecimalPrecisionScale(10, 2))).As("Salary"))
                 .From(tUser)
                 .InnerJoin(tCustomer, on: tCustomer.UserId == tUser.UserId)
                 .Where(tUser.Version == 5 & tUser.RegDate > new DateTime(2020, 10, 18, 1,2,3,400) & tUser.RegDate <= new DateTime(2021,01,01))

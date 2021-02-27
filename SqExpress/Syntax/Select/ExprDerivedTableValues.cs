@@ -1,12 +1,11 @@
 ﻿using System.Collections.Generic;
-using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Names;
 
 namespace SqExpress.Syntax.Select
 {
     public abstract class ExprDerivedTable : IExprTableSource
     {
-        protected ExprDerivedTable(ExprTableAlias @alias)
+        protected ExprDerivedTable(ExprTableAlias alias)
         {
             this.Alias = alias;
         }
@@ -15,9 +14,9 @@ namespace SqExpress.Syntax.Select
 
         public abstract TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg);
 
-        public (IReadOnlyList<IExprTableSource> Tables, ExprBoolean? On) ToTableMultiplication()
+        public TableMultiplication ToTableMultiplication()
         {
-            return (new[] {this}, null);
+            return new TableMultiplication(new[] {this}, null);
         }
     }
 

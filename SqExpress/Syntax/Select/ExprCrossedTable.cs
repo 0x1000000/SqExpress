@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-using SqExpress.Syntax.Boolean;
-using SqExpress.Utils;
+﻿using SqExpress.Utils;
 
 namespace SqExpress.Syntax.Select
 {
@@ -19,15 +17,14 @@ namespace SqExpress.Syntax.Select
         public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprCrossedTable(this, arg);
 
-        public (IReadOnlyList<IExprTableSource> Tables, ExprBoolean? On) ToTableMultiplication()
+        public TableMultiplication ToTableMultiplication()
         {
             var left = this.Left.ToTableMultiplication();
             var right = this.Right.ToTableMultiplication();
 
             var condition = Helpers.CombineNotNull(left.On, right.On, (l, r) => l & r);
 
-            return (Helpers.Combine(left.Tables, right.Tables), condition);
-
+            return new TableMultiplication(Helpers.Combine(left.Tables, right.Tables), condition);
         }
     }
 }

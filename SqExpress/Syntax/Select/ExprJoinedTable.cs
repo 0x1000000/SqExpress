@@ -25,7 +25,7 @@ namespace SqExpress.Syntax.Select
         public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprJoinedTable(this, arg);
 
-        public (IReadOnlyList<IExprTableSource> Tables, ExprBoolean? On) ToTableMultiplication()
+        public TableMultiplication ToTableMultiplication()
         {
             if (this.JoinType != ExprJoinType.Inner)
             {
@@ -45,7 +45,7 @@ namespace SqExpress.Syntax.Select
                 condition = condition & right.On;
             }
 
-            return (Helpers.Combine(left.Tables, right.Tables), condition);
+            return new TableMultiplication(Helpers.Combine(left.Tables, right.Tables), condition);
         }
 
         public enum ExprJoinType

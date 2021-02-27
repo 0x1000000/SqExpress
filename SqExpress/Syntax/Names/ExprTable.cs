@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Select;
 
 namespace SqExpress.Syntax.Names
@@ -20,9 +18,9 @@ namespace SqExpress.Syntax.Names
         public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprTable(this, arg);
 
-        public (IReadOnlyList<IExprTableSource> Tables, ExprBoolean? On) ToTableMultiplication()
+        public TableMultiplication ToTableMultiplication()
         {
-            return (new[] {this}, null);
+            return new TableMultiplication(new[] {this}, null);
         }
 
         public bool Equals(ExprTable? other)

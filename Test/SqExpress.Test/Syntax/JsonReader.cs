@@ -1,4 +1,5 @@
-﻿using System;
+﻿#if !NETFRAMEWORK
+using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using SqExpress.SyntaxTreeOperations;
@@ -119,3 +120,4 @@ namespace SqExpress.Test.Syntax
         }
     }
 }
+#endif

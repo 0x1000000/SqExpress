@@ -292,11 +292,11 @@ namespace SqExpress.IntTest.Scenarios
 
             public bool ColBoolean { get; set; }
 
-            public byte[] ColByteArraySmall { get; set; }
+            public byte[] ColByteArraySmall { get; set; } = new byte[0];
 
             public byte[]? ColNullableByteArraySmall { get; set; }
 
-            public byte[] ColByteArrayBig { get; set; }
+            public byte[] ColByteArrayBig { get; set; } = new byte[0];
 
             public byte[]? ColNullableByteArrayBig { get; set; }
 

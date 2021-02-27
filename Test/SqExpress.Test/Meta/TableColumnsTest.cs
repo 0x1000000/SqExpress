@@ -2,6 +2,7 @@
 using Moq;
 using NUnit.Framework;
 using SqExpress.Syntax.Names;
+using SqExpress.Syntax.Type;
 
 namespace SqExpress.Test.Meta
 {
@@ -519,8 +520,8 @@ namespace SqExpress.Test.Meta
             this.ColNullableInt32 = this.CreateNullableInt32Column(nameof(ColNullableInt32));
             this.ColInt64 = this.CreateInt64Column(nameof(ColInt64));
             this.ColNullableInt64 = this.CreateNullableInt64Column(nameof(ColNullableInt64));
-            this.ColDecimal = this.CreateDecimalColumn(nameof(ColDecimal), (10, 6));
-            this.ColNullableDecimal = this.CreateNullableDecimalColumn(nameof(ColNullableDecimal), (10, 6));
+            this.ColDecimal = this.CreateDecimalColumn(nameof(ColDecimal), new DecimalPrecisionScale(10, 6));
+            this.ColNullableDecimal = this.CreateNullableDecimalColumn(nameof(ColNullableDecimal), new DecimalPrecisionScale(10, 6));
             this.ColDouble = this.CreateDoubleColumn(nameof(ColDouble));
             this.ColNullableDouble = this.CreateNullableDoubleColumn(nameof(ColNullableDouble));
             this.ColDateTime = this.CreateDateTimeColumn(nameof(ColDateTime));

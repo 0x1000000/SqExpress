@@ -35,7 +35,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
             var result = this.FindElement(node, propertyName);
             if (result != null)
             {
-                List<(int Index, XmlElement Element)> buffer = new List<(int Index, XmlElement element)>();
+                List<IndexXElement> buffer = new List<IndexXElement>();
                 foreach (var childNode in result.ChildNodes)
                 {
                     if (childNode is XmlElement childElement)
@@ -43,7 +43,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
                         string indexStr = childElement.Name.Substring(propertyName.Length);
                         if (int.TryParse(indexStr, out var index))
                         {
-                            buffer.Add((index, childElement));
+                            buffer.Add(new IndexXElement(index, childElement));
                         }
                     }
                 }
@@ -141,6 +141,36 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
 
             value = null;
             return false;
+        }
+
+        private readonly struct IndexXElement : IEquatable<IndexXElement>
+        {
+            public readonly int Index;
+            public readonly XmlElement Element;
+
+            public IndexXElement(int index, XmlElement element)
+            {
+                this.Index = index;
+                this.Element = element;
+            }
+
+            public bool Equals(IndexXElement other)
+            {
+                return this.Index == other.Index && this.Element.Equals(other.Element);
+            }
+
+            public override bool Equals(object? obj)
+            {
+                return obj is IndexXElement other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    return (this.Index * 397) ^ this.Element.GetHashCode();
+                }
+            }
         }
     }
 }
