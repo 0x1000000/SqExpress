@@ -434,6 +434,15 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public override bool VisitExprTypeFixSizeByteArray(ExprTypeFixSizeByteArray exprTypeFixSizeByteArray, IExpr? arg)
+        {
+            this.Builder.Append("binary(");
+            this.Builder.Append(exprTypeFixSizeByteArray.Size.ToString());
+            this.Builder.Append(')');
+
+            return true;
+        }
+
         public override bool VisitExprTypeInt16(ExprTypeInt16 exprTypeInt16, IExpr? parent)
         {
             this.Builder.Append("smallint");
@@ -532,6 +541,22 @@ namespace SqExpress.SqlExport.Internal
             }
 
             if (exprTypeString.IsUnicode)
+            {
+                this.Builder.Append(" character set utf8");
+            }
+
+            return true;
+        }
+
+        public override bool VisitExprTypeFixSizeString(ExprTypeFixSizeString exprTypeFixSizeString, IExpr? arg)
+        {
+            this.Builder.Append("char");
+
+            this.Builder.Append('(');
+            this.Builder.Append(exprTypeFixSizeString.Size.ToString());
+            this.Builder.Append(')');
+
+            if (exprTypeFixSizeString.IsUnicode)
             {
                 this.Builder.Append(" character set utf8");
             }

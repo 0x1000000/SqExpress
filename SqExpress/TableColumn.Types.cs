@@ -81,12 +81,12 @@ namespace SqExpress
 
     public class ByteArrayTableColumn : TableColumn
     {
-        internal ByteArrayTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ExprTypeByteArray typeByteArray, ColumnMeta? columnMeta) : base(source, columnName, table, typeByteArray, false, columnMeta)
+        internal ByteArrayTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ExprTypeByteArrayBase typeByteArray, ColumnMeta? columnMeta) : base(source, columnName, table, typeByteArray, false, columnMeta)
         {
             this.SqlType = typeByteArray;
         }
 
-        public new ExprTypeByteArray SqlType { get; }
+        public new ExprTypeByteArrayBase SqlType { get; }
 
         public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitByteArray(this);
 
@@ -109,12 +109,12 @@ namespace SqExpress
 
     public class NullableByteArrayTableColumn : TableColumn
     {
-        internal NullableByteArrayTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ExprTypeByteArray typeByteArray, ColumnMeta? columnMeta) : base(source, columnName, table, typeByteArray, true, columnMeta)
+        internal NullableByteArrayTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ExprTypeByteArrayBase typeByteArray, ColumnMeta? columnMeta) : base(source, columnName, table, typeByteArray, true, columnMeta)
         {
             this.SqlType = typeByteArray;
         }
 
-        public new ExprTypeByteArray SqlType { get; }
+        public new ExprTypeByteArrayBase SqlType { get; }
 
         public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableByteArray(this);
 
@@ -405,12 +405,12 @@ namespace SqExpress
 
     public class StringTableColumn : TableColumn
     {
-        internal StringTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ExprTypeString stringType, ColumnMeta? columnMeta) : base(source, columnName, table, stringType, false, columnMeta)
+        internal StringTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ExprTypeStringBase stringType, ColumnMeta? columnMeta) : base(source, columnName, table, stringType, false, columnMeta)
         {
             this.SqlType = stringType;
         }
 
-        public new ExprTypeString SqlType { get; }
+        public new ExprTypeStringBase SqlType { get; }
 
         public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitString(this);
 
@@ -438,12 +438,12 @@ namespace SqExpress
 
     public class NullableStringTableColumn : TableColumn
     {
-        internal NullableStringTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ExprTypeString stringType, ColumnMeta? columnMeta) : base(source, columnName, table, stringType, true, columnMeta)
+        internal NullableStringTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ExprTypeStringBase stringType, ColumnMeta? columnMeta) : base(source, columnName, table, stringType, true, columnMeta)
         {
             this.SqlType = stringType;
         }
 
-        public new ExprTypeString SqlType { get; }
+        public new ExprTypeStringBase SqlType { get; }
 
         public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableString(this);
 

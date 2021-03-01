@@ -2,6 +2,7 @@
 ### New Features
 - .Net Framework 4.5
 - Binary Column Type
+- Fixed Size String Column Type
 ### Breaking Changes
 - Some public interfaces have new methods to be implemented
 - ValueTuples are not used anymore (replaced with explicit structures to compatibility with .Net Framework 4.5)

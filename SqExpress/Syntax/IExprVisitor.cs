@@ -240,6 +240,8 @@ namespace SqExpress.Syntax
 
         TRes VisitExprTypeByteArray(ExprTypeByteArray exprTypeByte, TArg arg);
 
+        TRes VisitExprTypeFixSizeByteArray(ExprTypeFixSizeByteArray exprTypeFixSizeByteArray, TArg arg);
+
         TRes VisitExprTypeInt16(ExprTypeInt16 exprTypeInt16, TArg arg);
 
         TRes VisitExprTypeInt32(ExprTypeInt32 exprTypeInt32, TArg arg);
@@ -255,5 +257,7 @@ namespace SqExpress.Syntax
         TRes VisitExprTypeGuid(ExprTypeGuid exprTypeGuid, TArg arg);
 
         TRes VisitExprTypeString(ExprTypeString exprTypeString, TArg arg);
+
+        TRes VisitExprTypeFixSizeString(ExprTypeFixSizeString exprTypeFixSizeString, TArg arg);
     }
 }

@@ -962,6 +962,14 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         {
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprTypeFixSizeByteArray(ExprTypeFixSizeByteArray exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprTypeFixSizeString(ExprTypeFixSizeString exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprTypeGuid(ExprTypeGuid exprIn, Func<IExpr, IExpr?> modifier)
         {
             return modifier.Invoke(exprIn);

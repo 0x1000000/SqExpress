@@ -752,6 +752,21 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             this._visitor.EndVisitExpr(expr, arg);
             return res;
         }
+        public bool VisitExprTypeFixSizeByteArray(ExprTypeFixSizeByteArray expr, TCtx arg)
+        {
+            var res = this.Visit(expr, "TypeFixSizeByteArray", arg, out var argOut);
+            this.VisitPlainProperty("Size",expr.Size, argOut);
+            this._visitor.EndVisitExpr(expr, arg);
+            return res;
+        }
+        public bool VisitExprTypeFixSizeString(ExprTypeFixSizeString expr, TCtx arg)
+        {
+            var res = this.Visit(expr, "TypeFixSizeString", arg, out var argOut);
+            this.VisitPlainProperty("Size",expr.Size, argOut);
+            this.VisitPlainProperty("IsUnicode",expr.IsUnicode, argOut);
+            this._visitor.EndVisitExpr(expr, arg);
+            return res;
+        }
         public bool VisitExprTypeGuid(ExprTypeGuid expr, TCtx arg)
         {
             var res = this.Visit(expr, "TypeGuid", arg, out var argOut);

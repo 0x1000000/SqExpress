@@ -1315,6 +1315,8 @@ namespace SqExpress.SqlExport.Internal
 
         public abstract bool VisitExprTypeByteArray(ExprTypeByteArray exprTypeByte, IExpr? arg);
 
+        public abstract bool VisitExprTypeFixSizeByteArray(ExprTypeFixSizeByteArray exprTypeFixSizeByteArray, IExpr? arg);
+
         public abstract bool VisitExprTypeInt16(ExprTypeInt16 exprTypeInt16, IExpr? parent);
 
         public abstract bool VisitExprTypeInt32(ExprTypeInt32 exprTypeInt32, IExpr? parent);
@@ -1330,6 +1332,8 @@ namespace SqExpress.SqlExport.Internal
         public abstract bool VisitExprTypeGuid(ExprTypeGuid exprTypeGuid, IExpr? parent);
 
         public abstract bool VisitExprTypeString(ExprTypeString exprTypeString, IExpr? parent);
+
+        public abstract bool VisitExprTypeFixSizeString(ExprTypeFixSizeString exprTypeFixSizeString, IExpr? arg);
 
         public abstract bool VisitExprFuncIsNull(ExprFuncIsNull exprFuncIsNull, IExpr? parent);
 

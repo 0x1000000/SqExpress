@@ -281,6 +281,13 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public override bool VisitExprTypeFixSizeByteArray(ExprTypeFixSizeByteArray exprTypeFixSizeByteArray, IExpr? arg)
+        {
+            //PostgreSQL does not support binary type with fixed length
+            this.Builder.Append("bytea");
+            return true;
+        }
+
         public override bool VisitExprTypeInt16(ExprTypeInt16 exprTypeInt16, IExpr? parent)
         {
             this.Builder.Append("int2");
@@ -351,6 +358,15 @@ namespace SqExpress.SqlExport.Internal
                 this.Builder.Append(exprTypeString.Size.Value);
                 this.Builder.Append(')');
             }
+            return true;
+        }
+
+        public override bool VisitExprTypeFixSizeString(ExprTypeFixSizeString exprTypeFixSizeString, IExpr? arg)
+        {
+            this.Builder.Append("character");
+            this.Builder.Append('(');
+            this.Builder.Append(exprTypeFixSizeString.Size.ToString());
+            this.Builder.Append(')');
             return true;
         }
 

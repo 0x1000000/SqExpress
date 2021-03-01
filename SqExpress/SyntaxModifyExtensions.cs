@@ -631,6 +631,15 @@ namespace SqExpress
         public static ExprTypeDecimal WithPrecisionScale(this ExprTypeDecimal original, DecimalPrecisionScale? newPrecisionScale) 
             => new ExprTypeDecimal(precisionScale: newPrecisionScale);
 
+        public static ExprTypeFixSizeByteArray WithSize(this ExprTypeFixSizeByteArray original, Int32 newSize) 
+            => new ExprTypeFixSizeByteArray(size: newSize);
+
+        public static ExprTypeFixSizeString WithSize(this ExprTypeFixSizeString original, Int32 newSize) 
+            => new ExprTypeFixSizeString(size: newSize, isUnicode: original.IsUnicode);
+
+        public static ExprTypeFixSizeString WithIsUnicode(this ExprTypeFixSizeString original, Boolean newIsUnicode) 
+            => new ExprTypeFixSizeString(size: original.Size, isUnicode: newIsUnicode);
+
         public static ExprTypeString WithSize(this ExprTypeString original, Int32? newSize) 
             => new ExprTypeString(size: newSize, isUnicode: original.IsUnicode, isText: original.IsText);
 

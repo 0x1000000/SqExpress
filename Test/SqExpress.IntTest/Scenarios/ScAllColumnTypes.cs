@@ -42,7 +42,9 @@ namespace SqExpress.IntTest.Scenarios
                     .ForMember(nameof(table.ColByteArraySmall), c => c.Ignore())
                     .ForMember(nameof(table.ColByteArrayBig), c => c.Ignore())
                     .ForMember(nameof(table.ColNullableByteArraySmall), c => c.Ignore())
-                    .ForMember(nameof(table.ColNullableByteArrayBig), c => c.Ignore());
+                    .ForMember(nameof(table.ColNullableByteArrayBig), c => c.Ignore())
+                    .ForMember(nameof(table.ColNullableFixedSizeByteArray), c => c.Ignore())
+                    .ForMember(nameof(table.ColFixedSizeByteArray), c => c.Ignore());
 
                 if (isPostgres)
                 {
@@ -74,6 +76,8 @@ namespace SqExpress.IntTest.Scenarios
                     allColumnTypesDto.ColByteArraySmall = table.ColByteArraySmall.Read(r);
                     allColumnTypesDto.ColNullableByteArrayBig = table.ColNullableByteArrayBig.Read(r);
                     allColumnTypesDto.ColNullableByteArraySmall = table.ColNullableByteArraySmall.Read(r);
+                    allColumnTypesDto.ColFixedSizeByteArray = table.ColFixedSizeByteArray.Read(r);
+                    allColumnTypesDto.ColNullableFixedSizeByteArray = table.ColNullableFixedSizeByteArray.Read(r);
 
                     return allColumnTypesDto;
                 });
@@ -152,6 +156,11 @@ namespace SqExpress.IntTest.Scenarios
                 .Set(s.Target.ColNullableByteArraySmall, s.Source.ColNullableByteArraySmall)
                 .Set(s.Target.ColByteArrayBig, s.Source.ColByteArrayBig)
                 .Set(s.Target.ColNullableByteArrayBig, s.Source.ColNullableByteArrayBig)
+
+                .Set(s.Target.ColFixedSizeString, s.Source.ColFixedSizeString)
+                .Set(s.Target.ColNullableFixedSizeString, s.Source.ColNullableFixedSizeString)
+                .Set(s.Target.ColFixedSizeByteArray, s.Source.ColFixedSizeByteArray)
+                .Set(s.Target.ColNullableFixedSizeByteArray, s.Source.ColNullableFixedSizeByteArray)
                 ;
 
             return recordSetterNext;
@@ -205,6 +214,12 @@ namespace SqExpress.IntTest.Scenarios
                     ColNullableStringUnicode = "\u0430\u0431\u0441\u0434\u0435\u0444",
                     ColNullableByteArraySmall = GenerateTestArray(17, 255),
                     ColNullableByteArrayBig = GenerateTestArray(17, 65535*2),
+
+                    ColFixedSizeByteArray = new byte[]{255, 0},
+                    ColFixedSizeString = "123",
+
+                    ColNullableFixedSizeByteArray = new byte[]{0,255},
+                    ColNullableFixedSizeString = "321",
                 },
 
                 new AllColumnTypesDto
@@ -236,7 +251,14 @@ namespace SqExpress.IntTest.Scenarios
                     ColNullableStringMax = null,
                     ColNullableStringUnicode = null,
                     ColNullableByteArraySmall = null,
-                    ColNullableByteArrayBig = null
+                    ColNullableByteArrayBig = null,
+
+
+                    ColFixedSizeByteArray = new byte[]{128, 128},
+                    ColFixedSizeString = "abc",
+
+                    ColNullableFixedSizeByteArray = null,
+                    ColNullableFixedSizeString = null
                 }
             };
             return result;
@@ -300,6 +322,13 @@ namespace SqExpress.IntTest.Scenarios
 
             public byte[]? ColNullableByteArrayBig { get; set; }
 
+            public byte[]? ColNullableFixedSizeByteArray { get; set; }
+            public byte[] ColFixedSizeByteArray { get; set; } = new byte[0];
+
+            public string? ColNullableFixedSizeString { get; set; }
+            public string ColFixedSizeString { get; set; } = "";
+
+
             public bool Equals(AllColumnTypesDto? other)
             {
                 if (ReferenceEquals(null, other)) return false;
@@ -330,7 +359,14 @@ namespace SqExpress.IntTest.Scenarios
                        CompareArrays(this.ColByteArrayBig, other.ColByteArrayBig) &&
                        CompareArrays(this.ColByteArraySmall, other.ColByteArraySmall) &&
                        CompareArrays(this.ColNullableByteArrayBig, other.ColNullableByteArrayBig) &&
-                       CompareArrays(this.ColNullableByteArraySmall, other.ColNullableByteArraySmall);
+                       CompareArrays(this.ColNullableByteArraySmall, other.ColNullableByteArraySmall) &&
+
+                       this.ColNullableFixedSizeString == other.ColNullableFixedSizeString &&
+                       this.ColFixedSizeString == other.ColFixedSizeString &&
+
+                       CompareArrays(this.ColNullableFixedSizeByteArray, other.ColNullableFixedSizeByteArray) &&
+                       CompareArrays(this.ColFixedSizeByteArray, other.ColFixedSizeByteArray)
+                       ;
 
 
                 static bool CompareArrays(byte[]? arr1, byte[]? arr2)
@@ -399,6 +435,11 @@ namespace SqExpress.IntTest.Scenarios
                 hashCode.Add(this.ColByteArraySmall);
                 hashCode.Add(this.ColNullableByteArrayBig);
                 hashCode.Add(this.ColNullableByteArraySmall);
+
+                hashCode.Add(this.ColNullableFixedSizeString);
+                hashCode.Add(this.ColFixedSizeString);
+                hashCode.Add(this.ColNullableFixedSizeByteArray);
+                hashCode.Add(this.ColFixedSizeByteArray);
                 return hashCode.ToHashCode();
             }
         }

@@ -21,7 +21,25 @@
             => visitor.VisitExprTypeByte(this, arg);
     }
 
-    public class ExprTypeByteArray : ExprType
+    public abstract class ExprTypeByteArrayBase : ExprType
+    {
+
+    }
+
+    public class ExprTypeFixSizeByteArray : ExprTypeByteArrayBase
+    {
+        public ExprTypeFixSizeByteArray(int size)
+        {
+            this.Size = size;
+        }
+
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprTypeFixSizeByteArray(this, arg);
+
+        public int Size { get; }
+    }
+
+    public class ExprTypeByteArray : ExprTypeByteArrayBase
     {
         public ExprTypeByteArray(int? size)
         {
@@ -100,7 +118,13 @@
             => visitor.VisitExprTypeGuid(this, arg);
     }
 
-    public class ExprTypeString : ExprType
+
+    public abstract class ExprTypeStringBase : ExprType
+    {
+
+    }
+
+    public class ExprTypeString : ExprTypeStringBase
     {
         public ExprTypeString(int? size, bool isUnicode, bool isText)
         {
@@ -117,5 +141,21 @@
 
         public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprTypeString(this, arg);
+    }
+
+    public class ExprTypeFixSizeString : ExprTypeStringBase
+    {
+        public ExprTypeFixSizeString(int size, bool isUnicode)
+        {
+            this.Size = size;
+            this.IsUnicode = isUnicode;
+        }
+
+        public bool IsUnicode { get; }
+
+        public int Size { get; }
+
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprTypeFixSizeString(this, arg);
     }
 }

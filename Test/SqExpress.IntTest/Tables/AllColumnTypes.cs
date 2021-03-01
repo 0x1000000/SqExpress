@@ -43,7 +43,20 @@
             this.ColNullableByteArraySmall = this.CreateNullableByteArrayColumn(nameof(ColNullableByteArraySmall), 255);
             this.ColNullableByteArrayBig = this.CreateNullableByteArrayColumn(nameof(ColNullableByteArrayBig), null);
 
+            this.ColFixedSizeString = this.CreateFixedSizeStringColumn(nameof(this.ColFixedSizeString), 3, false);
+            this.ColNullableFixedSizeString = this.CreateNullableFixedSizeStringColumn(nameof(this.ColNullableFixedSizeString), 3, true);
+
+            this.ColFixedSizeByteArray = this.CreateFixedSizeByteArrayColumn(nameof(ColFixedSizeByteArray), 2);
+            this.ColNullableFixedSizeByteArray = this.CreateNullableFixedSizeByteArrayColumn(nameof(ColNullableFixedSizeByteArray), 2);
+
+
         }
+
+        public NullableByteArrayTableColumn ColNullableFixedSizeByteArray { get; set; }
+        public ByteArrayTableColumn ColFixedSizeByteArray { get; set; }
+
+        public NullableStringTableColumn ColNullableFixedSizeString { get; set; }
+        public StringTableColumn ColFixedSizeString { get; set; }
 
         public ByteArrayTableColumn ColByteArraySmall { get; }
         public ByteArrayTableColumn ColByteArrayBig { get; }

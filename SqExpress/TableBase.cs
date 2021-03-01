@@ -79,6 +79,20 @@ namespace SqExpress
             return result;
         }
 
+        protected ByteArrayTableColumn CreateFixedSizeByteArrayColumn(string name, int size, ColumnMeta? columnMeta = null)
+        {
+            var result = new ByteArrayTableColumn(this.Alias, new ExprColumnName(name), this, new ExprTypeFixSizeByteArray(size), columnMeta);
+            this._columns.Add(result);
+            return result;
+        }
+
+        protected NullableByteArrayTableColumn CreateNullableFixedSizeByteArrayColumn(string name, int size, ColumnMeta? columnMeta = null)
+        {
+            var result = new NullableByteArrayTableColumn(this.Alias, new ExprColumnName(name), this, new ExprTypeFixSizeByteArray(size), columnMeta);
+            this._columns.Add(result);
+            return result;
+        }
+
         protected Int16TableColumn CreateInt16Column(string name, ColumnMeta? columnMeta = null)
         {
             var result = new Int16TableColumn(this.Alias, new ExprColumnName(name), this, columnMeta);
@@ -180,6 +194,20 @@ namespace SqExpress
         protected StringTableColumn CreateStringColumn(string name, int? size, bool isUnicode = false, bool isText = false, ColumnMeta? columnMeta = null)
         {
             var result = new StringTableColumn(this.Alias, new ExprColumnName(name), this, new ExprTypeString(size, isUnicode, isText), columnMeta);
+            this._columns.Add(result);
+            return result;
+        }
+
+        protected NullableStringTableColumn CreateNullableFixedSizeStringColumn(string name, int size, bool isUnicode = false, ColumnMeta? columnMeta = null)
+        {
+            var result = new NullableStringTableColumn(this.Alias, new ExprColumnName(name), this, new ExprTypeFixSizeString(size, isUnicode), columnMeta);
+            this._columns.Add(result);
+            return result;
+        }
+
+        protected StringTableColumn CreateFixedSizeStringColumn(string name, int size, bool isUnicode = false, ColumnMeta? columnMeta = null)
+        {
+            var result = new StringTableColumn(this.Alias, new ExprColumnName(name), this, new ExprTypeFixSizeString(size, isUnicode), columnMeta);
             this._columns.Add(result);
             return result;
         }
