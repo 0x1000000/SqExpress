@@ -198,6 +198,13 @@ namespace SqExpress
             return result;
         }
 
+        protected NullableStringTableColumn CreateNullableStringColumn(string name, int? size, bool isUnicode = false, bool isText = false, ColumnMeta? columnMeta = null)
+        {
+            var result = new NullableStringTableColumn(this.Alias, new ExprColumnName(name), this, new ExprTypeString(size, isUnicode, isText), columnMeta);
+            this._columns.Add(result);
+            return result;
+        }
+
         protected NullableStringTableColumn CreateNullableFixedSizeStringColumn(string name, int size, bool isUnicode = false, ColumnMeta? columnMeta = null)
         {
             var result = new NullableStringTableColumn(this.Alias, new ExprColumnName(name), this, new ExprTypeFixSizeString(size, isUnicode), columnMeta);
@@ -212,9 +219,16 @@ namespace SqExpress
             return result;
         }
 
-        protected NullableStringTableColumn CreateNullableStringColumn(string name, int? size, bool isUnicode = false, bool isText = false, ColumnMeta? columnMeta = null)
+        protected NullableStringTableColumn CreateNullableXmlColumn(string name, ColumnMeta? columnMeta = null)
         {
-            var result = new NullableStringTableColumn(this.Alias, new ExprColumnName(name), this, new ExprTypeString(size, isUnicode, isText), columnMeta);
+            var result = new NullableStringTableColumn(this.Alias, new ExprColumnName(name), this, ExprTypeXml.Instance, columnMeta);
+            this._columns.Add(result);
+            return result;
+        }
+
+        protected StringTableColumn CreateXmlColumn(string name, ColumnMeta? columnMeta = null)
+        {
+            var result = new StringTableColumn(this.Alias, new ExprColumnName(name), this, ExprTypeXml.Instance, columnMeta);
             this._columns.Add(result);
             return result;
         }

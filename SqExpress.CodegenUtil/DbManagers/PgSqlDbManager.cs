@@ -46,21 +46,8 @@ namespace SqExpress.CodeGenUtil.DbManagers
 
         public override async Task<IReadOnlyList<TableModel>> SelectTables()
         {
-            var tColumns = new MsSqlIsColumns();
-            var tTables = new MsSqlIsTables();
-
-            var filter = tTables.TableName == tColumns.TableName
-                         & tTables.TableSchema == tColumns.TableSchema
-                         & tTables.TableType == "BASE TABLE"
-                         & tTables.TableCatalog == this._databaseName;
-
-            var tablesDic = await SqQueryBuilder.Select(tColumns.AllColumns())
-                .From(tColumns)
-                .Where(SqQueryBuilder.Exists(SqQueryBuilder.SelectOne().From(tTables).Where(filter)))
-                .Query(this.Database, new Dictionary<TableNameModel, List<ColumnModel>>(),
-                    (acc, r) => AggregateColumns(MsSqlIsColumnsDto.FromRecord(r, tColumns), false, acc));
-
-            return tablesDic.Select(kv => new TableModel(kv.Key, kv.Value)).ToList();
+            await Task.Delay(0);
+            return new TableModel[0];
         }
     }
 }

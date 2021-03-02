@@ -48,21 +48,8 @@ namespace SqExpress.CodeGenUtil.DbManagers
 
         public override async Task<IReadOnlyList<TableModel>> SelectTables()
         {
-            var tColumns = new MySqlISColumns();
-            var tTables = new MySqlIsTables();
-
-            var filter = tTables.TableName == tColumns.TableName
-                         & tTables.TableSchema == tColumns.TableSchema
-                         & tTables.TableType == "BASE TABLE"
-                         & tTables.TableSchema == this._databaseName;
-
-            var tablesDic = await Select(tColumns.AllColumns())
-                .From(tColumns)
-                .Where(Exists(SelectOne().From(tTables).Where(filter)))
-                .Query(this.Database, new Dictionary<TableNameModel, List<ColumnModel>>(),
-                    (acc, r) => AggregateColumns(MySqlIsColumnsDto.FromRecord(r, tColumns), true, acc));
-
-            return tablesDic.Select(kv => new TableModel(kv.Key, kv.Value)).ToList();
+            await Task.Delay(0);
+            return new TableModel[0];
         }
     }
 }

@@ -370,6 +370,12 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public override bool VisitExprTypeXml(ExprTypeXml exprTypeXml, IExpr? arg)
+        {
+            this.Builder.Append("xml");
+            return true;
+        }
+
         public override bool VisitExprFuncIsNull(ExprFuncIsNull exprFuncIsNull, IExpr? parent)
         {
             SqQueryBuilder.Coalesce(exprFuncIsNull.Test, exprFuncIsNull.Alt).Accept(this, exprFuncIsNull);

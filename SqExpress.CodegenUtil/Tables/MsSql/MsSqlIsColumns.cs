@@ -1,32 +1,34 @@
 ﻿namespace SqExpress.CodeGenUtil.Tables.MsSql
 {
-    internal class MsSqlIsColumns : TableBase
+    internal class MsSqlIsColumns : TableBase, IMsSqlTableColumns
     {
-        public readonly StringTableColumn TableCatalog;
+        public StringTableColumn TableCatalog { get; }
 
-        public readonly StringTableColumn TableSchema;
+        public StringTableColumn TableSchema { get; }
 
-        public readonly StringTableColumn TableName;
+        public StringTableColumn TableName { get; }
 
-        public readonly StringTableColumn ColumnName;
+        public StringTableColumn ColumnName { get; }
 
-        public readonly Int32TableColumn OrdinalPosition;
+        public Int32TableColumn OrdinalPosition { get; }
 
-        public readonly NullableStringTableColumn ColumnDefault;
+        public NullableStringTableColumn ColumnDefault { get; }
 
-        public readonly StringTableColumn IsNullable;
+        public StringTableColumn IsNullable { get; }
 
-        public readonly NullableStringTableColumn DataType;
+        public NullableStringTableColumn DataType { get; }
 
-        public readonly NullableInt32TableColumn CharacterMaximumLength;
+        public NullableInt32TableColumn CharacterMaximumLength { get; }
 
-        public readonly NullableInt32TableColumn CharacterOctetLength;
+        public NullableInt32TableColumn CharacterOctetLength { get; }
 
-        public readonly NullableByteTableColumn NumericPrecision;
+        public NullableByteTableColumn NumericPrecision { get; }
 
-        public readonly NullableInt16TableColumn DatetimePrecision;
+        public NullableInt32TableColumn NumericScale { get; }
 
-        public readonly NullableStringTableColumn CharacterSetName;
+        public NullableInt16TableColumn DatetimePrecision { get; }
+
+        public NullableStringTableColumn CharacterSetName { get; }
 
         public MsSqlIsColumns(Alias alias = default)
             : base("INFORMATION_SCHEMA", "COLUMNS", alias)
@@ -42,6 +44,7 @@
             this.CharacterMaximumLength = this.CreateNullableInt32Column("CHARACTER_MAXIMUM_LENGTH");
             this.CharacterOctetLength = this.CreateNullableInt32Column("CHARACTER_OCTET_LENGTH");
             this.NumericPrecision = this.CreateNullableByteColumn("NUMERIC_PRECISION");
+            this.NumericScale = this.CreateNullableInt32Column("NUMERIC_SCALE");
             this.DatetimePrecision = this.CreateNullableInt16Column("DATETIME_PRECISION");
             this.CharacterSetName = this.CreateNullableStringColumn("CHARACTER_SET_NAME", null);
         }

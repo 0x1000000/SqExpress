@@ -12,13 +12,6 @@ using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.IntTest.Scenarios
 {
-    class CustomMapper: IValueConverter<IDataRecord, object>
-    {
-        public object Convert(IDataRecord sourceMember, ResolutionContext context)
-        {
-            throw new NotImplementedException();
-        }
-    }
     public class ScAllColumnTypes : IScenario
     {
         public async Task Exec(IScenarioContext context)
@@ -161,6 +154,9 @@ namespace SqExpress.IntTest.Scenarios
                 .Set(s.Target.ColNullableFixedSizeString, s.Source.ColNullableFixedSizeString)
                 .Set(s.Target.ColFixedSizeByteArray, s.Source.ColFixedSizeByteArray)
                 .Set(s.Target.ColNullableFixedSizeByteArray, s.Source.ColNullableFixedSizeByteArray)
+
+                .Set(s.Target.ColXml, s.Source.ColXml)
+                .Set(s.Target.ColNullableXml, s.Source.ColNullableXml)
                 ;
 
             return recordSetterNext;
@@ -220,6 +216,10 @@ namespace SqExpress.IntTest.Scenarios
 
                     ColNullableFixedSizeByteArray = new byte[]{0,255},
                     ColNullableFixedSizeString = "321",
+
+                    ColXml = "<root><Item2 /></root>",
+                    ColNullableXml = "<root><Item /></root>"
+
                 },
 
                 new AllColumnTypesDto
@@ -238,6 +238,7 @@ namespace SqExpress.IntTest.Scenarios
                     ColString5 = "",
                     ColByteArraySmall = GenerateTestArray(7, 13),
                     ColByteArrayBig = GenerateTestArray(13, 17),
+                    ColXml = "<root><Item3 /></root>",
 
                     ColNullableBoolean = null,
                     ColNullableByte = null,
@@ -258,7 +259,8 @@ namespace SqExpress.IntTest.Scenarios
                     ColFixedSizeString = "abc",
 
                     ColNullableFixedSizeByteArray = null,
-                    ColNullableFixedSizeString = null
+                    ColNullableFixedSizeString = null,
+                    ColNullableXml = null
                 }
             };
             return result;
@@ -328,6 +330,8 @@ namespace SqExpress.IntTest.Scenarios
             public string? ColNullableFixedSizeString { get; set; }
             public string ColFixedSizeString { get; set; } = "";
 
+            public string ColXml { get; set; } = "";
+            public string? ColNullableXml { get; set; }
 
             public bool Equals(AllColumnTypesDto? other)
             {
@@ -356,6 +360,8 @@ namespace SqExpress.IntTest.Scenarios
                        this.ColByte == other.ColByte &&
                        this.ColNullableBoolean == other.ColNullableBoolean &&
                        this.ColBoolean == other.ColBoolean &&
+                       this.ColXml == other.ColXml &&
+                       this.ColNullableXml == other.ColNullableXml &&
                        CompareArrays(this.ColByteArrayBig, other.ColByteArrayBig) &&
                        CompareArrays(this.ColByteArraySmall, other.ColByteArraySmall) &&
                        CompareArrays(this.ColNullableByteArrayBig, other.ColNullableByteArrayBig) &&
@@ -440,6 +446,9 @@ namespace SqExpress.IntTest.Scenarios
                 hashCode.Add(this.ColFixedSizeString);
                 hashCode.Add(this.ColNullableFixedSizeByteArray);
                 hashCode.Add(this.ColFixedSizeByteArray);
+
+                hashCode.Add(this.ColXml);
+                hashCode.Add(this.ColNullableXml);
                 return hashCode.ToHashCode();
             }
         }

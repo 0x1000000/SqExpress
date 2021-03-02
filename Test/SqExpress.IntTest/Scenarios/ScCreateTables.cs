@@ -14,7 +14,12 @@ namespace SqExpress.IntTest.Scenarios
                 Tables.TableList.User(),
                 Tables.TableList.Company(),
                 Tables.TableList.Customer(),
-                Tables.TableList.Order()
+                Tables.TableList.Order(),
+                Tables.TableList.Fk0(),
+                Tables.TableList.Fk1A(),
+                Tables.TableList.Fk1B(),
+                Tables.TableList.Fk2Ab(),
+                Tables.TableList.Fk3Ab()
             };
 
             var dropping = createList.Reverse().Select(i => i.Script.DropIfExist()).Combine();

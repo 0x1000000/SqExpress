@@ -3,6 +3,10 @@
 - .Net Framework 4.5
 - Binary Column Type
 - Fixed Size String Column Type
+- Xml Column Type
+### Bugfix
+- Several Foreign Keys for one table column
+
 ### Breaking Changes
 - Some public interfaces have new methods to be implemented
 - ValueTuples are not used anymore (replaced with explicit structures to compatibility with .Net Framework 4.5)

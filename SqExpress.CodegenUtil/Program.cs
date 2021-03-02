@@ -66,8 +66,6 @@ namespace SqExpress.CodeGenUtil
                 throw new SqExpressCodeGenException("Connection string cannot be empty");
             }
 
-            //using var sqlManager = MySqlDbManager.Create("server=127.0.0.1;uid=test;pwd=test;database=test");
-            //using var sqlManager = PgSqlDbManager.Create("Host=localhost;Port=5432;Username=postgres;Password=test;Database=test");
             var sqlManager = CreateDbManager(options);
 
 
@@ -82,24 +80,13 @@ namespace SqExpress.CodeGenUtil
 
             foreach (var table in tables)
             {
-                if (!string.IsNullOrEmpty(table.NameModel.Schema))
+                Console.WriteLine($"{table.DbName.Schema}.{table.DbName.Name}");
+                foreach (var column in table.Column)
                 {
-                    Console.WriteLine(table.NameModel.Schema + "." + table.NameModel.Name);
-                }
-                else
-                {
-                    Console.WriteLine(table.NameModel.Name);
-                }
-
-                foreach (var column in table.Columns)
-                {
-                    Console.Write("--");
-                    Console.Write(column.Name);
-                    Console.Write(": ");
-                    Console.Write(column.SqlType);
-                    Console.WriteLine();
+                    Console.WriteLine($"--{column.Name + (column.PkIndex.HasValue ? " (KEY)" : null)+(column.Identity? " (Identity)":null)}");
                 }
             }
+
         }
 
         private static DbManager CreateDbManager(GenTabDescOptions options)

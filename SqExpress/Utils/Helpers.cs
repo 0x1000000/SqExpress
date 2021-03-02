@@ -78,6 +78,18 @@ namespace SqExpress.Utils
             return result;
         }
 
+        public static T[] Combine<T>(T[] source, T newItem)
+        {
+            if (source.Length < 1)
+            {
+                return new[] {newItem};
+            }
+            var result = new T[source.Length + 1];
+            result[result.Length - 1] = newItem;
+            Array.Copy(source, 0, result, 0, source.Length);
+            return result;
+        }
+
         public static IReadOnlyList<TRes> Combine<T,TRes>(T arg, IReadOnlyList<T> rest, Func<T, TRes> mapper)
         {
             if (rest.Count < 1)

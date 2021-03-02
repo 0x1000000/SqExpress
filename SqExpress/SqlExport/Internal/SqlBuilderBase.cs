@@ -1335,6 +1335,8 @@ namespace SqExpress.SqlExport.Internal
 
         public abstract bool VisitExprTypeFixSizeString(ExprTypeFixSizeString exprTypeFixSizeString, IExpr? arg);
 
+        public abstract bool VisitExprTypeXml(ExprTypeXml exprTypeXml, IExpr? arg);
+
         public abstract bool VisitExprFuncIsNull(ExprFuncIsNull exprFuncIsNull, IExpr? parent);
 
         public abstract void AppendName(string name, char? prefix = null);

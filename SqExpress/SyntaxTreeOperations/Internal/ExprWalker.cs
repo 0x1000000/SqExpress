@@ -800,6 +800,12 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             this._visitor.EndVisitExpr(expr, arg);
             return res;
         }
+        public bool VisitExprTypeXml(ExprTypeXml expr, TCtx arg)
+        {
+            var res = this.Visit(expr, "TypeXml", arg, out var argOut);
+            this._visitor.EndVisitExpr(expr, arg);
+            return res;
+        }
         public bool VisitExprUnboundedFrameBorder(ExprUnboundedFrameBorder expr, TCtx arg)
         {
             var res = this.Visit(expr, "UnboundedFrameBorder", arg, out var argOut);

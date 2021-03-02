@@ -26,17 +26,18 @@ namespace SqExpress.SqlExport.Statement.Internal
                     this.Pk.Add(column);
                 }
 
-                var foreignKeyColumn = column.ColumnMeta.ForeignKeyColumn;
-
-                if (!ReferenceEquals(foreignKeyColumn, null))
+                if (column.ColumnMeta.ForeignKeyColumns != null)
                 {
-                    var foreignTable = foreignKeyColumn.Table.FullName;
-
-                    if (!this.Fks.ContainsKey(foreignTable))
+                    foreach (var foreignKeyColumn in column.ColumnMeta.ForeignKeyColumns)
                     {
-                        this.Fks.Add(foreignTable, new List<ColumnRelationship>(4));
+                        var foreignTable = foreignKeyColumn.Table.FullName;
+
+                        if (!this.Fks.ContainsKey(foreignTable))
+                        {
+                            this.Fks.Add(foreignTable, new List<ColumnRelationship>(4));
+                        }
+                        this.Fks[foreignTable].Add(new ColumnRelationship(@internal: column.ColumnName, external: foreignKeyColumn.ColumnName));
                     }
-                    this.Fks[foreignTable].Add(new ColumnRelationship(@internal: column.ColumnName, external: foreignKeyColumn.ColumnName));
                 }
             }
         }

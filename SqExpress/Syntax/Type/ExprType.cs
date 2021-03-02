@@ -143,6 +143,16 @@
             => visitor.VisitExprTypeString(this, arg);
     }
 
+    public class ExprTypeXml : ExprTypeStringBase
+    {
+        private ExprTypeXml() { }
+
+        public static readonly ExprTypeXml Instance = new ExprTypeXml();
+
+        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprTypeXml(this, arg);
+    }
+
     public class ExprTypeFixSizeString : ExprTypeStringBase
     {
         public ExprTypeFixSizeString(int size, bool isUnicode)

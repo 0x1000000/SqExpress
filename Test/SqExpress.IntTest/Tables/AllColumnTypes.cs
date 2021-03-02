@@ -49,8 +49,15 @@
             this.ColFixedSizeByteArray = this.CreateFixedSizeByteArrayColumn(nameof(ColFixedSizeByteArray), 2);
             this.ColNullableFixedSizeByteArray = this.CreateNullableFixedSizeByteArrayColumn(nameof(ColNullableFixedSizeByteArray), 2);
 
+            this.ColXml = this.CreateXmlColumn(nameof(this.ColXml));
+            this.ColNullableXml = this.CreateNullableXmlColumn(nameof(this.ColNullableXml));
+
 
         }
+
+        public NullableStringTableColumn ColNullableXml { get; set; }
+
+        public StringTableColumn ColXml { get; set; }
 
         public NullableByteArrayTableColumn ColNullableFixedSizeByteArray { get; set; }
         public ByteArrayTableColumn ColFixedSizeByteArray { get; set; }

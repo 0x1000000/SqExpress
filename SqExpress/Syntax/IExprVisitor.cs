@@ -259,5 +259,7 @@ namespace SqExpress.Syntax
         TRes VisitExprTypeString(ExprTypeString exprTypeString, TArg arg);
 
         TRes VisitExprTypeFixSizeString(ExprTypeFixSizeString exprTypeFixSizeString, TArg arg);
+
+        TRes VisitExprTypeXml(ExprTypeXml exprTypeXml, TArg arg);
     }
 }

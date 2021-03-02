@@ -1,30 +1,26 @@
 ﻿using System;
+using System.Collections.Generic;
 using SqExpress.Syntax.Value;
+using SqExpress.Utils;
 
 namespace SqExpress
 {
     public class ColumnMeta
     {
-        private readonly Lazy<TableColumn>? _foreignKey;
-
         internal bool IsPrimaryKey { get; }
 
         internal bool IsIdentity { get; }
 
-        internal TableColumn? ForeignKeyColumn => this._foreignKey?.Value;
+        internal IReadOnlyList<TableColumn>? ForeignKeyColumns { get; }
 
         internal ExprValue? ColumnDefaultValue { get; }
 
-        internal ColumnMeta(bool isPrimaryKey, bool isIdentity, Func<TableColumn>? foreignFactory, ExprValue? defaultValue)
+        internal ColumnMeta(bool isPrimaryKey, bool isIdentity, IReadOnlyList<TableColumn>? foreignFactory, ExprValue? defaultValue)
         {
             this.IsPrimaryKey = isPrimaryKey;
             this.IsIdentity = isIdentity;
             this.ColumnDefaultValue = defaultValue;
-
-            if (foreignFactory != null)
-            {
-                this._foreignKey = new Lazy<TableColumn>(foreignFactory);
-            }
+            this.ForeignKeyColumns = foreignFactory;
         }
 
         public static ColumnMetaBuilder PrimaryKey() => ColumnMetaBuilder.Default.PrimaryKey();
@@ -39,16 +35,16 @@ namespace SqExpress
         {
             private readonly bool _isPrimaryKey;
             private readonly bool _isIdentity;
-            private readonly Func<TableColumn>? _fkFactory;
+            private readonly TableColumn[]? _fks;
             private readonly ExprValue? _defaultValue;
 
             public static ColumnMetaBuilder Default => new ColumnMetaBuilder(false, false, null, null);
 
-            internal ColumnMetaBuilder(bool isPrimaryKey, bool isIdentity, Func<TableColumn>? fkFactory, ExprValue? defaultValue)
+            internal ColumnMetaBuilder(bool isPrimaryKey, bool isIdentity, TableColumn[]? fks, ExprValue? defaultValue)
             {
                 this._isPrimaryKey = isPrimaryKey;
                 this._isIdentity = isIdentity;
-                this._fkFactory = fkFactory;
+                this._fks = fks;
                 this._defaultValue = defaultValue;
             }
 
@@ -58,7 +54,7 @@ namespace SqExpress
                 {
                     throw new SqExpressException("Primary key has been already set");
                 }
-                return new ColumnMetaBuilder(true, this._isIdentity, this._fkFactory, this._defaultValue);
+                return new ColumnMetaBuilder(true, this._isIdentity, this._fks, this._defaultValue);
             }
 
             public ColumnMetaBuilder Identity()
@@ -67,16 +63,18 @@ namespace SqExpress
                 {
                     throw new SqExpressException("Identity has been already set");
                 }
-                return new ColumnMetaBuilder(this._isPrimaryKey, true, this._fkFactory, this._defaultValue);
+                return new ColumnMetaBuilder(this._isPrimaryKey, true, this._fks, this._defaultValue);
             }
 
             public ColumnMetaBuilder ForeignKey<TTable>(Func<TTable, TableColumn> fkFactory) where TTable : TableBase, new()
             {
-                if (this._fkFactory != null)
-                {
-                    throw new SqExpressException("a foreign key has been already set");
-                }
-                return new ColumnMetaBuilder(this._isPrimaryKey, this._isIdentity, () => fkFactory(new TTable()), this._defaultValue);
+                var fkColumn = fkFactory(new TTable());
+
+                var newFks = this._fks == null
+                    ? new [] {fkColumn}
+                    : Helpers.Combine(this._fks, fkColumn);
+
+                return new ColumnMetaBuilder(this._isPrimaryKey, this._isIdentity, newFks, this._defaultValue);
             }
 
             public ColumnMetaBuilder DefaultValue(ExprValue defaultValue)
@@ -85,10 +83,11 @@ namespace SqExpress
                 {
                     throw new SqExpressException("Default Value has been already set");
                 }
-                return new ColumnMetaBuilder(this._isPrimaryKey, this._isIdentity, this._fkFactory, defaultValue);
+                return new ColumnMetaBuilder(this._isPrimaryKey, this._isIdentity, this._fks, defaultValue);
             }
 
-            public static implicit operator ColumnMeta(ColumnMetaBuilder builder)=> new ColumnMeta(builder._isPrimaryKey, builder._isIdentity, builder._fkFactory, builder._defaultValue);
+            public static implicit operator ColumnMeta(ColumnMetaBuilder builder)
+                => new ColumnMeta(builder._isPrimaryKey, builder._isIdentity, builder._fks, builder._defaultValue);
         }
     }
 }

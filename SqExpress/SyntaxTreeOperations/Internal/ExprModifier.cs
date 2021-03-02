@@ -990,6 +990,10 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         {
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprTypeXml(ExprTypeXml exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprUnboundedFrameBorder(ExprUnboundedFrameBorder exprIn, Func<IExpr, IExpr?> modifier)
         {
             return modifier.Invoke(exprIn);
