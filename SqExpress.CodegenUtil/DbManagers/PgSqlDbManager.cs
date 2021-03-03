@@ -10,16 +10,16 @@ using SqExpress.SqlExport;
 
 namespace SqExpress.CodeGenUtil.DbManagers
 {
-    internal class PgSqlDbManager : DbManager
+    internal class PgSqlDbManager : DbStrategyBase
     {
         private readonly string _databaseName;
 
-        private PgSqlDbManager(NpgsqlConnection connection, ISqDatabase database, string databaseName) : base(connection, database)
+        private PgSqlDbManager(ISqDatabase database, string databaseName) : base(database)
         {
             this._databaseName = databaseName;
         }
 
-        public static PgSqlDbManager Create(string connectionString)
+        public static DbManager Create(string connectionString)
         {
             throw new SqExpressCodeGenException("Pg Sql is not yet supported");
             //var connection = new NpgsqlConnection(connectionString);
@@ -44,10 +44,31 @@ namespace SqExpress.CodeGenUtil.DbManagers
             //}
         }
 
-        public override async Task<IReadOnlyList<TableModel>> SelectTables()
+        public override Task<List<TableColumnRawModel>> LoadColumns()
         {
-            await Task.Delay(0);
-            return new TableModel[0];
+            throw new NotImplementedException();
+        }
+
+        public override Task<LoadIndexesResult> LoadIndexes()
+        {
+            throw new NotImplementedException();
+        }
+
+        public override string DefaultSchemaName => "public";
+
+        public override DefaultValue? ParseDefaultValue(string? rawColumnDefaultValue)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<Dictionary<ColumnRef, List<ColumnRef>>> LoadForeignKeys()
+        {
+            throw new NotImplementedException();
+        }
+
+        public override ColumnType GetColType(TableColumnRawModel raw)
+        {
+            throw new NotImplementedException();
         }
     }
 }

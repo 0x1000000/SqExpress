@@ -2,7 +2,7 @@
 
 namespace SqExpress.CodeGenUtil.Model
 {
-    public class ColumnRef : IEquatable<ColumnRef>, IComparable<ColumnRef>
+    internal class ColumnRef : IEquatable<ColumnRef>, IComparable<ColumnRef>
     {
         public ColumnRef(string schema, string tableName, string name)
         {

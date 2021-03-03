@@ -11,16 +11,16 @@ using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.CodeGenUtil.DbManagers
 {
-    internal class MySqlDbManager : DbManager
+    internal class MySqlDbManager : DbStrategyBase
     {
         private readonly string _databaseName;
 
-        private MySqlDbManager(MySqlConnection connection, ISqDatabase database, string databaseName) : base(connection, database)
+        public MySqlDbManager(ISqDatabase database, string databaseName) : base(database)
         {
             this._databaseName = databaseName;
         }
 
-        public static MySqlDbManager Create(string connectionString)
+        public static DbManager Create(string connectionString)
         {
             throw new SqExpressCodeGenException("MySql is not yet supported");
 
@@ -46,10 +46,31 @@ namespace SqExpress.CodeGenUtil.DbManagers
             //}
         }
 
-        public override async Task<IReadOnlyList<TableModel>> SelectTables()
+        public override Task<List<TableColumnRawModel>> LoadColumns()
         {
-            await Task.Delay(0);
-            return new TableModel[0];
+            throw new NotImplementedException();
+        }
+
+        public override Task<LoadIndexesResult> LoadIndexes()
+        {
+            throw new NotImplementedException();
+        }
+
+        public override string DefaultSchemaName => "";
+
+        public override DefaultValue? ParseDefaultValue(string? rawColumnDefaultValue)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<Dictionary<ColumnRef, List<ColumnRef>>> LoadForeignKeys()
+        {
+            throw new NotImplementedException();
+        }
+
+        public override ColumnType GetColType(TableColumnRawModel raw)
+        {
+            throw new NotImplementedException();
         }
     }
 }

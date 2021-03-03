@@ -1,6 +1,6 @@
 ﻿namespace SqExpress.CodeGenUtil.Model
 {
-    public interface IColumnTypeVisitor
+    internal interface IColumnTypeVisitor
     {
         void VisitBooleanColumnType(BooleanColumnType booleanColumnType);
         void VisitByteColumnType(ByteColumnType byteColumnType);
@@ -16,7 +16,7 @@
         void VisitXmlColumnType(XmlColumnType xmlColumnType);
     }
 
-    public abstract class ColumnType
+    internal abstract class ColumnType
     {
         protected ColumnType(bool isNullable)
         {
@@ -28,7 +28,7 @@
         public abstract void Accept(IColumnTypeVisitor visitor);
     }
 
-    public class BooleanColumnType : ColumnType
+    internal class BooleanColumnType : ColumnType
     {
 
         public override void Accept(IColumnTypeVisitor visitor)
@@ -39,7 +39,7 @@
         }
     }
 
-    public class ByteColumnType : ColumnType
+    internal class ByteColumnType : ColumnType
     {
 
         public override void Accept(IColumnTypeVisitor visitor)
@@ -50,7 +50,7 @@
         }
     }
 
-    public class ByteArrayColumnType : ColumnType
+    internal class ByteArrayColumnType : ColumnType
     {
         public int? Size { get; }
 
@@ -66,7 +66,7 @@
         }
     }
 
-    public class Int16ColumnType : ColumnType
+    internal class Int16ColumnType : ColumnType
     {
         public override void Accept(IColumnTypeVisitor visitor)
             => visitor.VisitInt16ColumnType(this);
@@ -76,7 +76,7 @@
         }
     }
 
-    public class Int32ColumnType : ColumnType
+    internal class Int32ColumnType : ColumnType
     {
         public override void Accept(IColumnTypeVisitor visitor)
             => visitor.VisitInt32ColumnType(this);
@@ -86,7 +86,7 @@
         }
     }
 
-    public class Int64ColumnType : ColumnType
+    internal class Int64ColumnType : ColumnType
     {
         public override void Accept(IColumnTypeVisitor visitor)
             => visitor.VisitInt64ColumnType(this);
@@ -96,7 +96,7 @@
         }
     }
 
-    public class GuidColumnType : ColumnType
+    internal class GuidColumnType : ColumnType
     {
         public override void Accept(IColumnTypeVisitor visitor)
             => visitor.VisitGuidColumnType(this);
@@ -106,7 +106,7 @@
         }
     }
 
-    public class DoubleColumnType : ColumnType
+    internal class DoubleColumnType : ColumnType
     {
         public override void Accept(IColumnTypeVisitor visitor)
             => visitor.VisitDoubleColumnType(this);
@@ -116,7 +116,7 @@
         }
     }
 
-    public class DecimalColumnType : ColumnType
+    internal class DecimalColumnType : ColumnType
     {
         public int Precision { get; }
 
@@ -132,7 +132,7 @@
         }
     }
 
-    public class DateTimeColumnType : ColumnType
+    internal class DateTimeColumnType : ColumnType
     {
         public bool IsDate { get; }
 
@@ -145,7 +145,7 @@
         }
     }
 
-    public class StringColumnType : ColumnType
+    internal class StringColumnType : ColumnType
     {
         public int? Size { get; }
 
@@ -167,7 +167,7 @@
         }
     }
 
-    public class XmlColumnType : ColumnType
+    internal class XmlColumnType : ColumnType
     {
         public override void Accept(IColumnTypeVisitor visitor)
             => visitor.VisitXmlColumnType(this);

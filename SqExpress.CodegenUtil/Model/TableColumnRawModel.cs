@@ -1,6 +1,6 @@
 ﻿namespace SqExpress.CodeGenUtil.Model
 {
-    public record TableColumnRawModel
+    internal record TableColumnRawModel
     {
         public TableColumnRawModel(ColumnRef dbName, bool identity, bool nullable, string typeName, string? defaultValue, int? size, int? precision, int? scale)
         {

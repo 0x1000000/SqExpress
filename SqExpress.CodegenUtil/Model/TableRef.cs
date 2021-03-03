@@ -2,7 +2,7 @@
 
 namespace SqExpress.CodeGenUtil.Model
 {
-    public class TableRef : IEquatable<TableRef>, IComparable<TableRef>
+    internal class TableRef : IEquatable<TableRef>, IComparable<TableRef>
     {
         public TableRef(string schema, string name)
         {

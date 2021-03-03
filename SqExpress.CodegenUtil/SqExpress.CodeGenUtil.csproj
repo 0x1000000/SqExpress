@@ -16,6 +16,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="SqExpress.Test" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\SqExpress\SqExpress.csproj" />
   </ItemGroup>
 

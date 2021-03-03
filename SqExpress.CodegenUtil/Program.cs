@@ -75,18 +75,27 @@ namespace SqExpress.CodeGenUtil
                 throw new SqExpressCodeGenException(connectionTest);
             }
 
-
             var tables = await sqlManager.SelectTables();
 
             foreach (var table in tables)
             {
-                Console.WriteLine($"{table.DbName.Schema}.{table.DbName.Name}");
-                foreach (var column in table.Column)
+                Console.WriteLine($"{table.Name}({table.DbName.Schema}.{table.DbName.Name})");
+                foreach (var column in table.Columns)
                 {
-                    Console.WriteLine($"--{column.Name + (column.PkIndex.HasValue ? " (KEY)" : null)+(column.Identity? " (Identity)":null)}");
+                    Console.WriteLine($"--{column.Name + (column.Pk.HasValue ? " (KEY)" : null)+(column.Identity? " (Identity)":null)}");
                 }
-            }
 
+                foreach (var index in table.Indexes)
+                {
+                    Console.WriteLine($"*Index: {index.Name}{(index.IsUnique? " (UNIQUE)" : null)}");
+                    foreach (var indexColumn in index.Columns)
+                    {
+                        Console.Write($" *{indexColumn.Column.Name} {(indexColumn.IsDescending ? "DESC": "ASC")}, ");
+                    }
+                    Console.WriteLine();
+                }
+
+            }
         }
 
         private static DbManager CreateDbManager(GenTabDescOptions options)
@@ -102,8 +111,6 @@ namespace SqExpress.CodeGenUtil
                 default:
                     throw new SqExpressCodeGenException("Unknown connection type: " + options.ConnectionType);
             }
-
-            
         }
     }
 }

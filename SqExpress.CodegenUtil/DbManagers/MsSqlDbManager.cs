@@ -1,6 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using SqExpress.CodeGenUtil.Model;
 using SqExpress.CodeGenUtil.Tables.MsSql;
@@ -8,19 +10,20 @@ using SqExpress.DataAccess;
 using SqExpress.SqlExport;
 using SqExpress.Syntax.Boolean;
 using static SqExpress.SqQueryBuilder;
+using Index = SqExpress.CodeGenUtil.Model.Index;
 
 namespace SqExpress.CodeGenUtil.DbManagers
 {
-    internal class MsSqlDbManager : DbManager
+    internal class MsSqlDbManager : DbStrategyBase
     {
         private readonly string _databaseName;
 
-        private MsSqlDbManager(SqlConnection connection, ISqDatabase database, string databaseName) : base(connection, database)
+        public MsSqlDbManager(ISqDatabase database, string databaseName) : base(database)
         {
             this._databaseName = databaseName;
         }
 
-        public static MsSqlDbManager Create(string connectionString)
+        public static DbManager Create(string connectionString)
         {
             var connection = new SqlConnection(connectionString);
             if (string.IsNullOrEmpty(connection.Database))
@@ -31,7 +34,7 @@ namespace SqExpress.CodeGenUtil.DbManagers
             {
                 var database = new SqDatabase<SqlConnection>(connection, ConnectionFactory, new TSqlExporter(SqlBuilderOptions.Default));
 
-                return new MsSqlDbManager(connection, database, connection.Database);
+                return new DbManager(new MsSqlDbManager(database, connection.Database), connection);
             }
             catch
             {
@@ -46,66 +49,7 @@ namespace SqExpress.CodeGenUtil.DbManagers
             }
         }
 
-        public override async Task<IReadOnlyList<TableModel>> SelectTables()
-        {
-            var columnsRaw = await this.LoadColumns();
-            var pk = await this.LoadIndexes();
-            var fk = await this.LoadForeignKeys();
-
-            var acc = new Dictionary<TableRef, Dictionary<ColumnRef, ColumnModel>>();
-
-            foreach (var rawColumn in columnsRaw)
-            {
-                var table = rawColumn.DbName.Table;
-                if(!acc.TryGetValue(table, out var colList))
-                {
-                    colList = new Dictionary<ColumnRef, ColumnModel>();
-                    acc.Add(table, colList);
-                }
-
-                var colModel = BuildColumnModel(
-                    rawColumn, 
-                    pk.TryGetValue(table, out var pkCols) ? pkCols : null, 
-                    fk.TryGetValue(rawColumn.DbName, out var fkList) ? fkList : null);
-
-                colList.Add(colModel.DbName, colModel);
-            }
-
-            var sortedTables = SortTablesByForeignKeys(acc: acc);
-
-            return sortedTables.Select(t =>
-                    new TableModel(ToTableCrlName(t),
-                        t,
-                        acc[t]
-                            .Select(p => p.Value)
-                            .OrderBy(c => c.PkIndex ?? 10000)
-                            .ThenBy(c => c.Name)
-                            .ToList()))
-                .ToList();
-        }
-
-        private static ColumnModel BuildColumnModel(TableColumnRawModel rawColumn, List<ColumnRef>? pkCols, List<ColumnRef>? fkList)
-        {
-            string clrName = ToColCrlName(rawColumn.DbName);
-
-            var pkIndex = pkCols?.IndexOf(rawColumn.DbName);
-
-            if (pkIndex < 0)
-            {
-                pkIndex = null;
-            }
-
-            return new ColumnModel(
-                name: clrName,
-                dbName: rawColumn.DbName,
-                columnType: GetColType(raw: rawColumn),
-                pkIndex: pkIndex,
-                identity: rawColumn.Identity,
-                defaultValue: rawColumn.DefaultValue,
-                fk: fkList);
-        }
-
-        private Task<List<TableColumnRawModel>> LoadColumns()
+        public override Task<List<TableColumnRawModel>> LoadColumns()
         {
             var tColumns = new MsSqlIsColumns();
 
@@ -141,12 +85,10 @@ namespace SqExpress.CodeGenUtil.DbManagers
                         size: tColumns.CharacterMaximumLength.Read(recordReader: r),
                         precision: tColumns.NumericPrecision.Read(recordReader: r),
                         scale: tColumns.NumericScale.Read(recordReader: r)));
-
         }
 
-        private Task<Dictionary<TableRef, List<ColumnRef>>> LoadIndexes()
+        public override Task<LoadIndexesResult> LoadIndexes()
         {
-
             var tSysSchemas = new MsSqlSysSchemas();
             var tSysTables = new MsSqlSysTables();
             var tSysColumns = new MsSqlSysColumns();
@@ -156,21 +98,26 @@ namespace SqExpress.CodeGenUtil.DbManagers
             var rSchemaName = CustomColumnFactory.String("RefSchemaName");
             var rTableName = CustomColumnFactory.String("RefTableName");
             var rColumnName = CustomColumnFactory.String("RefColumnName");
+            var rIndexName = CustomColumnFactory.String("RefIndexName");
 
             return Select(
                     tSysSchemas.Name.As(rSchemaName), 
                     tSysTables.Name.As(rTableName), 
                     tSysColumns.Name.As(rColumnName),
-                    tSysIndexes.IsPrimaryKey)
+                    tSysIndexes.Name.As(rIndexName),
+                    tSysIndexes.IsPrimaryKey,
+                    tSysIndexes.Type,
+                    tSysIndexes.IsUnique,
+                    tSysIndexColumns.IsDescendingKey)
                 .From(tSysIndexes)
                 .InnerJoin(tSysTables, on: tSysTables.ObjectId == tSysIndexes.ObjectId)
                 .InnerJoin(tSysSchemas, on: tSysSchemas.SchemaId == tSysTables.SchemaId)
                 .InnerJoin(tSysIndexColumns, on: tSysIndexColumns.IndexId == tSysIndexes.IndexId & tSysIndexColumns.ObjectId == tSysTables.ObjectId)
                 .InnerJoin(tSysColumns, on: tSysColumns.ColumnId == tSysIndexColumns.ColumnId & tSysColumns.ObjectId == tSysTables.ObjectId)
-                .Where(tSysIndexes.IsPrimaryKey == true)
+                .Where(tSysIndexColumns.IsIncludedColumn == false)
                 .OrderBy(tSysIndexColumns.KeyOrdinal)
                 .Query(this.Database,
-                    new Dictionary<TableRef, List<ColumnRef>>(),
+                    LoadIndexesResult.Empty(),
                     (acc, r) =>
                     {
                         var tableName = new TableRef(
@@ -182,21 +129,90 @@ namespace SqExpress.CodeGenUtil.DbManagers
                             tableName: tableName.Name,
                             name: rColumnName.Read(recordReader: r));
 
+                        string indexName = rIndexName.Read(r);
+
                         bool isPk = tSysIndexes.IsPrimaryKey.Read(r);
+                        bool isDescending = tSysIndexColumns.IsDescendingKey.Read(r);
+                        bool isUnique = tSysIndexes.IsUnique.Read(r);
+                        bool isClustered = tSysIndexes.Type.Read(r) == 1;
 
-                        if (!acc.TryGetValue(tableName, out var list))
+                        if (isPk)
                         {
-                            list = new List<ColumnRef>();
-                            acc.Add(tableName, list);
+                            if (!acc.Pks.TryGetValue(tableName, out var list))
+                            {
+                                list = new PrimaryKey(new List<IndexColumn>(), indexName);
+                                acc.Pks.Add(tableName, list);
+                            }
+                            list.Columns.Add(new IndexColumn(isDescending, columnName));
                         }
+                        else
+                        {
+                            if (!acc.Indexes.TryGetValue(tableName, out var indexes))
+                            {
+                                indexes = new List<Index>();
+                                acc.Indexes.Add(tableName, indexes);
+                            }
 
-                        list.Add(columnName);
+                            var index = indexes.FirstOrDefault(i => i.Name == indexName);
+                            if (index == null)
+                            {
+                                index = new Index(new List<IndexColumn>(), indexName, isUnique, isClustered);
+                                indexes.Add(index);
+                            }
+
+                            index.Columns.Add(new IndexColumn(isDescending, columnName));
+                        }
 
                         return acc;
                     });
         }
 
-        private Task<Dictionary<ColumnRef, List<ColumnRef>>> LoadForeignKeys()
+        public override string DefaultSchemaName => "dbo";
+
+        public override DefaultValue? ParseDefaultValue(string? rawColumnDefaultValue)
+        {
+            if (string.IsNullOrEmpty(rawColumnDefaultValue))
+            {
+                return null;
+            }
+
+            if (TryGetDefaultValue(rawColumnDefaultValue, IntDefRegEx, DefaultValueType.Integer, out var result))
+            {
+                return result;
+            }
+            if (TryGetDefaultValue(rawColumnDefaultValue, StringDefRegEx, DefaultValueType.String, out result))
+            {
+                return result;
+            }
+
+            if (string.Equals(rawColumnDefaultValue, "(getutcdate())", StringComparison.InvariantCultureIgnoreCase))
+            {
+                return new DefaultValue(DefaultValueType.GetUtcDate, null);
+            }
+            if (string.Equals(rawColumnDefaultValue, "(NULL)", StringComparison.InvariantCultureIgnoreCase))
+            {
+                return new DefaultValue(DefaultValueType.Null, null);
+            }
+
+            return new DefaultValue(DefaultValueType.Raw, rawColumnDefaultValue);
+
+            static bool TryGetDefaultValue(string value, Regex regex, DefaultValueType defaultValueType, out DefaultValue? result)
+            {
+                var m = regex.Match(value);
+                if (m.Success)
+                {
+                    result = new DefaultValue(defaultValueType, m.Result("$1"));
+                    return true;
+                }
+                result = null;
+                return false;
+            }
+        }
+
+        private static readonly Regex IntDefRegEx = new Regex("^\\(\\((-{0,1}\\d+)\\)\\)$");
+        private static readonly Regex StringDefRegEx = new Regex("^\\([N]{0,1}'((?:[^']|'')*)'\\)$");
+
+        public override Task<Dictionary<ColumnRef, List<ColumnRef>>> LoadForeignKeys()
         {
 
             var tConstraints = new MsSqlReferentialConstraints();
@@ -234,7 +250,6 @@ namespace SqExpress.CodeGenUtil.DbManagers
                     new Dictionary<ColumnRef, List<ColumnRef>>(),
                     (acc, r) =>
                     {
-
                         var columnName = new ColumnRef(
                             schema: tKeys.TableSchema.Read(r),
                             tableName: tKeys.TableName.Read(r),
@@ -244,7 +259,6 @@ namespace SqExpress.CodeGenUtil.DbManagers
                             schema: rSchema.Read(r),
                             tableName: rName.Read(r),
                             name: rColumnName.Read(r));
-
 
                         if(!acc.TryGetValue(columnName, out var colList))
                         {
@@ -256,82 +270,6 @@ namespace SqExpress.CodeGenUtil.DbManagers
 
                         return acc;
                     });
-        }
-
-        private ExprBoolean JoinTables(IMsSqlTableColumns t1, IMsSqlTableColumns t2)
-        {
-            return t1.TableCatalog == t2.TableCatalog & t1.TableSchema == t2.TableSchema & t1.TableName == t2.TableName;
-        }
-
-        private static string ToColCrlName(ColumnRef columnRef)
-        {
-            return columnRef.Name;
-        }
-
-        private static string ToTableCrlName(TableRef tableRef)
-        {
-            return tableRef.Name;
-        }
-
-        private static IReadOnlyList<TableRef> SortTablesByForeignKeys(Dictionary<TableRef, Dictionary<ColumnRef, ColumnModel>> acc)
-        {
-            var tableGraph = new Dictionary<TableRef, int>();
-            var maxValue = 0;
-
-            foreach (var pair in acc)
-            {
-                CountTable(pair.Key, pair.Value, 1);
-            }
-
-            return acc
-                .Keys
-                .OrderByDescending(k => tableGraph.TryGetValue(k, out var value) ? value : maxValue)
-                .ThenBy(k => k)
-                .ToList();
-
-            void CountTable(TableRef table, Dictionary<ColumnRef, ColumnModel> columns, int value)
-            {
-                var parentTables = columns.Values.Where(c => c.Fk != null)
-                    .SelectMany(c => c.Fk)
-                    .Select(f => f.Table)
-                    .Distinct()
-                    .Where(pt=> !pt.Equals(table))//Self ref
-                    .ToList();
-
-                bool hasParents = false;
-                foreach (var parentTable in parentTables)
-                {
-                    if (tableGraph.TryGetValue(parentTable, out int oldValue))
-                    {
-                        if (value >= 1000)
-                        {
-                            throw new SqExpressCodeGenException("Cycle in tables");
-                        }
-
-                        if (oldValue < value)
-                        {
-                            tableGraph[parentTable] = value;
-                        }
-                    }
-                    else
-                    {
-                        tableGraph.Add(parentTable, value);
-                    }
-
-                    if (maxValue < value)
-                    {
-                        maxValue = value;
-                    }
-
-                    CountTable(parentTable, acc[parentTable], value + 1);
-                    hasParents = true;
-                }
-
-                if (hasParents && !tableGraph.ContainsKey(columns.Keys.First().Table))
-                {
-                    tableGraph.Add(table, 0);
-                }
-            }
         }
 
         private ExprBoolean GetTableFilter(IMsSqlTableColumns tColumns)
@@ -346,7 +284,7 @@ namespace SqExpress.CodeGenUtil.DbManagers
             return Exists(SelectOne().From(tTables).Where(filter));
         }
 
-        private static ColumnType GetColType(TableColumnRawModel raw)
+        public override ColumnType GetColType(TableColumnRawModel raw)
         {
             switch (raw.TypeName.ToLowerInvariant())
             {

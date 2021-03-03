@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\SqExpress.CodegenUtil\SqExpress.CodeGenUtil.csproj" Condition="'$(TargetFramework)' != 'net45'" />
     <ProjectReference Include="..\..\SqExpress\SqExpress.csproj" />
   </ItemGroup>
 

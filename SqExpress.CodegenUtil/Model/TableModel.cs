@@ -2,17 +2,23 @@
 
 namespace SqExpress.CodeGenUtil.Model
 {
-    public record TableModel
+    internal class TableModel
     {
-        public TableModel(string name, TableRef dbName, IReadOnlyList<ColumnModel> column)
+        public TableModel(string name, TableRef dbName, List<ColumnModel> columns, List<Index> indexes)
         {
             this.Name = name;
             this.DbName = dbName;
-            this.Column = column;
+            this.Columns = columns;
+            this.Indexes = indexes;
         }
 
         public string Name { get; }
         public TableRef DbName { get; }
-        public IReadOnlyList<ColumnModel> Column { get; }
+        public List<ColumnModel> Columns { get; }
+        public List<Index> Indexes { get; }
+
+
+        public TableModel WithNewName(string newName) =>
+            new TableModel(newName, this.DbName, this.Columns, this.Indexes);
     }
 }
