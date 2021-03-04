@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using SqExpress.CodeGenUtil;
 using SqExpress.CodeGenUtil.DbManagers;
 using SqExpress.CodeGenUtil.Model;
 
@@ -16,14 +17,14 @@ namespace SqExpress.Test.CodeGenUtil
         [Test]
         public async Task SelectTables_BasicTest()
         {
-            using var dbManager = new DbManager(this, new SqlConnection("Initial Catalog=TestDatabase;"));
+            using var dbManager = new DbManager(this, new SqlConnection("Initial Catalog=TestDatabase;"), new GenTabDescOptions(ConnectionType.MsSql, "fake", "Tab", "", "MyTables"));
 
             var tables = await dbManager.SelectTables();
 
             Assert.AreEqual(2, tables.Count);
             var tableZ = tables[0];
 
-            Assert.AreEqual("TableZ", tableZ.Name);//TableZ goes first since is references TableA
+            Assert.AreEqual("TabTableZ", tableZ.Name);//TableZ goes first since is references TableA
             Assert.AreEqual(3, tableZ.Columns.Count);
 
             var tableZColumnId = tableZ.Columns[0];
@@ -47,7 +48,7 @@ namespace SqExpress.Test.CodeGenUtil
             Assert.AreEqual(6, ((DecimalColumnType)tableZColumnValueA2.ColumnType).Scale);
 
             var tableA = tables[1];
-            Assert.AreEqual("TableA", tableA.Name);
+            Assert.AreEqual("TabTableA", tableA.Name);
             Assert.AreEqual(2, tableA.Columns.Count);
 
             var tableAColumnId = tableA.Columns[0];
@@ -58,15 +59,15 @@ namespace SqExpress.Test.CodeGenUtil
         {
         }
 
-        Task<List<TableColumnRawModel>> IDbStrategy.LoadColumns()
+        Task<List<ColumnRawModel>> IDbStrategy.LoadColumns()
         {
-            List<TableColumnRawModel> columns = new List<TableColumnRawModel>
+            List<ColumnRawModel> columns = new List<ColumnRawModel>
             {
-                new TableColumnRawModel(new ColumnRef("dbo","TableZ", "Id"), true, false, "int", "((0))", null, null, null),
-                new TableColumnRawModel(new ColumnRef("dbo","TableZ", "ValueA"), false, false, "nvarchar", "(N'')", 255, null, null),
-                new TableColumnRawModel(new ColumnRef("dbo","TableZ", "Value_A"), false, true, "decimal", null, null, 2, 6),
-                new TableColumnRawModel(new ColumnRef("dbo","TableA", "Id"), true, false, "int", "((0))", null, null, null),
-                new TableColumnRawModel(new ColumnRef("dbo","TableA", "Value"), false, false, "datetime", "(getutcdate())", null, null, null)
+                new ColumnRawModel(new ColumnRef("dbo","TableZ", "Id"), 1, true, false, "int", "((0))", null, null, null),
+                new ColumnRawModel(new ColumnRef("dbo","TableZ", "ValueA"), 2, false, false, "nvarchar", "(N'')", 255, null, null),
+                new ColumnRawModel(new ColumnRef("dbo","TableZ", "Value_A"), 3, false, true, "decimal", null, null, 2, 6),
+                new ColumnRawModel(new ColumnRef("dbo","TableA", "Id"), 4, true, false, "int", "((0))", null, null, null),
+                new ColumnRawModel(new ColumnRef("dbo","TableA", "Value"), 5, false, false, "datetime", "(getutcdate())", null, null, null)
             };
 
             return Task.FromResult(columns);
@@ -74,16 +75,16 @@ namespace SqExpress.Test.CodeGenUtil
 
         Task<LoadIndexesResult> IDbStrategy.LoadIndexes()
         {
-            Dictionary<TableRef, PrimaryKey> pks = new Dictionary<TableRef, PrimaryKey>();
-            Dictionary<TableRef, List<Index>> inds = new Dictionary<TableRef, List<Index>>();
+            Dictionary<TableRef, PrimaryKeyModel> pks = new Dictionary<TableRef, PrimaryKeyModel>();
+            Dictionary<TableRef, List<IndexModel>> inds = new Dictionary<TableRef, List<IndexModel>>();
 
-            pks.Add(new TableRef("dbo", "TableA"), new PrimaryKey(new List<IndexColumn> { new IndexColumn(false, new ColumnRef("dbo", "TableA", "Id")) }, "PK_TableA"));
-            pks.Add(new TableRef("dbo", "TableZ"), new PrimaryKey(new List<IndexColumn> { new IndexColumn(false, new ColumnRef("dbo", "TableZ", "Id")) }, "PK_TableZ"));
+            pks.Add(new TableRef("dbo", "TableA"), new PrimaryKeyModel(new List<IndexColumnModel> { new IndexColumnModel(false, new ColumnRef("dbo", "TableA", "Id")) }, "PK_TableA"));
+            pks.Add(new TableRef("dbo", "TableZ"), new PrimaryKeyModel(new List<IndexColumnModel> { new IndexColumnModel(false, new ColumnRef("dbo", "TableZ", "Id")) }, "PK_TableZ"));
 
             inds.Add(new TableRef("dbo", "TableA"),
-                new List<Index>
+                new List<IndexModel>
                 {
-                    new Index(new List<IndexColumn> {new IndexColumn(true, new ColumnRef("dbo", "TableA", "Value"))},
+                    new IndexModel(new List<IndexColumnModel> {new IndexColumnModel(true, new ColumnRef("dbo", "TableA", "Value"))},
                         "IX_TableA_Value",
                         true,
                         false)
@@ -103,7 +104,7 @@ namespace SqExpress.Test.CodeGenUtil
             return Task.FromResult(result);
         }
 
-        ColumnType IDbStrategy.GetColType(TableColumnRawModel raw)
+        ColumnType IDbStrategy.GetColType(ColumnRawModel raw)
         {
             return this._msSqlDbStrategy.GetColType(raw);
         }

@@ -9,8 +9,8 @@ namespace SqExpress.IntTest.Scenarios
     {
         public async Task Exec(IScenarioContext context)
         {
-            var tCustomer = TableList.Customer();
-            var tUser = TableList.User();
+            var tCustomer = AllTables.GetItCustomer();
+            var tUser = AllTables.GetItUser();
             var topUsers = new TopFirstNameUsers(5);
 
             await Delete(tCustomer)
@@ -35,14 +35,14 @@ namespace SqExpress.IntTest.Scenarios
 
         private class TopFirstNameUsers : DerivedTableBase
         {
-            private readonly User _tUser;
+            private readonly TableItUser _tUser;
 
             private readonly int _top;
 
             public TopFirstNameUsers(int top, Alias alias = default) : base(alias)
             {
                 this._top = top;
-                this._tUser = TableList.User();
+                this._tUser = AllTables.GetItUser();
                 this.UserId = this._tUser.UserId.AddToDerivedTable(this);
             }
 

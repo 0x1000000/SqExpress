@@ -1,12 +1,57 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using CommandLine;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using SqExpress.CodeGenUtil.CodeGen;
 using SqExpress.CodeGenUtil.DbManagers;
+using SqExpress.CodeGenUtil.Model;
 
 namespace SqExpress.CodeGenUtil
 {
     public class Program
     {
+        public static void Main2(string[] args)
+        {
+
+            Console.WriteLine(SyntaxFactory.ClassDeclaration("TableWsusers").ToFullString());
+
+            var syntaxFile = CSharpSyntaxTree.ParseText("class TableWsusers{T[] Build()=> new T[]{C.A(),C.B()};}").GetRoot();
+            WalkSyntaxNodeOrToken(syntaxFile, 0);
+            static void WalkSyntaxNodeOrToken(SyntaxNodeOrToken node, int deep)
+            {
+                //if (!node.IsToken)
+                {
+                    string? typeName = "";
+                    Console.Write(new string(' ', deep * 2));
+                    Console.Write(node.Kind());
+                    if (node.IsToken)
+                    {
+                        Console.Write(" (token)");
+                        typeName = node.AsToken().GetType().Name;
+                    }
+
+                    if (node.IsNode)
+                    {
+                        Console.Write(" (node)");
+                        typeName = node.AsNode()?.GetType().Name;
+                    }
+
+
+
+                    Console.WriteLine($" {typeName}");
+                }
+
+                foreach (var syntaxNode in node.ChildNodesAndTokens())
+                {
+                    WalkSyntaxNodeOrToken(syntaxNode, deep + 1);
+                }
+            }
+        }
+
         public static int Main(string[] args)
         {
             try
@@ -61,6 +106,28 @@ namespace SqExpress.CodeGenUtil
 
         public static async Task RunGenTabDescOptions(GenTabDescOptions options)
         {
+            string directory = options.OutputDir;
+            if (string.IsNullOrEmpty(directory))
+            {
+                directory = Directory.GetCurrentDirectory();
+            }
+            else if (!Path.IsPathFullyQualified(directory))
+            {
+                directory = Path.GetFullPath(directory, Directory.GetCurrentDirectory());
+            }
+
+            if (!Directory.Exists(directory))
+            {
+                try
+                {
+                    Directory.CreateDirectory(directory);
+                }
+                catch (Exception e)
+                {
+                    throw new SqExpressCodeGenException($"Could not create directory: \"{directory}\".", e);
+                }
+            }
+
             if (string.IsNullOrEmpty(options.ConnectionString))
             {
                 throw new SqExpressCodeGenException("Connection string cannot be empty");
@@ -77,25 +144,18 @@ namespace SqExpress.CodeGenUtil
 
             var tables = await sqlManager.SelectTables();
 
+            IReadOnlyDictionary<TableRef, TableModel> tableMap = tables.ToDictionary(t => t.DbName);
+
             foreach (var table in tables)
             {
-                Console.WriteLine($"{table.Name}({table.DbName.Schema}.{table.DbName.Name})");
-                foreach (var column in table.Columns)
-                {
-                    Console.WriteLine($"--{column.Name + (column.Pk.HasValue ? " (KEY)" : null)+(column.Identity? " (Identity)":null)}");
-                }
-
-                foreach (var index in table.Indexes)
-                {
-                    Console.WriteLine($"*Index: {index.Name}{(index.IsUnique? " (UNIQUE)" : null)}");
-                    foreach (var indexColumn in index.Columns)
-                    {
-                        Console.Write($" *{indexColumn.Column.Name} {(indexColumn.IsDescending ? "DESC": "ASC")}, ");
-                    }
-                    Console.WriteLine();
-                }
-
+                string filePath = Path.Combine(directory, $"{table.Name}.cs");
+                await File.WriteAllTextAsync(filePath, TableClassGenerator.Generate(table, tableMap, options.Namespace).ToFullString());
             }
+
+            var allTablePath = Path.Combine(directory, "AllTables.cs");
+
+            await File.WriteAllTextAsync(allTablePath, TableListClassGenerator.Generate(tables, options.Namespace, options.TableClassPrefix).ToFullString());
+
         }
 
         private static DbManager CreateDbManager(GenTabDescOptions options)
@@ -103,7 +163,7 @@ namespace SqExpress.CodeGenUtil
             switch (options.ConnectionType)
             {
                 case ConnectionType.MsSql:
-                    return MsSqlDbManager.Create(options.ConnectionString);
+                    return MsSqlDbManager.Create(options);
                 case ConnectionType.MySql:
                     return MySqlDbManager.Create(options.ConnectionString);
                 case ConnectionType.PgSql:

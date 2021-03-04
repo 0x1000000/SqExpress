@@ -12,8 +12,8 @@ namespace SqExpress.IntTest.Scenarios
     {
         public async Task Exec(IScenarioContext context)
         {
-            var tUser = TableList.User();
-            var tCompany = TableList.Company();
+            var tUser = AllTables.GetItUser();
+            var tCompany = AllTables.GetItCompany();
 
             var unionResult = await SelectTop(2, (tUser.FirstName + "-" + tUser.LastName).As("Name")).From(tUser)
                 .Union(SelectTop(2, tCompany.CompanyName.As("Name")).From(tCompany))

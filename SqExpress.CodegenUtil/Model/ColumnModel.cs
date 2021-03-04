@@ -4,10 +4,11 @@ namespace SqExpress.CodeGenUtil.Model
 {
     internal class ColumnModel
     {
-        public ColumnModel(string name, ColumnRef dbName, ColumnType columnType, PkInfo? pk, bool identity, DefaultValue? defaultValue, List<ColumnRef>? fk)
+        public ColumnModel(string name, ColumnRef dbName, int ordinalPosition,ColumnType columnType, PkInfo? pk, bool identity, DefaultValue? defaultValue, List<ColumnRef>? fk)
         {
             this.Name = name;
             this.DbName = dbName;
+            this.OrdinalPosition = ordinalPosition;
             this.ColumnType = columnType;
             this.Pk = pk;
             this.Identity = identity;
@@ -17,6 +18,7 @@ namespace SqExpress.CodeGenUtil.Model
 
         public string Name { get; }
         public ColumnRef DbName { get; }
+        public int OrdinalPosition { get; }
         public ColumnType ColumnType { get; }
         public PkInfo? Pk { get; }
         public bool Identity { get; }
@@ -27,6 +29,7 @@ namespace SqExpress.CodeGenUtil.Model
             new ColumnModel(
                 name: newName,
                 dbName: this.DbName,
+                ordinalPosition: this.OrdinalPosition,
                 columnType: this.ColumnType,
                 pk: this.Pk,
                 identity: this.Identity,

@@ -1,10 +1,11 @@
 ﻿namespace SqExpress.CodeGenUtil.Model
 {
-    internal record TableColumnRawModel
+    internal class ColumnRawModel
     {
-        public TableColumnRawModel(ColumnRef dbName, bool identity, bool nullable, string typeName, string? defaultValue, int? size, int? precision, int? scale)
+        public ColumnRawModel(ColumnRef dbName, int ordinalPosition, bool identity, bool nullable, string typeName, string? defaultValue, int? size, int? precision, int? scale)
         {
             this.DbName = dbName;
+            this.OrdinalPosition = ordinalPosition;
             this.Identity = identity;
             this.Nullable = nullable;
             this.TypeName = typeName;
@@ -15,6 +16,7 @@
         }
 
         public ColumnRef DbName { get; }
+        public int OrdinalPosition { get; }
         public bool Identity { get; }
         public bool Nullable { get; }
         public string TypeName { get; }

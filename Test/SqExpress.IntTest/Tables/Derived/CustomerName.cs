@@ -4,7 +4,7 @@ namespace SqExpress.IntTest.Tables.Derived
 {
     public class CustomerName : DerivedTableBase
     {
-        private readonly Customer _tCustomer = TableList.Customer();
+        private readonly TableItCustomer _tCustomer = AllTables.GetItCustomer();
 
         public enum CustomerType : short
         {
@@ -27,8 +27,8 @@ namespace SqExpress.IntTest.Tables.Derived
 
         protected override IExprSubQuery CreateQuery()
         {
-            var tUser = TableList.User();
-            var tCompany = TableList.Company();
+            var tUser = AllTables.GetItUser();
+            var tCompany = AllTables.GetItCompany();
 
             return Select(
                     this._tCustomer.CustomerId,

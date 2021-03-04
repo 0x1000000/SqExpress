@@ -2,22 +2,22 @@
 
 namespace SqExpress.CodeGenUtil.Model
 {
-    internal class PrimaryKey
+    internal class PrimaryKeyModel
     {
-        public readonly List<IndexColumn> Columns;
+        public readonly List<IndexColumnModel> Columns;
 
         public readonly string Name;
 
-        public PrimaryKey(List<IndexColumn> columns, string name)
+        public PrimaryKeyModel(List<IndexColumnModel> columns, string name)
         {
             this.Columns = columns;
             this.Name = name;
         }
     }
 
-    internal class Index
+    internal class IndexModel
     {
-        public readonly List<IndexColumn> Columns;
+        public readonly List<IndexColumnModel> Columns;
 
         public readonly string Name;
 
@@ -25,7 +25,7 @@ namespace SqExpress.CodeGenUtil.Model
 
         public readonly bool IsClustered;
 
-        public Index(List<IndexColumn> columns, string name, bool isUnique, bool isClustered)
+        public IndexModel(List<IndexColumnModel> columns, string name, bool isUnique, bool isClustered)
         {
             this.Columns = columns;
             this.Name = name;
@@ -34,15 +34,15 @@ namespace SqExpress.CodeGenUtil.Model
         }
     }
 
-    internal readonly struct IndexColumn
+    internal readonly struct IndexColumnModel
     {
-        public IndexColumn(bool isDescending, ColumnRef column)
+        public IndexColumnModel(bool isDescending, ColumnRef dbName)
         {
             this.IsDescending = isDescending;
-            this.Column = column;
+            this.DbName = dbName;
         }
 
         public readonly bool IsDescending;
-        public readonly ColumnRef Column;
+        public readonly ColumnRef DbName;
     }
 }

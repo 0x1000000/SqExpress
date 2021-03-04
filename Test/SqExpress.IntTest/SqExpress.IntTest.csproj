@@ -7,6 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="DeleteMe\**" />
+    <EmbeddedResource Remove="DeleteMe\**" />
+    <None Remove="DeleteMe\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Remove="TestData\company.json" />
     <None Remove="TestData\users.json" />
   </ItemGroup>

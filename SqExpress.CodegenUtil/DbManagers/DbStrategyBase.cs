@@ -14,13 +14,13 @@ namespace SqExpress.CodeGenUtil.DbManagers
             this.Database = database;
         }
 
-        public abstract Task<List<TableColumnRawModel>> LoadColumns();
+        public abstract Task<List<ColumnRawModel>> LoadColumns();
 
         public abstract Task<LoadIndexesResult> LoadIndexes();
 
         public abstract Task<Dictionary<ColumnRef, List<ColumnRef>>> LoadForeignKeys();
 
-        public abstract ColumnType GetColType(TableColumnRawModel raw);
+        public abstract ColumnType GetColType(ColumnRawModel raw);
 
         public abstract string DefaultSchemaName { get; }
 

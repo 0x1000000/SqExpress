@@ -4,7 +4,7 @@ namespace SqExpress.CodeGenUtil.Model
 {
     internal class TableModel
     {
-        public TableModel(string name, TableRef dbName, List<ColumnModel> columns, List<Index> indexes)
+        public TableModel(string name, TableRef dbName, List<ColumnModel> columns, List<IndexModel> indexes)
         {
             this.Name = name;
             this.DbName = dbName;
@@ -15,7 +15,7 @@ namespace SqExpress.CodeGenUtil.Model
         public string Name { get; }
         public TableRef DbName { get; }
         public List<ColumnModel> Columns { get; }
-        public List<Index> Indexes { get; }
+        public List<IndexModel> Indexes { get; }
 
 
         public TableModel WithNewName(string newName) =>

@@ -52,19 +52,18 @@ namespace SqExpress.IntTest
         {
             Stopwatch stopwatch = new Stopwatch();
 
-            Console.WriteLine("-Postgres Test-----");
-            stopwatch.Start();
-            await ExecNpgSql(scenario);
-            stopwatch.Stop();
-            Console.WriteLine($"-Postgres Test End: {stopwatch.ElapsedMilliseconds} ms");
-
-
             Console.WriteLine();
             Console.WriteLine("-MS SQL Test-------");
             stopwatch.Restart();
             await ExecMsSql(scenario);
             stopwatch.Stop();
             Console.WriteLine($"-MS SQL Test End: {stopwatch.ElapsedMilliseconds} ms");
+
+            Console.WriteLine("-Postgres Test-----");
+            stopwatch.Start();
+            await ExecNpgSql(scenario);
+            stopwatch.Stop();
+            Console.WriteLine($"-Postgres Test End: {stopwatch.ElapsedMilliseconds} ms");
 
             Console.WriteLine();
             Console.WriteLine("-MY SQL Test-------");
@@ -80,14 +79,14 @@ namespace SqExpress.IntTest
             using var database = new SqDatabase<SqlConnection>(connection, (conn, sql) =>
             {
                 return new SqlCommand(sql, conn) {Transaction = null};
-            }, new TSqlExporter(SqlBuilderOptions.Default.WithSchemaMap(new []{new SchemaMap("public", "dbo") })));
+            }, TSqlExporter.Default);
             await scenario.Exec(new ScenarioContext(database, SqlDialect.TSql));
         }
 
         private static async Task ExecNpgSql(IScenario scenario)
         {
             await using var connection = new NpgsqlConnection("Host=localhost;Port=5432;Username=postgres;Password=test;Database=test");
-            using var database = new SqDatabase<NpgsqlConnection>(connection, (conn, sql) => new NpgsqlCommand(sql, conn) { Transaction = null }, PgSqlExporter.Default);
+            using var database = new SqDatabase<NpgsqlConnection>(connection, (conn, sql) => new NpgsqlCommand(sql, conn) { Transaction = null }, new PgSqlExporter(SqlBuilderOptions.Default.WithSchemaMap(new[] { new SchemaMap("dbo", "public") })));
             await scenario.Exec(new ScenarioContext(database, SqlDialect.PgSql));
         }
 

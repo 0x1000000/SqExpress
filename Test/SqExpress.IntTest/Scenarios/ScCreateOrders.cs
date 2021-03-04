@@ -12,8 +12,8 @@ namespace SqExpress.IntTest.Scenarios
     {
         public async Task Exec(IScenarioContext context)
         {
-            var tOrder = TableList.Order();
-            var tOrderSub2 = TableList.Order();
+            var tOrder = AllTables.GetItOrder();
+            var tOrderSub2 = AllTables.GetItOrder();
             var vwCustomer = new CustomerName();
 
             var numbers = Values(Enumerable.Range(1, 10).Select(Literal).ToList()).AsColumns("Num");

@@ -97,8 +97,8 @@ namespace SqExpress.IntTest.Scenarios
                 context.WriteLine(null);
             }
 
-            var tUser = TableList.User();
-            var tCustomer = TableList.Customer();
+            var tUser = AllTables.GetItUser();
+            var tCustomer = AllTables.GetItCustomer();
 
             await SelectTop(1, AllColumns()).From(tUser).Query(context.Database, PrintColumns);
 

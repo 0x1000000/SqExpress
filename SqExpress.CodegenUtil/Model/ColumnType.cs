@@ -1,19 +1,19 @@
 ﻿namespace SqExpress.CodeGenUtil.Model
 {
-    internal interface IColumnTypeVisitor
+    internal interface IColumnTypeVisitor<out TRes,in TArg>
     {
-        void VisitBooleanColumnType(BooleanColumnType booleanColumnType);
-        void VisitByteColumnType(ByteColumnType byteColumnType);
-        void VisitByteArrayColumnType(ByteArrayColumnType byteArrayColumnType);
-        void VisitInt16ColumnType(Int16ColumnType int16ColumnType);
-        void VisitInt32ColumnType(Int32ColumnType int32ColumnType);
-        void VisitInt64ColumnType(Int64ColumnType int64ColumnType);
-        void VisitDoubleColumnType(DoubleColumnType doubleColumnType);
-        void VisitDecimalColumnType(DecimalColumnType decimalColumnType);
-        void VisitDateTimeColumnType(DateTimeColumnType dateTimeColumnType);
-        void VisitStringColumnType(StringColumnType stringColumnType);
-        void VisitGuidColumnType(GuidColumnType guidColumnType);
-        void VisitXmlColumnType(XmlColumnType xmlColumnType);
+        TRes VisitBooleanColumnType(BooleanColumnType booleanColumnType, TArg arg);
+        TRes VisitByteColumnType(ByteColumnType byteColumnType, TArg arg);
+        TRes VisitByteArrayColumnType(ByteArrayColumnType byteArrayColumnType, TArg arg);
+        TRes VisitInt16ColumnType(Int16ColumnType int16ColumnType, TArg arg);
+        TRes VisitInt32ColumnType(Int32ColumnType int32ColumnType, TArg arg);
+        TRes VisitInt64ColumnType(Int64ColumnType int64ColumnType, TArg arg);
+        TRes VisitDoubleColumnType(DoubleColumnType doubleColumnType, TArg arg);
+        TRes VisitDecimalColumnType(DecimalColumnType decimalColumnType, TArg arg);
+        TRes VisitDateTimeColumnType(DateTimeColumnType dateTimeColumnType, TArg arg);
+        TRes VisitStringColumnType(StringColumnType stringColumnType, TArg arg);
+        TRes VisitGuidColumnType(GuidColumnType guidColumnType, TArg arg);
+        TRes VisitXmlColumnType(XmlColumnType xmlColumnType, TArg arg);
     }
 
     internal abstract class ColumnType
@@ -25,14 +25,14 @@
 
         public bool IsNullable { get; }
 
-        public abstract void Accept(IColumnTypeVisitor visitor);
+        public abstract TRes Accept<TRes, TArg>(IColumnTypeVisitor<TRes, TArg> visitor, TArg arg);
     }
 
     internal class BooleanColumnType : ColumnType
     {
 
-        public override void Accept(IColumnTypeVisitor visitor)
-            => visitor.VisitBooleanColumnType(this);
+        public override TRes Accept<TRes, TArg>(IColumnTypeVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitBooleanColumnType(this, arg);
 
         public BooleanColumnType(bool isNullable) : base(isNullable)
         {
@@ -42,8 +42,8 @@
     internal class ByteColumnType : ColumnType
     {
 
-        public override void Accept(IColumnTypeVisitor visitor)
-            => visitor.VisitByteColumnType(this);
+        public override TRes Accept<TRes, TArg>(IColumnTypeVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitByteColumnType(this, arg);
 
         public ByteColumnType(bool isNullable) : base(isNullable)
         {
@@ -56,8 +56,8 @@
 
         public bool IsFixed { get; }
 
-        public override void Accept(IColumnTypeVisitor visitor)
-            => visitor.VisitByteArrayColumnType(this);
+        public override TRes Accept<TRes, TArg>(IColumnTypeVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitByteArrayColumnType(this, arg);
 
         public ByteArrayColumnType(bool isNullable, int? size, bool isFixed) : base(isNullable)
         {
@@ -68,8 +68,8 @@
 
     internal class Int16ColumnType : ColumnType
     {
-        public override void Accept(IColumnTypeVisitor visitor)
-            => visitor.VisitInt16ColumnType(this);
+        public override TRes Accept<TRes, TArg>(IColumnTypeVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitInt16ColumnType(this, arg);
 
         public Int16ColumnType(bool isNullable) : base(isNullable)
         {
@@ -78,8 +78,8 @@
 
     internal class Int32ColumnType : ColumnType
     {
-        public override void Accept(IColumnTypeVisitor visitor)
-            => visitor.VisitInt32ColumnType(this);
+        public override TRes Accept<TRes, TArg>(IColumnTypeVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitInt32ColumnType(this, arg);
 
         public Int32ColumnType(bool isNullable) : base(isNullable)
         {
@@ -88,8 +88,8 @@
 
     internal class Int64ColumnType : ColumnType
     {
-        public override void Accept(IColumnTypeVisitor visitor)
-            => visitor.VisitInt64ColumnType(this);
+        public override TRes Accept<TRes, TArg>(IColumnTypeVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitInt64ColumnType(this, arg);
 
         public Int64ColumnType(bool isNullable) : base(isNullable)
         {
@@ -98,8 +98,8 @@
 
     internal class GuidColumnType : ColumnType
     {
-        public override void Accept(IColumnTypeVisitor visitor)
-            => visitor.VisitGuidColumnType(this);
+        public override TRes Accept<TRes, TArg>(IColumnTypeVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitGuidColumnType(this, arg);
 
         public GuidColumnType(bool isNullable) : base(isNullable)
         {
@@ -108,8 +108,8 @@
 
     internal class DoubleColumnType : ColumnType
     {
-        public override void Accept(IColumnTypeVisitor visitor)
-            => visitor.VisitDoubleColumnType(this);
+        public override TRes Accept<TRes, TArg>(IColumnTypeVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitDoubleColumnType(this, arg);
 
         public DoubleColumnType(bool isNullable) : base(isNullable)
         {
@@ -122,8 +122,8 @@
 
         public int Scale { get; }
 
-        public override void Accept(IColumnTypeVisitor visitor)
-            => visitor.VisitDecimalColumnType(this);
+        public override TRes Accept<TRes, TArg>(IColumnTypeVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitDecimalColumnType(this, arg);
 
         public DecimalColumnType(bool isNullable, int precision, int scale) : base(isNullable)
         {
@@ -136,8 +136,8 @@
     {
         public bool IsDate { get; }
 
-        public override void Accept(IColumnTypeVisitor visitor)
-            => visitor.VisitDateTimeColumnType(this);
+        public override TRes Accept<TRes, TArg>(IColumnTypeVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitDateTimeColumnType(this, arg);
 
         public DateTimeColumnType(bool isNullable, bool isDate) : base(isNullable)
         {
@@ -155,8 +155,8 @@
 
         public bool IsText { get; }
 
-        public override void Accept(IColumnTypeVisitor visitor)
-            => visitor.VisitStringColumnType(this);
+        public override TRes Accept<TRes, TArg>(IColumnTypeVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitStringColumnType(this, arg);
 
         public StringColumnType(bool isNullable, int? size, bool isFixed, bool isUnicode, bool isText) : base(isNullable)
         {
@@ -169,8 +169,8 @@
 
     internal class XmlColumnType : ColumnType
     {
-        public override void Accept(IColumnTypeVisitor visitor)
-            => visitor.VisitXmlColumnType(this);
+        public override TRes Accept<TRes, TArg>(IColumnTypeVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitXmlColumnType(this, arg);
 
         public XmlColumnType(bool isNullable) : base(isNullable)
         {

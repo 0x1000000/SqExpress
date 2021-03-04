@@ -17,7 +17,7 @@ namespace SqExpress.IntTest.Scenarios
         public async Task Exec(IScenarioContext context)
         {
             bool isPostgres = context.Dialect == SqlDialect.PgSql;
-            var table = new AllColumnTypes(isPostgres);
+            var table = new TableItAllColumnTypes(isPostgres);
             await context.Database.Statement(table.Script.DropAndCreate());
 
             var testData = GetTestData(isPostgres);
@@ -107,7 +107,7 @@ namespace SqExpress.IntTest.Scenarios
             Console.WriteLine("'All Column Type Test' is passed");
         }
 
-        private static IRecordSetterNext Mapping(IDataMapSetter<AllColumnTypes, AllColumnTypesDto> s)
+        private static IRecordSetterNext Mapping(IDataMapSetter<TableItAllColumnTypes, AllColumnTypesDto> s)
         {
             var recordSetterNext = s
                 .Set(s.Target.ColBoolean, s.Source.ColBoolean)

@@ -10,7 +10,7 @@ namespace SqExpress.IntTest.Scenarios
     {
         public async Task Exec(IScenarioContext context)
         {
-            var tUser = TableList.User();
+            var tUser = AllTables.GetItUser();
 
             var top2Users = await SelectTop(2, tUser.FirstName)
                 .From(tUser)

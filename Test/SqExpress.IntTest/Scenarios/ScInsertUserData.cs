@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Threading.Tasks;
 using SqExpress.IntTest.Context;
+using SqExpress.IntTest.Tables;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.IntTest.Scenarios
@@ -17,7 +18,7 @@ namespace SqExpress.IntTest.Scenarios
             var data = this.ReadUserData();
 
             var utcNow = DateTime.UtcNow;
-            var userTable = Tables.TableList.User();
+            var userTable = AllTables.GetItUser();
 
             var ids = await InsertDataInto(userTable, data)
                 .MapData(s => s
@@ -50,8 +51,8 @@ namespace SqExpress.IntTest.Scenarios
 
         private static async Task InsertCustomers(IScenarioContext context)
         {
-            var userTable = Tables.TableList.User();
-            var customerTable = Tables.TableList.Customer();
+            var userTable = AllTables.GetItUser();
+            var customerTable = AllTables.GetItCustomer();
 
             await InsertInto(customerTable, customerTable.UserId)
                 .From(Select(userTable.UserId)

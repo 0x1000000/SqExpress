@@ -47,6 +47,8 @@
 
     internal class MsSqlSysIndexes : TableBase
     {
+        public MsSqlSysIndexes() : this(default) { }
+
         public MsSqlSysIndexes(Alias alias = default) : base("sys", "indexes", alias)
         {
             this.ObjectId = this.CreateInt32Column("object_id");

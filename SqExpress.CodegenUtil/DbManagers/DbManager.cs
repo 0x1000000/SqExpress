@@ -4,7 +4,6 @@ using System.Data.Common;
 using System.Linq;
 using System.Threading.Tasks;
 using SqExpress.CodeGenUtil.Model;
-using Index = SqExpress.CodeGenUtil.Model.Index;
 
 namespace SqExpress.CodeGenUtil.DbManagers
 {
@@ -14,10 +13,13 @@ namespace SqExpress.CodeGenUtil.DbManagers
 
         private readonly DbConnection _connection;
 
-        public DbManager(IDbStrategy database, DbConnection connection)
+        private readonly GenTabDescOptions _options;
+
+        public DbManager(IDbStrategy database, DbConnection connection, GenTabDescOptions options)
         {
             this.Database = database;
             this._connection = connection;
+            this._options = options;
         }
 
         public async Task<string?> TryOpenConnection()
@@ -61,28 +63,31 @@ namespace SqExpress.CodeGenUtil.DbManagers
 
             var sortedTables = SortTablesByForeignKeys(acc: acc);
 
-            var result =  sortedTables.Select(t =>
-                    new TableModel(ToTableCrlName(t),
-                        t,
-                        acc[t]
+            var result = sortedTables.Select(t =>
+                    new TableModel(
+                        name: ToTableCrlName(tableRef: t),
+                        dbName: t,
+                        columns: acc[key: t]
                             .Select(p => p.Value)
                             .OrderBy(c => c.Pk?.Index ?? 10000)
-                            .ThenBy(c => c.DbName)
+                            .ThenBy(c => c.OrdinalPosition)
                             .ToList(),
-                        indexes.Indexes.TryGetValue(t, out var tIndexes) ? tIndexes : new List<Index>(0)))
+                        indexes: indexes.Indexes.TryGetValue(key: t, value: out var tIndexes)
+                            ? tIndexes
+                            : new List<IndexModel>(capacity: 0)))
                 .ToList();
 
-            EnsureNamesAreUnique(result, this.Database.DefaultSchemaName);
+            EnsureTableNamesAreUnique(result, this.Database.DefaultSchemaName);
 
             return result;
 
         }
 
-        private ColumnModel BuildColumnModel(TableColumnRawModel rawColumn, List<IndexColumn>? pkCols, List<ColumnRef>? fkList)
+        private ColumnModel BuildColumnModel(ColumnRawModel rawColumn, List<IndexColumnModel>? pkCols, List<ColumnRef>? fkList)
         {
             string clrName = ToColCrlName(rawColumn.DbName);
 
-            var pkIndex = pkCols?.FindIndex(c=>c.Column.Equals(rawColumn.DbName));
+            var pkIndex = pkCols?.FindIndex(c=>c.DbName.Equals(rawColumn.DbName));
 
             PkInfo? pkInfo = null;
             if (pkIndex >= 0 && pkCols != null)
@@ -93,6 +98,7 @@ namespace SqExpress.CodeGenUtil.DbManagers
             return new ColumnModel(
                 name: clrName,
                 dbName: rawColumn.DbName,
+                ordinalPosition: rawColumn.OrdinalPosition,
                 columnType: this.Database.GetColType(raw: rawColumn),
                 pk: pkInfo,
                 identity: rawColumn.Identity,
@@ -107,7 +113,7 @@ namespace SqExpress.CodeGenUtil.DbManagers
 
         private string ToTableCrlName(TableRef tableRef)
         {
-            return StringHelper.DeSnake(tableRef.Name);
+            return this._options.TableClassPrefix + StringHelper.DeSnake(tableRef.Name);
         }
 
         private static IReadOnlyList<TableRef> SortTablesByForeignKeys(Dictionary<TableRef, Dictionary<ColumnRef, ColumnModel>> acc)
@@ -171,7 +177,7 @@ namespace SqExpress.CodeGenUtil.DbManagers
             }
         }
 
-        private static void EnsureNamesAreUnique(List<TableModel> result, string defaultSchema)
+        private void EnsureTableNamesAreUnique(List<TableModel> result, string defaultSchema)
         {
             if (result.Count < 2)
             {
@@ -184,8 +190,9 @@ namespace SqExpress.CodeGenUtil.DbManagers
                     EnsureColumnNamesAreUnique(table);
                     return (table, origIndex);
                 })
-                .GroupBy(t => t.table.Name)
-                .ToDictionary(t => t.Key, t => t.ToList());
+                //C# class names is case-sensitive but windows file system is not, so there might be class overwriting.
+                .GroupBy(t => t.table.Name, StringComparer.InvariantCultureIgnoreCase)
+                .ToDictionary(t => t.Key, t => t.ToList(), StringComparer.InvariantCultureIgnoreCase);
 
             foreach (var pair in dic.ToList())
             {
@@ -207,7 +214,15 @@ namespace SqExpress.CodeGenUtil.DbManagers
                     if (duplicateIndex != null)
                     {
                         var duplicate = pair.Value[duplicateIndex.Value];
-                        newName = StringHelper.DeSnake(duplicate.table.DbName.Schema) + duplicate.table.Name;
+
+                        var tableName = duplicate.table.Name;
+
+                        if (!string.IsNullOrEmpty(this._options.TableClassPrefix))
+                        {
+                            tableName = tableName.Substring(this._options.TableClassPrefix.Length);
+                        }
+
+                        newName = this._options.TableClassPrefix + StringHelper.DeSnake(duplicate.table.DbName.Schema) + tableName;
                     }
 
                     newName = StringHelper.AddNumberUntilUnique(newName, "No", nn => !dic.ContainsKey(nn));

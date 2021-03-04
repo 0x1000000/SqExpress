@@ -10,7 +10,6 @@ using SqExpress.DataAccess;
 using SqExpress.SqlExport;
 using SqExpress.Syntax.Boolean;
 using static SqExpress.SqQueryBuilder;
-using Index = SqExpress.CodeGenUtil.Model.Index;
 
 namespace SqExpress.CodeGenUtil.DbManagers
 {
@@ -23,9 +22,9 @@ namespace SqExpress.CodeGenUtil.DbManagers
             this._databaseName = databaseName;
         }
 
-        public static DbManager Create(string connectionString)
+        public static DbManager Create(GenTabDescOptions options)
         {
-            var connection = new SqlConnection(connectionString);
+            var connection = new SqlConnection(options.ConnectionString);
             if (string.IsNullOrEmpty(connection.Database))
             {
                 throw new SqExpressCodeGenException("MsSQL connection string has to contain \"database\" attribute");
@@ -34,7 +33,7 @@ namespace SqExpress.CodeGenUtil.DbManagers
             {
                 var database = new SqDatabase<SqlConnection>(connection, ConnectionFactory, new TSqlExporter(SqlBuilderOptions.Default));
 
-                return new DbManager(new MsSqlDbManager(database, connection.Database), connection);
+                return new DbManager(new MsSqlDbManager(database, connection.Database), connection, options);
             }
             catch
             {
@@ -49,7 +48,7 @@ namespace SqExpress.CodeGenUtil.DbManagers
             }
         }
 
-        public override Task<List<TableColumnRawModel>> LoadColumns()
+        public override Task<List<ColumnRawModel>> LoadColumns()
         {
             var tColumns = new MsSqlIsColumns();
 
@@ -65,6 +64,7 @@ namespace SqExpress.CodeGenUtil.DbManagers
                     tColumns.TableSchema,
                     tColumns.TableName,
                     tColumns.ColumnName,
+                    tColumns.OrdinalPosition,
                     tColumns.DataType,
                     tColumns.ColumnDefault,
                     tColumns.IsNullable,
@@ -73,11 +73,13 @@ namespace SqExpress.CodeGenUtil.DbManagers
                     tColumns.NumericScale,
                     funcIsIdentity.As(cIsIdentity))
                 .From(tColumns)
+                .Where(GetTableFilter(tColumns))
                 .OrderBy(tColumns.OrdinalPosition).QueryList(this.Database,
-                    r => new TableColumnRawModel(
+                    r => new ColumnRawModel(
                         dbName: new ColumnRef(schema: tColumns.TableSchema.Read(recordReader: r),
                             tableName: tColumns.TableName.Read(recordReader: r),
                             name: tColumns.ColumnName.Read(recordReader: r)),
+                        ordinalPosition: tColumns.OrdinalPosition.Read(r),
                         identity: cIsIdentity.Read(recordReader: r) == 1,
                         nullable: tColumns.IsNullable.Read(recordReader: r) == "YES",
                         typeName: tColumns.DataType.Read(recordReader: r) ?? "",
@@ -140,27 +142,27 @@ namespace SqExpress.CodeGenUtil.DbManagers
                         {
                             if (!acc.Pks.TryGetValue(tableName, out var list))
                             {
-                                list = new PrimaryKey(new List<IndexColumn>(), indexName);
+                                list = new PrimaryKeyModel(new List<IndexColumnModel>(), indexName);
                                 acc.Pks.Add(tableName, list);
                             }
-                            list.Columns.Add(new IndexColumn(isDescending, columnName));
+                            list.Columns.Add(new IndexColumnModel(isDescending, columnName));
                         }
                         else
                         {
                             if (!acc.Indexes.TryGetValue(tableName, out var indexes))
                             {
-                                indexes = new List<Index>();
+                                indexes = new List<IndexModel>();
                                 acc.Indexes.Add(tableName, indexes);
                             }
 
                             var index = indexes.FirstOrDefault(i => i.Name == indexName);
                             if (index == null)
                             {
-                                index = new Index(new List<IndexColumn>(), indexName, isUnique, isClustered);
+                                index = new IndexModel(new List<IndexColumnModel>(), indexName, isUnique, isClustered);
                                 indexes.Add(index);
                             }
 
-                            index.Columns.Add(new IndexColumn(isDescending, columnName));
+                            index.Columns.Add(new IndexColumnModel(isDescending, columnName));
                         }
 
                         return acc;
@@ -284,7 +286,7 @@ namespace SqExpress.CodeGenUtil.DbManagers
             return Exists(SelectOne().From(tTables).Where(filter));
         }
 
-        public override ColumnType GetColType(TableColumnRawModel raw)
+        public override ColumnType GetColType(ColumnRawModel raw)
         {
             switch (raw.TypeName.ToLowerInvariant())
             {
@@ -325,23 +327,23 @@ namespace SqExpress.CodeGenUtil.DbManagers
                 case "time":
                     return new Int64ColumnType(raw.Nullable);
                 case "char":
-                    return new StringColumnType(isNullable: raw.Nullable, size: raw.Size, isFixed: true, isUnicode: false, isText: false);
+                    return new StringColumnType(isNullable: raw.Nullable, size: CheckSize(raw.Size), isFixed: true, isUnicode: false, isText: false);
                 case "varchar":
-                    return new StringColumnType(isNullable: raw.Nullable, size: raw.Size, isFixed: false, isUnicode: false, isText: false);
+                    return new StringColumnType(isNullable: raw.Nullable, size: CheckSize(raw.Size), isFixed: false, isUnicode: false, isText: false);
                 case "text":
-                    return new StringColumnType(isNullable: raw.Nullable, size: raw.Size, isFixed: false, isUnicode: false, isText: true);
+                    return new StringColumnType(isNullable: raw.Nullable, size: CheckSize(raw.Size), isFixed: false, isUnicode: false, isText: true);
                 case "nchar":
-                    return new StringColumnType(isNullable: raw.Nullable, size: raw.Size, isFixed: true, isUnicode: true, isText: false);
+                    return new StringColumnType(isNullable: raw.Nullable, size: CheckSize(raw.Size), isFixed: true, isUnicode: true, isText: false);
                 case "nvarchar":
-                    return new StringColumnType(isNullable: raw.Nullable, size: raw.Size, isFixed: false, isUnicode: true, isText: false);
+                    return new StringColumnType(isNullable: raw.Nullable, size: CheckSize(raw.Size), isFixed: false, isUnicode: true, isText: false);
                 case "ntext":
-                    return new StringColumnType(isNullable: raw.Nullable, size: raw.Size, isFixed: false, isUnicode: true, isText: true);
+                    return new StringColumnType(isNullable: raw.Nullable, size: CheckSize(raw.Size), isFixed: false, isUnicode: true, isText: true);
                 case "binary":
-                    return new ByteArrayColumnType(isNullable: raw.Nullable, size: raw.Size, isFixed: true);
+                    return new ByteArrayColumnType(isNullable: raw.Nullable, size: CheckSize(raw.Size), isFixed: true);
                 case "varbinary":
-                    return new ByteArrayColumnType(isNullable: raw.Nullable, size: raw.Size, isFixed: false);
+                    return new ByteArrayColumnType(isNullable: raw.Nullable, size: CheckSize(raw.Size), isFixed: false);
                 case "image":
-                    return new ByteArrayColumnType(isNullable: raw.Nullable, size: raw.Size, isFixed: false);
+                    return new ByteArrayColumnType(isNullable: raw.Nullable, size: CheckSize(raw.Size), isFixed: false);
                 case "uniqueidentifier":
                     return new GuidColumnType(isNullable: raw.Nullable);
                 case "xml":
@@ -349,6 +351,16 @@ namespace SqExpress.CodeGenUtil.DbManagers
                 default:
                     throw new SqExpressCodeGenException(
                         $"Not supported column type \"{raw.TypeName}\" for {raw.DbName.Schema}.{raw.DbName.TableName}.{raw.DbName.Name}");
+            }
+
+            int? CheckSize(int? size)
+            {
+                if (size.HasValue && size.Value <= 0)
+                {
+                    return null;
+                }
+
+                return size;
             }
 
             int Ensure(int? value, string name)

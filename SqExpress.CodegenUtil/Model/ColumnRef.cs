@@ -38,6 +38,11 @@ namespace SqExpress.CodeGenUtil.Model
             return HashCode.Combine(this.Table, this.Name);
         }
 
+        public override string ToString()
+        {
+            return $"{this.Schema}.{this.TableName}.{this.Name}";
+        }
+
         public int CompareTo(ColumnRef? other)
         {
             if (ReferenceEquals(this, other)) return 0;

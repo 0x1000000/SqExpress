@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using SqExpress.IntTest.Context;
+using SqExpress.IntTest.Tables;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.IntTest.Scenarios
@@ -9,8 +10,8 @@ namespace SqExpress.IntTest.Scenarios
     {
         public async Task Exec(IScenarioContext context)
         {
-            var tUser = Tables.TableList.User();
-            var tCustomer = Tables.TableList.Customer();
+            var tUser = AllTables.GetItUser();
+            var tCustomer = AllTables.GetItCustomer();
 
             var maxVersion = (int) await Select(Max(tUser.Version))
                 .From(tUser)

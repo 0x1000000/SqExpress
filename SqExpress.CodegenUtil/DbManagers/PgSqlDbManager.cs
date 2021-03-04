@@ -44,7 +44,7 @@ namespace SqExpress.CodeGenUtil.DbManagers
             //}
         }
 
-        public override Task<List<TableColumnRawModel>> LoadColumns()
+        public override Task<List<ColumnRawModel>> LoadColumns()
         {
             throw new NotImplementedException();
         }
@@ -66,7 +66,7 @@ namespace SqExpress.CodeGenUtil.DbManagers
             throw new NotImplementedException();
         }
 
-        public override ColumnType GetColType(TableColumnRawModel raw)
+        public override ColumnType GetColType(ColumnRawModel raw)
         {
             throw new NotImplementedException();
         }
