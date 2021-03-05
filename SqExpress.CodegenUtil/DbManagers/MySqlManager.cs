@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using MySql.Data.MySqlClient;
 using SqExpress.CodeGenUtil.Model;
 using SqExpress.CodeGenUtil.Tables.MySQL;
 using SqExpress.DataAccess;

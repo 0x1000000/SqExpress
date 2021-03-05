@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Npgsql;
 using SqExpress.CodeGenUtil.Model;
 using SqExpress.CodeGenUtil.Tables.MsSql;
 using SqExpress.DataAccess;

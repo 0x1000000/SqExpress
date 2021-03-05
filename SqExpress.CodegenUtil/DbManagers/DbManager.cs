@@ -134,8 +134,9 @@ namespace SqExpress.CodeGenUtil.DbManagers
 
             void CountTable(TableRef table, Dictionary<ColumnRef, ColumnModel> columns, int value)
             {
-                var parentTables = columns.Values.Where(c => c.Fk != null)
-                    .SelectMany(c => c.Fk)
+                var parentTables = columns.Values
+                    .Where(c => c.Fk != null)
+                    .SelectMany(c => c.Fk!)
                     .Select(f => f.Table)
                     .Distinct()
                     .Where(pt => !pt.Equals(table))//Self ref

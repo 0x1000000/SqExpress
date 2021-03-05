@@ -39,6 +39,10 @@ This an article that explains the library principles: ["Syntax Tree and Alternat
       <Pack>True</Pack>
       <PackagePath></PackagePath>
     </None>
+    <Content Include="..\tmp\tools\codegen\**\*">
+      <Pack>true</Pack>
+      <PackagePath>tools\codegen</PackagePath>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
@@ -47,6 +51,9 @@ This an article that explains the library principles: ["Syntax Tree and Alternat
 
   <Target Name="PreventPackInDebug" BeforeTargets="Pack" Condition="'$(Configuration)|$(Platform)'!='Release|AnyCPU'">
     <Error Text="Pack cannot be done in debug mode!"></Error>
+  </Target>
+  <Target Name="PreventPackWithoutTools" BeforeTargets="Pack" Condition="!Exists('..\tmp\tools\codegen')">
+    <Error Text="Could not find '..\tmp\tools\codegen' directory. Make you sure you use 'pack.sh'"></Error>
   </Target>
 
 </Project>
