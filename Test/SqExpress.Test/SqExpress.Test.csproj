@@ -5,6 +5,9 @@
     <LangVersion>8.0</LangVersion>
     <IsPackable>false</IsPackable>
     <Nullable>disable</Nullable>
+    <AssemblyOriginatorKeyFile>..\..\SqExpress.snk</AssemblyOriginatorKeyFile>
+    <SignAssembly>true</SignAssembly>
+    <DelaySign>false</DelaySign>
   </PropertyGroup>
 
   <ItemGroup>
