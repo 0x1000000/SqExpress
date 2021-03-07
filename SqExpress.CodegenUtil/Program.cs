@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using CommandLine;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SqExpress.CodeGenUtil.CodeGen;
 using SqExpress.CodeGenUtil.DbManagers;
 using SqExpress.CodeGenUtil.Model;
@@ -133,6 +134,8 @@ namespace SqExpress.CodeGenUtil
                 throw new SqExpressCodeGenException("Connection string cannot be empty");
             }
 
+            IReadOnlyDictionary<TableRef, ClassDeclarationSyntax> existingCode = ExistingCodeDiscoverer.Discover(directory);
+
             var sqlManager = CreateDbManager(options);
 
 
@@ -146,10 +149,12 @@ namespace SqExpress.CodeGenUtil
 
             IReadOnlyDictionary<TableRef, TableModel> tableMap = tables.ToDictionary(t => t.DbName);
 
+            var tableClassGenerator = new TableClassGenerator(tableMap, options.Namespace, existingCode);
+
             foreach (var table in tables)
             {
                 string filePath = Path.Combine(directory, $"{table.Name}.cs");
-                await File.WriteAllTextAsync(filePath, TableClassGenerator.Generate(table, tableMap, options.Namespace).ToFullString());
+                await File.WriteAllTextAsync(filePath, tableClassGenerator.Generate(table).ToFullString());
             }
 
             var allTablePath = Path.Combine(directory, "AllTables.cs");

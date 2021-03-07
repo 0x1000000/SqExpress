@@ -4,6 +4,7 @@ using System.Data.SqlClient;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using SqExpress.CodeGenUtil;
+using SqExpress.CodeGenUtil.CodeGen;
 using SqExpress.CodeGenUtil.DbManagers;
 using SqExpress.CodeGenUtil.Model;
 

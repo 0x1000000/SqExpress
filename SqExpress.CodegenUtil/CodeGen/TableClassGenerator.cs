@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -9,26 +10,151 @@ namespace SqExpress.CodeGenUtil.CodeGen
 {
     internal class TableClassGenerator
     {
-        public static CompilationUnitSyntax Generate(TableModel table, IReadOnlyDictionary<TableRef, TableModel> allTables, string defaultNamespace)
+        private readonly IReadOnlyDictionary<TableRef, TableModel> _allTables;
+
+        private readonly string _defaultNamespace;
+
+        private readonly IReadOnlyDictionary<TableRef, ClassDeclarationSyntax> _existingCode;
+
+        public TableClassGenerator(IReadOnlyDictionary<TableRef, TableModel> allTables, string defaultNamespace, IReadOnlyDictionary<TableRef, ClassDeclarationSyntax> existingCode)
         {
+            this._allTables = allTables;
+            this._defaultNamespace = defaultNamespace;
+            this._existingCode = existingCode;
+        }
+
+        public CompilationUnitSyntax Generate(TableModel table)
+        {
+            if (this._existingCode.TryGetValue(table.DbName, out var existingTable))
+            {
+                return this.ModifyClass(table, existingTable);
+            }
+
             return SyntaxFactory.CompilationUnit()
                 .AddUsings(SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(nameof(SqExpress))),
                     SyntaxFactory.UsingDirective(SyntaxFactory.ParseName($"{nameof(SqExpress)}.{nameof(SqExpress.Syntax)}.{nameof(SqExpress.Syntax.Type)}")))
-                .AddMembers(SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(defaultNamespace))
-                    .AddMembers(GenerateClass(table, allTables)))
+                .AddMembers(SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(this._defaultNamespace))
+                    .AddMembers(GenerateClass(table)))
                 .NormalizeWhitespace();
         }
 
-        private static ClassDeclarationSyntax GenerateClass(TableModel table, IReadOnlyDictionary<TableRef, TableModel> allTables)
+        private ClassDeclarationSyntax GenerateClass(TableModel table)
         {
             return SyntaxFactory.ClassDeclaration(table.Name)
                 .WithModifiers(Modifiers(SyntaxKind.PublicKeyword))
                 .WithBaseList(SyntaxFactory.BaseList()
                     .AddTypes(SyntaxFactory.SimpleBaseType(SyntaxFactory.ParseName(nameof(TableBase)))))
-                .AddMembers(ConcatClassMembers(GenerateEmptyConstructor(table), GenerateMainConstructor(table, allTables), GenerateColumnProperties(table)));
+                .AddMembers(ConcatClassMembers(GenerateEmptyConstructor(table), GenerateMainConstructor(table), GenerateColumnProperties(table)));
         }
 
-        private static ConstructorDeclarationSyntax GenerateEmptyConstructor(TableModel table)
+        private CompilationUnitSyntax ModifyClass(TableModel tableModel, ClassDeclarationSyntax tClass)
+        {
+            var result = FindCompilationUnit(tClass: tClass);
+
+            //Constructor
+            var newClass = ReplaceAddProperties(tableModel,
+                ReplaceConstructors(this, tableModel: tableModel, originalClass: tClass));
+
+            return result.ReplaceNode(tClass, newClass).NormalizeWhitespace();
+
+            static CompilationUnitSyntax FindCompilationUnit(ClassDeclarationSyntax tClass)
+            {
+                CompilationUnitSyntax? compilationUnitSyntax = null;
+
+                SyntaxNode? parent = tClass.Parent;
+                while (parent != null)
+                {
+                    if (parent is CompilationUnitSyntax cu)
+                    {
+                        compilationUnitSyntax = cu;
+                        break;
+                    }
+
+                    parent = parent.Parent;
+                }
+
+                if (compilationUnitSyntax == null)
+                {
+                    throw new SqExpressCodeGenException(
+                        $"Could not find compilation unit for {tClass.Identifier.ValueText}");
+                }
+
+                return compilationUnitSyntax;
+            }
+
+            static ClassDeclarationSyntax ReplaceConstructors(TableClassGenerator tableClassGenerator, TableModel tableModel, ClassDeclarationSyntax originalClass)
+            {
+                var newClass = originalClass;
+
+                var mainConstructor = newClass.DescendantNodesAndSelf()
+                    .OfType<ConstructorDeclarationSyntax>()
+                    .FirstOrDefault(c =>
+                        c.ParameterList.Parameters.Count == 1 &&
+                        c.ParameterList.Parameters[0].Type?.ToString() == nameof(Alias) &&
+                        c.Initializer != null &&
+                        c.Initializer.Kind() == SyntaxKind.BaseConstructorInitializer &&
+                        c.Initializer.ArgumentList.Arguments.Count == 3);
+
+                var constructorDeclarationSyntax = tableClassGenerator.GenerateMainConstructor(tableModel);
+
+                if (mainConstructor != null)
+                {
+                    newClass = newClass.ReplaceNode(mainConstructor, constructorDeclarationSyntax);
+                }
+
+                var otherBaseConstructors = newClass.DescendantNodesAndSelf()
+                    .OfType<ConstructorDeclarationSyntax>()
+                    .Where(c =>
+                        !c.IsEquivalentTo(constructorDeclarationSyntax) &&
+                        c.Initializer != null &&
+                        c.Initializer.Kind() == SyntaxKind.BaseConstructorInitializer)
+                    .ToList();
+
+                if (otherBaseConstructors.Count > 0)
+                {
+                    newClass = newClass.RemoveNodes(otherBaseConstructors, SyntaxRemoveOptions.KeepNoTrivia)!;
+                }
+
+                return newClass;
+            }
+
+            static ClassDeclarationSyntax ReplaceAddProperties(TableModel tableModel, ClassDeclarationSyntax newClass)
+            {
+                var columnsDict = tableModel.Columns.ToDictionary(c => c.Name);
+
+                var replacements = new Dictionary<PropertyDeclarationSyntax, PropertyDeclarationSyntax>();
+
+                foreach (var oldProperty in newClass.DescendantNodes()
+                    .OfType<PropertyDeclarationSyntax>()
+                    .Where(p => columnsDict.ContainsKey(p.Identifier.ValueText)))
+                {
+                    var columnModel = columnsDict[oldProperty.Identifier.ValueText];
+
+                    columnsDict.Remove(oldProperty.Identifier.ValueText);
+
+                    var newProperty = GenerateColumnProperty(columnModel)
+                        .WithAttributeLists(oldProperty.AttributeLists);
+
+                    replacements.Add(oldProperty, newProperty);
+                }
+
+                newClass = newClass.ReplaceNodes(replacements.Keys, (o, _) => replacements[o]);
+
+                if (columnsDict.Count > 0)
+                {
+                    newClass = newClass.AddMembers(tableModel
+                        .Columns
+                        .Where(c => columnsDict.ContainsKey(c.Name))
+                        .Select(GenerateColumnProperty)
+                        .Cast<MemberDeclarationSyntax>()
+                        .ToArray());
+                }
+
+                return newClass;
+            }
+        }
+
+        private ConstructorDeclarationSyntax GenerateEmptyConstructor(TableModel table)
         {
             return SyntaxFactory.ConstructorDeclaration(table.Name)
                 .WithModifiers(Modifiers(SyntaxKind.PublicKeyword))
@@ -38,7 +164,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
                 .WithBody(SyntaxFactory.Block());
         }
 
-        private static ConstructorDeclarationSyntax GenerateMainConstructor(TableModel table, IReadOnlyDictionary<TableRef, TableModel> allTables)
+        private ConstructorDeclarationSyntax GenerateMainConstructor(TableModel table)
         {
             return SyntaxFactory.ConstructorDeclaration(table.Name)
                 .AddParameterListParameters(FuncParameter("alias", nameof(Alias)))
@@ -49,16 +175,16 @@ namespace SqExpress.CodeGenUtil.CodeGen
                         ("schema",LiteralExpr(table.DbName.Schema)),
                         ("name", LiteralExpr(table.DbName.Name)),
                         ("alias", SyntaxFactory.IdentifierName("alias")))))
-                .WithBody(SyntaxFactory.Block(GenerateConstructorAssignments(table, allTables)));
+                .WithBody(SyntaxFactory.Block(GenerateConstructorAssignments(table)));
         }
 
-        private static IEnumerable<Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax> GenerateConstructorAssignments(TableModel table, IReadOnlyDictionary<TableRef, TableModel> allTables)
+        private IEnumerable<Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax> GenerateConstructorAssignments(TableModel table)
         {
             var result = new List<Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax>(table.Columns.Count + table.Indexes.Count);
 
             foreach (var tableColumn in table.Columns)
             {
-                var statement = SyntaxFactory.ExpressionStatement(AssignmentThis(tableColumn.Name, tableColumn.ColumnType.Accept(ColumnFactoryGenerator.Instance, new ColumnContext(tableColumn, allTables))));
+                var statement = SyntaxFactory.ExpressionStatement(AssignmentThis(tableColumn.Name, tableColumn.ColumnType.Accept(ColumnFactoryGenerator.Instance, new ColumnContext(tableColumn, this._allTables))));
 
                 result.Add(statement);
             }
@@ -73,19 +199,13 @@ namespace SqExpress.CodeGenUtil.CodeGen
             return result;
         }
 
-        private static PropertyDeclarationSyntax[] GenerateColumnProperties(TableModel table)
+        private PropertyDeclarationSyntax[] GenerateColumnProperties(TableModel table)
         {
             var result = new List<PropertyDeclarationSyntax>(table.Columns.Count);
 
             foreach (var tableColumn in table.Columns)
             {
-                var propertyDeclaration = SyntaxFactory.PropertyDeclaration(
-                        tableColumn.ColumnType.Accept(ColumnTypeGenerator.Instance, null),
-                        tableColumn.Name)
-                    .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
-                    .AddAccessorListAccessors(
-                        SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration).WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken))
-                        );
+                var propertyDeclaration = GenerateColumnProperty(tableColumn: tableColumn);
 
                 result.Add(propertyDeclaration);
             }
@@ -93,7 +213,20 @@ namespace SqExpress.CodeGenUtil.CodeGen
             return result.ToArray();
         }
 
-        private static Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax GenerateIndexFactory(IndexModel tableIndex, IReadOnlyDictionary<ColumnRef, ColumnModel> allTableColumns)
+        private static PropertyDeclarationSyntax GenerateColumnProperty(ColumnModel tableColumn)
+        {
+            var propertyDeclaration = SyntaxFactory.PropertyDeclaration(
+                    tableColumn.ColumnType.Accept(ColumnTypeGenerator.Instance, null),
+                    tableColumn.Name)
+                .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
+                .AddAccessorListAccessors(
+                    SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
+                        .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken))
+                );
+            return propertyDeclaration;
+        }
+
+        private Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax GenerateIndexFactory(IndexModel tableIndex, IReadOnlyDictionary<ColumnRef, ColumnModel> allTableColumns)
         {
             string name;
             if (tableIndex.IsUnique)
@@ -130,7 +263,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
 
         private static MemberDeclarationSyntax[] ConcatClassMembers(ConstructorDeclarationSyntax empty, ConstructorDeclarationSyntax main, IReadOnlyList<PropertyDeclarationSyntax> properties)
         {
-            List<MemberDeclarationSyntax> result = new List<MemberDeclarationSyntax>(2 + properties.Count)
+            var result = new List<MemberDeclarationSyntax>(2 + properties.Count)
             {
                 empty, main
             };

@@ -22,7 +22,7 @@ namespace SqExpress.CodeGenUtil.Model
         {
             if (ReferenceEquals(null, other)) return false;
             if (ReferenceEquals(this, other)) return true;
-            return this.Table.Equals(other.Table) && this.Name == other.Name;
+            return this.Table.Equals(other.Table) && string.Equals(this.Name, other.Name, StringComparison.InvariantCultureIgnoreCase);
         }
 
         public override bool Equals(object? obj)
@@ -35,7 +35,10 @@ namespace SqExpress.CodeGenUtil.Model
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(this.Table, this.Name);
+            var hashCode = new HashCode();
+            hashCode.Add(this.Table);
+            hashCode.Add(this.Name, StringComparer.InvariantCultureIgnoreCase);
+            return hashCode.ToHashCode();
         }
 
         public override string ToString()
