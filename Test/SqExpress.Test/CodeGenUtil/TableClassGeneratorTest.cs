@@ -27,7 +27,7 @@ namespace SqExpress.Test.CodeGenUtil
         public async Task BasicTest()
         {
 
-            using var dbManager = new DbManager(new DbManagerTest(), new SqlConnection("Initial Catalog=TestDatabase;"), new GenTabDescOptions(ConnectionType.MsSql, "fake", "Tab", "", "MyTables"));
+            using var dbManager = new DbManager(new DbManagerTest(), new SqlConnection("Initial Catalog=TestDatabase;"), new GenTabDescOptions(ConnectionType.MsSql, "fake", "Tab", "", "MyTables", verbosity: Verbosity.Quite));
 
             var tables = await dbManager.SelectTables();
 
@@ -41,7 +41,7 @@ namespace SqExpress.Test.CodeGenUtil
                 new TableClassGenerator(tableMap, "MyCompany.MyProject.Tables", existingCode);
 
 
-            var trees = tables.Select(t => CSharpSyntaxTree.Create(generator.Generate(t))).ToList();
+            var trees = tables.Select(t => CSharpSyntaxTree.Create(generator.Generate(t, out _))).ToList();
 
             var compilation =  CSharpCompilation.Create("Tables", trees, options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
