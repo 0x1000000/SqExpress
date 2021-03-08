@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -9,18 +10,40 @@ namespace SqExpress.CodeGenUtil.CodeGen
 {
     internal class TableListClassGenerator
     {
-        public static CompilationUnitSyntax Generate(IReadOnlyList<TableModel> tables, string defaultNamespace, string tablePrefix)
+        private const string AllTablesClassName = "AllTables";
+
+        public static CompilationUnitSyntax Generate(string existingFilePath, IReadOnlyList<TableModel> tables, string defaultNamespace, string tablePrefix)
         {
-            return SyntaxFactory.CompilationUnit()
+            CompilationUnitSyntax? modifiedUnit = null;
+            if (File.Exists(existingFilePath))
+            {
+                var tClass = CSharpSyntaxTree.ParseText(File.ReadAllText(existingFilePath));
+
+                var existingClassSyntax = tClass
+                    .GetRoot()
+                    .DescendantNodesAndSelf()
+                    .OfType<ClassDeclarationSyntax>()
+                    .FirstOrDefault(f => f.Identifier.ValueText == AllTablesClassName);
+
+                if (existingClassSyntax != null)
+                {
+                    modifiedUnit = existingClassSyntax.FindParentOrDefault<CompilationUnitSyntax>()
+                                   ?? throw new SqExpressCodeGenException($"Could not find compilation unit for {existingClassSyntax.Identifier.ValueText}");
+
+                    modifiedUnit = modifiedUnit.ReplaceNode(existingClassSyntax, GenerateAllTableList(tables, tablePrefix)).NormalizeWhitespace(); ;
+                }
+            }
+
+            return modifiedUnit?? SyntaxFactory.CompilationUnit()
                 .AddUsings(SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(nameof(SqExpress))))
                 .AddMembers(SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(defaultNamespace))
                     .AddMembers(GenerateAllTableList(tables, tablePrefix)))
                 .NormalizeWhitespace();
         }
 
-        private static MemberDeclarationSyntax GenerateAllTableList(IReadOnlyList<TableModel> tables, string tablePrefix)
+        private static ClassDeclarationSyntax GenerateAllTableList(IReadOnlyList<TableModel> tables, string tablePrefix)
         {
-            return SyntaxFactory.ClassDeclaration("AllTables")
+            return SyntaxFactory.ClassDeclaration(AllTablesClassName)
                 .WithModifiers(SyntaxHelpers.Modifiers(SyntaxKind.PublicKeyword, SyntaxKind.StaticKeyword))
                 .AddMembers(GenerateMethods(tables, tablePrefix))
                 .NormalizeWhitespace();

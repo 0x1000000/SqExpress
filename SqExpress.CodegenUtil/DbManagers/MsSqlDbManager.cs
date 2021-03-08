@@ -24,7 +24,16 @@ namespace SqExpress.CodeGenUtil.DbManagers
 
         public static DbManager Create(GenTabDescOptions options)
         {
-            var connection = new SqlConnection(options.ConnectionString);
+            SqlConnection connection;
+            try
+            {
+                connection = new SqlConnection(options.ConnectionString);
+            }
+            catch (ArgumentException e)
+            {
+                throw new SqExpressCodeGenException($"MsSQL connection string has incorrect format \"{options.ConnectionString}\"", e);
+            }
+
             if (string.IsNullOrEmpty(connection.Database))
             {
                 throw new SqExpressCodeGenException("MsSQL connection string has to contain \"database\" attribute");

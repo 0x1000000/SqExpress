@@ -7,7 +7,7 @@ using SqExpress.CodeGenUtil.Model;
 
 namespace SqExpress.CodeGenUtil.CodeGen
 {
-    internal class ExistingCodeDiscoverer
+    internal class ExistingTablesCodeDiscoverer
     {
         public static IReadOnlyDictionary<TableRef, ClassDeclarationSyntax> Discover(string path)
         {

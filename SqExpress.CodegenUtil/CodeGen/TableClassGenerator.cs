@@ -23,10 +23,12 @@ namespace SqExpress.CodeGenUtil.CodeGen
             this._existingCode = existingCode;
         }
 
-        public CompilationUnitSyntax Generate(TableModel table)
+        public CompilationUnitSyntax Generate(TableModel table, out bool existing)
         {
+            existing = false;
             if (this._existingCode.TryGetValue(table.DbName, out var existingTable))
             {
+                existing = true;
                 return this.ModifyClass(table, existingTable);
             }
 
@@ -49,38 +51,14 @@ namespace SqExpress.CodeGenUtil.CodeGen
 
         private CompilationUnitSyntax ModifyClass(TableModel tableModel, ClassDeclarationSyntax tClass)
         {
-            var result = FindCompilationUnit(tClass: tClass);
+            var result = tClass.FindParentOrDefault<CompilationUnitSyntax>() 
+                         ?? throw new SqExpressCodeGenException($"Could not find compilation unit for {tClass.Identifier.ValueText}");
 
             //Constructor
             var newClass = ReplaceAddProperties(tableModel,
                 ReplaceConstructors(this, tableModel: tableModel, originalClass: tClass));
 
             return result.ReplaceNode(tClass, newClass).NormalizeWhitespace();
-
-            static CompilationUnitSyntax FindCompilationUnit(ClassDeclarationSyntax tClass)
-            {
-                CompilationUnitSyntax? compilationUnitSyntax = null;
-
-                SyntaxNode? parent = tClass.Parent;
-                while (parent != null)
-                {
-                    if (parent is CompilationUnitSyntax cu)
-                    {
-                        compilationUnitSyntax = cu;
-                        break;
-                    }
-
-                    parent = parent.Parent;
-                }
-
-                if (compilationUnitSyntax == null)
-                {
-                    throw new SqExpressCodeGenException(
-                        $"Could not find compilation unit for {tClass.Identifier.ValueText}");
-                }
-
-                return compilationUnitSyntax;
-            }
 
             static ClassDeclarationSyntax ReplaceConstructors(TableClassGenerator tableClassGenerator, TableModel tableModel, ClassDeclarationSyntax originalClass)
             {
