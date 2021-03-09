@@ -71,7 +71,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
         public bool TryGetSubNode(int parentId, string propertyName, int? arrayIndex, out IPlainItem subNode)
         {
             var key = new PropKey(parentId, propertyName, arrayIndex);
-            return this._properties.TryGetValue(key, out subNode);
+            return this._properties.TryGetValue(key, out subNode!);
         }
 
         public IEnumerable<IPlainItem>? EnumerateList(IPlainItem node, string propertyName)

@@ -10,6 +10,7 @@ using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Value;
 using SqExpress.SyntaxTreeOperations;
+using SqExpress.SyntaxTreeOperations.ExportImport.Internal;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.Test.Syntax
@@ -111,7 +112,7 @@ namespace SqExpress.Test.Syntax
                             "ON [A1].[UserNewId]=[A0].[UserNewId]", e.ToSql());
         }
 
-#if !NETFRAMEWORK
+#if NETCOREAPP
         [Test]
         public void TestExportImportJson()
         {
@@ -129,13 +130,13 @@ namespace SqExpress.Test.Syntax
             using MemoryStream writer = new MemoryStream();
             selectExpr
                 .SyntaxTree()
-                .WalkThrough(new JsonWriter(), new System.Text.Json.Utf8JsonWriter(writer));
+                .ExportToJson(new System.Text.Json.Utf8JsonWriter(writer));
 
             var jsonText = Encoding.UTF8.GetString(writer.ToArray());
 
             var doc = System.Text.Json.JsonDocument.Parse(jsonText);
 
-            var deserialized = ExprDeserializer.Deserialize(doc.RootElement, new JsonReader());
+            var deserialized = ExprDeserializer.DeserializeFormJson(doc.RootElement);
 
             Assert.AreEqual(selectExpr.ToSql(), deserialized.ToSql());
         }

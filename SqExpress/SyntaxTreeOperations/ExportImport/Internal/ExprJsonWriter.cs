@@ -1,14 +1,13 @@
-﻿#if !NETFRAMEWORK
+﻿#if NETCOREAPP
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using SqExpress.Syntax;
-using SqExpress.SyntaxTreeOperations;
 
-namespace SqExpress.Test.Syntax
+namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
 {
-    public class JsonWriter : IWalkerVisitor<Utf8JsonWriter>
+    internal class ExprJsonWriter : IWalkerVisitor<Utf8JsonWriter>
     {
         public VisitorResult<Utf8JsonWriter> VisitExpr(IExpr expr, string typeTag, Utf8JsonWriter ctx)
         {
@@ -60,7 +59,7 @@ namespace SqExpress.Test.Syntax
             
         }
 
-        public void VisitPlainProperty(string name, string value, Utf8JsonWriter ctx)
+        public void VisitPlainProperty(string name, string? value, Utf8JsonWriter ctx)
         {
             if (value != null)
             {
@@ -140,7 +139,7 @@ namespace SqExpress.Test.Syntax
             }
         }
 
-        public void VisitPlainProperty(string name, IReadOnlyList<byte> value, Utf8JsonWriter ctx)
+        public void VisitPlainProperty(string name, IReadOnlyList<byte>? value, Utf8JsonWriter ctx)
         {
             if (value != null)
             {

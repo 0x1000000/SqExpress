@@ -1,13 +1,14 @@
-﻿#if !NETFRAMEWORK
+﻿#if NETCOREAPP
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
-using SqExpress.SyntaxTreeOperations;
 
-namespace SqExpress.Test.Syntax
+namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
 {
-    public class JsonReader : IExprReader<JsonElement>
+    internal class ExprJsonReader : IExprReader<JsonElement>
     {
+        public static readonly ExprJsonReader Instance = new ExprJsonReader();
+
         public string GetNodeTypeTag(JsonElement node)
         {
             return node.GetProperty("$type").GetString();
@@ -18,7 +19,7 @@ namespace SqExpress.Test.Syntax
             return node.TryGetProperty(propertyName, out subNode);
         }
 
-        public IEnumerable<JsonElement> EnumerateList(JsonElement node, string propertyName)
+        public IEnumerable<JsonElement>? EnumerateList(JsonElement node, string propertyName)
         {
             if (node.TryGetProperty(propertyName, out var arrayElement))
             {
@@ -94,7 +95,7 @@ namespace SqExpress.Test.Syntax
                    && valueNode.TryGetDateTime(out value);
         }
 
-        public bool TryGetString(JsonElement node, string propertyName, out string value)
+        public bool TryGetString(JsonElement node, string propertyName, out string? value)
         {
             value = default;
             if (node.TryGetProperty(propertyName, out var valueNode))
@@ -105,7 +106,7 @@ namespace SqExpress.Test.Syntax
             return false;
         }
 
-        public bool TryGetByteArray(JsonElement node, string propertyName, out IReadOnlyList<byte> value)
+        public bool TryGetByteArray(JsonElement node, string propertyName, out IReadOnlyList<byte>? value)
         {
             value = default;
             if (node.TryGetProperty(propertyName, out var valueNode))

@@ -32,6 +32,12 @@ namespace SqExpress.SyntaxTreeOperations
         {
             return Deserialize(node, ExprXmlReader.Instance);
         }
+#if NETCOREAPP
+        public static IExpr DeserializeFormJson(System.Text.Json.JsonElement node)
+        {
+            return Deserialize(node, ExprJsonReader.Instance);
+        }
+#endif
 
         public static IExpr Deserialize<TNode>(TNode rootElement, IExprReader<TNode> reader)
         {

@@ -113,6 +113,13 @@ namespace SqExpress
                 var walkerVisitor = new ExprXmlWriter();
                 WalkThrough(walkerVisitor, xmlWriter);
             }
+#if NETCOREAPP
+            public void ExportToJson(System.Text.Json.Utf8JsonWriter jsonWriter)
+            {
+                var walkerVisitor = new ExprJsonWriter();
+                WalkThrough(walkerVisitor, jsonWriter);
+            }
+#endif
         }
     }
 }
