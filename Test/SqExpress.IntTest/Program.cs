@@ -13,7 +13,7 @@ namespace SqExpress.IntTest
 {
     public class Program
     {
-        static async Task Main(string[] args)
+        static async Task Main()
         {
             try
             {
@@ -31,11 +31,14 @@ namespace SqExpress.IntTest
                     .Then(new ScTempTables())
                     .Then(new ScCreateOrders())
                     .Then(new ScAnalyticFunctionsOrders())
+                    .Then(new ScTransactions())
                     ;
 
-                await ExecScenarioAll(scenario: scenario);
-                //After warming
-                //await ExecScenarioAll(scenario: scenario);
+                await ExecScenarioAll(
+                    scenario: scenario,
+                    msSqlConnectionString: "Data Source=(local);Initial Catalog=TestDatabase;Integrated Security=True",
+                    pgSqlConnectionString: "Host=localhost;Port=5432;Username=postgres;Password=test;Database=test",
+                    mySqlConnectionString: "server=127.0.0.1;uid=test;pwd=test;database=test");
             }
             catch (SqDatabaseCommandException commandException)
             {
@@ -48,52 +51,61 @@ namespace SqExpress.IntTest
             }
         }
 
-        private static async Task ExecScenarioAll(IScenario scenario)
+        private static async Task ExecScenarioAll(IScenario scenario, string msSqlConnectionString, string pgSqlConnectionString, string mySqlConnectionString)
         {
             Stopwatch stopwatch = new Stopwatch();
 
             Console.WriteLine();
             Console.WriteLine("-MS SQL Test-------");
             stopwatch.Restart();
-            await ExecMsSql(scenario);
+            await ExecMsSql(scenario, msSqlConnectionString);
             stopwatch.Stop();
             Console.WriteLine($"-MS SQL Test End: {stopwatch.ElapsedMilliseconds} ms");
 
             Console.WriteLine("-Postgres Test-----");
             stopwatch.Start();
-            await ExecNpgSql(scenario);
+            await ExecNpgSql(scenario, pgSqlConnectionString);
             stopwatch.Stop();
             Console.WriteLine($"-Postgres Test End: {stopwatch.ElapsedMilliseconds} ms");
 
             Console.WriteLine();
             Console.WriteLine("-MY SQL Test-------");
             stopwatch.Restart();
-            await ExecMySql(scenario);
+            await ExecMySql(scenario, mySqlConnectionString);
             stopwatch.Stop();
             Console.WriteLine($"-MY SQL Test End: {stopwatch.ElapsedMilliseconds} ms");
         }
 
-        private static async Task ExecMsSql(IScenario scenario)
+        private static async Task ExecMsSql(IScenario scenario, string connectionString)
         {
-            await using var connection = new SqlConnection("Data Source=(local);Initial Catalog=TestDatabase;Integrated Security=True");
-            using var database = new SqDatabase<SqlConnection>(connection, (conn, sql) =>
-            {
-                return new SqlCommand(sql, conn) {Transaction = null};
-            }, TSqlExporter.Default);
+            var connection = new SqlConnection(connectionString);
+            using var database = new SqDatabase<SqlConnection>(
+                connection,
+                (conn, sql) => new SqlCommand(sql, conn),
+                TSqlExporter.Default,
+                disposeConnection: true);
             await scenario.Exec(new ScenarioContext(database, SqlDialect.TSql));
         }
 
-        private static async Task ExecNpgSql(IScenario scenario)
+        private static async Task ExecNpgSql(IScenario scenario, string connectionString)
         {
-            await using var connection = new NpgsqlConnection("Host=localhost;Port=5432;Username=postgres;Password=test;Database=test");
-            using var database = new SqDatabase<NpgsqlConnection>(connection, (conn, sql) => new NpgsqlCommand(sql, conn) { Transaction = null }, new PgSqlExporter(SqlBuilderOptions.Default.WithSchemaMap(new[] { new SchemaMap("dbo", "public") })));
+            var connection = new NpgsqlConnection(connectionString);
+            using var database = new SqDatabase<NpgsqlConnection>(
+                connection,
+                (conn, sql) => new NpgsqlCommand(sql, conn),
+                new PgSqlExporter(SqlBuilderOptions.Default.WithSchemaMap(new[] {new SchemaMap("dbo", "public")})),
+                disposeConnection: true);
             await scenario.Exec(new ScenarioContext(database, SqlDialect.PgSql));
         }
 
-        private static async Task ExecMySql(IScenario scenario)
+        private static async Task ExecMySql(IScenario scenario, string connectionString)
         {
-            await using var connection = new MySqlConnection("server=127.0.0.1;uid=test;pwd=test;database=test");
-            using var database = new SqDatabase<MySqlConnection>(connection, (conn, sql) => new MySqlCommand(sql, conn) { Transaction = null }, new MySqlExporter(SqlBuilderOptions.Default));
+            var connection = new MySqlConnection(connectionString);
+            using var database = new SqDatabase<MySqlConnection>(
+                connection,
+                (conn, sql) => new MySqlCommand(sql, conn),
+                new MySqlExporter(SqlBuilderOptions.Default),
+                disposeConnection: true);
             await scenario.Exec(new ScenarioContext(database, SqlDialect.MySql));
         }
     }

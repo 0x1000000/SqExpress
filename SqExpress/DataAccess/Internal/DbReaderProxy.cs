@@ -275,6 +275,16 @@ namespace SqExpress.DataAccess.Internal
             return this._dataReader.GetString(ordinal);
         }
 
+        public object? GetValue(string name)
+        {
+            var ordinal = this._dataReader.GetOrdinal(name);
+            if (this._dataReader.IsDBNull(ordinal))
+            {
+                return null;
+            }
+            return this._dataReader.GetValue(ordinal);
+        }
+
         private void ThrowNull(string columnName)
         {
             throw new SqExpressException($"Null value was not expected for columnName \"{columnName}\"");

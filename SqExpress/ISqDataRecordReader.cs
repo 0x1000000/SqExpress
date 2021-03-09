@@ -30,5 +30,6 @@ namespace SqExpress
         Guid? GetNullableGuid(string name);
         string GetString(string name);
         string? GetNullableString(string name);
+        object? GetValue(string name);
     }
 }
