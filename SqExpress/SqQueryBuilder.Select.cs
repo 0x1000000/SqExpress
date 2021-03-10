@@ -28,6 +28,9 @@ namespace SqExpress
         public static IQuerySpecificationBuilderInitial SelectDistinct(SelectingProxy selection, params SelectingProxy[] selections)
             => new QuerySpecificationBuilder(null, true, Helpers.Combine(selection, selections, SelectingProxy.MapSelectionProxy));
 
+        public static IQuerySpecificationBuilderInitial SelectTop(int top, IReadOnlyList<IExprSelecting> selection)
+            => new QuerySpecificationBuilder(Literal(top), false, selection);
+
         public static IQuerySpecificationBuilderInitial SelectTop(int top, SelectingProxy selection, params SelectingProxy[] selections)
             => new QuerySpecificationBuilder(Literal(top), false, Helpers.Combine(selection, selections, SelectingProxy.MapSelectionProxy));
 

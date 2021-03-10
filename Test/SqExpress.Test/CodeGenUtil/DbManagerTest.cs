@@ -18,7 +18,7 @@ namespace SqExpress.Test.CodeGenUtil
         [Test]
         public async Task SelectTables_BasicTest()
         {
-            using var dbManager = new DbManager(this, new SqlConnection("Initial Catalog=TestDatabase;"), new GenTabDescOptions(ConnectionType.MsSql, "fake", "Tab", "", "MyTables", Verbosity.Quite));
+            using var dbManager = new DbManager(this, new SqlConnection("Initial Catalog=TestDatabase;"), new GenTablesOptions(ConnectionType.MsSql, "fake", "Tab", "", "MyTables", Verbosity.Quite));
 
             var tables = await dbManager.SelectTables();
 

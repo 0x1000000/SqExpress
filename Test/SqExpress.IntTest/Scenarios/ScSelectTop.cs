@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using SqExpress.IntTest.Context;
 using SqExpress.IntTest.Tables;
+using SqExpress.IntTest.Tables.Models;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.IntTest.Scenarios
@@ -12,10 +13,10 @@ namespace SqExpress.IntTest.Scenarios
         {
             var tUser = AllTables.GetItUser();
 
-            var top2Users = await SelectTop(2, tUser.FirstName)
+            var top2Users = await SelectTop(2, UserEmail.GetColumns(tUser))
                 .From(tUser)
                 .OrderBy(tUser.FirstName)
-                .QueryList(context.Database, r => tUser.FirstName.Read(r));
+                .QueryList(context.Database, r => UserEmail.Read(r, tUser));
 
             Console.WriteLine(top2Users[0]);
             Console.WriteLine(top2Users[1]);
@@ -23,14 +24,14 @@ namespace SqExpress.IntTest.Scenarios
             if (context.Dialect != SqlDialect.TSql)
             {
 
-                top2Users = await SelectTop(2, tUser.FirstName)
+                top2Users = await SelectTop(2, UserEmail.GetColumns(tUser))
                     .From(tUser)
                     .OrderBy(tUser.FirstName)
                     .Offset(5)
-                    .QueryList(context.Database, r => tUser.FirstName.Read(r));
+                    .QueryList(context.Database, r => UserEmail.Read(r, tUser));
 
-                Console.WriteLine(top2Users[0]);
-                Console.WriteLine(top2Users[1]);
+                Console.WriteLine(top2Users[0].Email);
+                Console.WriteLine(top2Users[1].Email);
             }
         }
     }

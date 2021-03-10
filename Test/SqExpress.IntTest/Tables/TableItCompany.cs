@@ -21,16 +21,24 @@ namespace SqExpress.IntTest.Tables
             this.AddIndex(this.CompanyName);
         }
 
+        [SqModel("CompanyName", PropertyName = "Id")]
+        [SqModel("CompanyInitData", PropertyName = "Id")]
         public Int32TableColumn CompanyId { get; }
 
+        [SqModel("CompanyInitData")]
         public GuidTableColumn ExternalId { get; }
 
+        [SqModel("CompanyName", PropertyName = "Name")]
+        [SqModel("CompanyInitData", PropertyName = "Name")]
         public StringTableColumn CompanyName { get; }
 
+        [SqModel("Audit")]
         public Int32TableColumn Version { get; }
 
+        [SqModel("Audit")]
         public DateTimeTableColumn Created { get; }
 
+        [SqModel("Audit")]
         public DateTimeTableColumn Modified { get; }
     }
 }

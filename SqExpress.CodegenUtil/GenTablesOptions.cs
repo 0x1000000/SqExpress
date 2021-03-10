@@ -3,9 +3,9 @@
 namespace SqExpress.CodeGenUtil
 {
     [Verb("gentables", HelpText = "Generate table descriptor classes.")]
-    public class GenTabDescOptions
+    public class GenTablesOptions
     {
-        public GenTabDescOptions(ConnectionType connectionType, string connectionString, string tableClassPrefix, string outputDir, string @namespace, Verbosity verbosity)
+        public GenTablesOptions(ConnectionType connectionType, string connectionString, string tableClassPrefix, string outputDir, string @namespace, Verbosity verbosity)
         {
             this.ConnectionType = connectionType;
             this.ConnectionString = connectionString;
@@ -32,11 +32,6 @@ namespace SqExpress.CodeGenUtil
 
         [Option('v',"verbosity", Required = false, Default = Verbosity.Minimal, HelpText = "Allowed values are quiet, minimal, normal, detailed, and diagnostic. The default is minimal")]
         public Verbosity Verbosity { get; }
-    }
-
-    [Verb("gendto", HelpText = "Generate DTO.")]
-    public class GenDtoOptions
-    {
     }
 
     public enum ConnectionType

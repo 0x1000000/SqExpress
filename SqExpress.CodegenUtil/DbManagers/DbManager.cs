@@ -13,9 +13,9 @@ namespace SqExpress.CodeGenUtil.DbManagers
 
         private readonly DbConnection _connection;
 
-        private readonly GenTabDescOptions _options;
+        private readonly GenTablesOptions _options;
 
-        public DbManager(IDbStrategy database, DbConnection connection, GenTabDescOptions options)
+        public DbManager(IDbStrategy database, DbConnection connection, GenTablesOptions options)
         {
             this.Database = database;
             this._connection = connection;

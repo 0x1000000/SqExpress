@@ -3,6 +3,7 @@ using System.Data;
 using System.Threading.Tasks;
 using SqExpress.IntTest.Context;
 using SqExpress.IntTest.Tables;
+using SqExpress.IntTest.Tables.Models;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.IntTest.Scenarios
@@ -13,9 +14,10 @@ namespace SqExpress.IntTest.Scenarios
         {
             var guid = Guid.Parse("58AD8253-4F8F-4C84-B930-4F58A8F25912");
             var tCompany = AllTables.GetItCompany();
-            var data = new[] { (Name: "TestCompany", ExtId: guid) };
+            var data = new[] { new CompanyInitData(id: 0, name: "TestCompany", externalId: guid) };
+
             var exprInsert = InsertDataInto(tCompany, data)
-                .MapData(m => m.Set(m.Target.CompanyName, m.Source.Name).Set(m.Target.ExternalId, m.Source.ExtId))
+                .MapData(CompanyInitData.GetMapping)
                 .AlsoInsert(m => m
                     .Set(m.Target.Modified, GetUtcDate())
                     .Set(m.Target.Created, GetUtcDate())

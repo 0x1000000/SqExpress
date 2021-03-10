@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace SqExpress.CodeGenUtil
 {
-    internal class StringHelper
+    internal static class StringHelper
     {
         public static string DeSnake(string input)
         {
@@ -97,6 +97,18 @@ namespace SqExpress.CodeGenUtil
                 input = input + delimiter + nextNo;
             }
             return input;
+        }
+
+        public static string FirstToLower(this string source)
+        {
+            if (string.IsNullOrEmpty(source) || char.IsLower(source[0])) 
+            {
+                return source;
+            }
+
+            char[] result = source.ToCharArray();
+            result[0] = char.ToLower(result[0]);
+            return new string(result);
         }
 
     }

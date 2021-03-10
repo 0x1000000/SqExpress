@@ -158,23 +158,17 @@ namespace SqExpress.CodeGenUtil.CodeGen
 
         private IEnumerable<Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax> GenerateConstructorAssignments(TableModel table)
         {
-            var result = new List<Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax>(table.Columns.Count + table.Indexes.Count);
-
             foreach (var tableColumn in table.Columns)
             {
-                var statement = SyntaxFactory.ExpressionStatement(AssignmentThis(tableColumn.Name, tableColumn.ColumnType.Accept(ColumnFactoryGenerator.Instance, new ColumnContext(tableColumn, this._allTables))));
-
-                result.Add(statement);
+                yield return SyntaxFactory.ExpressionStatement(AssignmentThis(tableColumn.Name, tableColumn.ColumnType.Accept(ColumnFactoryGenerator.Instance, new ColumnContext(tableColumn, this._allTables))));
             }
 
             foreach (var tableIndex in table.Indexes)
             {
                 Dictionary<ColumnRef, ColumnModel> allTableColumns = table.Columns.ToDictionary(i => i.DbName);
 
-                result.Add(GenerateIndexFactory(tableIndex, allTableColumns));
+                yield return GenerateIndexFactory(tableIndex, allTableColumns);
             }
-
-            return result;
         }
 
         private PropertyDeclarationSyntax[] GenerateColumnProperties(TableModel table)

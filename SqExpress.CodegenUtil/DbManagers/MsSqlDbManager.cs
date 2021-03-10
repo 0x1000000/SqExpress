@@ -22,7 +22,7 @@ namespace SqExpress.CodeGenUtil.DbManagers
             this._databaseName = databaseName;
         }
 
-        public static DbManager Create(GenTabDescOptions options)
+        public static DbManager Create(GenTablesOptions options)
         {
             SqlConnection connection;
             try

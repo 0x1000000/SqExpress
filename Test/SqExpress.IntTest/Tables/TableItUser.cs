@@ -1,4 +1,5 @@
 using SqExpress;
+using SqExpress.IntTest.Tables.Models;
 using SqExpress.Syntax.Type;
 
 namespace SqExpress.IntTest.Tables
@@ -25,22 +26,30 @@ namespace SqExpress.IntTest.Tables
             this.AddIndex(IndexMetaColumn.Desc(this.LastName));
         }
 
+        [SqModel("UserName", PropertyName = "Id", CastType = typeof(EntUser))]
+        [SqModel("UserEmail", PropertyName = "Id", CastType = typeof(EntUser))]
         public Int32TableColumn UserId { get; }
 
         public GuidTableColumn ExternalId { get; }
 
+        [SqModel("UserName")]
         public StringTableColumn FirstName { get; }
 
+        [SqModel("UserName")]
         public StringTableColumn LastName { get; }
 
+        [SqModel("UserEmail")]
         public StringTableColumn Email { get; }
 
         public DateTimeTableColumn RegDate { get; }
 
+        [SqModel("Audit")]
         public Int32TableColumn Version { get; }
 
+        [SqModel("Audit")]
         public DateTimeTableColumn Created { get; }
 
+        [SqModel("Audit")]
         public DateTimeTableColumn Modified { get; }
     }
 }

@@ -50,72 +50,106 @@ namespace SqExpress.IntTest.Tables
             this.ColNullableXml = this.CreateNullableXmlColumn("ColNullableXml", null);
         }
 
+        [SqModel("AllTypes")]
         public Int32TableColumn Id { get; }
 
+        [SqModel("AllTypes")]
         public BooleanTableColumn ColBoolean { get; }
 
+        [SqModel("AllTypes")]
         public NullableBooleanTableColumn ColNullableBoolean { get; }
 
+        [SqModel("AllTypes")]
         public ByteTableColumn ColByte { get; }
 
+        [SqModel("AllTypes")]
         public NullableByteTableColumn ColNullableByte { get; }
 
+        [SqModel("AllTypes")]
         public Int16TableColumn ColInt16 { get; }
 
+        [SqModel("AllTypes")]
         public NullableInt16TableColumn ColNullableInt16 { get; }
 
+        [SqModel("AllTypes")]
         public Int32TableColumn ColInt32 { get; }
 
+        [SqModel("AllTypes")]
         public NullableInt32TableColumn ColNullableInt32 { get; }
 
+        [SqModel("AllTypes")]
         public Int64TableColumn ColInt64 { get; }
 
+        [SqModel("AllTypes")]
         public NullableInt64TableColumn ColNullableInt64 { get; }
 
+        [SqModel("AllTypes")]
         public DecimalTableColumn ColDecimal { get; }
 
+        [SqModel("AllTypes")]
         public NullableDecimalTableColumn ColNullableDecimal { get; }
 
+        [SqModel("AllTypes")]
         public DoubleTableColumn ColDouble { get; }
 
+        [SqModel("AllTypes")]
         public NullableDoubleTableColumn ColNullableDouble { get; }
 
+        [SqModel("AllTypes")]
         public DateTimeTableColumn ColDateTime { get; }
 
+        [SqModel("AllTypes")]
         public NullableDateTimeTableColumn ColNullableDateTime { get; }
 
+        [SqModel("AllTypes")]
         public GuidTableColumn ColGuid { get; }
 
+        [SqModel("AllTypes")]
         public NullableGuidTableColumn ColNullableGuid { get; }
 
+        [SqModel("AllTypes")]
         public StringTableColumn ColStringUnicode { get; }
 
+        [SqModel("AllTypes")]
         public NullableStringTableColumn ColNullableStringUnicode { get; }
 
+        [SqModel("AllTypes")]
         public StringTableColumn ColStringMax { get; }
 
+        [SqModel("AllTypes")]
         public NullableStringTableColumn ColNullableStringMax { get; }
 
+        [SqModel("AllTypes")]
         public StringTableColumn ColString5 { get; }
 
+        [SqModel("AllTypes")]
         public ByteArrayTableColumn ColByteArraySmall { get; }
 
+        [SqModel("AllTypes")]
         public ByteArrayTableColumn ColByteArrayBig { get; }
 
+        [SqModel("AllTypes")]
         public NullableByteArrayTableColumn ColNullableByteArraySmall { get; }
 
+        [SqModel("AllTypes")]
         public NullableByteArrayTableColumn ColNullableByteArrayBig { get; }
 
+        [SqModel("AllTypes")]
         public StringTableColumn ColFixedSizeString { get; }
 
+        [SqModel("AllTypes")]
         public NullableStringTableColumn ColNullableFixedSizeString { get; }
 
+        [SqModel("AllTypes")]
         public ByteArrayTableColumn ColFixedSizeByteArray { get; }
 
+        [SqModel("AllTypes")]
         public NullableByteArrayTableColumn ColNullableFixedSizeByteArray { get; }
 
+        [SqModel("AllTypes")]
         public StringTableColumn ColXml { get; }
 
+        [SqModel("AllTypes")]
         public NullableStringTableColumn ColNullableXml { get; }
     }
 }

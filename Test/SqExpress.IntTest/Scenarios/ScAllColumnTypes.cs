@@ -6,6 +6,7 @@ using AutoMapper;
 using AutoMapper.Data;
 using SqExpress.IntTest.Context;
 using SqExpress.IntTest.Tables;
+using SqExpress.IntTest.Tables.Models;
 using SqExpress.QueryBuilders.RecordSetter;
 using SqExpress.SqlExport;
 using static SqExpress.SqQueryBuilder;
@@ -103,6 +104,21 @@ namespace SqExpress.IntTest.Scenarios
                     throw new Exception("Input and output are not identical!");
                 }
             }
+
+            if (context.Dialect == SqlDialect.TSql)
+            {
+                var data = await Select(AllTypes.GetColumns(table))
+                    .From(table)
+                    .QueryList(context.Database, (r) => AllTypes.Read(r, table));
+
+                if (data.Count != 2)
+                {
+                    throw new Exception("Incorrect reading using models");
+                }
+
+                await InsertDataInto(table, data).MapData(AllTypes.GetMapping).Exec(context.Database);
+            }
+
 
             Console.WriteLine("'All Column Type Test' is passed");
         }
