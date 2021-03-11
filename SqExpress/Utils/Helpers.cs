@@ -144,6 +144,49 @@ namespace SqExpress.Utils
             return result;
         }
 
+        public static IReadOnlyList<T> Combine<T>(IReadOnlyList<T> arg1, T arg2, T[] rest)
+        {
+            if (arg1.Count < 1)
+            {
+                return Combine(arg2, rest);
+            }
+
+            var result = new T[arg1.Count +1 +rest.Length];
+            for (int i = 0; i < arg1.Count; i++)
+            {
+                result[i] = arg1[i];
+            }
+
+            result[arg1.Count] = arg2;
+
+            for (int i = 0; i < rest.Length; i++)
+            {
+                result[arg1.Count + 1 + i] = rest[i];
+            }
+            return result;
+        }        
+        
+        public static IReadOnlyList<TRes> Combine<TRes,T>(IReadOnlyList<TRes> arg1, T arg2, T[] rest, Func<T, TRes> mapper)
+        {
+            if (arg1.Count < 1)
+            {
+                return Combine(arg2, rest, mapper);
+            }
+
+            var result = new TRes[arg1.Count +1 +rest.Length];
+            for (int i = 0; i < arg1.Count; i++)
+            {
+                result[i] = arg1[i];
+            }
+
+            result[arg1.Count] = mapper(arg2);
+
+            for (int i = 0; i < rest.Length; i++)
+            {
+                result[arg1.Count + 1+ i] = mapper(rest[i]);
+            }
+            return result;
+        }
 
         public static T? CombineNotNull<T>(T? a, T? b, Func<T,T,T> combiner) where T : class
         {

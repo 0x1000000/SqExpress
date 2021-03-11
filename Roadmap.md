@@ -31,3 +31,9 @@
 - [ ] CTE
 - [ ] "Create If Not Exists"
 - [ ] Stored Procedures Call
+- [ ] gentables - support MYSQL and PostgreSql
+- [ ] gentables - table filters
+- [ ] genmodels - Watch on Derived and temporary tables
+- [ ] genmodels - SqModelSharedAttribute - To read from JOINS
+- [ ] genmodels - list of "using"s as a parameter
+- [ ] genmodels - model mode [immutable, mutable, record] as a parameter 

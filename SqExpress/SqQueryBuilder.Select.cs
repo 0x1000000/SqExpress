@@ -28,6 +28,9 @@ namespace SqExpress
         public static IQuerySpecificationBuilderInitial SelectDistinct(SelectingProxy selection, params SelectingProxy[] selections)
             => new QuerySpecificationBuilder(null, true, Helpers.Combine(selection, selections, SelectingProxy.MapSelectionProxy));
 
+        public static IQuerySpecificationBuilderInitial SelectDistinct(IReadOnlyList<IExprSelecting> selection)
+            => new QuerySpecificationBuilder(null, true, selection);
+
         public static IQuerySpecificationBuilderInitial SelectTop(int top, IReadOnlyList<IExprSelecting> selection)
             => new QuerySpecificationBuilder(Literal(top), false, selection);
 
@@ -37,8 +40,17 @@ namespace SqExpress
         public static IQuerySpecificationBuilderInitial SelectTop(ExprValue top, SelectingProxy selection, params SelectingProxy[] selections)
             => new QuerySpecificationBuilder(top, false, Helpers.Combine(selection, selections, SelectingProxy.MapSelectionProxy));
 
+        public static IQuerySpecificationBuilderInitial SelectTop(ExprValue top, IReadOnlyList<IExprSelecting> selection)
+            => new QuerySpecificationBuilder(top, false, selection);
+
         public static IQuerySpecificationBuilderInitial SelectTopDistinct(int top, SelectingProxy selection, params SelectingProxy[] selections)
             => new QuerySpecificationBuilder(Literal(top), true, Helpers.Combine(selection, selections, SelectingProxy.MapSelectionProxy));
+
+        public static IQuerySpecificationBuilderInitial SelectTopDistinct(int top, IReadOnlyList<IExprSelecting> selection)
+            => new QuerySpecificationBuilder(Literal(top), true, selection);
+
+        public static IQuerySpecificationBuilderInitial SelectTopDistinct(ExprValue top, IReadOnlyList<IExprSelecting> selection)
+            => new QuerySpecificationBuilder(top, true, selection);
 
         public static IQuerySpecificationBuilderInitial SelectTopDistinct(ExprValue top, SelectingProxy selection, params SelectingProxy[] selections)
             => new QuerySpecificationBuilder(top, true, Helpers.Combine(selection, selections, SelectingProxy.MapSelectionProxy));

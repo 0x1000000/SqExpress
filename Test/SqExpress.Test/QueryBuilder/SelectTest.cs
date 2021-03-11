@@ -1,5 +1,4 @@
-﻿using System;
-using NUnit.Framework;
+﻿using NUnit.Framework;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.Test.QueryBuilder
@@ -90,6 +89,31 @@ namespace SqExpress.Test.QueryBuilder
 
             actual = SelectTopDistinct(4, 2, AllColumns()).Done().ToSql();
             Assert.AreEqual("SELECT DISTINCT TOP 4 2,*", actual);
+
+            var columns = new []{CustomColumnFactory.Int32("a"), CustomColumnFactory.Int32("b") };
+
+            var columns2 = new []{CustomColumnFactory.Int32("c"), CustomColumnFactory.Int32("d") };
+
+            var columnE = CustomColumnFactory.Int32("e");
+            var columnF = CustomColumnFactory.Int32("f");
+
+            actual = Select(columns).Done().ToSql();
+            Assert.AreEqual("SELECT [a],[b]", actual);
+
+            actual = SelectTop(2, columns).Done().ToPgSql();
+            Assert.AreEqual("SELECT \"a\",\"b\" LIMIT 2", actual);
+
+            actual = SelectTop(Literal(2), columns).Done().ToMySql();
+            Assert.AreEqual("SELECT `a`,`b` LIMIT 2", actual);
+
+            actual = SelectDistinct(columns.Concat(columns2)).Done().ToSql();
+            Assert.AreEqual("SELECT DISTINCT [a],[b],[c],[d]", actual);
+
+            actual = SelectTopDistinct(2, columns.Concat(columns2).Concat(columnE, columnF)).Done().ToSql();
+            Assert.AreEqual("SELECT DISTINCT TOP 2 [a],[b],[c],[d],[e],[f]", actual);
+
+            actual = SelectTopDistinct(Literal(2), columns.Concat(columns2).Concat(columnE)).Done().ToSql();
+            Assert.AreEqual("SELECT DISTINCT TOP 2 [a],[b],[c],[d],[e]", actual);
 
         }
 
