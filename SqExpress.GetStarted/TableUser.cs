@@ -2,12 +2,21 @@
 {
     public class TableUser : TableBase
     {
-        public readonly Int32TableColumn UserId;
-        public readonly StringTableColumn FirstName;
-        public readonly StringTableColumn LastName;
+        [SqModel("UserName", PropertyName = "Id")]
+        public Int32TableColumn UserId { get; }
+
+        [SqModel("UserName")]
+        public StringTableColumn FirstName { get; }
+
+        [SqModel("UserName")]
+        public StringTableColumn LastName { get; }
+
         //Audit Columns
-        public readonly Int32TableColumn Version;
-        public readonly DateTimeTableColumn ModifiedAt;
+        [SqModel("AuditData")]
+        public Int32TableColumn Version { get; }
+
+        [SqModel("AuditData")]
+        public DateTimeTableColumn ModifiedAt { get; }
 
         public TableUser(): this(default){}
 

@@ -21,6 +21,8 @@ It is delivered with a simple but efficient data access mechanism which warps AD
 
 It can be used together with the “Code First” concept when you declare SQL tables as C# classes with possibility to generate recreation scripts for a target platform (MS SQL or PostgreSQL or MySQL)
 
+It can be used in conjunction with the “Database First” concept using an included code modification utility. The utility is also can be used to generate flexible DTO classes with all required database mappings.
+
 This an article that explains the library principles: ["Syntax Tree and Alternative to LINQ in Interaction with SQL Databases"](https://itnext.io/syntax-tree-and-alternative-to-linq-in-interaction-with-sql-databases-656b78fe00dc?source=friends_link&amp;sk=f5f0587c08166d8824b96b48fe2cf33c)</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageIcon>Icon.png</PackageIcon>

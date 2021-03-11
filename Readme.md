@@ -9,7 +9,9 @@ It does not use LINQ and your C# code will be close to real SQL as much as possi
 
 It is delivered with a simple but efficient data access mechanism which warps ADO.Net DbConnection and can be used with MS SQL Client or Npgsql or MySQL Connector.
 
-It can be used together with the “Code First” concept when you declare SQL tables as C# classes with possibility to generate recreation scripts for a target platform (MS SQL or PostgreSQL or MySQL)
+It can be used in conjunction with the “Code First” concept when you declare SQL tables as C# classes with possibility to generate recreation scripts for a target platform (MS SQL or PostgreSQL or MySQL)
+
+It can be used in conjunction with the “Database First” concept using an included code modification utility. The utility is also can be used to generate flexible DTO classes with all required database mappings.
 
 This an article that explains the library principles: ["Syntax Tree and Alternative to LINQ in Interaction with SQL Databases"](https://itnext.io/syntax-tree-and-alternative-to-linq-in-interaction-with-sql-databases-656b78fe00dc?source=friends_link&sk=f5f0587c08166d8824b96b48fe2cf33c)
 
@@ -32,9 +34,12 @@ This an article that explains the library principles: ["Syntax Tree and Alternat
 16. [Merge](#merge)
 17. [Temporary Tables](#temporary-tables)
 18. [Syntax Tree](#syntax-tree)
-19. [Serialization to XML](#serialization-to-xml)
-20. [Serialization to Plain List](#serialization-to-plain-list)
-21. [Auto-Mapper](#auto-mapper)
+19. [Table Descriptors Scaffolding](#table-descriptors-scaffolding)
+20. [DTOs Scaffolding](#dtos-Scaffolding)
+21. [Serialization to XML](#serialization-to-xml)
+22. [Serialization to JSON](#serialization-to-json)
+23. [Serialization to Plain List](#serialization-to-plain-list)
+24. [Auto-Mapper](#auto-mapper)
 
 # Get Started
 
@@ -66,6 +71,9 @@ SELECT 'Hello World!'
 ```
 ## (Re)Creating Table 
 Ok, let's try to select some data from a real table, but first we need to describe the table:
+
+*Note: Such classes can be auto-generated (updated) using information from an existing database. [See "Table Descriptors Scaffolding"](#table-descriptors-scaffolding)*
+
 ```Cs
 public class TableUser : TableBase
 {
@@ -999,6 +1007,150 @@ JOIN [dbo].[Customer]
 WHERE 
     [A0].[UserId]=7
 ```
+## Table Descriptors Scaffolding
+**SqExpress** comes with the code-gen utility (it is located in the nuget package cache). It can read metadata form a database and create table descriptor classes in your code. It requires .Net Core 3.1+
+
+```GenerateTables.cmd```
+```cmd
+@echo off
+set root=%userprofile%\.nuget\packages\sqexpress
+
+for /F "tokens=*" %%a in ('dir "%root%" /b /a:d /o:n') do set "lib=%root%\%%a"
+
+set lib=%lib%\tools\codegen\SqExpress.CodeGenUtil.dll
+
+dotnet "%lib%" gentables mssql "MyConnectionString" --table-class-prefix "Tbl" -o ".\Tables" -n "MyCompany.MyProject.Tables"
+```
+```GenerateTables.sh```
+```sh
+#!/bin/bash
+
+lib=~/.nuget/packages/sqexpress/$(ls ~/.nuget/packages/sqexpress -r|head -n 1)/tools/codegen/SqExpress.CodeGenUtil.dll
+
+dotnet $lib gentables mssql "MyConnectionString" --table-class-prefix "Tbl" -o "./Tables" -n "yCompany.MyProject.Tables"
+```
+###
+It uses Roslyn compiler so it does not overwrite existing files - it patched it with actual columns. All kind of changes like attributes, namespaces, interfaces will remain after next runs.
+## DTOs Scaffolding
+You can add special attributes to column properties in table descriptor to provide information to the code-gen util to create (update) DTO classes with mappings:
+```cs
+public class TableUser : TableBase
+{
+    [SqModel("UserName", PropertyName = "Id")]
+    public Int32TableColumn UserId { get; }
+
+    [SqModel("UserName")]
+    public StringTableColumn FirstName { get; }
+
+    [SqModel("UserName")]
+    public StringTableColumn LastName { get; }
+
+    //Audit Columns
+    [SqModel("AuditData")]
+    public Int32TableColumn Version { get; }
+
+    [SqModel("AuditData")]
+    public DateTimeTableColumn ModifiedAt { get; }
+
+    public TableUser(Alias alias) : base("dbo", "User", alias)
+    {
+        ...
+    }
+}
+```
+then you need to run the utility:
+
+```GenerateModel.cmd```
+```cmd
+@echo off
+set root=%userprofile%\.nuget\packages\sqexpress
+
+for /F "tokens=*" %%a in ('dir "%root%" /b /a:d /o:n') do set "lib=%root%\%%a"
+
+set lib=%lib%\tools\codegen\SqExpress.CodeGenUtil.dll
+
+dotnet "%lib%" genmodels -i "." -o ".\Models" -n "SqExpress.GetStarted.Models" --null-ref-types
+```
+```enerateModel.sh```
+```
+#!/bin/bash
+lib=~/.nuget/packages/sqexpress/$(ls ~/.nuget/packages/sqexpress -r|head -n 1)/tools/codegen/SqExpress.CodeGenUtil.dll
+dotnet $lib genmodels -i "." -o "./Models" -n "SqExpress.GetStarted.Models"
+```
+The result will be the following classes:
+```UserName.cs```
+```cs
+public class UserName
+{
+    public UserName(int id, string firstName, string lastName)
+    {
+        this.Id = id;
+        this.FirstName = firstName;
+        this.LastName = lastName;
+    }
+
+    public static UserName Read(ISqDataRecordReader record, TableUser table)
+    {
+        return new UserName(id: table.UserId.Read(record), firstName: table.FirstName.Read(record), lastName: table.LastName.Read(record));
+    }
+
+    public int Id { get; }
+
+    public string FirstName { get; }
+
+    public string LastName { get; }
+
+    public static TableColumn[] GetColumns(TableUser table)
+    {
+        return new TableColumn[]{table.UserId, table.FirstName, table.LastName};
+    }
+
+    public static IRecordSetterNext GetMapping(IDataMapSetter<TableUser, UserName> s)
+    {
+        return s.Set(s.Target.FirstName, s.Source.FirstName).Set(s.Target.LastName, s.Source.LastName);
+    }
+
+    public static IRecordSetterNext GetUpdateKeyMapping(IDataMapSetter<TableUser, UserName> s)
+    {
+        return s.Set(s.Target.UserId, s.Source.Id);
+    }
+
+    public static IRecordSetterNext GetUpdateMapping(IDataMapSetter<TableUser, UserName> s)
+    {
+        return s.Set(s.Target.FirstName, s.Source.FirstName).Set(s.Target.LastName, s.Source.LastName);
+    }
+
+    public UserName WithId(int id)
+    {
+        return new UserName(id: id, firstName: this.FirstName, lastName: this.LastName);
+    }
+
+    public UserName WithFirstName(string firstName)
+    {
+        return new UserName(id: this.Id, firstName: firstName, lastName: this.LastName);
+    }
+
+    public UserName WithLastName(string lastName)
+    {
+        return new UserName(id: this.Id, firstName: this.FirstName, lastName: lastName);
+    }
+}
+```
+and ```AuditData.cs```
+
+You can use them as follows:
+```cs
+var tUser = new TableUser();
+
+var users = await Select(UserName.GetColumns(tUser))
+    .From(tUser)
+    .QueryList(database, r => UserName.Read(r, tUser));
+
+foreach (var userName in users)
+{
+    Console.WriteLine($"{userName.Id} {userName.FirstName} {userName.LastName}");
+}
+```
 ## Serialization to XML
 Each expression can be exported to a xml string and then restored back. It can be useful to pass expressions over network:
 ```cs
@@ -1067,6 +1219,89 @@ This an example of the XML text:
    </Where>
    <Distinct>false</Distinct>
 </Expr>
+```
+## Serialization to JSON
+The similar functionality exists for JSON (.Net Core 3.1+)
+```cs
+var tableUser = new TableUser(Alias.Empty);
+
+var selectExpr = Select(tableUser.FirstName, tableUser.LastName)
+    .From(tableUser)
+    .Where(tableUser.LastName == "Sturman")
+    .Done();
+
+//Exporting
+var memoryStream = new MemoryStream();
+var jsonWriter = new Utf8JsonWriter(memoryStream);
+selectExpr.SyntaxTree().ExportToJson(jsonWriter);
+
+string json = Encoding.UTF8.GetString(memoryStream.ToArray());
+
+//Importing
+var restored = (ExprQuerySpecification)ExprDeserializer
+    .DeserializeFormJson(JsonDocument.Parse(json).RootElement);
+
+var result = await restored
+    .QueryList(database, r => (tableUser.FirstName.Read(r), tableUser.LastName.Read(r)));
+
+foreach (var name in result)
+{
+    Console.WriteLine(name);
+}
+```
+This an example of the JSON text:
+```json
+{
+   "$type":"QuerySpecification",
+   "SelectList":[
+      {
+         "$type":"Column",
+         "ColumnName":{
+            "$type":"ColumnName",
+            "Name":"FirstName"
+         }
+      },
+      {
+         "$type":"Column",
+         "ColumnName":{
+            "$type":"ColumnName",
+            "Name":"LastName"
+         }
+      }
+   ],
+   "From":{
+      "$type":"Table",
+      "FullName":{
+         "$type":"TableFullName",
+         "DbSchema":{
+            "$type":"DbSchema",
+            "Schema":{
+               "$type":"SchemaName",
+               "Name":"dbo"
+            }
+         },
+         "TableName":{
+            "$type":"TableName",
+            "Name":"User"
+         }
+      }
+   },
+   "Where":{
+      "$type":"BooleanEq",
+      "Left":{
+         "$type":"Column",
+         "ColumnName":{
+            "$type":"ColumnName",
+            "Name":"LastName"
+         }
+      },
+      "Right":{
+         "$type":"StringLiteral",
+         "Value":"Sturman"
+      }
+   },
+   "Distinct":false
+}
 ```
 ## Serialization to Plain List
 Also an expression can be exported into a list of plain entities. It might be useful if you want to store some expressions (e.g. "Favorites Filters") in a plain structure:

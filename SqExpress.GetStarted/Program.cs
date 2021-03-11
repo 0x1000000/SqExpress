@@ -1,14 +1,17 @@
 ﻿using System;
 using System.Data.Common;
 using System.Data.SqlClient;
+using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Xml;
 using MySql.Data.MySqlClient;
 using Npgsql;
 using SqExpress.DataAccess;
 using SqExpress.GetStarted.FavoriteFilters;
+using SqExpress.GetStarted.Models;
 using SqExpress.SqlExport;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Names;
@@ -165,8 +168,10 @@ namespace SqExpress.GetStarted
             await Step13TempTables(database);
             await Step14TreeExploring(database);
             await Step15SyntaxModification(database);
-            await Step16ExportToXml(database);
-            await Step17ExportToPlain(database);
+            await Step16Models(database);
+            await Step17ExportToJson(database);
+            await Step18ExportToXml(database);
+            await Step19ExportToPlain(database);
         }
 
         private static async Task Step1CreatingTables(ISqDatabase database)
@@ -579,7 +584,52 @@ namespace SqExpress.GetStarted
             await expression.QueryScalar(database);
         }
 
-        private static async Task Step16ExportToXml(ISqDatabase database)
+        private static async Task Step16Models(ISqDatabase database)
+        {
+            var tUser = new TableUser();
+
+            var users = await Select(UserName.GetColumns(tUser))
+                .From(tUser)
+                .QueryList(database, r => UserName.Read(r, tUser));
+
+            foreach (var userName in users)
+            {
+                Console.WriteLine($"{userName.Id} {userName.FirstName} {userName.LastName}");
+            }
+        }
+
+        private static async Task Step17ExportToJson(ISqDatabase database)
+        {
+            var tableUser = new TableUser(Alias.Empty);
+
+            var selectExpr = Select(tableUser.FirstName, tableUser.LastName)
+                .From(tableUser)
+                .Where(tableUser.LastName == "Sturman")
+                .Done();
+
+            //Exporting
+            var memoryStream = new MemoryStream();
+            var jsonWriter = new Utf8JsonWriter(memoryStream);
+            selectExpr.SyntaxTree().ExportToJson(jsonWriter);
+
+            string json = Encoding.UTF8.GetString(memoryStream.ToArray());
+
+            Console.WriteLine(json);
+
+            //Importing
+            var restored = (ExprQuerySpecification)ExprDeserializer
+                .DeserializeFormJson(JsonDocument.Parse(json).RootElement);
+
+            var result = await restored
+                .QueryList(database, r => (tableUser.FirstName.Read(r), tableUser.LastName.Read(r)));
+
+            foreach (var name in result)
+            {
+                Console.WriteLine(name);
+            }
+        }
+
+        private static async Task Step18ExportToXml(ISqDatabase database)
         {
             var tableUser = new TableUser(Alias.Empty);
 
@@ -608,7 +658,7 @@ namespace SqExpress.GetStarted
             }
         }
 
-        private static async Task Step17ExportToPlain(ISqDatabase database)
+        private static async Task Step19ExportToPlain(ISqDatabase database)
         {
             var tableUser = new TableUser(Alias.Empty);
 

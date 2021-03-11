@@ -2,12 +2,18 @@
 {
     public class TableCompany : TableBase
     {
-        public readonly Int32TableColumn CompanyId;
-        public readonly StringTableColumn CompanyName;
+        [SqModel("CompanyName", PropertyName = "Id")]
+        public Int32TableColumn CompanyId { get; }
+
+        [SqModel("CompanyName", PropertyName = "Name")]
+        public StringTableColumn CompanyName { get; }
 
         //Audit Columns
-        public readonly Int32TableColumn Version;
-        public readonly DateTimeTableColumn ModifiedAt;
+        [SqModel("AuditData")]
+        public Int32TableColumn Version { get; }
+
+        [SqModel("AuditData")]
+        public DateTimeTableColumn ModifiedAt { get; }
 
         public TableCompany() : this(default) { }
 
