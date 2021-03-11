@@ -41,5 +41,15 @@ namespace SqExpress.IntTest.Tables.Models
         {
             return s.Set(s.Target.CompanyName, s.Source.Name);
         }
+
+        public CompanyName WithId(int id)
+        {
+            return new CompanyName(id: id, name: this.Name);
+        }
+
+        public CompanyName WithName(string name)
+        {
+            return new CompanyName(id: this.Id, name: name);
+        }
     }
 }

@@ -228,10 +228,5 @@ namespace SqExpress.QueryBuilders.RecordSetter.Internal
         {
             return this.SetGeneric(column, SqQueryBuilder.Literal(value));
         }
-
-        public TNext Set(ExprColumnName column, IReadOnlyList<byte> value)
-        {
-            return this.SetGeneric(column, SqQueryBuilder.Literal(value));
-        }
     }
 }

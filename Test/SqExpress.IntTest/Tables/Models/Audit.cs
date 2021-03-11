@@ -44,5 +44,20 @@ namespace SqExpress.IntTest.Tables.Models
         {
             return s.Set(s.Target.Version, s.Source.Version).Set(s.Target.Created, s.Source.Created).Set(s.Target.Modified, s.Source.Modified);
         }
+
+        public Audit WithVersion(int version)
+        {
+            return new Audit(version: version, created: this.Created, modified: this.Modified);
+        }
+
+        public Audit WithCreated(DateTime created)
+        {
+            return new Audit(version: this.Version, created: created, modified: this.Modified);
+        }
+
+        public Audit WithModified(DateTime modified)
+        {
+            return new Audit(version: this.Version, created: this.Created, modified: modified);
+        }
     }
 }

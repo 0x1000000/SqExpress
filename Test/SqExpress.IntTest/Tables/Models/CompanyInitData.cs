@@ -44,5 +44,20 @@ namespace SqExpress.IntTest.Tables.Models
         {
             return s.Set(s.Target.ExternalId, s.Source.ExternalId).Set(s.Target.CompanyName, s.Source.Name);
         }
+
+        public CompanyInitData WithId(int id)
+        {
+            return new CompanyInitData(id: id, externalId: this.ExternalId, name: this.Name);
+        }
+
+        public CompanyInitData WithExternalId(Guid externalId)
+        {
+            return new CompanyInitData(id: this.Id, externalId: externalId, name: this.Name);
+        }
+
+        public CompanyInitData WithName(string name)
+        {
+            return new CompanyInitData(id: this.Id, externalId: this.ExternalId, name: name);
+        }
     }
 }

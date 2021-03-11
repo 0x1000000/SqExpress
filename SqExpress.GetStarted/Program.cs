@@ -154,14 +154,14 @@ namespace SqExpress.GetStarted
             await Step6CreatingOrganizations(database);
             await Step7CreatingCustomers(database);
             await Step8JoinTables(database);
-            await Step10UseDerivedTables(database);
-            await Step11SubQueries(database);
-            await Step11AnalyticAndWindowFunctions(database);
             await Step9SetOperations(database);
             if (!postgres)
             {
                 await Step12Merge(database);
             }
+            await Step10UseDerivedTables(database);
+            await Step11SubQueries(database);
+            await Step11AnalyticAndWindowFunctions(database);
             await Step13TempTables(database);
             await Step14TreeExploring(database);
             await Step15SyntaxModification(database);

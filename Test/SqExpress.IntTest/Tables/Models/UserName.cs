@@ -44,5 +44,20 @@ namespace SqExpress.IntTest.Tables.Models
         {
             return s.Set(s.Target.FirstName, s.Source.FirstName).Set(s.Target.LastName, s.Source.LastName);
         }
+
+        public UserName WithId(EntUser id)
+        {
+            return new UserName(id: id, firstName: this.FirstName, lastName: this.LastName);
+        }
+
+        public UserName WithFirstName(string firstName)
+        {
+            return new UserName(id: this.Id, firstName: firstName, lastName: this.LastName);
+        }
+
+        public UserName WithLastName(string lastName)
+        {
+            return new UserName(id: this.Id, firstName: this.FirstName, lastName: lastName);
+        }
     }
 }

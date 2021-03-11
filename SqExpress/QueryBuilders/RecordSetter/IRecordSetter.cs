@@ -62,9 +62,6 @@ namespace SqExpress.QueryBuilders.RecordSetter
         TNext Set(NullableDateTimeCustomColumn column, DateTime? value);
         TNext Set(NullableGuidCustomColumn column, Guid? value);
         TNext Set(NullableStringCustomColumn column, string? value);
-
-
-        TNext Set(ExprColumnName column, IReadOnlyList<byte> value);
     }
     public interface IRecordSetterNext : IRecordSetter<IRecordSetterNext> { }
 

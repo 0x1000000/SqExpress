@@ -20,15 +20,14 @@
 - [x] Support of MySQL
 - [x] Sub-Queries without derived tables
 - [x] Post "Done" modifications
-## After 0.0.7
+## 0.1.0
+- [x] Binary Type
+- [x] Tables Meta Codegenerator
+- [x] Export to JSON (for .Net Core 3.1+)
+## After 0.1.0
 - [ ] "Update Data" builder
 - [ ] Split Merge into Insert Update Delete
 - [ ] Table Value Functions
 - [ ] CTE
-- [ ] Export to JSON (for .Net Standard 2.1)
 - [ ] "Create If Not Exists"
 - [ ] Stored Procedures Call
-- [ ] Binary Type
-
---Tools
-- [ ] Tables Meta Codegenerator (simple version)

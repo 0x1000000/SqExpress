@@ -1,9 +1,14 @@
 # 0.1.0.0
 ### New Features
+- Code-generation utility
+  - Table descriptors scaffolding
+  - DTO models generation
 - .Net Framework 4.5
 - Binary Column Type
 - Fixed Size String Column Type
 - Xml Column Type
+- Export/Import to JSON (for .Net Core 3.1+)
+- ISqDatabase.BeginTransaction()
 ### Bugfix
 - Several Foreign Keys for one table column
 

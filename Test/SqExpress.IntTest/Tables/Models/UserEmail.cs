@@ -1,7 +1,5 @@
-using System;
-using SqExpress;
+using System.Text.Json.Serialization;
 using SqExpress.QueryBuilders.RecordSetter;
-using SqExpress.IntTest.Tables;
 
 namespace SqExpress.IntTest.Tables.Models
 {
@@ -18,8 +16,10 @@ namespace SqExpress.IntTest.Tables.Models
             return new UserEmail(id: (EntUser)table.UserId.Read(record), email: table.Email.Read(record));
         }
 
+        [JsonPropertyName("id")]
         public EntUser Id { get; }
 
+        [JsonPropertyName("email")]
         public string Email { get; }
 
         public static TableColumn[] GetColumns(TableItUser table)
@@ -40,6 +40,16 @@ namespace SqExpress.IntTest.Tables.Models
         public static IRecordSetterNext GetUpdateMapping(IDataMapSetter<TableItUser, UserEmail> s)
         {
             return s.Set(s.Target.Email, s.Source.Email);
+        }
+
+        public UserEmail WithId(EntUser id)
+        {
+            return new UserEmail(id: id, email: this.Email);
+        }
+
+        public UserEmail WithEmail(string email)
+        {
+            return new UserEmail(id: this.Id, email: email);
         }
     }
 }

@@ -12,7 +12,7 @@ namespace SqExpress.IntTest.Tables.Models
         }
 
         public static explicit operator EntUser(int userId) => new EntUser(userId);
-        public static explicit operator EntUser?(int? userId) => userId.HasValue ? new EntUser(userId.Value) : null;
+        public static explicit operator EntUser?(int? userId) => userId.HasValue ? (EntUser?)new EntUser(userId.Value) : null;
 
         public static explicit operator int(EntUser user) => user._userId;
         public static explicit operator int?(EntUser? user) => user?._userId;

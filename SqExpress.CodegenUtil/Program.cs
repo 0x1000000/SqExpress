@@ -190,9 +190,8 @@ namespace SqExpress.CodeGenUtil
             foreach (var meta in analysis)
             {
                 string path = Path.Combine(outDirectory, $"{meta.Name}.cs");
-                bool existing = File.Exists(path);
                 if (logger.IsDetailed) logger.LogDetailed(path);
-                await File.WriteAllTextAsync(path, ModelClassGenerator.Generate(meta, options.Namespace).ToFullString());
+                await File.WriteAllTextAsync(path, ModelClassGenerator.Generate(meta, options.Namespace, path, out var existing).ToFullString());
                 if (logger.IsDetailed) logger.LogDetailed(existing ? "Existing file updated." : "New file created.");
             }
 
