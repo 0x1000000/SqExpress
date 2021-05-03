@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text;
 using SqExpress.SqlExport.Internal;
 using SqExpress.StatementSyntax;
 using SqExpress.Syntax.Boolean;
@@ -11,7 +12,7 @@ namespace SqExpress.SqlExport.Statement.Internal
     {
         private readonly TSqlBuilder _exprBuilder;
 
-        public TSqlStatementBuilder(SqlBuilderOptions? options) : base(options)
+        public TSqlStatementBuilder(SqlBuilderOptions? options, StringBuilder? externalBuilder) : base(options, externalBuilder)
         {
             this._exprBuilder = new TSqlBuilder(this.Options, this.Builder);
         }
@@ -76,6 +77,8 @@ namespace SqExpress.SqlExport.Statement.Internal
         {
             //All indexes are created inside CREATE TABLE
         }
+
+        protected override bool IsNamedPk() => true;
 
         public override void VisitDropTable(StatementDropTable statementDropTable)
         {

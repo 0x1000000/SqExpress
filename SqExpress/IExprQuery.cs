@@ -1,9 +1,8 @@
 ﻿using System.Collections.Generic;
-using SqExpress.Syntax;
 
 namespace SqExpress
 {
-    public interface IExprQuery : IExpr
+    public interface IExprQuery : IExprComplete
     {
         IReadOnlyList<string?> GetOutputColumnNames();
     }

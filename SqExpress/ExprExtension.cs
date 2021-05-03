@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using SqExpress.DataAccess;
 using SqExpress.QueryBuilders;
+using SqExpress.QueryBuilders.Update;
 using SqExpress.Syntax;
 using SqExpress.SyntaxTreeOperations;
 using SqExpress.SyntaxTreeOperations.ExportImport;
@@ -32,6 +33,26 @@ namespace SqExpress
         public static Task<List<T>> QueryList<T>(this IExprQueryFinal query, ISqDatabase database, Func<ISqDataRecordReader, T> factory) 
             => database.QueryList(query.Done(), factory);
 
+        public static Task<Dictionary<TKey, TValue>> QueryDictionary<TKey, TValue>(
+            this IExprQuery query, 
+            ISqDatabase database, 
+            Func<ISqDataRecordReader, TKey> keyFactory,
+            Func<ISqDataRecordReader, TValue> valueFactory, 
+            SqDatabaseExtensions.KeyDuplicationHandler<TKey, TValue>? keyDuplicationHandler = null,
+            Func<TKey, TValue, bool>? predicate = null)
+        where TKey : notnull
+            => database.QueryDictionary(query, keyFactory, valueFactory, keyDuplicationHandler, predicate);
+
+        public static Task<Dictionary<TKey, TValue>> QueryDictionary<TKey, TValue>(
+            this IExprQueryFinal query, 
+            ISqDatabase database, 
+            Func<ISqDataRecordReader, TKey> keyFactory,
+            Func<ISqDataRecordReader, TValue> valueFactory, 
+            SqDatabaseExtensions.KeyDuplicationHandler<TKey, TValue>? keyDuplicationHandler = null,
+            Func<TKey, TValue, bool>? predicate = null)
+        where TKey : notnull
+            => database.QueryDictionary(query.Done(), keyFactory, valueFactory, keyDuplicationHandler, predicate);
+
         public static Task<object> QueryScalar(this IExprQuery query, ISqDatabase database)
             => database.QueryScalar(query);
 
@@ -43,6 +64,9 @@ namespace SqExpress
 
         public static Task Exec(this IExprExecFinal query, ISqDatabase database)
             => database.Exec(query.Done());
+
+        public static Task Exec(this IUpdateDataBuilderFinal builder, ISqDatabase database)
+            => database.Exec(builder.Done());
 
         public static SyntaxTreeActions SyntaxTree(this IExpr expr)
         {
@@ -66,6 +90,16 @@ namespace SqExpress
             public void WalkThrough<TCtx>(Func<IExpr, TCtx, VisitorResult<TCtx>> walker, TCtx context)
             {
                 this._expr.Accept(new ExprWalker<TCtx>(new DefaultWalkerVisitor<TCtx>(walker)), context);
+            }
+
+            public IEnumerable<IExpr> Descendants()
+            {
+                return ExprWalkerPull.GetEnumerable(this._expr, false);
+            }
+
+            public IEnumerable<IExpr> DescendantsAndSelf()
+            {
+                return ExprWalkerPull.GetEnumerable(this._expr, true);
             }
 
             public TExpr? FirstOrDefault<TExpr>(Predicate<TExpr>? filter = null) where TExpr : class, IExpr

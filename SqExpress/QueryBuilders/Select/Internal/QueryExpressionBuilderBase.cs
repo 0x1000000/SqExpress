@@ -7,7 +7,7 @@ namespace SqExpress.QueryBuilders.Select.Internal
 {
     internal abstract class QueryExpressionBuilderBase : IQueryExpressionBuilder, ISelectBuilder, ISelectOffsetFetchBuilderFinal
     {
-        private IReadOnlyList<ExprOrderByItem>? _orderItems;
+        private OrderByStorage _orderBy;
 
         private ExprOffsetFetch? _exprOffsetFetch;
 
@@ -59,23 +59,49 @@ namespace SqExpress.QueryBuilders.Select.Internal
             return new QueryExpressionBuilder(expr);
         }
 
+        protected ISelectBuilder OrderByInternal(ExprOrderBy orderBy)
+        {
+            if (this._orderBy.HasValue)
+            {
+                throw new SqExpressException("Order has already been set");
+            }
+
+            this._orderBy = new OrderByStorage(null, orderBy);
+            return this;
+        }
+
         protected ISelectBuilder OrderByInternal(ExprOrderByItem item, params ExprOrderByItem[] rest)
         {
-            this._orderItems.AssertFatalNull(nameof(this._orderItems));
-            this._orderItems = Helpers.Combine(item, rest);
+            if (this._orderBy.HasValue)
+            {
+                throw new SqExpressException("Order has already been set");
+            }
+
+            this._orderBy = new OrderByStorage(Helpers.Combine(item, rest), null);
+            return this;
+        }
+
+        protected ISelectBuilder OrderByInternal(IReadOnlyList<ExprOrderByItem> orderItems)
+        {
+            if (this._orderBy.HasValue)
+            {
+                throw new SqExpressException("Order has already been set");
+            }
+
+            this._orderBy = new OrderByStorage(orderItems.AssertNotEmpty("Order item list cannot be empty"), null);
             return this;
         }
 
         public ExprSelect Done()
         {
             this._exprOffsetFetch.AssertFatalNull(nameof(this._exprOffsetFetch));
-            return new ExprSelect(this.BuildQueryExpression(), new ExprOrderBy(this._orderItems.AssertFatalNotNull(nameof(this._orderItems))));
+            return new ExprSelect(this.BuildQueryExpression(), this._orderBy.GetOrderBy());
         }
 
         ExprSelectOffsetFetch ISelectOffsetFetchBuilderFinal.Done()
         {
             return new ExprSelectOffsetFetch(this.BuildQueryExpression(),
-                new ExprOrderByOffsetFetch(this._orderItems.AssertFatalNotNull(nameof(this._orderItems)), this._exprOffsetFetch.AssertFatalNotNull(nameof(this._exprOffsetFetch))));
+                new ExprOrderByOffsetFetch(this._orderBy.GetOrderItems(), this._exprOffsetFetch.AssertFatalNotNull(nameof(this._exprOffsetFetch))));
         }
 
         public ISelectOffsetFetchBuilderFinal OffsetFetch(int offset, int fetch)
@@ -100,28 +126,52 @@ namespace SqExpress.QueryBuilders.Select.Internal
 
         private IExprSubQuery BuildSubQuery()
         {
-            if (this._exprOffsetFetch != null && this._orderItems != null)
+            if (this._exprOffsetFetch != null && this._orderBy.HasValue)
             {
-                return new ExprSelectOffsetFetch(this.BuildQueryExpression(), new ExprOrderByOffsetFetch(this._orderItems, this._exprOffsetFetch));
+                return new ExprSelectOffsetFetch(this.BuildQueryExpression(), new ExprOrderByOffsetFetch(this._orderBy.GetOrderItems(), this._exprOffsetFetch));
             }
 
-            this._orderItems.AssertFatalNull("The query cannot be ordered");
+            if (this._orderBy.HasValue)
+            {
+                throw new SqExpressException("The query cannot be ordered");
+            }
 
             return this.BuildQueryExpression();
         }
 
         private IExprQuery BuildQuery()
         {
-            if (this._exprOffsetFetch != null && this._orderItems != null)
+            if (this._exprOffsetFetch != null && this._orderBy.HasValue)
             {
-                return new ExprSelectOffsetFetch(this.BuildQueryExpression(), new ExprOrderByOffsetFetch(this._orderItems, this._exprOffsetFetch));
+                return new ExprSelectOffsetFetch(this.BuildQueryExpression(), new ExprOrderByOffsetFetch(this._orderBy.GetOrderItems(), this._exprOffsetFetch));
             }
-            if (this._orderItems != null)
+            if (this._orderBy.HasValue)
             {
-                return new ExprSelect(this.BuildQueryExpression(), new ExprOrderBy(this._orderItems));
+                return new ExprSelect(this.BuildQueryExpression(), this._orderBy.GetOrderBy());
             }
 
             return this.BuildQueryExpression();
+        }
+
+        private readonly struct OrderByStorage
+        {
+            public OrderByStorage(IReadOnlyList<ExprOrderByItem>? orderItems, ExprOrderBy? orderBy)
+            {
+                this._orderItems = orderItems;
+                this._orderBy = orderBy;
+            }
+
+            private readonly IReadOnlyList<ExprOrderByItem>? _orderItems;
+
+            private readonly ExprOrderBy? _orderBy;
+
+            public bool HasValue => this._orderItems != null || this._orderBy != null;
+
+            public ExprOrderBy GetOrderBy()
+                => this._orderBy ?? new ExprOrderBy(this.GetOrderItems());
+
+            public IReadOnlyList<ExprOrderByItem> GetOrderItems()
+                =>  this._orderBy?.OrderList ?? this._orderItems.AssertFatalNotNull(nameof(this._orderItems));
         }
     }
 }

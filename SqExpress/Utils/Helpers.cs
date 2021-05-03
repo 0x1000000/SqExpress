@@ -1,6 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.SqlTypes;
 using System.Linq;
+using SqExpress.QueryBuilders.RecordSetter;
+using SqExpress.QueryBuilders.RecordSetter.Internal;
+using SqExpress.Syntax.Names;
+using SqExpress.Syntax.Select;
+using SqExpress.Syntax.Type;
 
 namespace SqExpress.Utils
 {
@@ -276,6 +282,117 @@ namespace SqExpress.Utils
 
             length = 0;
             return false;
+        }
+
+        public static UpdateDataAnalysis AnalyzeUpdateData<TTable, TItem>
+        (
+            IEnumerable<TItem> data,
+            TTable targetTable,
+            DataMapping<TTable, TItem> dataMapKeys,
+            DataMapping<TTable, TItem> dataMap,
+            IndexDataMapping? extraDataMap,
+            ExprTableAlias sourceTableAlias
+        )
+        {
+            var records = data.TryToCheckLength(out var capacity)
+                ? capacity > 0 ? new List<ExprValueRow>(capacity) : null
+                : new List<ExprValueRow>();
+
+            if (records == null)
+            {
+                throw new SqExpressException("Input data should not be empty");
+            }
+
+            DataMapSetter<TTable, TItem>? setter = null;
+            List<ExprColumnName>? keys = null;
+            IReadOnlyList<ExprColumnName>? allTableColumns = null;
+            IReadOnlyList<ExprColumnName>? totalColumns = null;
+
+            foreach (var item in data)
+            {
+                setter ??= new DataMapSetter<TTable, TItem>(targetTable, item);
+
+                setter.NextItem(item, totalColumns?.Count);
+                dataMapKeys(setter);
+
+                keys ??= new List<ExprColumnName>(setter.Columns);
+
+                keys.AssertNotEmpty("There should be at least one key");
+
+                dataMap(setter);
+
+                totalColumns = allTableColumns ??= new List<ExprColumnName>(setter.Columns);
+
+                if (extraDataMap != null)
+                {
+                    extraDataMap.Invoke(setter);
+                    if (ReferenceEquals(totalColumns, allTableColumns))
+                    {
+                        totalColumns = new List<ExprColumnName>(setter.Columns);
+                    }
+                }
+
+                setter.EnsureRecordLength();
+                records.Add(new ExprValueRow(setter.Record.AssertFatalNotNull(nameof(setter.Record))));
+            }
+
+            if (records.Count < 1)
+            {
+                throw new SqExpressException("Input data should not be empty");
+            }
+
+            keys = keys.AssertFatalNotNull(nameof(keys));
+            allTableColumns = allTableColumns.AssertFatalNotNull(nameof(allTableColumns));
+            totalColumns = totalColumns.AssertFatalNotNull(nameof(allTableColumns));
+
+            var exprValuesTable = new ExprDerivedTableValues(new ExprTableValueConstructor(records), sourceTableAlias, totalColumns);
+
+            if (keys.Count >= allTableColumns.Count)
+            {
+                throw new SqExpressException("The number of keys exceeds the number of columns");
+            }
+
+            return new UpdateDataAnalysis(keys, allTableColumns, exprValuesTable);
+        }
+
+        public static DecimalPrecisionScale CalcDecimalPrecisionScale(decimal value)
+        {
+            SqlDecimal sd = value;
+
+            return new DecimalPrecisionScale(sd.Precision, sd.Scale);
+
+            /*if (value == 0)
+                return new DecimalPrecisionScale(0,0);
+            var bits = decimal.GetBits(value);
+
+            var scale = (int)((bits[3] >> 16) & 0x7F);
+
+            decimal d = new Decimal(bits[0], bits[1], bits[2], false, 0);
+            var precision = (int)Math.Floor(Math.Log10((double)d)) + 1;
+
+            return new DecimalPrecisionScale(precision, scale);*/
+        }
+
+
+        public readonly struct UpdateDataAnalysis
+        {
+            public readonly List<ExprColumnName> Keys;
+            public readonly IReadOnlyList<ExprColumnName> AllTableColumns;
+            public readonly ExprDerivedTableValues ExprValuesTable;
+
+            public UpdateDataAnalysis(List<ExprColumnName> keys, IReadOnlyList<ExprColumnName> allTableColumns, ExprDerivedTableValues exprValuesTable)
+            {
+                this.Keys = keys;
+                this.AllTableColumns = allTableColumns;
+                this.ExprValuesTable = exprValuesTable;
+            }
+
+            public void Deconstruct(out List<ExprColumnName> keys, out IReadOnlyList<ExprColumnName> allTableColumns, out ExprDerivedTableValues exprValuesTable)
+            {
+                keys = this.Keys;
+                allTableColumns = this.AllTableColumns;
+                exprValuesTable = this.ExprValuesTable;
+            }
         }
     }
 }

@@ -6,7 +6,6 @@ using SqExpress.QueryBuilders.RecordSetter.Internal;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Output;
-using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Update;
 using SqExpress.Syntax.Value;
 using SqExpress.Utils;
@@ -168,67 +167,13 @@ namespace SqExpress.QueryBuilders.Merge.Internal
 
         public ExprMerge Done()
         {
-            var records = this._data.TryToCheckLength(out var capacity)
-                ? capacity > 0 ? new List<ExprValueRow>(capacity) : null
-                : new List<ExprValueRow>();
-
-            if (records == null)
-            {
-                throw new SqExpressException("Input data should not be empty");
-            }
-
-            var dataMapKeys = this._dataMapKeys.AssertNotNull("DataMapKeys should be initialized");
-            var dataMap = this._dataMap.AssertNotNull("DataMap should be initialized");
-
-
-            DataMapSetter<TTable, TItem>? setter = null;
-            List<ExprColumnName>? keys = null;
-            IReadOnlyList<ExprColumnName>? allTableColumns = null;
-            IReadOnlyList<ExprColumnName>? totalColumns = null;
-
-            foreach (var item in this._data)
-            {
-                setter ??= new DataMapSetter<TTable, TItem>(this._table, item);
-
-                setter.NextItem(item, totalColumns?.Count);
-                dataMapKeys(setter);
-
-                keys ??= new List<ExprColumnName>(setter.Columns);
-
-                keys.AssertNotEmpty("There should be at least one key");
-
-                dataMap(setter);
-
-                totalColumns = allTableColumns ??= new List<ExprColumnName>(setter.Columns);
-
-                if (this._extraDataMap != null)
-                {
-                    this._extraDataMap.Invoke(setter);
-                    if (ReferenceEquals(totalColumns, allTableColumns))
-                    {
-                        totalColumns = new List<ExprColumnName>(setter.Columns);
-                    }
-                }
-
-                setter.EnsureRecordLength();
-                records.Add(new ExprValueRow(setter.Record.AssertFatalNotNull(nameof(setter.Record))));
-            }
-
-            if (records.Count < 1)
-            {
-                throw new SqExpressException("Input data should not be empty");
-            }
-
-            keys = keys.AssertFatalNotNull(nameof(keys));
-            allTableColumns = allTableColumns.AssertFatalNotNull(nameof(allTableColumns));
-            totalColumns = totalColumns.AssertFatalNotNull(nameof(allTableColumns));
-
-            var exprValuesTable = new ExprDerivedTableValues(new ExprTableValueConstructor(records), this._sourceTableAlias, totalColumns);
-
-            if (keys.Count >= allTableColumns.Count)
-            {
-                throw new SqExpressException("The number of keys exceeds the number of columns");
-            }
+            var (keys, allTableColumns, exprValuesTable) = Helpers.AnalyzeUpdateData(
+                data: this._data, 
+                targetTable: this._table, 
+                dataMapKeys: this._dataMapKeys.AssertNotNull("DataMapKeys should be initialized"), 
+                dataMap: this._dataMap.AssertNotNull("DataMap should be initialized"), 
+                extraDataMap: this._extraDataMap,
+                sourceTableAlias: this._sourceTableAlias);
 
             return new ExprMerge(
                 this._table, 
@@ -238,6 +183,8 @@ namespace SqExpress.QueryBuilders.Merge.Internal
                 this.BuildWhenNotMatchedByTarget(keys, allTableColumns),
                 this.BuildWhenNotMatchedBySource());
         }
+
+
 
         ExprMergeOutput IMergeDataBuilderOutputFinal.Done()
         {

@@ -2,14 +2,19 @@
 {
     public abstract class ExprType : IExpr
     {
-        public abstract TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg);
+        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        {
+            return this.Accept((IExprTypeVisitor<TRes, TArg>)visitor, arg);
+        }
+
+        public abstract TRes Accept<TRes, TArg>(IExprTypeVisitor<TRes, TArg> visitor, TArg arg);
     }
 
     public class ExprTypeBoolean : ExprType
     {
         public static readonly ExprTypeBoolean Instance = new ExprTypeBoolean();
 
-        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        public override TRes Accept<TRes, TArg>(IExprTypeVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprTypeBoolean(this, arg);
     }
 
@@ -17,13 +22,18 @@
     {
         public static readonly ExprTypeByte Instance = new ExprTypeByte();
 
-        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        public override TRes Accept<TRes, TArg>(IExprTypeVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprTypeByte(this, arg);
     }
 
-    public abstract class ExprTypeByteArrayBase : ExprType
+    public interface IExprTypeByteArray
     {
+        int? GetSize();
+    }
 
+    public abstract class ExprTypeByteArrayBase : ExprType, IExprTypeByteArray
+    {
+        public abstract int? GetSize();
     }
 
     public class ExprTypeFixSizeByteArray : ExprTypeByteArrayBase
@@ -33,8 +43,10 @@
             this.Size = size;
         }
 
-        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        public override TRes Accept<TRes, TArg>(IExprTypeVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprTypeFixSizeByteArray(this, arg);
+
+        public override int? GetSize() => this.Size;
 
         public int Size { get; }
     }
@@ -46,8 +58,10 @@
             this.Size = size;
         }
 
-        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        public override TRes Accept<TRes, TArg>(IExprTypeVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprTypeByteArray(this, arg);
+
+        public override int? GetSize() => this.Size;
 
         public int? Size { get; }
     }
@@ -56,7 +70,7 @@
     {
         public static readonly ExprTypeInt16 Instance = new ExprTypeInt16();
 
-        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        public override TRes Accept<TRes, TArg>(IExprTypeVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprTypeInt16(this, arg);
     }
 
@@ -64,7 +78,7 @@
     {
         public static readonly ExprTypeInt32 Instance = new ExprTypeInt32();
 
-        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        public override TRes Accept<TRes, TArg>(IExprTypeVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprTypeInt32(this, arg);
     }
 
@@ -72,7 +86,7 @@
     {
         public static readonly ExprTypeInt64 Instance = new ExprTypeInt64();
 
-        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        public override TRes Accept<TRes, TArg>(IExprTypeVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprTypeInt64(this, arg);
     }
 
@@ -85,7 +99,7 @@
 
         public DecimalPrecisionScale? PrecisionScale { get; }
 
-        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        public override TRes Accept<TRes, TArg>(IExprTypeVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprTypeDecimal(this, arg);
     }
 
@@ -93,7 +107,7 @@
     {
         public static readonly ExprTypeDouble Instance = new ExprTypeDouble();
 
-        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        public override TRes Accept<TRes, TArg>(IExprTypeVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprTypeDouble(this, arg);
     }
 
@@ -106,7 +120,7 @@
 
         public bool IsDate { get; }
 
-        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        public override TRes Accept<TRes, TArg>(IExprTypeVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprTypeDateTime(this, arg);
     }
 
@@ -114,14 +128,19 @@
     {
         public static readonly ExprTypeGuid Instance = new ExprTypeGuid();
 
-        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        public override TRes Accept<TRes, TArg>(IExprTypeVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprTypeGuid(this, arg);
     }
 
 
-    public abstract class ExprTypeStringBase : ExprType
+    public abstract class ExprTypeStringBase : ExprType, IExprTypeString
     {
+        public abstract int? GetSize();
+    }
 
+    public interface IExprTypeString
+    {
+        int? GetSize();
     }
 
     public class ExprTypeString : ExprTypeStringBase
@@ -139,8 +158,10 @@
 
         public int? Size { get; }
 
-        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        public override TRes Accept<TRes, TArg>(IExprTypeVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprTypeString(this, arg);
+
+        public override int? GetSize() => this.Size;
     }
 
     public class ExprTypeXml : ExprTypeStringBase
@@ -149,8 +170,12 @@
 
         public static readonly ExprTypeXml Instance = new ExprTypeXml();
 
-        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        public override TRes Accept<TRes, TArg>(IExprTypeVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprTypeXml(this, arg);
+
+        public int? Size => null;
+
+        public override int? GetSize() => this.Size;
     }
 
     public class ExprTypeFixSizeString : ExprTypeStringBase
@@ -165,7 +190,9 @@
 
         public int Size { get; }
 
-        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        public override int? GetSize() => this.Size;
+
+        public override TRes Accept<TRes, TArg>(IExprTypeVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprTypeFixSizeString(this, arg);
     }
 }

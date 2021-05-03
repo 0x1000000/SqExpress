@@ -35,5 +35,50 @@ namespace SqExpress.DataAccess
                     return acc;
                 });
         }
+
+
+        public delegate void KeyDuplicationHandler<TKey, TValue>(TKey key, TValue oldValue, TValue newValue, Dictionary<TKey, TValue> dictionary)
+            where TKey: notnull;
+
+        public static Task<Dictionary<TKey, TValue>> QueryDictionary<TKey, TValue>(
+            this ISqDatabase database,
+            IExprQuery expr, 
+            Func<ISqDataRecordReader, TKey> keyFactory, 
+            Func<ISqDataRecordReader, TValue> valueFactory,
+            KeyDuplicationHandler<TKey, TValue>? keyDuplicationHandler = null,
+            Func<TKey, TValue, bool>? predicate = null)
+            where TKey : notnull
+        {
+            return database.Query(expr,
+                new Dictionary<TKey, TValue>(),
+                (acc, record) =>
+                {
+                    var key = keyFactory(record);
+                    var value = valueFactory(record);
+
+                    if (predicate != null && !predicate(key, value))
+                    {
+                        return acc;
+                    }
+
+                    if (keyDuplicationHandler == null)
+                    {
+                        acc.Add(key, value);
+                    }
+                    else
+                    {
+                        if (acc.TryGetValue(key, out var oldValue))
+                        {
+                            keyDuplicationHandler(key, oldValue, value, acc);
+                        }
+                        else
+                        {
+                            acc.Add(key, value);
+                        }
+                    }
+                    return acc;
+                });
+        }
+
     }
 }

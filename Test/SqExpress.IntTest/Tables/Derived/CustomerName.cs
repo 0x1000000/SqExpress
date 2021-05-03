@@ -12,17 +12,20 @@ namespace SqExpress.IntTest.Tables.Derived
             Company = 2
         }
 
-        public CustomerName()
+        public CustomerName(Alias alias = default) : base(alias)
         {
             this.CustomerId = this._tCustomer.CustomerId.AddToDerivedTable(this);
             this.CustomerTypeId = this.CreateInt16Column("CustomerTypeId");
             this.Name = this.CreateStringColumn("Name");
         }
 
+        [SqModel("CustomerNameData", PropertyName = "Id")]
         public Int32CustomColumn CustomerId { get; }
 
+        [SqModel("CustomerNameData", PropertyName = "TypeId")]
         public Int16CustomColumn CustomerTypeId { get; }
 
+        [SqModel("CustomerNameData")]
         public StringCustomColumn Name { get; }
 
         protected override IExprSubQuery CreateQuery()

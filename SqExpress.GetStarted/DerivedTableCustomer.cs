@@ -4,11 +4,14 @@ namespace SqExpress.GetStarted
 {
     public class DerivedTableCustomer : DerivedTableBase
     {
-        public readonly Int32CustomColumn CustomerId;
+        [SqModel("CustomerData", PropertyName = "Id")]
+        public Int32CustomColumn CustomerId { get; }
 
-        public readonly Int16CustomColumn Type;
+        [SqModel("CustomerData", PropertyName = "CustomerType")]
+        public Int16CustomColumn Type { get; }
 
-        public readonly StringCustomColumn Name;
+        [SqModel("CustomerData")]
+        public StringCustomColumn Name { get; }
 
         public DerivedTableCustomer(Alias alias = default) : base(alias)
         {

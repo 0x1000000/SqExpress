@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text;
 using SqExpress.SqlExport.Internal;
 using SqExpress.StatementSyntax;
 using SqExpress.Syntax.Names;
@@ -9,7 +10,7 @@ namespace SqExpress.SqlExport.Statement.Internal
     {
         private readonly MySqlBuilder _exprBuilder;
 
-        public MySqlStatementBuilder(SqlBuilderOptions? options) : base(options)
+        public MySqlStatementBuilder(SqlBuilderOptions? options, StringBuilder? externalBuilder) : base(options, externalBuilder)
         {
             this._exprBuilder = new MySqlBuilder(this.Options, this.Builder);
         }
@@ -75,6 +76,8 @@ namespace SqExpress.SqlExport.Statement.Internal
         {
             //All indexes are created inside CREATE TABLE
         }
+
+        protected override bool IsNamedPk() => false;
 
         public override void VisitCreateTable(StatementCreateTable statementCreateTable)
         {

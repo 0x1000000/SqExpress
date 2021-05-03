@@ -25,6 +25,21 @@ namespace SqExpress.IntTest.Tables.Models
 
         public string LastName { get; }
 
+        public UserName WithId(EntUser id)
+        {
+            return new UserName(id: id, firstName: this.FirstName, lastName: this.LastName);
+        }
+
+        public UserName WithFirstName(string firstName)
+        {
+            return new UserName(id: this.Id, firstName: firstName, lastName: this.LastName);
+        }
+
+        public UserName WithLastName(string lastName)
+        {
+            return new UserName(id: this.Id, firstName: this.FirstName, lastName: lastName);
+        }
+
         public static TableColumn[] GetColumns(TableItUser table)
         {
             return new TableColumn[]{table.UserId, table.FirstName, table.LastName};
@@ -45,19 +60,47 @@ namespace SqExpress.IntTest.Tables.Models
             return s.Set(s.Target.FirstName, s.Source.FirstName).Set(s.Target.LastName, s.Source.LastName);
         }
 
-        public UserName WithId(EntUser id)
+        public static ISqModelReader<UserName, TableItUser> GetReader()
         {
-            return new UserName(id: id, firstName: this.FirstName, lastName: this.LastName);
+            return UserNameReader.Instance;
         }
 
-        public UserName WithFirstName(string firstName)
+        private class UserNameReader : ISqModelReader<UserName, TableItUser>
         {
-            return new UserName(id: this.Id, firstName: firstName, lastName: this.LastName);
+            public static UserNameReader Instance { get; } = new UserNameReader();
+            TableColumn[] ISqModelReader<UserName, TableItUser>.GetColumns(TableItUser table)
+            {
+                return UserName.GetColumns(table);
+            }
+
+            UserName ISqModelReader<UserName, TableItUser>.Read(ISqDataRecordReader record, TableItUser table)
+            {
+                return UserName.Read(record, table);
+            }
         }
 
-        public UserName WithLastName(string lastName)
+        public static ISqModelUpdaterKey<UserName, TableItUser> GetUpdater()
         {
-            return new UserName(id: this.Id, firstName: this.FirstName, lastName: lastName);
+            return UserNameUpdater.Instance;
+        }
+
+        private class UserNameUpdater : ISqModelUpdaterKey<UserName, TableItUser>
+        {
+            public static UserNameUpdater Instance { get; } = new UserNameUpdater();
+            IRecordSetterNext ISqModelUpdater<UserName, TableItUser>.GetMapping(IDataMapSetter<TableItUser, UserName> dataMapSetter)
+            {
+                return UserName.GetMapping(dataMapSetter);
+            }
+
+            IRecordSetterNext ISqModelUpdaterKey<UserName, TableItUser>.GetUpdateKeyMapping(IDataMapSetter<TableItUser, UserName> dataMapSetter)
+            {
+                return UserName.GetUpdateKeyMapping(dataMapSetter);
+            }
+
+            IRecordSetterNext ISqModelUpdaterKey<UserName, TableItUser>.GetUpdateMapping(IDataMapSetter<TableItUser, UserName> dataMapSetter)
+            {
+                return UserName.GetUpdateMapping(dataMapSetter);
+            }
         }
     }
 }

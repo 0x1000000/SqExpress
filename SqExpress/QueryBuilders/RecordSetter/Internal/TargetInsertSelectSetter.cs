@@ -23,7 +23,7 @@ namespace SqExpress.QueryBuilders.RecordSetter.Internal
             return this;
         }
 
-        protected override IExprRecordSetterNext SetGeneric(ExprColumnName column, ExprLiteral value)
+        protected override IExprRecordSetterNext SetGeneric(ExprColumn column, ExprLiteral value)
             => this.Set(column, value);
     }
 }

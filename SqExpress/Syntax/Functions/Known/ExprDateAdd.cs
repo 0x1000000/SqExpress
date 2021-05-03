@@ -17,7 +17,7 @@ namespace SqExpress.Syntax.Functions.Known
 
         public ExprValue Date { get; }
 
-        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        public override TRes Accept<TRes, TArg>(IExprValueVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprDateAdd(this, arg);
     }
 

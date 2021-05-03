@@ -8,6 +8,7 @@ using SqExpress.QueryBuilders.Insert.Internal;
 using SqExpress.QueryBuilders.Merge;
 using SqExpress.QueryBuilders.Merge.Internal;
 using SqExpress.QueryBuilders.Update;
+using SqExpress.QueryBuilders.Update.Internal;
 using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
@@ -70,13 +71,19 @@ namespace SqExpress
         public static InsertBuilder InsertInto(ExprTable table, ExprColumnName column1, params ExprColumnName[] rest)
             => new InsertBuilder(table, Helpers.Combine(column1, rest));
 
+        public static InsertBuilder InsertInto(ExprTable table, IReadOnlyList<ExprColumnName> columns)
+            => new InsertBuilder(table, columns.AssertNotEmpty(nameof(columns)));
+
         public static UpdateBuilder Update(ExprTable target)
             => new UpdateBuilder(target, new List<ExprColumnSetClause>());
 
+        public static IUpdateDataBuilderMapDataInitial<TTable, TItem> UpdateData<TTable, TItem>(TTable table, IEnumerable<TItem> data)
+            where TTable : ExprTable
+            => new UpdateDataBuilder<TTable,TItem>(table, data, new ExprAliasGuid(Guid.NewGuid()));
+
         public static IMergeDataBuilderMapDataInitial<TTable, TItem> MergeDataInto<TTable, TItem>(TTable table, IEnumerable<TItem> data)
             where TTable : ExprTable
-            =>
-            new MergeDataBuilder<TTable, TItem>(table, data, new ExprAliasGuid(Guid.NewGuid()));
+            => new MergeDataBuilder<TTable, TItem>(table, data, new ExprAliasGuid(Guid.NewGuid()));
 
         public static DeleteBuilder Delete(ExprTable target) 
             => new DeleteBuilder(target: target);

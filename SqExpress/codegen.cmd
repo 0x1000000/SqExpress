@@ -4,4 +4,4 @@ SET rootDir=%~dp0..\SqExpress.GenSyntaxTraversal
 
 dotnet build "%rootDir%" -verbosity:quiet -noLogo -p:OutDir="%rootDir%\bin"
 
-"%rootDir%\bin\SqExpress.GenSyntaxTraversal.exe" "%~dp0."
+dotnet "%rootDir%\bin\SqExpress.GenSyntaxTraversal.dll" "%~dp0."

@@ -29,7 +29,7 @@ namespace SqExpress.SqlExport
 
         public string ToSql(IStatement statement)
         {
-            var builder = new PgSqlStatementBuilder(this._builderOptions);
+            var builder = new PgSqlStatementBuilder(this._builderOptions, null);
             statement.Accept(builder);
             return builder.Build();
         }

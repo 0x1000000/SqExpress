@@ -4,6 +4,7 @@ using System.Linq;
 using SqExpress.QueryBuilders;
 using SqExpress.QueryBuilders.Select;
 using SqExpress.StatementSyntax;
+using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
@@ -106,5 +107,31 @@ namespace SqExpress
 
         public static IReadOnlyList<IExprSelecting> Concat(this IReadOnlyList<IExprSelecting> source, IReadOnlyList<IExprSelecting> source2) 
             => Helpers.Combine(source, source2);
+
+        public static ExprBoolean JoinAsAnd(this IReadOnlyList<ExprBoolean> predicates)
+        {
+            predicates.AssertNotEmpty("Predicates list cannot be empty");
+
+            ExprBoolean result = predicates[0];
+            for (int i = 1; i < predicates.Count; i++)
+            {
+                result = new ExprBooleanAnd(result, predicates[i]);
+            }
+
+            return result;
+        }
+
+        public static ExprBoolean JoinAsOr(this IReadOnlyList<ExprBoolean> predicates)
+        {
+            predicates.AssertNotEmpty("Predicates list cannot be empty");
+
+            ExprBoolean result = predicates[0];
+            for (int i = 1; i < predicates.Count; i++)
+            {
+                result = new ExprBooleanOr(result, predicates[i]);
+            }
+
+            return result;
+        }
     }
 }

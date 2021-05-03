@@ -9,15 +9,16 @@ namespace SqExpress.SqlExport.Statement.Internal
 {
     internal abstract class SqlStatementBuilderBase : IStatementVisitor
     {
-        protected readonly StringBuilder Builder = new StringBuilder();
+        protected readonly StringBuilder Builder;
 
         protected abstract SqlBuilderBase ExprBuilder { get; }
 
         protected readonly SqlBuilderOptions Options;
 
-        protected SqlStatementBuilderBase(SqlBuilderOptions? options)
+        protected SqlStatementBuilderBase(SqlBuilderOptions? options, StringBuilder? externalBuilder)
         {
             this.Options = options ?? SqlBuilderOptions.Default;
+            this.Builder = externalBuilder ?? new StringBuilder();
         }
 
         protected void AppendName(string name) => this.ExprBuilder.AppendName(name);
@@ -67,9 +68,13 @@ namespace SqExpress.SqlExport.Statement.Internal
                 return;
             }
 
-            this.Builder.Append(",CONSTRAINT ");
+            this.Builder.Append(",CONSTRAINT");
 
-            this.AppendName(this.BuildPkName(table.FullName));
+            if (this.IsNamedPk())
+            {
+                this.Builder.Append(' ');
+                this.AppendName(this.BuildPkName(table.FullName));
+            }
 
             this.Builder.Append(" PRIMARY KEY ");
             this.ExprBuilder.AcceptListComaSeparatedPar('(', analysis.Pk, ')', null);
@@ -97,6 +102,8 @@ namespace SqExpress.SqlExport.Statement.Internal
         protected abstract void AppendIndexesInside(TableBase table);
 
         protected abstract void AppendIndexesOutside(TableBase table);
+
+        protected abstract bool IsNamedPk();
 
         protected void AppendIndexColumnList(IndexMeta tableIndex)
         {

@@ -2,12 +2,14 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using SqExpress.StatementSyntax;
 using SqExpress.Syntax;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Output;
 using SqExpress.Syntax.Select;
@@ -19,11 +21,13 @@ using SqExpress.Utils;
 
 namespace SqExpress.SqlExport.Internal
 {
-    internal abstract class SqlBuilderBase: IExprVisitor<bool, IExpr?>
+    internal abstract class SqlBuilderBase: IExprVisitorInternal<bool, IExpr?>
     {
         protected readonly SqlBuilderOptions Options;
 
         protected readonly StringBuilder Builder;
+
+        private IStatementVisitor? _statementBuilder;
 
         protected SqlBuilderBase(SqlBuilderOptions? options, StringBuilder? externalBuilder)
         {
@@ -1106,113 +1110,17 @@ namespace SqExpress.SqlExport.Internal
 
         //Merge
 
-        public bool VisitExprMerge(ExprMerge merge, IExpr? parent)
-        {
-            this.Builder.Append("MERGE ");
-            merge.TargetTable.Accept(this, merge);
-            this.Builder.Append(" USING ");
-            merge.Source.Accept(this, merge);
-            this.Builder.Append(" ON ");
-            merge.On.Accept(this, merge);
-            if (merge.WhenMatched != null)
-            {
-                this.Builder.Append(" WHEN MATCHED");
-                merge.WhenMatched.Accept(this, merge);
-            }
-            if (merge.WhenNotMatchedByTarget != null)
-            {
-                this.Builder.Append(" WHEN NOT MATCHED");
-                merge.WhenNotMatchedByTarget.Accept(this, merge);
-            }
-            if (merge.WhenNotMatchedBySource != null)
-            {
-                this.Builder.Append(" WHEN NOT MATCHED BY SOURCE");
-                merge.WhenNotMatchedBySource.Accept(this, merge);
-            }
-            this.Builder.Append(';');
+        public abstract bool VisitExprMerge(ExprMerge merge, IExpr? parent);
 
-            return true;
-        }
+        public abstract bool VisitExprMergeOutput(ExprMergeOutput mergeOutput, IExpr? parent);
 
-        public bool VisitExprMergeOutput(ExprMergeOutput mergeOutput, IExpr? parent)
-        {
-            if (this.VisitExprMerge(mergeOutput, mergeOutput))
-            {
-                this.Builder.Length = this.Builder.Length - 1;// ; <-
-                this.Builder.Append(" OUTPUT ");
-                mergeOutput.Output.Accept(this, mergeOutput);
-                this.Builder.Append(';');
-                return true;
-            }
-            return false;
-        }
+        public abstract bool VisitExprMergeMatchedUpdate(ExprMergeMatchedUpdate mergeMatchedUpdate, IExpr? parent);
 
-        public bool VisitExprMergeMatchedUpdate(ExprMergeMatchedUpdate mergeMatchedUpdate, IExpr? parent)
-        {
-            if (mergeMatchedUpdate.And != null)
-            {
-                this.Builder.Append(" AND ");
-                mergeMatchedUpdate.And.Accept(this, mergeMatchedUpdate);
-            }
+        public abstract bool VisitExprMergeMatchedDelete(ExprMergeMatchedDelete mergeMatchedDelete, IExpr? parent);
 
-            this.AssertNotEmptyList(mergeMatchedUpdate.Set, "Set Clause cannot be empty");
+        public abstract bool VisitExprExprMergeNotMatchedInsert(ExprExprMergeNotMatchedInsert exprMergeNotMatchedInsert, IExpr? parent);
 
-            this.Builder.Append(" THEN UPDATE SET ");
-
-            this.AcceptListComaSeparated(mergeMatchedUpdate.Set, mergeMatchedUpdate);
-
-            return true;
-        }
-
-        public bool VisitExprMergeMatchedDelete(ExprMergeMatchedDelete mergeMatchedDelete, IExpr? parent)
-        {
-            if (mergeMatchedDelete.And != null)
-            {
-                this.Builder.Append(" AND ");
-                mergeMatchedDelete.And.Accept(this, mergeMatchedDelete);
-            }
-
-            this.Builder.Append(" THEN  DELETE");
-
-            return true;
-        }
-
-        public bool VisitExprExprMergeNotMatchedInsert(ExprExprMergeNotMatchedInsert exprMergeNotMatchedInsert, IExpr? parent)
-        {
-            if (exprMergeNotMatchedInsert.And != null)
-            {
-                this.Builder.Append(" AND ");
-                exprMergeNotMatchedInsert.And.Accept(this, exprMergeNotMatchedInsert);
-            }
-
-            this.AssertNotEmptyList(exprMergeNotMatchedInsert.Values, "Values cannot be empty");
-
-            if (exprMergeNotMatchedInsert.Columns.Count > 0 &&
-                exprMergeNotMatchedInsert.Columns.Count != exprMergeNotMatchedInsert.Values.Count)
-            {
-                throw new SqExpressException("Columns and values numbers do not match");
-            }
-
-            this.Builder.Append(" THEN INSERT");
-            this.AcceptListComaSeparatedPar('(', exprMergeNotMatchedInsert.Columns, ')', exprMergeNotMatchedInsert);
-            this.Builder.Append(" VALUES");
-            this.AcceptListComaSeparatedPar('(', exprMergeNotMatchedInsert.Values, ')', exprMergeNotMatchedInsert);
-
-            return true;
-        }
-
-        public bool VisitExprExprMergeNotMatchedInsertDefault(ExprExprMergeNotMatchedInsertDefault exprExprMergeNotMatchedInsertDefault, IExpr? parent)
-        {
-            if (exprExprMergeNotMatchedInsertDefault.And != null)
-            {
-                this.Builder.Append(" AND ");
-                exprExprMergeNotMatchedInsertDefault.And.Accept(this, exprExprMergeNotMatchedInsertDefault);
-            }
-
-            this.Builder.Append(" THEN INSERT DEFAULT VALUES");
-
-            return true;
-        }
+        public abstract bool VisitExprExprMergeNotMatchedInsertDefault(ExprExprMergeNotMatchedInsertDefault exprExprMergeNotMatchedInsertDefault, IExpr? parent);
 
         //Insert
 
@@ -1294,6 +1202,38 @@ namespace SqExpress.SqlExport.Internal
         public abstract bool VisitExprDelete(ExprDelete exprDelete, IExpr? parent);
 
         public abstract bool VisitExprDeleteOutput(ExprDeleteOutput exprDeleteOutput, IExpr? parent);
+
+        public bool VisitExprList(ExprList exprList, IExpr? parent)
+        {
+            for (var index = 0; index < exprList.Expressions.Count; index++)
+            {
+                var expr = exprList.Expressions[index];
+
+                if (index != 0 && exprList.Expressions[index-1] is not ExprStatement)
+                {
+                    this.Builder.Append(';');
+                }
+                expr.Accept(this, exprList);
+            }
+
+            return true;
+        }
+
+        public bool VisitExprQueryList(ExprQueryList exprList, IExpr? parent)
+        {
+            for (var index = 0; index < exprList.Expressions.Count; index++)
+            {
+                var expr = exprList.Expressions[index];
+
+                if (index != 0 && exprList.Expressions[index - 1] is not ExprStatement)
+                {
+                    this.Builder.Append(';');
+                }
+
+                expr.Accept(this, exprList);
+            }
+            return true;
+        }
 
         public abstract bool VisitExprCast(ExprCast exprCast, IExpr? parent);
 
@@ -1387,6 +1327,20 @@ namespace SqExpress.SqlExport.Internal
             {
                 throw new SqExpressException(errorText);
             }
+        }
+
+        protected abstract IStatementVisitor CreateStatementSqlBuilder();
+
+        protected IStatementVisitor GetStatementSqlBuilder()
+        {
+            this._statementBuilder ??= this.CreateStatementSqlBuilder();
+            return this._statementBuilder;
+        }
+
+        public bool VisitExprStatement(ExprStatement statement, IExpr? parent)
+        {
+            statement.Statement.Accept(this.GetStatementSqlBuilder());
+            return true;
         }
 
         public override string ToString()

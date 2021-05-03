@@ -634,6 +634,15 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprList(ExprList exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newExpressions = this.AcceptNotNullCollection(exprIn.Expressions, modifier);
+            if(!ReferenceEquals(exprIn.Expressions, newExpressions))
+            {
+                exprIn = new ExprList(expressions: newExpressions);
+            }
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprMerge(ExprMerge exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newTargetTable = this.AcceptItem(exprIn.TargetTable, modifier);
@@ -807,6 +816,15 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
             {
                 exprIn = new ExprQueryExpression(left: newLeft, right: newRight, queryExpressionType: exprIn.QueryExpressionType);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprQueryList(ExprQueryList exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newExpressions = this.AcceptNotNullCollection(exprIn.Expressions, modifier);
+            if(!ReferenceEquals(exprIn.Expressions, newExpressions))
+            {
+                exprIn = new ExprQueryList(expressions: newExpressions);
             }
             return modifier.Invoke(exprIn);
         }

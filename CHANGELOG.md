@@ -1,3 +1,21 @@
+# 0.2.0.0
+### New Features
+- "MERGE" polyfill for PostgreSql and MYSQL
+- ISqModelReader;ISqModelUpdater (--rw-classes key in the code-generation utility)
+- SqModel for temporary and derived tables
+- Keep class modifiers in the code generation
+- New expression modifiers: AddOrderBy, AddOffsetFetch, JoinAsAnd, JoinAsOr
+- New query extension: QueryDictionary
+- ISqDatabase.BeginTransactionOrUseExisting(out bool isNewTransaction);
+- SyntaxTree().Descendants(); SyntaxTree().DescendantsAndSelf();
+- UpdateData builder
+### Bug Fix
+- ISqDatabase.BeginTransaction now does not throw an exception if connection was not opened (it is automatically opened on the first request)
+- Duplicates in model code-generation when one model is used for several tables
+### Breaking Changes
+- Some new methods were added in some public interfaces, so if you have own implementations then they need to be extended.
+
+
 # 0.1.0.0
 ### New Features
 - Code-generation utility

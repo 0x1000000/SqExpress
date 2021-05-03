@@ -14,12 +14,12 @@ namespace SqExpress.CodeGenUtil.CodeGen
         private static readonly string SqModelAttributeName = nameof(SqModelAttribute)
             .Substring(0, nameof(SqModelAttribute).Length - nameof(Attribute).Length);
 
-        public static IReadOnlyDictionary<TableRef, ClassDeclarationSyntax> FindTableDescriptors(string path)
+        public static IReadOnlyDictionary<TableRef, ClassDeclarationSyntax> FindTableDescriptors(string path, IFileSystem fileSystem)
         {
             var result = new Dictionary<TableRef, ClassDeclarationSyntax>();
-            foreach (var cdPath in EnumerateSyntaxTrees(path).ExploreTableDescriptors())
+            foreach (var cdPath in EnumerateSyntaxTrees(path, fileSystem).ExploreTableDescriptors())
             {
-                if (!result.ContainsKey(cdPath.TableRef))
+                if (cdPath.TableRef != null && !result.ContainsKey(cdPath.TableRef))
                 {
                     result.Add(cdPath.TableRef, cdPath.ClassDeclaration);
                 }
@@ -28,10 +28,11 @@ namespace SqExpress.CodeGenUtil.CodeGen
             return result;
         }
 
-        public static IEnumerable<AttributeSyntax> EnumerateTableDescriptorsModelAttributes(string path)
+        public static IEnumerable<AttributeSyntax> EnumerateTableDescriptorsModelAttributes(string path, IFileSystem fileSystem)
         {
-            foreach (var cdPath in EnumerateSyntaxTrees(path).ExploreTableDescriptors())
+            foreach (var cdPath in EnumerateSyntaxTrees(path, fileSystem).ExploreTableDescriptors())
             {
+
 
                 var attributes = cdPath.ClassDeclaration.DescendantNodes()
                     .OfType<PropertyDeclarationSyntax>()
@@ -51,20 +52,20 @@ namespace SqExpress.CodeGenUtil.CodeGen
             }
         }
 
-        private static IEnumerable<SyntaxTree> EnumerateSyntaxTrees(string path)
+        private static IEnumerable<SyntaxTree> EnumerateSyntaxTrees(string path, IFileSystem fileSystem)
         {
-            if (!Directory.Exists(path))
+            if (!fileSystem.DirectoryExists(path))
             {
                 throw new SqExpressCodeGenException($"Directory \"{path}\" does not exits");
             }
 
-            var files = Directory.EnumerateFiles(
+            var files = fileSystem.EnumerateFiles(
                 path,
                 "*.cs",
                 SearchOption.AllDirectories);
 
 
-            return files.Select(f => CSharpSyntaxTree.ParseText(File.ReadAllText(f)));
+            return files.Select(f => CSharpSyntaxTree.ParseText(fileSystem.ReadAllText(f)));
         }
 
         private static IEnumerable<CdPath> ExploreTableDescriptors(this IEnumerable<SyntaxTree> fileNodes)
@@ -75,66 +76,101 @@ namespace SqExpress.CodeGenUtil.CodeGen
                 var classes = nodePath.GetRoot()
                     .DescendantNodesAndSelf()
                     .OfType<ClassDeclarationSyntax>()
-                    .Where(cd =>
-                        cd.BaseList?.DescendantNodesAndSelf()
-                            .OfType<BaseTypeSyntax>()
-                            .Any(b => b.Type.ToString().EndsWith(nameof(TableBase))) ??
-                        false);
+                    .Select(cd => (Class: cd, BaseTypeKind: SyntaxHelpers.GetTableClassKind(cd)))
+                    .Where(p => p.BaseTypeKind != null);
 
-                foreach (var classDeclarationSyntax in classes)
+                foreach (var tuple in classes)
                 {
-                    var baseConstCall = classDeclarationSyntax
+                    ConstructorInitializerSyntax? baseConstCall = tuple.Class
                         .DescendantNodes()
                         .OfType<ConstructorInitializerSyntax>()
                         .FirstOrDefault(c =>
-                            c.Kind() == SyntaxKind.BaseConstructorInitializer && c.ArgumentList.Arguments.Count == 3);
+                            c.Kind() == SyntaxKind.BaseConstructorInitializer);
 
-                    if (baseConstCall != null)
+                    BaseTypeKindTag baseTypeKindTag = tuple.BaseTypeKind!.Value;
+
+                    if (baseTypeKindTag == BaseTypeKindTag.DerivedTableBase)
+                    {
+                        yield return new CdPath(tuple.Class, baseTypeKindTag, null);
+                    }
+                    else if (baseConstCall != null)
                     {
                         string schema;
                         string tableName;
-                        if (baseConstCall.ArgumentList.Arguments[0].Expression is LiteralExpressionSyntax slSh &&
-                            slSh.Kind() == SyntaxKind.StringLiteralExpression)
-                        {
-                            schema = slSh.Token.ValueText;
-                        }
-                        else
-                        {
-                            continue;
-                        }
 
-                        if (baseConstCall.ArgumentList.Arguments[1].Expression is LiteralExpressionSyntax slDb &&
-                            slDb.Kind() == SyntaxKind.StringLiteralExpression)
+                        if (baseTypeKindTag == BaseTypeKindTag.TableBase)
                         {
-                            tableName = slDb.Token.ValueText;
+                            if (baseConstCall.ArgumentList.Arguments.Count != 3)
+                            {
+                                continue;
+                            }
+
+                            if (baseConstCall.ArgumentList.Arguments[0].Expression is LiteralExpressionSyntax slSh 
+                                && slSh.Kind() == SyntaxKind.StringLiteralExpression)
+                            {
+                                schema = slSh.Token.ValueText;
+                            }
+                            else
+                            {
+                                continue;
+                            }
+
+                            if (baseConstCall.ArgumentList.Arguments[1].Expression is LiteralExpressionSyntax slDb 
+                                && slDb.Kind() == SyntaxKind.StringLiteralExpression)
+                            {
+                                tableName = slDb.Token.ValueText;
+                            }
+                            else
+                            {
+                                continue;
+                            }
+                        }
+                        else if (baseTypeKindTag == BaseTypeKindTag.TempTableBase)
+                        {
+                            if (baseConstCall.ArgumentList.Arguments.Count != 2)
+                            {
+                                continue;
+                            }
+                            schema = "";
+                            if (baseConstCall.ArgumentList.Arguments[0].Expression is LiteralExpressionSyntax slSh
+                                && slSh.Kind() == SyntaxKind.StringLiteralExpression)
+                            {
+                                tableName = slSh.Token.ValueText;
+                            }
+                            else
+                            {
+                                continue;
+                            }
                         }
                         else
                         {
-                            continue;
+                            throw new SqExpressCodeGenException($"Unknown base type kind: '{baseTypeKindTag}'");
                         }
 
                         TableRef tableRef = new TableRef(schema, tableName);
 
-                        yield return new CdPath(classDeclarationSyntax, nodePath.FilePath, tableRef);
+                        yield return new CdPath(tuple.Class, baseTypeKindTag, tableRef);
+                    }
+                    else
+                    {
+                        throw new SqExpressCodeGenException($"Unexpected base type kind: '{baseTypeKindTag}' (with empty base constructor)");
                     }
                 }
             }
         }
 
-
         private readonly struct CdPath
         {
             public readonly ClassDeclarationSyntax ClassDeclaration;
-            public readonly string Path;
-            public readonly TableRef TableRef;
+            public readonly BaseTypeKindTag KindTag;
+            public readonly TableRef? TableRef;
 
-            public CdPath(ClassDeclarationSyntax classDeclaration, string path, TableRef tableRef)
+            public CdPath(ClassDeclarationSyntax classDeclaration, BaseTypeKindTag kindTag, TableRef? tableRef)
             {
                 this.ClassDeclaration = classDeclaration;
-                this.Path = path;
+                this.KindTag = kindTag;
                 this.TableRef = tableRef;
             }
         }
     }
-
 }

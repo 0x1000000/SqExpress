@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Xml;
 using NUnit.Framework;
@@ -49,7 +51,61 @@ namespace SqExpress.Test.Syntax
             }, 0);
 
             Assert.AreEqual(expected, builder.ToString());
+        }
 
+        [Test]
+        [TestCase(true)]
+        [TestCase(false)]
+        public void Descendants_Test(bool self)
+        {
+            var tUser = Tables.User();
+            var tCustomer = Tables.Customer();
+
+            var examples = new List<IExpr>();
+
+            //1
+            IExpr ex = Select(tUser.UserId, tUser.FirstName, tCustomer.CustomerId)
+                .From(tUser)
+                .InnerJoin(tCustomer, on: tCustomer.UserId == tUser.UserId)
+                .Done();
+            examples.Add(ex);
+
+            //2
+            ex = Literal(2);
+            examples.Add(ex);
+
+            //3
+            ex = Literal(2).As(tUser.UserId);
+            examples.Add(ex);
+
+            //4
+            ex = Update(tUser)
+                    .Set(tUser.UserId, "A")
+                    .From(tUser)
+                    .InnerJoin(tCustomer, on: tCustomer.UserId == tUser.UserId)
+                    .Where(tCustomer.UserId.In(1, 3, 5));
+            examples.Add(ex);
+
+            foreach (var e in examples)
+            {
+
+                var set = new List<IExpr>();
+
+                e.SyntaxTree()
+                    .WalkThrough((expr, tier) =>
+                        {
+                            if (tier != 0 || self)
+                            {
+                                set.Add(expr);
+                            }
+
+                            return VisitorResult<int>.Continue(tier + 1);
+                        },
+                        0);
+
+                var list = self ? e.SyntaxTree().DescendantsAndSelf().ToList() : e.SyntaxTree().Descendants().ToList();
+                CollectionAssert.AreEqual(set, list);
+            }
         }
 
         [Test]

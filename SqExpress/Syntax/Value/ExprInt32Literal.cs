@@ -9,7 +9,7 @@
             this.Value = value;
         }
 
-        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        public override TRes Accept<TRes, TArg>(IExprValueVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprInt32Literal(this, arg);
 
         public static implicit operator ExprInt32Literal(int value)

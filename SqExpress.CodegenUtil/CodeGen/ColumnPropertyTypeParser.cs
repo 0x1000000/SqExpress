@@ -10,27 +10,49 @@ namespace SqExpress.CodeGenUtil.CodeGen
             switch (name)
             {
                 case nameof(BooleanTableColumn): return switcher.CaseBooleanTableColumn(arg);
+                case nameof(BooleanCustomColumn): return switcher.CaseBooleanTableColumn(arg);
                 case nameof(NullableBooleanTableColumn): return switcher.CaseNullableBooleanTableColumn(arg);
+                case nameof(NullableBooleanCustomColumn): return switcher.CaseNullableBooleanTableColumn(arg);
                 case nameof(ByteTableColumn): return switcher.CaseByteTableColumn(arg);
+                case nameof(ByteCustomColumn): return switcher.CaseByteTableColumn(arg);
                 case nameof(NullableByteTableColumn): return switcher.CaseNullableByteTableColumn(arg);
+                case nameof(NullableByteCustomColumn): return switcher.CaseNullableByteTableColumn(arg);
                 case nameof(ByteArrayTableColumn): return switcher.CaseByteArrayTableColumn(arg);
+                case nameof(ByteArrayCustomColumn): return switcher.CaseByteArrayTableColumn(arg);
                 case nameof(NullableByteArrayTableColumn): return switcher.CaseNullableByteArrayTableColumn(arg);
+                case nameof(NullableByteArrayCustomColumn): return switcher.CaseNullableByteArrayTableColumn(arg);
                 case nameof(Int16TableColumn): return switcher.CaseInt16TableColumn(arg);
+                case nameof(Int16CustomColumn): return switcher.CaseInt16TableColumn(arg);
                 case nameof(NullableInt16TableColumn): return switcher.CaseNullableInt16TableColumn(arg);
+                case nameof(NullableInt16CustomColumn): return switcher.CaseNullableInt16TableColumn(arg);
                 case nameof(Int32TableColumn): return switcher.CaseInt32TableColumn(arg);
+                case nameof(Int32CustomColumn): return switcher.CaseInt32TableColumn(arg);
                 case nameof(NullableInt32TableColumn): return switcher.CaseNullableInt32TableColumn(arg);
+                case nameof(NullableInt32CustomColumn): return switcher.CaseNullableInt32TableColumn(arg);
                 case nameof(Int64TableColumn): return switcher.CaseInt64TableColumn(arg);
+                case nameof(Int64CustomColumn): return switcher.CaseInt64TableColumn(arg);
                 case nameof(NullableInt64TableColumn): return switcher.CaseNullableInt64TableColumn(arg);
+                case nameof(NullableInt64CustomColumn): return switcher.CaseNullableInt64TableColumn(arg);
                 case nameof(DecimalTableColumn): return switcher.CaseDecimalTableColumn(arg);
+                case nameof(DecimalCustomColumn): return switcher.CaseDecimalTableColumn(arg);
                 case nameof(NullableDecimalTableColumn): return switcher.CaseNullableDecimalTableColumn(arg);
+                case nameof(NullableDecimalCustomColumn): return switcher.CaseNullableDecimalTableColumn(arg);
                 case nameof(DoubleTableColumn): return switcher.CaseDoubleTableColumn(arg);
+                case nameof(DoubleCustomColumn): return switcher.CaseDoubleTableColumn(arg);
                 case nameof(NullableDoubleTableColumn): return switcher.CaseNullableDoubleTableColumn(arg);
+                case nameof(NullableDoubleCustomColumn): return switcher.CaseNullableDoubleTableColumn(arg);
                 case nameof(DateTimeTableColumn): return switcher.CaseDateTimeTableColumn(arg);
+                case nameof(DateTimeCustomColumn): return switcher.CaseDateTimeTableColumn(arg);
                 case nameof(NullableDateTimeTableColumn): return switcher.CaseNullableDateTimeTableColumn(arg);
+                case nameof(NullableDateTimeCustomColumn): return switcher.CaseNullableDateTimeTableColumn(arg);
                 case nameof(GuidTableColumn): return switcher.CaseGuidTableColumn(arg);
+                case nameof(GuidCustomColumn): return switcher.CaseGuidTableColumn(arg);
                 case nameof(NullableGuidTableColumn): return switcher.CaseNullableGuidTableColumn(arg);
+                case nameof(NullableGuidCustomColumn): return switcher.CaseNullableGuidTableColumn(arg);
                 case nameof(StringTableColumn): return switcher.CaseStringTableColumn(arg);
+                case nameof(StringCustomColumn): return switcher.CaseStringTableColumn(arg);
                 case nameof(NullableStringTableColumn): return switcher.CaseNullableStringTableColumn(arg);
+                case nameof(NullableStringCustomColumn): return switcher.CaseNullableStringTableColumn(arg);
             }
 
             return switcher.Default(name);

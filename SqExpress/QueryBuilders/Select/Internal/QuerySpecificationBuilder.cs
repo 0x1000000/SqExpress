@@ -85,8 +85,21 @@ namespace SqExpress.QueryBuilders.Select.Internal
             return this;
         }
 
+        public IQuerySpecificationBuilderFinal GroupBy(IReadOnlyList<ExprColumn> columns)
+        {
+            this._groupBy.AssertFatalNull(nameof(this._groupBy));
+            this._groupBy = columns.AssertNotEmpty("Grouping column list in cannot be empty.");
+            return this;
+        }
+
+        public ISelectBuilder OrderBy(ExprOrderBy orderBy)
+            => this.OrderByInternal(orderBy);
+
         public ISelectBuilder OrderBy(ExprOrderByItem item, params ExprOrderByItem[] rest)
             => this.OrderByInternal(item, rest);
+
+        public ISelectBuilder OrderBy(IReadOnlyList<ExprOrderByItem> orderItems)
+            => this.OrderByInternal(orderItems);
 
         protected override IExprQueryExpression BuildQueryExpression() 
             => this.Done();

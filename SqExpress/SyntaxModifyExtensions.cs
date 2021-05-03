@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using SqExpress.QueryBuilders.Select;
+using SqExpress.Syntax;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Expressions;
@@ -95,6 +96,26 @@ namespace SqExpress
 
         public static ExprQuerySpecification WithSelectList(this ExprQuerySpecification original, SelectingProxy selection, params SelectingProxy[] selections)
             => new ExprQuerySpecification(selectList: Helpers.Combine(selection, selections, SelectingProxy.MapSelectionProxy), top: original.Top, from: original.From, where: original.Where, groupBy: original.GroupBy, distinct: original.Distinct);
+
+        public static ExprSelect AddOrderBy(this IExprSubQuery original, ExprOrderBy orderBy)
+        {
+            orderBy.OrderList.AssertNotEmpty("Order item list cannot be empty");
+            return new ExprSelect(original, orderBy);
+        }
+        
+        public static ExprSelect AddOrderBy(this IExprSubQuery original, IReadOnlyList<ExprOrderByItem> orderItems) 
+            => new ExprSelect(original, new ExprOrderBy(orderItems.AssertNotEmpty("Order item list cannot be empty")));
+
+        public static ExprSelect AddOrderBy(this IExprSubQuery original, ExprOrderByItem orderBy, params ExprOrderByItem[] rest) 
+            => new ExprSelect(original, new ExprOrderBy(Helpers.Combine(orderBy, rest)));
+
+        public static ExprSelectOffsetFetch AddOffsetFetch(this ExprSelect original, int offset, int? fetch)
+            => new ExprSelectOffsetFetch(original.SelectQuery,
+                new ExprOrderByOffsetFetch(original.OrderBy.OrderList,
+                    new ExprOffsetFetch(offset, fetch.HasValue ? new ExprInt32Literal(fetch) : null)));
+
+        public static ExprInsertOutput Output(this ExprInsert exprInsert, ExprAliasedColumnName column, params ExprAliasedColumnName[] columns) 
+            => new ExprInsertOutput(exprInsert, Helpers.Combine(column, columns));
 
         //CodeGenStart
         public static ExprAggregateFunction WithName(this ExprAggregateFunction original, ExprFunctionName newName) 
@@ -421,6 +442,9 @@ namespace SqExpress
         public static ExprLike WithPattern(this ExprLike original, ExprStringLiteral newPattern) 
             => new ExprLike(test: original.Test, pattern: newPattern);
 
+        public static ExprList WithExpressions(this ExprList original, IReadOnlyList<IExprExec> newExpressions) 
+            => new ExprList(expressions: newExpressions);
+
         public static ExprMerge WithTargetTable(this ExprMerge original, ExprTable newTargetTable) 
             => new ExprMerge(targetTable: newTargetTable, source: original.Source, on: original.On, whenMatched: original.WhenMatched, whenNotMatchedByTarget: original.WhenNotMatchedByTarget, whenNotMatchedBySource: original.WhenNotMatchedBySource);
 
@@ -534,6 +558,9 @@ namespace SqExpress
 
         public static ExprQueryExpression WithQueryExpressionType(this ExprQueryExpression original, ExprQueryExpressionType newQueryExpressionType) 
             => new ExprQueryExpression(left: original.Left, right: original.Right, queryExpressionType: newQueryExpressionType);
+
+        public static ExprQueryList WithExpressions(this ExprQueryList original, IReadOnlyList<IExprComplete> newExpressions) 
+            => new ExprQueryList(expressions: newExpressions);
 
         public static ExprQuerySpecification WithSelectList(this ExprQuerySpecification original, IReadOnlyList<IExprSelecting> newSelectList) 
             => new ExprQuerySpecification(selectList: newSelectList, top: original.Top, from: original.From, where: original.Where, groupBy: original.GroupBy, distinct: original.Distinct);

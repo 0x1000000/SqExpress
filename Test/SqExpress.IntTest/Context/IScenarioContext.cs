@@ -13,6 +13,8 @@ namespace SqExpress.IntTest.Context
         void Write(string? line);
 
         void WriteLine(string? line);
+
+        ISqDatabase CreteConnection();
     }
 
     public enum SqlDialect

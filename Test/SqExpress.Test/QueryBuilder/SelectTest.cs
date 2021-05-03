@@ -1,4 +1,8 @@
 ﻿using NUnit.Framework;
+using SqExpress.QueryBuilders.Select;
+using SqExpress.Syntax.Boolean;
+using SqExpress.Syntax.Names;
+using SqExpress.Syntax.Select;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.Test.QueryBuilder
@@ -167,7 +171,7 @@ namespace SqExpress.Test.QueryBuilder
         }
 
         [Test]
-        public void GroupByTest()
+        public void GroupBy_Basic()
         {
             var u = Tables.User(Alias.Empty);
 
@@ -180,9 +184,32 @@ namespace SqExpress.Test.QueryBuilder
             Assert.AreEqual(expected, actual);
         }
 
+        [Test]
+        public void GroupBy_List()
+        {
+            var u = Tables.User(Alias.Empty);
+
+            var actual = Select(u.FirstName, u.LastName, u.Email).From(u).GroupBy(new ExprColumn[]{ u.FirstName, u.LastName, u.Email }).Done().ToSql();
+            var expected = "SELECT [FirstName],[LastName],[Email] FROM [dbo].[user] GROUP BY [FirstName],[LastName],[Email]";
+            Assert.AreEqual(expected, actual);
+        }
 
         [Test]
-        public void OrderBy_basic()
+        public void GroupBy_ListEmpty()
+        {
+            var u = Tables.User(Alias.Empty);
+
+            Assert.Throws<SqExpressException>(() =>
+            {
+                Select(u.FirstName, u.LastName, u.Email)
+                    .From(u)
+                    .GroupBy(new ExprColumn[0]);
+            });
+        }
+
+
+        [Test]
+        public void OrderBy_Basic()
         {
             var u = Tables.User(Alias.Empty);
 
@@ -197,6 +224,34 @@ namespace SqExpress.Test.QueryBuilder
             Assert.AreEqual(expected, actual);
         }
 
+
+        [Test]
+        public void OrderBy_List()
+        {
+            var u = Tables.User(Alias.Empty);
+
+            var actual = Select(u.UserId, u.FirstName)
+                .From(u)
+                .OrderBy(new []{ u.FirstName, Desc(u.LastName) })
+                .Done()
+                .ToSql();
+
+            var expected = "SELECT [UserId],[FirstName] FROM [dbo].[user] ORDER BY [FirstName],[LastName] DESC";
+
+            Assert.AreEqual(expected, actual);
+        }
+
+        [Test]
+        public void OrderBy_ListEmpty()
+        {
+            var u = Tables.User(Alias.Empty);
+            Assert.Throws<SqExpressException>(() =>
+            {
+                Select(u.UserId, u.FirstName).From(u).OrderBy(new ExprOrderByItem[0]);
+            });
+        }
+
+
         [Test]
         public void OrderBy_Join()
         {
@@ -206,7 +261,7 @@ namespace SqExpress.Test.QueryBuilder
             var actual = Select(u.UserId)
                 .From(u)
                 .InnerJoin(u2, @on: u.UserId == u2.UserId)
-                .OrderBy(u.FirstName)
+                .OrderBy((ExprOrderBy)u.FirstName)
                 .Done()
                 .ToSql();
 
@@ -222,7 +277,7 @@ namespace SqExpress.Test.QueryBuilder
             var u2 = Tables.User();
 
             var actual = Select(u.UserId).From(u).UnionAll(Select(u2.UserId).From(u2))
-                .OrderBy(u.UserId)
+                .OrderBy((ExprOrderBy)u.UserId)
                 .Done()
                 .ToSql();
 
@@ -260,6 +315,23 @@ namespace SqExpress.Test.QueryBuilder
                 .ToSql();
 
             var expected = "SELECT [UserId],[FirstName] FROM [dbo].[user] ORDER BY [FirstName],[LastName] DESC OFFSET 5 ROW FETCH NEXT 50 ROW ONLY";
+
+            Assert.AreEqual(expected, actual);
+        }
+
+        [Test]
+        public void OrderBy_OffsetFetch2()
+        {
+            var u = Tables.User(Alias.Empty);
+
+            var actual = Select(u.UserId, u.FirstName)
+                .From(u)
+                .OrderBy((ExprOrderBy)u.FirstName)
+                .OffsetFetch(5, 50)
+                .Done()
+                .ToSql();
+
+            var expected = "SELECT [UserId],[FirstName] FROM [dbo].[user] ORDER BY [FirstName] OFFSET 5 ROW FETCH NEXT 50 ROW ONLY";
 
             Assert.AreEqual(expected, actual);
         }
@@ -310,5 +382,86 @@ namespace SqExpress.Test.QueryBuilder
             actual = expr.ToPgSql();
             Assert.AreEqual("SELECT \"A0\".\"UserId\",COUNT(1)OVER() FROM \"public\".\"user\" \"A0\" EXCEPT (SELECT \"A1\".\"UserId\",COUNT(1)OVER() FROM \"public\".\"user\" \"A1\" LIMIT 7)", actual);
         }
+
+
+        [Test]
+        public void JoinAsAnd_4()
+        {
+            var t = Tables.User();
+
+            var op = t.UserId == 1 & t.UserId == 2 & t.UserId == 3 & t.UserId == 4;
+
+            var join = new ExprBoolean[] {t.UserId == 1, t.UserId == 2, t.UserId == 3, t.UserId == 4 }.JoinAsAnd();
+
+            Assert.AreEqual(op.ToSql(), join.ToSql());
+        }
+
+        [Test]
+        public void JoinAsAnd_2()
+        {
+            var t = Tables.User();
+
+            var op = t.UserId == 1 & t.UserId == 2;
+
+            var join = new ExprBoolean[] {t.UserId == 1, t.UserId == 2}.JoinAsAnd();
+
+            Assert.AreEqual(op.ToSql(), join.ToSql());
+        }
+
+        [Test]
+        public void JoinAsAnd_1()
+        {
+            var t = Tables.User();
+
+            var op = t.UserId == 1;
+
+            var join = new ExprBoolean[] {t.UserId == 1}.JoinAsAnd();
+
+            Assert.AreEqual(op.ToSql(), join.ToSql());
+        }
+
+        [Test]
+        public void JoinAsOr_4()
+        {
+            var t = Tables.User();
+
+            var op = t.UserId == 1 | t.UserId == 2 | t.UserId == 3 | t.UserId == 4;
+
+            var join = new ExprBoolean[] {t.UserId == 1, t.UserId == 2, t.UserId == 3, t.UserId == 4 }.JoinAsOr();
+
+            Assert.AreEqual(op.ToSql(), join.ToSql());
+        }
+
+        [Test]
+        public void JoinAsOr_2()
+        {
+            var t = Tables.User();
+
+            var op = t.UserId == 1 | t.UserId == 2;
+
+            var join = new ExprBoolean[] {t.UserId == 1, t.UserId == 2}.JoinAsOr();
+
+            Assert.AreEqual(op.ToSql(), join.ToSql());
+        }
+
+        [Test]
+        public void JoinAsOr_1()
+        {
+            var t = Tables.User();
+
+            var op = t.UserId == 1;
+
+            var join = new ExprBoolean[] {t.UserId == 1}.JoinAsOr();
+
+            Assert.AreEqual(op.ToSql(), join.ToSql());
+        }
+
+        [Test]
+        public void JoinAs_Empty()
+        {
+            Assert.Throws<SqExpressException>(() => new ExprBoolean[0].JoinAsOr());
+            Assert.Throws<SqExpressException>(() => new ExprBoolean[0].JoinAsAnd());
+        }
+
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text;
 using SqExpress.SqlExport.Internal;
 using SqExpress.StatementSyntax;
 using SqExpress.Syntax.Names;
@@ -10,7 +11,7 @@ namespace SqExpress.SqlExport.Statement.Internal
     {
         private readonly PgSqlBuilder _exprBuilder;
 
-        public PgSqlStatementBuilder(SqlBuilderOptions? options) : base(options)
+        public PgSqlStatementBuilder(SqlBuilderOptions? options, StringBuilder? externalBuilder) : base(options, externalBuilder)
         {
             this._exprBuilder = new PgSqlBuilder(this.Options, this.Builder);
         }
@@ -96,6 +97,8 @@ namespace SqExpress.SqlExport.Statement.Internal
                 this.Builder.Append(";");
             }
         }
+
+        protected override bool IsNamedPk() => true;
 
         public override void VisitCreateTable(StatementCreateTable statementCreateTable)
         {

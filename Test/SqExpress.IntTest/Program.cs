@@ -24,6 +24,7 @@ namespace SqExpress.IntTest
                     .Then(new ScDeleteCustomersByTopUser())
                     .Then(new ScInsertCompanies())
                     .Then(new ScUpdateUsers())
+                    .Then(new ScUpdateUserData())
                     .Then(new ScAllColumnTypes())
                     .Then(new ScSelectLogic())
                     .Then(new ScSelectTop())
@@ -31,7 +32,9 @@ namespace SqExpress.IntTest
                     .Then(new ScTempTables())
                     .Then(new ScCreateOrders())
                     .Then(new ScAnalyticFunctionsOrders())
-                    .Then(new ScTransactions())
+                    .Then(new ScTransactions(false))
+                    .Then(new ScTransactions(true))
+                    .Then(new ScMerge())
                     ;
 
                 await ExecScenarioAll(
@@ -78,35 +81,42 @@ namespace SqExpress.IntTest
 
         private static async Task ExecMsSql(IScenario scenario, string connectionString)
         {
-            var connection = new SqlConnection(connectionString);
-            using var database = new SqDatabase<SqlConnection>(
-                connection,
-                (conn, sql) => new SqlCommand(sql, conn),
-                TSqlExporter.Default,
-                disposeConnection: true);
-            await scenario.Exec(new ScenarioContext(database, SqlDialect.TSql));
+            ISqDatabase Factory() =>
+                new SqDatabase<SqlConnection>(new SqlConnection(connectionString),
+                    (conn, sql) => new SqlCommand(sql, conn),
+                    TSqlExporter.Default,
+                    disposeConnection: true);
+
+            using var database = Factory();
+
+            await scenario.Exec(new ScenarioContext(database, SqlDialect.TSql, Factory));
         }
 
         private static async Task ExecNpgSql(IScenario scenario, string connectionString)
         {
-            var connection = new NpgsqlConnection(connectionString);
-            using var database = new SqDatabase<NpgsqlConnection>(
-                connection,
-                (conn, sql) => new NpgsqlCommand(sql, conn),
-                new PgSqlExporter(SqlBuilderOptions.Default.WithSchemaMap(new[] {new SchemaMap("dbo", "public")})),
-                disposeConnection: true);
-            await scenario.Exec(new ScenarioContext(database, SqlDialect.PgSql));
+            ISqDatabase Factory() =>
+                new SqDatabase<NpgsqlConnection>(
+                    new NpgsqlConnection(connectionString),
+                    (conn, sql) => new NpgsqlCommand(sql, conn),
+                    new PgSqlExporter(SqlBuilderOptions.Default.WithSchemaMap(new[] { new SchemaMap("dbo", "public") })),
+                    disposeConnection: true);
+
+            using var database = Factory();
+
+            await scenario.Exec(new ScenarioContext(database, SqlDialect.PgSql, Factory));
         }
 
         private static async Task ExecMySql(IScenario scenario, string connectionString)
         {
-            var connection = new MySqlConnection(connectionString);
-            using var database = new SqDatabase<MySqlConnection>(
-                connection,
-                (conn, sql) => new MySqlCommand(sql, conn),
-                new MySqlExporter(SqlBuilderOptions.Default),
-                disposeConnection: true);
-            await scenario.Exec(new ScenarioContext(database, SqlDialect.MySql));
+            ISqDatabase Factory() =>
+                new SqDatabase<MySqlConnection>(
+                    new MySqlConnection(connectionString),
+                    (conn, sql) => new MySqlCommand(sql, conn),
+                    new MySqlExporter(SqlBuilderOptions.Default),
+                    disposeConnection: true);
+
+            using var database = Factory();
+            await scenario.Exec(new ScenarioContext(database, SqlDialect.MySql, Factory));
         }
     }
 }

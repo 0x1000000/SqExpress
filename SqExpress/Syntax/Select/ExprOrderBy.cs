@@ -15,6 +15,12 @@ namespace SqExpress.Syntax.Select
 
         public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprOrderBy(this, arg);
+
+        public static implicit operator ExprOrderBy(ExprOrderByItem item) 
+            => new ExprOrderBy(new []{item});
+
+        public static implicit operator ExprOrderBy(ExprValue item) 
+            => new ExprOrderBy(new []{new ExprOrderByItem(item, false)});
     }
 
     public class ExprOrderByOffsetFetch : IExpr

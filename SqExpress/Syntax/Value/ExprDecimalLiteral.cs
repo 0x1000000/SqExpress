@@ -9,7 +9,7 @@
             this.Value = value;
         }
 
-        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        public override TRes Accept<TRes, TArg>(IExprValueVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprDecimalLiteral(this, arg);
 
         public static implicit operator ExprDecimalLiteral(decimal value)

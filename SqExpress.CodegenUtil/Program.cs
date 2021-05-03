@@ -9,7 +9,6 @@ using SqExpress.CodeGenUtil.CodeGen;
 using SqExpress.CodeGenUtil.DbManagers;
 using SqExpress.CodeGenUtil.Logger;
 using SqExpress.CodeGenUtil.Model;
-using SqExpress.CodeGenUtil.Model.SqModel;
 
 namespace SqExpress.CodeGenUtil
 {
@@ -80,7 +79,7 @@ namespace SqExpress.CodeGenUtil
                 throw new SqExpressCodeGenException("Connection string cannot be empty");
             }
             logger.LogNormal("Checking existing code...");
-            IReadOnlyDictionary<TableRef, ClassDeclarationSyntax> existingCode = ExistingCodeExplorer.FindTableDescriptors(directory);
+            IReadOnlyDictionary<TableRef, ClassDeclarationSyntax> existingCode = ExistingCodeExplorer.FindTableDescriptors(directory, DefaultFileSystem.Instance);
             if(logger.IsNormalOrHigher) logger.LogNormal(existingCode.Count > 0
                 ? $"Found {existingCode.Count} already existing table descriptor classes."
                 : "No table descriptor classes found.");
@@ -139,7 +138,7 @@ namespace SqExpress.CodeGenUtil
 
             if (logger.IsDetailed) logger.LogDetailed($"AllTables to \"{allTablePath}\".");
 
-            await File.WriteAllTextAsync(allTablePath, TableListClassGenerator.Generate(allTablePath, tables, options.Namespace, options.TableClassPrefix).ToFullString());
+            await File.WriteAllTextAsync(allTablePath, TableListClassGenerator.Generate(allTablePath, tables, options.Namespace, options.TableClassPrefix, DefaultFileSystem.Instance).ToFullString());
 
             logger.LogMinimal("Table proxy classes generation successfully completed!");
         }
@@ -154,7 +153,7 @@ namespace SqExpress.CodeGenUtil
             string outDirectory = EnsureDirectory(options.OutputDir, logger, "Output", true);
 
             var analysis = ExistingCodeExplorer
-                .EnumerateTableDescriptorsModelAttributes(inDirectory)
+                .EnumerateTableDescriptorsModelAttributes(inDirectory, DefaultFileSystem.Instance)
                 .ParseAttribute(options.NullRefTypes)
                 .CreateAnalysis();
 
@@ -191,7 +190,7 @@ namespace SqExpress.CodeGenUtil
             {
                 string path = Path.Combine(outDirectory, $"{meta.Name}.cs");
                 if (logger.IsDetailed) logger.LogDetailed(path);
-                await File.WriteAllTextAsync(path, ModelClassGenerator.Generate(meta, options.Namespace, path, out var existing).ToFullString());
+                await File.WriteAllTextAsync(path, ModelClassGenerator.Generate(meta, options.Namespace, path, options.RwClasses, DefaultFileSystem.Instance, out var existing).ToFullString());
                 if (logger.IsDetailed) logger.LogDetailed(existing ? "Existing file updated." : "New file created.");
             }
 

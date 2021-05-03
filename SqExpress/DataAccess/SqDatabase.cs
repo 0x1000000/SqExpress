@@ -13,7 +13,11 @@ namespace SqExpress.DataAccess
     {
         ISqTransaction BeginTransaction();
 
+        ISqTransaction BeginTransactionOrUseExisting(out bool isNewTransaction);
+
         ISqTransaction BeginTransaction(IsolationLevel isolationLevel);
+
+        ISqTransaction BeginTransactionOrUseExisting(IsolationLevel isolationLevel, out bool isNewTransaction);
 
         Task<TAgg> Query<TAgg>(IExprQuery query, TAgg seed, Func<TAgg, ISqDataRecordReader, TAgg> aggregator);
 
@@ -60,6 +64,9 @@ namespace SqExpress.DataAccess
 
         public ISqTransaction BeginTransaction() => this.BeginTransaction(IsolationLevel.Unspecified);
 
+        public ISqTransaction BeginTransactionOrUseExisting(out bool isNewTransaction)
+            => BeginTransactionOrUseExisting(IsolationLevel.Unspecified, out isNewTransaction);
+
         public ISqTransaction BeginTransaction(IsolationLevel isolationLevel)
         {
             this.CheckDisposed();
@@ -69,8 +76,22 @@ namespace SqExpress.DataAccess
                 {
                     throw new SqExpressException("There is an already running transaction associated with this connection");
                 }
-                this._currentTransaction = new SqTransaction(this, this._connection.BeginTransaction(isolationLevel));
+                this._currentTransaction = new SqTransaction(this, isolationLevel);
                 return this._currentTransaction;
+            }
+        }
+
+        public ISqTransaction BeginTransactionOrUseExisting(IsolationLevel isolationLevel, out bool isNewTransaction)
+        {
+            lock (this._tranSync)
+            {
+                if (this._currentTransaction != null)
+                {
+                    isNewTransaction = false;
+                    return new SqTransactionProxy(this);
+                }
+                isNewTransaction = true;
+                return this.BeginTransaction(isolationLevel);
             }
         }
 
@@ -171,7 +192,7 @@ namespace SqExpress.DataAccess
                 {
                     if (this._currentTransaction != null)
                     {
-                        this._currentTransaction.DbTransaction.Dispose();
+                        this._currentTransaction.DbTransaction?.Dispose();
                         this._currentTransaction = null;
                     }
                 }
@@ -214,7 +235,7 @@ namespace SqExpress.DataAccess
 
                 if (this._currentTransaction != null)
                 {
-                    command.Transaction = this._currentTransaction.DbTransaction;
+                    command.Transaction = this._currentTransaction.StartTransactionIfNecessary();
                 }
             }
 
@@ -238,7 +259,7 @@ namespace SqExpress.DataAccess
                 {
                     throw new SqExpressException("Could not find any running transaction associated with this connection");
                 }
-                this._currentTransaction.DbTransaction.Dispose();
+                this._currentTransaction.DbTransaction?.Dispose();
                 this._currentTransaction = null;
             }
         }
@@ -247,27 +268,77 @@ namespace SqExpress.DataAccess
         {
             private readonly SqDatabase<TConnection> _host;
 
-            public readonly DbTransaction DbTransaction;
+            private readonly IsolationLevel _isolationLevel;
 
-            public SqTransaction(SqDatabase<TConnection> host, DbTransaction dbTransaction)
+            public DbTransaction? DbTransaction;
+
+            public SqTransaction(SqDatabase<TConnection> host, IsolationLevel isolationLevel)
             {
                 this._host = host;
-                this.DbTransaction = dbTransaction;
+                this._isolationLevel = isolationLevel;
+            }
+
+            public DbTransaction StartTransactionIfNecessary()
+            {
+                //This method is thread safe since it is called under lock
+                return this.DbTransaction ??= this._host._connection.BeginTransaction(this._isolationLevel);
             }
 
             public void Commit()
             {
+                if (this.DbTransaction == null)
+                {
+                    throw new SqExpressException("Could not commit not started transaction");
+                }
                 this.DbTransaction.Commit();
             }
 
             public void Rollback()
             {
+                if (this.DbTransaction == null)
+                {
+                    throw new SqExpressException("Could not rollback not started transaction");
+                }
                 this.DbTransaction.Rollback();
             }
 
             public void Dispose()
             {
                 this._host.ReleaseTransaction();
+            }
+        }
+
+        private class SqTransactionProxy : ISqTransaction
+        {
+            private readonly SqDatabase<TConnection> _host;
+
+            public SqTransactionProxy(SqDatabase<TConnection> host)
+            {
+                this._host = host;
+            }
+
+            public void Dispose()
+            {
+                if (this._host._currentTransaction == null)
+                {
+                    throw new SqExpressException("Could not dispose already disposed transaction");
+                }
+            }
+
+            public void Commit()
+            {
+                if (this._host._currentTransaction == null)
+                {
+                    throw new SqExpressException("Could not commit already disposed transaction");
+                }
+            }
+
+            public void Rollback()
+            {
+                if (this._host._currentTransaction == null)
+                {
+                    throw new SqExpressException("Could not rollback already disposed transaction");
+                }
             }
         }
     }

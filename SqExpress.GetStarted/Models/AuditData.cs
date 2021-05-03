@@ -27,6 +27,16 @@ namespace SqExpress.GetStarted.Models
 
         public DateTime ModifiedAt { get; }
 
+        public AuditData WithVersion(int version)
+        {
+            return new AuditData(version: version, modifiedAt: this.ModifiedAt);
+        }
+
+        public AuditData WithModifiedAt(DateTime modifiedAt)
+        {
+            return new AuditData(version: this.Version, modifiedAt: modifiedAt);
+        }
+
         public static TableColumn[] GetColumns(TableCompany table)
         {
             return new TableColumn[]{table.Version, table.ModifiedAt};
@@ -42,14 +52,9 @@ namespace SqExpress.GetStarted.Models
             return s.Set(s.Target.Version, s.Source.Version).Set(s.Target.ModifiedAt, s.Source.ModifiedAt);
         }
 
-        public AuditData WithVersion(int version)
+        public static IRecordSetterNext GetMapping(IDataMapSetter<TableUser, AuditData> s)
         {
-            return new AuditData(version: version, modifiedAt: this.ModifiedAt);
-        }
-
-        public AuditData WithModifiedAt(DateTime modifiedAt)
-        {
-            return new AuditData(version: this.Version, modifiedAt: modifiedAt);
+            return s.Set(s.Target.Version, s.Source.Version).Set(s.Target.ModifiedAt, s.Source.ModifiedAt);
         }
     }
 }

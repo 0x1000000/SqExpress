@@ -5,12 +5,13 @@ namespace SqExpress.CodeGenUtil
     [Verb("genmodels", HelpText = "Generate model classes.")]
     public class GenModelsOptions
     {
-        public GenModelsOptions(string inputDir, string outputDir, string @namespace, Verbosity verbosity, bool nullRefTypes)
+        public GenModelsOptions(string inputDir, string outputDir, string @namespace, Verbosity verbosity, bool rwClasses, bool nullRefTypes)
         {
             this.InputDir = inputDir;
             this.OutputDir = outputDir;
             this.Namespace = @namespace;
             this.Verbosity = verbosity;
+            this.RwClasses = rwClasses;
             this.NullRefTypes = nullRefTypes;
         }
 
@@ -26,7 +27,10 @@ namespace SqExpress.CodeGenUtil
         [Option('v',"verbosity", Required = false, Default = Verbosity.Minimal, HelpText = "Allowed values are quiet, minimal, normal, detailed, and diagnostic. The default is minimal")]
         public Verbosity Verbosity { get; }
 
-        [Option("null-ref-types", Required = false, Default = false, HelpText = "Add \"?\" for nullable reference types.")]
+        [Option("rw-classes", Required = false, Default = false, HelpText = "Adds Reader and Writer class instances to generated models")]
+        public bool RwClasses { get; }
+
+        [Option("null-ref-types", Required = false, Default = false, HelpText = "Adds \"?\" for nullable reference types.")]
         public bool NullRefTypes { get; }
     }
 }

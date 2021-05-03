@@ -5,10 +5,13 @@ namespace SqExpress.IntTest.Context
 {
     public class ScenarioContext : IScenarioContext
     {
-        public ScenarioContext(ISqDatabase database, SqlDialect dialect)
+        private readonly Func<ISqDatabase> _dbFactory;
+
+        public ScenarioContext(ISqDatabase database, SqlDialect dialect, Func<ISqDatabase> dbFactory)
         {
             this.Database = database;
             this.Dialect = dialect;
+            this._dbFactory = dbFactory;
         }
 
         public ISqDatabase Database { get; }
@@ -23,6 +26,11 @@ namespace SqExpress.IntTest.Context
         public void WriteLine(string? line)
         {
             Console.WriteLine(line);
+        }
+
+        public ISqDatabase CreteConnection()
+        {
+            return this._dbFactory();
         }
     }
 }

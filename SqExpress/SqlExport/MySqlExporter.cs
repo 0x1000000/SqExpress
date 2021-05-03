@@ -29,7 +29,7 @@ namespace SqExpress.SqlExport
 
         public string ToSql(IStatement statement)
         {
-            var builder = new MySqlStatementBuilder(this._builderOptions);
+            var builder = new MySqlStatementBuilder(this._builderOptions, null);
             statement.Accept(builder);
             return builder.Build();
         }

@@ -24,6 +24,12 @@ namespace SqExpress.QueryBuilders.Update
             return new UpdateBuilderSetter(this._target, this._sets);
         }
 
+        internal UpdateBuilderSetter Set(IReadOnlyList<ExprColumnSetClause> sets)
+        {
+            this._sets.AddRange(sets);
+            return new UpdateBuilderSetter(this._target, this._sets);
+        }
+
         public UpdateBuilderSetter Set(ExprColumn col, int? value) => this.Set(col, SqQueryBuilder.Literal(value));
         public UpdateBuilderSetter Set(ExprColumn col, int value) => this.Set(col, SqQueryBuilder.Literal(value));
         public UpdateBuilderSetter Set(ExprColumn col, string value) => this.Set(col, SqQueryBuilder.Literal(value));

@@ -133,7 +133,6 @@ namespace SqExpress.CodeGenUtil.CodeGen
         public static SyntaxTokenList Modifiers(SyntaxKind token1, SyntaxKind token2) => SyntaxFactory.TokenList(SyntaxFactory.Token(token1), SyntaxFactory.Token(token2));
         public static SyntaxTokenList Modifiers(SyntaxKind token1, SyntaxKind token2, SyntaxKind token3) => SyntaxFactory.TokenList(SyntaxFactory.Token(token1), SyntaxFactory.Token(token2), SyntaxFactory.Token(token3));
 
-
         public static T? FindParentOrDefault<T>(this SyntaxNode node) where T : SyntaxNode
         {
             SyntaxNode? parent = node.Parent;
@@ -147,6 +146,24 @@ namespace SqExpress.CodeGenUtil.CodeGen
             }
 
             return null;
+        }
+
+        public static BaseTypeKindTag? GetTableClassKind(ClassDeclarationSyntax cd)
+        {
+            return cd.BaseList?.DescendantNodesAndSelf()
+                .OfType<BaseTypeSyntax>()
+                .Select(b =>
+                {
+                    var baseTypeName = b.Type.ToString();
+                    switch (baseTypeName)
+                    {
+                        case nameof(TableBase): return (BaseTypeKindTag?)BaseTypeKindTag.TableBase;
+                        case nameof(TempTableBase): return BaseTypeKindTag.TempTableBase;
+                        case nameof(DerivedTableBase): return BaseTypeKindTag.DerivedTableBase;
+                        default: return null;
+                    }
+                })
+                .FirstOrDefault();
         }
     }
 }

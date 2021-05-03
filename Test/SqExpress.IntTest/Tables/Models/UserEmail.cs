@@ -22,6 +22,16 @@ namespace SqExpress.IntTest.Tables.Models
         [JsonPropertyName("email")]
         public string Email { get; }
 
+        public UserEmail WithId(EntUser id)
+        {
+            return new UserEmail(id: id, email: this.Email);
+        }
+
+        public UserEmail WithEmail(string email)
+        {
+            return new UserEmail(id: this.Id, email: email);
+        }
+
         public static TableColumn[] GetColumns(TableItUser table)
         {
             return new TableColumn[]{table.UserId, table.Email};
@@ -42,14 +52,47 @@ namespace SqExpress.IntTest.Tables.Models
             return s.Set(s.Target.Email, s.Source.Email);
         }
 
-        public UserEmail WithId(EntUser id)
+        public static ISqModelReader<UserEmail, TableItUser> GetReader()
         {
-            return new UserEmail(id: id, email: this.Email);
+            return UserEmailReader.Instance;
         }
 
-        public UserEmail WithEmail(string email)
+        private class UserEmailReader : ISqModelReader<UserEmail, TableItUser>
         {
-            return new UserEmail(id: this.Id, email: email);
+            public static UserEmailReader Instance { get; } = new UserEmailReader();
+            TableColumn[] ISqModelReader<UserEmail, TableItUser>.GetColumns(TableItUser table)
+            {
+                return UserEmail.GetColumns(table);
+            }
+
+            UserEmail ISqModelReader<UserEmail, TableItUser>.Read(ISqDataRecordReader record, TableItUser table)
+            {
+                return UserEmail.Read(record, table);
+            }
+        }
+
+        public static ISqModelUpdaterKey<UserEmail, TableItUser> GetUpdater()
+        {
+            return UserEmailUpdater.Instance;
+        }
+
+        private class UserEmailUpdater : ISqModelUpdaterKey<UserEmail, TableItUser>
+        {
+            public static UserEmailUpdater Instance { get; } = new UserEmailUpdater();
+            IRecordSetterNext ISqModelUpdater<UserEmail, TableItUser>.GetMapping(IDataMapSetter<TableItUser, UserEmail> dataMapSetter)
+            {
+                return UserEmail.GetMapping(dataMapSetter);
+            }
+
+            IRecordSetterNext ISqModelUpdaterKey<UserEmail, TableItUser>.GetUpdateKeyMapping(IDataMapSetter<TableItUser, UserEmail> dataMapSetter)
+            {
+                return UserEmail.GetUpdateKeyMapping(dataMapSetter);
+            }
+
+            IRecordSetterNext ISqModelUpdaterKey<UserEmail, TableItUser>.GetUpdateMapping(IDataMapSetter<TableItUser, UserEmail> dataMapSetter)
+            {
+                return UserEmail.GetUpdateMapping(dataMapSetter);
+            }
         }
     }
 }

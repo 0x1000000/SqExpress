@@ -7,7 +7,6 @@ namespace SqExpress
         public TempTableBase(string name, Alias alias = default) 
             : base(new ExprTempTableName(name), BuildTableAlias(alias) )
         {
-
         }
     }
 }

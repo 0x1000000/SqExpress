@@ -22,6 +22,16 @@ namespace SqExpress.IntTest.Tables.Models
 
         public string Name { get; }
 
+        public CompanyName WithId(int id)
+        {
+            return new CompanyName(id: id, name: this.Name);
+        }
+
+        public CompanyName WithName(string name)
+        {
+            return new CompanyName(id: this.Id, name: name);
+        }
+
         public static TableColumn[] GetColumns(TableItCompany table)
         {
             return new TableColumn[]{table.CompanyId, table.CompanyName};
@@ -42,14 +52,47 @@ namespace SqExpress.IntTest.Tables.Models
             return s.Set(s.Target.CompanyName, s.Source.Name);
         }
 
-        public CompanyName WithId(int id)
+        public static ISqModelReader<CompanyName, TableItCompany> GetReader()
         {
-            return new CompanyName(id: id, name: this.Name);
+            return CompanyNameReader.Instance;
         }
 
-        public CompanyName WithName(string name)
+        private class CompanyNameReader : ISqModelReader<CompanyName, TableItCompany>
         {
-            return new CompanyName(id: this.Id, name: name);
+            public static CompanyNameReader Instance { get; } = new CompanyNameReader();
+            TableColumn[] ISqModelReader<CompanyName, TableItCompany>.GetColumns(TableItCompany table)
+            {
+                return CompanyName.GetColumns(table);
+            }
+
+            CompanyName ISqModelReader<CompanyName, TableItCompany>.Read(ISqDataRecordReader record, TableItCompany table)
+            {
+                return CompanyName.Read(record, table);
+            }
+        }
+
+        public static ISqModelUpdaterKey<CompanyName, TableItCompany> GetUpdater()
+        {
+            return CompanyNameUpdater.Instance;
+        }
+
+        private class CompanyNameUpdater : ISqModelUpdaterKey<CompanyName, TableItCompany>
+        {
+            public static CompanyNameUpdater Instance { get; } = new CompanyNameUpdater();
+            IRecordSetterNext ISqModelUpdater<CompanyName, TableItCompany>.GetMapping(IDataMapSetter<TableItCompany, CompanyName> dataMapSetter)
+            {
+                return CompanyName.GetMapping(dataMapSetter);
+            }
+
+            IRecordSetterNext ISqModelUpdaterKey<CompanyName, TableItCompany>.GetUpdateKeyMapping(IDataMapSetter<TableItCompany, CompanyName> dataMapSetter)
+            {
+                return CompanyName.GetUpdateKeyMapping(dataMapSetter);
+            }
+
+            IRecordSetterNext ISqModelUpdaterKey<CompanyName, TableItCompany>.GetUpdateMapping(IDataMapSetter<TableItCompany, CompanyName> dataMapSetter)
+            {
+                return CompanyName.GetUpdateMapping(dataMapSetter);
+            }
         }
     }
 }

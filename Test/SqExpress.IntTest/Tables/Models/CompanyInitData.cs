@@ -25,6 +25,21 @@ namespace SqExpress.IntTest.Tables.Models
 
         public string Name { get; }
 
+        public CompanyInitData WithId(int id)
+        {
+            return new CompanyInitData(id: id, externalId: this.ExternalId, name: this.Name);
+        }
+
+        public CompanyInitData WithExternalId(Guid externalId)
+        {
+            return new CompanyInitData(id: this.Id, externalId: externalId, name: this.Name);
+        }
+
+        public CompanyInitData WithName(string name)
+        {
+            return new CompanyInitData(id: this.Id, externalId: this.ExternalId, name: name);
+        }
+
         public static TableColumn[] GetColumns(TableItCompany table)
         {
             return new TableColumn[]{table.CompanyId, table.ExternalId, table.CompanyName};
@@ -45,19 +60,47 @@ namespace SqExpress.IntTest.Tables.Models
             return s.Set(s.Target.ExternalId, s.Source.ExternalId).Set(s.Target.CompanyName, s.Source.Name);
         }
 
-        public CompanyInitData WithId(int id)
+        public static ISqModelReader<CompanyInitData, TableItCompany> GetReader()
         {
-            return new CompanyInitData(id: id, externalId: this.ExternalId, name: this.Name);
+            return CompanyInitDataReader.Instance;
         }
 
-        public CompanyInitData WithExternalId(Guid externalId)
+        private class CompanyInitDataReader : ISqModelReader<CompanyInitData, TableItCompany>
         {
-            return new CompanyInitData(id: this.Id, externalId: externalId, name: this.Name);
+            public static CompanyInitDataReader Instance { get; } = new CompanyInitDataReader();
+            TableColumn[] ISqModelReader<CompanyInitData, TableItCompany>.GetColumns(TableItCompany table)
+            {
+                return CompanyInitData.GetColumns(table);
+            }
+
+            CompanyInitData ISqModelReader<CompanyInitData, TableItCompany>.Read(ISqDataRecordReader record, TableItCompany table)
+            {
+                return CompanyInitData.Read(record, table);
+            }
         }
 
-        public CompanyInitData WithName(string name)
+        public static ISqModelUpdaterKey<CompanyInitData, TableItCompany> GetUpdater()
         {
-            return new CompanyInitData(id: this.Id, externalId: this.ExternalId, name: name);
+            return CompanyInitDataUpdater.Instance;
+        }
+
+        private class CompanyInitDataUpdater : ISqModelUpdaterKey<CompanyInitData, TableItCompany>
+        {
+            public static CompanyInitDataUpdater Instance { get; } = new CompanyInitDataUpdater();
+            IRecordSetterNext ISqModelUpdater<CompanyInitData, TableItCompany>.GetMapping(IDataMapSetter<TableItCompany, CompanyInitData> dataMapSetter)
+            {
+                return CompanyInitData.GetMapping(dataMapSetter);
+            }
+
+            IRecordSetterNext ISqModelUpdaterKey<CompanyInitData, TableItCompany>.GetUpdateKeyMapping(IDataMapSetter<TableItCompany, CompanyInitData> dataMapSetter)
+            {
+                return CompanyInitData.GetUpdateKeyMapping(dataMapSetter);
+            }
+
+            IRecordSetterNext ISqModelUpdaterKey<CompanyInitData, TableItCompany>.GetUpdateMapping(IDataMapSetter<TableItCompany, CompanyInitData> dataMapSetter)
+            {
+                return CompanyInitData.GetUpdateMapping(dataMapSetter);
+            }
         }
     }
 }

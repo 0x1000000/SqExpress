@@ -7,7 +7,7 @@ namespace SqExpress.QueryBuilders.RecordSetter.Internal
 {
     internal abstract class RecordSetterBase<TNext> : IRecordSetter<TNext>
     {
-        protected abstract TNext SetGeneric(ExprColumnName column, ExprLiteral value);
+        protected abstract TNext SetGeneric(ExprColumn column, ExprLiteral value);
 
         public TNext Set(BooleanTableColumn column, bool value)
         {

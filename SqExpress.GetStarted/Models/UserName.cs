@@ -25,6 +25,21 @@ namespace SqExpress.GetStarted.Models
 
         public string LastName { get; }
 
+        public UserName WithId(int id)
+        {
+            return new UserName(id: id, firstName: this.FirstName, lastName: this.LastName);
+        }
+
+        public UserName WithFirstName(string firstName)
+        {
+            return new UserName(id: this.Id, firstName: firstName, lastName: this.LastName);
+        }
+
+        public UserName WithLastName(string lastName)
+        {
+            return new UserName(id: this.Id, firstName: this.FirstName, lastName: lastName);
+        }
+
         public static TableColumn[] GetColumns(TableUser table)
         {
             return new TableColumn[]{table.UserId, table.FirstName, table.LastName};
@@ -43,21 +58,6 @@ namespace SqExpress.GetStarted.Models
         public static IRecordSetterNext GetUpdateMapping(IDataMapSetter<TableUser, UserName> s)
         {
             return s.Set(s.Target.FirstName, s.Source.FirstName).Set(s.Target.LastName, s.Source.LastName);
-        }
-
-        public UserName WithId(int id)
-        {
-            return new UserName(id: id, firstName: this.FirstName, lastName: this.LastName);
-        }
-
-        public UserName WithFirstName(string firstName)
-        {
-            return new UserName(id: this.Id, firstName: firstName, lastName: this.LastName);
-        }
-
-        public UserName WithLastName(string lastName)
-        {
-            return new UserName(id: this.Id, firstName: this.FirstName, lastName: lastName);
         }
     }
 }

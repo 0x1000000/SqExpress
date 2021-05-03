@@ -11,7 +11,7 @@ namespace SqExpress.Syntax.Value
 
         public DateTime? Value { get; }
 
-        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        public override TRes Accept<TRes, TArg>(IExprValueVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprDateTimeLiteral(this, arg);
 
         public static implicit operator ExprDateTimeLiteral(DateTime value)

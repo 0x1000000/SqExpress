@@ -22,5 +22,10 @@ namespace SqExpress.QueryBuilders.Insert
         {
             return new ExprInsert(this._table.FullName, this._columns, new ExprInsertQuery(query));
         }
+
+        public ExprInsert Values(ExprInsertValues values)
+        {
+            return new ExprInsert(this._table.FullName, this._columns, values);
+        }
     }
 }

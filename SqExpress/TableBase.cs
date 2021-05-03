@@ -37,6 +37,11 @@ namespace SqExpress
 
         public TableBaseScript Script => new TableBaseScript(this);
 
+        protected internal void AddColumns(IReadOnlyList<TableColumn> columns)
+        {
+            this._columns.AddRange(columns);
+        }
+
         protected BooleanTableColumn CreateBooleanColumn(string name, ColumnMeta? columnMeta = null)
         {
             var result = new BooleanTableColumn(this.Alias, new ExprColumnName(name), this, columnMeta);

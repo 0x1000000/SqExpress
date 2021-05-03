@@ -48,7 +48,7 @@ namespace SqExpress.QueryBuilders.RecordSetter.Internal
             }
         }
 
-        protected override IRecordSetterNext SetGeneric(ExprColumnName column, ExprLiteral value)
+        protected override IRecordSetterNext SetGeneric(ExprColumn column, ExprLiteral value)
         {
             var record = this._record.AssertFatalNotNull(nameof(this._record));
             if (this._capacity.HasValue && record.Count == this._capacity)

@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using SqExpress.SqlExport.Statement.Internal;
+using SqExpress.StatementSyntax;
 using SqExpress.Syntax;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Type;
@@ -471,5 +474,32 @@ namespace SqExpress.SqlExport.Internal
         }
 
         protected override void AppendUnicodePrefix(string str) { }
+
+        protected override IStatementVisitor CreateStatementSqlBuilder()
+            => new PgSqlStatementBuilder(this.Options, this.Builder);
+
+        public override bool VisitExprMerge(ExprMerge merge, IExpr? parent)
+        {
+            MergeSimulation.ConvertMerge(merge, "tmpMergeDataSource").Accept(this, parent);
+            return true;
+        }
+
+        public override bool VisitExprMergeOutput(ExprMergeOutput mergeOutput, IExpr? parent)
+            => VisitMergeNotSupported();
+
+        public override bool VisitExprMergeMatchedUpdate(ExprMergeMatchedUpdate mergeMatchedUpdate, IExpr? parent)
+            => VisitMergeNotSupported();
+
+        public override bool VisitExprMergeMatchedDelete(ExprMergeMatchedDelete mergeMatchedDelete, IExpr? parent)
+            => VisitMergeNotSupported();
+
+        public override bool VisitExprExprMergeNotMatchedInsert(ExprExprMergeNotMatchedInsert exprMergeNotMatchedInsert, IExpr? parent)
+            => VisitMergeNotSupported();
+
+        public override bool VisitExprExprMergeNotMatchedInsertDefault(ExprExprMergeNotMatchedInsertDefault exprExprMergeNotMatchedInsertDefault, IExpr? parent)
+            => VisitMergeNotSupported();
+
+        private static bool VisitMergeNotSupported() =>
+            throw new SqExpressException("Pg SQL does not support MERGE expression");
     }
 }

@@ -2,8 +2,10 @@
 
 namespace SqExpress
 {
-    public interface IExprExec : IExpr
+    public interface IExprExec : IExprComplete
     {
         
     }
+
+    
 }

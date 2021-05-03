@@ -65,7 +65,7 @@ namespace SqExpress.GetStarted
                     commandFactory: SqlCommandFactory,
                     sqlExporter: TSqlExporter.Default))
                 {
-                    await Script(database, false);
+                    await Script(database, isMsSql:true);
                 }
             }
         }
@@ -97,7 +97,7 @@ namespace SqExpress.GetStarted
                     sqlExporter: new PgSqlExporter(builderOptions: SqlBuilderOptions.Default
                         .WithSchemaMap(schemaMap: new[] {new SchemaMap(@from: "dbo", to: "public")}))))
                 {
-                    await Script(database: database, true);
+                    await Script(database: database, isMsSql: false);
                 }
             }
         }
@@ -127,7 +127,7 @@ namespace SqExpress.GetStarted
                     commandFactory: MySqlCommandFactory,
                     sqlExporter: new MySqlExporter(builderOptions: SqlBuilderOptions.Default)))
                 {
-                    await Script(database: database, true);
+                    await Script(database: database, isMsSql: false);
                 }
             }
         }
@@ -147,7 +147,7 @@ namespace SqExpress.GetStarted
             }
         }
 
-        private static async Task Script(ISqDatabase database, bool postgres)
+        private static async Task Script(ISqDatabase database, bool isMsSql)
         {
             await Step1CreatingTables(database);
             await Step2InsertingData(database);
@@ -158,10 +158,7 @@ namespace SqExpress.GetStarted
             await Step7CreatingCustomers(database);
             await Step8JoinTables(database);
             await Step9SetOperations(database);
-            if (!postgres)
-            {
-                await Step12Merge(database);
-            }
+            await Step12Merge(database, output: isMsSql);
             await Step10UseDerivedTables(database);
             await Step11SubQueries(database);
             await Step11AnalyticAndWindowFunctions(database);
@@ -373,15 +370,13 @@ namespace SqExpress.GetStarted
         private static async Task Step10UseDerivedTables(ISqDatabase database)
         {
             var tCustomer = new DerivedTableCustomer("CUST");
-
-            var customers = await Select(tCustomer.Columns)
+            
+            var customers = await Select(CustomerData.GetColumns(tCustomer))
                 .From(tCustomer)
                 .Where(tCustomer.Type == 2 | tCustomer.Name.Like("%Free%"))
                 .OrderBy(Desc(tCustomer.Name))
                 .OffsetFetch(1, 2)
-                .QueryList(database,
-                    r => (Id: tCustomer.CustomerId.Read(r), CustomerType: tCustomer.Type.Read(r),
-                        Name: tCustomer.Name.Read(r)));
+                .QueryList(database, r => CustomerData.Read(r, tCustomer));
 
             foreach (var customer in customers)
             {
@@ -449,7 +444,7 @@ namespace SqExpress.GetStarted
                         $"First: {cFirst.Read(r)}, Last: {cLast.Read(r)}"));
         }
 
-        private static async Task Step12Merge(ISqDatabase database)
+        private static async Task Step12Merge(ISqDatabase database, bool output)
         {
             var data = new[]
             {
@@ -463,24 +458,46 @@ namespace SqExpress.GetStarted
             var deleted = CustomColumnFactory.NullableInt32("Deleted");
 
             var tableUser = new TableUser();
-            await MergeDataInto(tableUser, data)
-                .MapDataKeys(s => s
-                    .Set(s.Target.FirstName, s.Source.FirstName))
-                .MapData(s => s
-                    .Set(s.Target.LastName, s.Source.LastName))
-                .WhenMatchedThenUpdate()
-                .AlsoSet(s => s
-                    .Set(s.Target.Version, s.Target.Version + 1)
-                    .Set(s.Target.ModifiedAt, GetUtcDate()))
-                .WhenNotMatchedByTargetThenInsert()
-                .AlsoInsert(s => s
-                    .Set(s.Target.Version, 1)
-                    .Set(s.Target.ModifiedAt, GetUtcDate()))
-                .Output((t, s, m) => m.Inserted(t.UserId.As(inserted)).Deleted(t.UserId.As(deleted)).Action(action))
-                .Done()
-                .Query(database,
-                    r => Console.WriteLine(
-                        $"UserId Inserted: {inserted.Read(r)},UserId Deleted: {deleted.Read(r)} , Action: {action.Read(r)}"));
+            if (output)
+            {
+                await MergeDataInto(tableUser, data)
+                    .MapDataKeys(s => s
+                        .Set(s.Target.FirstName, s.Source.FirstName))
+                    .MapData(s => s
+                        .Set(s.Target.LastName, s.Source.LastName))
+                    .WhenMatchedThenUpdate()
+                    .AlsoSet(s => s
+                        .Set(s.Target.Version, s.Target.Version + 1)
+                        .Set(s.Target.ModifiedAt, GetUtcDate()))
+                    .WhenNotMatchedByTargetThenInsert()
+                    .AlsoInsert(s => s
+                        .Set(s.Target.Version, 1)
+                        .Set(s.Target.ModifiedAt, GetUtcDate()))
+                    .Output((t, s, m) => m.Inserted(t.UserId.As(inserted)).Deleted(t.UserId.As(deleted)).Action(action))
+                    .Done()
+                    .Query(database,
+                        r => Console.WriteLine(
+                            $"UserId Inserted: {inserted.Read(r)},UserId Deleted: {deleted.Read(r)} , Action: {action.Read(r)}"));
+            }
+            else
+            {
+                //PG and My SQL do not support MERGE natively
+                await MergeDataInto(tableUser, data)
+                    .MapDataKeys(s => s
+                        .Set(s.Target.FirstName, s.Source.FirstName))
+                    .MapData(s => s
+                        .Set(s.Target.LastName, s.Source.LastName))
+                    .WhenMatchedThenUpdate()
+                    .AlsoSet(s => s
+                        .Set(s.Target.Version, s.Target.Version + 1)
+                        .Set(s.Target.ModifiedAt, GetUtcDate()))
+                    .WhenNotMatchedByTargetThenInsert()
+                    .AlsoInsert(s => s
+                        .Set(s.Target.Version, 1)
+                        .Set(s.Target.ModifiedAt, GetUtcDate()))
+                    .Done()
+                    .Exec(database);
+            }
         }
 
         private static async Task Step13TempTables(ISqDatabase database)

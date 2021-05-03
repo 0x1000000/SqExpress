@@ -1,4 +1,7 @@
-﻿using NUnit.Framework;
+﻿using System;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
+using NUnit.Framework;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.Test.QueryBuilder
@@ -46,7 +49,6 @@ namespace SqExpress.Test.QueryBuilder
 
             Assert.AreEqual(expected, actual);
         }
-
         [Test]
         public void UpdateFromTestPg()
         {
@@ -67,6 +69,47 @@ namespace SqExpress.Test.QueryBuilder
             var expected = "UPDATE \"public\".\"user\" \"A0\" SET \"FirstName\"='First',\"LastName\"=\"A0\".\"LastName\"||'(i)',\"RegDate\"=DEFAULT FROM \"public\".\"Customer\" \"A1\",\"public\".\"CustomerOrder\" \"A2\" WHERE \"A1\".\"UserId\"=\"A0\".\"UserId\" AND \"A1\".\"CustomerId\" IN(1)";
 
             Assert.AreEqual(expected, actual);
+        }
+
+        [Test]
+        public void UpdateDataIn_Test()
+        {
+
+            const int usersCount = 3;
+
+            var data = new List<UserData>(usersCount);
+
+            for (int i = 0; i < usersCount; i++)
+            {
+                data.Add(new UserData
+                {
+                    UserId = i+1,
+                    FirstName = "First" + i,
+                    LastName = "Last" + i,
+                    EMail = $"user{i}@company.com",
+                    RegDate = new DateTime(2020, 01, 02)
+                });
+            }
+
+            var tbl = Tables.User();
+
+            var expr = UpdateData(tbl, data)
+                .MapDataKeys(s => s.Set(s.Target.UserId, s.Source.UserId))
+                .MapData(s => s.Set(s.Target.FirstName, s.Source.FirstName))
+                .AlsoSet(s => s.Set(s.Target.Modified, GetUtcDate()))
+                .Done();
+
+            var sql = expr.ToMySql();
+
+            Regex r = new Regex("t[\\d|\\w]{32}");
+
+            sql = r.Replace(sql, "tmpTableName");
+
+            Assert.AreEqual(sql, "CREATE TEMPORARY TABLE `tmpTableName`(`UserId` int,`FirstName` varchar(6) character set utf8,CONSTRAINT PRIMARY KEY (`UserId`));INSERT INTO `tmpTableName`(`UserId`,`FirstName`) VALUES (1,'First0'),(2,'First1'),(3,'First2');UPDATE `user` `A0`,`tmpTableName` `A1` SET `A0`.`FirstName`=`A1`.`FirstName`,`A0`.`Modified`=UTC_TIMESTAMP() WHERE `A0`.`UserId`=`A1`.`UserId`;DROP TABLE `tmpTableName`;");
+
+            sql = expr.ToSql();
+
+            Assert.AreEqual(sql, "UPDATE [A0] SET [A0].[FirstName]=[A1].[FirstName],[A0].[Modified]=GETUTCDATE() FROM [dbo].[user] [A0] JOIN (VALUES (1,'First0'),(2,'First1'),(3,'First2'))[A1]([UserId],[FirstName]) ON [A0].[UserId]=[A1].[UserId]");
         }
     }
 }

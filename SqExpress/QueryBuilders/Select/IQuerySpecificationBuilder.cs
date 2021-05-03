@@ -1,4 +1,5 @@
-﻿using SqExpress.Syntax.Boolean;
+﻿using System.Collections.Generic;
+using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
 
@@ -30,11 +31,17 @@ namespace SqExpress.QueryBuilders.Select
         public IQuerySpecificationBuilderFinal GroupBy(ExprColumn column, params ExprColumn[] otherColumns);
 
         public IQuerySpecificationBuilderFinal GroupBy(ExprColumn column1, ExprColumn column2, params ExprColumn[] otherColumns);
+
+        public IQuerySpecificationBuilderFinal GroupBy(IReadOnlyList<ExprColumn> columns);
     }
 
     public interface IQuerySpecificationBuilderFinal : IQueryExpressionBuilder, IExprSubQueryFinal
     {
+        ISelectBuilder OrderBy(ExprOrderBy orderBy);
+
         ISelectBuilder OrderBy(ExprOrderByItem item, params ExprOrderByItem[] rest);
+
+        ISelectBuilder OrderBy(IReadOnlyList<ExprOrderByItem> orderItems);
 
         new ExprQuerySpecification Done();
     }
@@ -42,7 +49,11 @@ namespace SqExpress.QueryBuilders.Select
 
     public interface IQueryExpressionBuilderFinal: IQueryExpressionBuilder, IExprSubQueryFinal
     {
+        ISelectBuilder OrderBy(ExprOrderBy orderBy);
+
         ISelectBuilder OrderBy(ExprOrderByItem item, params ExprOrderByItem[] rest);
+
+        ISelectBuilder OrderBy(IReadOnlyList<ExprOrderByItem> orderItems);
 
         new ExprQueryExpression Done();
     }

@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using SqExpress.CodeGenUtil.CodeGen;
 
 namespace SqExpress.CodeGenUtil.Model.SqModel
 {
@@ -30,6 +32,12 @@ namespace SqExpress.CodeGenUtil.Model.SqModel
             }
             this._properties.Add(candidate);
             return candidate;
+        }
+
+        public bool HasPk()
+        {
+            var pkCount = this.Properties.Count(i => i.IsPrimaryKey);
+            return pkCount > 0 && pkCount < this.Properties.Count;
         }
     }
 
@@ -73,16 +81,19 @@ namespace SqExpress.CodeGenUtil.Model.SqModel
         }
     }
 
-    public readonly struct SqModelTableRef : IEquatable<SqModelTableRef>
+    internal readonly struct SqModelTableRef : IEquatable<SqModelTableRef>
     {
         public string TableTypeName { get; }
 
         public string TableTypeNameSpace { get; }
 
-        public SqModelTableRef(string tableTypeName, string tableTypeNameSpace)
+        public BaseTypeKindTag BaseTypeKindTag { get; }
+
+        public SqModelTableRef(string tableTypeName, string tableTypeNameSpace, BaseTypeKindTag baseTypeKindTag)
         {
             this.TableTypeName = tableTypeName;
             this.TableTypeNameSpace = tableTypeNameSpace;
+            this.BaseTypeKindTag = baseTypeKindTag;
         }
 
         public bool Equals(SqModelTableRef other)
@@ -101,7 +112,7 @@ namespace SqExpress.CodeGenUtil.Model.SqModel
         }
     }
 
-    public class SqModelPropertyTableColMeta
+    internal class SqModelPropertyTableColMeta
     {
         public SqModelPropertyTableColMeta(SqModelTableRef tableRef, string columnName)
         {

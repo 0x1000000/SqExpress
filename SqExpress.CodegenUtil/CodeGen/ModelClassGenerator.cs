@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Microsoft.CodeAnalysis;
@@ -6,6 +7,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SqExpress.CodeGenUtil.Model.SqModel;
 using SqExpress.QueryBuilders.RecordSetter;
+using SqExpress.Syntax.Names;
 using static SqExpress.CodeGenUtil.CodeGen.SyntaxHelpers;
 
 namespace SqExpress.CodeGenUtil.CodeGen
@@ -17,6 +19,10 @@ namespace SqExpress.CodeGenUtil.CodeGen
         private const string MethodNameGetUpdateKeyMapping = "GetUpdateKeyMapping";
         private const string MethodNameGetUpdateMapping = "GetUpdateMapping";
         private const string MethodNameRead = "Read";
+        private const string ReaderClassSuffix = "Reader";
+        private const string MethodNameGetReader = "GetReader";
+        private const string UpdaterClassSuffix = "Updater";
+        private const string MethodNameGetUpdater = "GetUpdater";
 
         private static readonly HashSet<string> AllMethods = new HashSet<string>
         {
@@ -24,20 +30,22 @@ namespace SqExpress.CodeGenUtil.CodeGen
             MethodNameGetMapping,
             MethodNameGetUpdateKeyMapping,
             MethodNameGetUpdateMapping,
-            MethodNameRead
+            MethodNameRead,
+            MethodNameGetReader,
+            MethodNameGetUpdater
         };
 
-        public static CompilationUnitSyntax Generate(SqModelMeta meta, string defaultNamespace, string existingFilePath, out bool existing)
+        public static CompilationUnitSyntax Generate(SqModelMeta meta, string defaultNamespace, string existingFilePath, bool rwClasses, IFileSystem fileSystem, out bool existing)
         {
             CompilationUnitSyntax result;
             ClassDeclarationSyntax? existingClass = null;
 
             existing = false;
 
-            if (File.Exists(existingFilePath))
+            if (fileSystem.FileExists(existingFilePath))
             {
                 existing = true;
-                var tClass = CSharpSyntaxTree.ParseText(File.ReadAllText(existingFilePath));
+                var tClass = CSharpSyntaxTree.ParseText(fileSystem.ReadAllText(existingFilePath));
 
                 existingClass = tClass.GetRoot()
                     .DescendantNodes()
@@ -49,7 +57,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
             {
                 result = existingClass.FindParentOrDefault<CompilationUnitSyntax>() ?? throw new SqExpressCodeGenException($"Could not find compilation unit in \"{existingFilePath}\"");
 
-                result = result.ReplaceNode(existingClass, GenerateClass(meta, existingClass));
+                result = result.ReplaceNode(existingClass, GenerateClass(meta, rwClasses, existingClass));
             }
             else
             {
@@ -65,17 +73,21 @@ namespace SqExpress.CodeGenUtil.CodeGen
                         .Distinct()
                         .ToList();
 
+                if (ExtractTableRefs(meta).Any(tr=>tr.BaseTypeKindTag == BaseTypeKindTag.DerivedTableBase))
+                {
+                    namespaces.Add($"{nameof(SqExpress)}.{nameof(SqExpress.Syntax)}.{nameof(SqExpress.Syntax.Names)}");
+                }
 
                 result = SyntaxFactory.CompilationUnit()
                     .AddUsings(namespaces.Select(n => SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(n))).ToArray())
                     .AddMembers(SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(defaultNamespace))
-                        .AddMembers(GenerateClass(meta, null)));
+                        .AddMembers(GenerateClass(meta, rwClasses, null)));
             }
 
             return result.NormalizeWhitespace();
         }
 
-        private static ClassDeclarationSyntax GenerateClass(SqModelMeta meta, ClassDeclarationSyntax? existingClass)
+        private static ClassDeclarationSyntax GenerateClass(SqModelMeta meta, bool rwClasses, ClassDeclarationSyntax? existingClass)
         {
             ClassDeclarationSyntax result;
             MemberDeclarationSyntax[]? oldMembers = null;
@@ -84,8 +96,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
             {
                 result = existingClass;
 
-                oldMembers = result.DescendantNodes()
-                    .OfType<MemberDeclarationSyntax>()
+                oldMembers = result.Members
                     .Where(md =>
                     {
                         if (md is ConstructorDeclarationSyntax)
@@ -115,12 +126,24 @@ namespace SqExpress.CodeGenUtil.CodeGen
                         {
                             var name = method.Identifier.ValueText;
 
-                            if (name.StartsWith("With") || AllMethods.Contains(name))
+                            if (name.StartsWith("With") || AllMethods.Contains(name) || name.StartsWith(MethodNameGetReader + "For") || name.StartsWith(MethodNameGetUpdater + "For"))
                             {
-
                                 return false;
                             }
+                        }
 
+                        if (md is ClassDeclarationSyntax classDeclaration)
+                        {
+                            var name = classDeclaration.Identifier.ValueText;
+
+                            if (name == meta.Name + ReaderClassSuffix || name.StartsWith(meta.Name + ReaderClassSuffix + "For"))
+                            {
+                                return false;
+                            }
+                            if (name == meta.Name + UpdaterClassSuffix || name.StartsWith(meta.Name + UpdaterClassSuffix + "For"))
+                            {
+                                return false;
+                            }
                         }
 
                         return true;
@@ -133,16 +156,18 @@ namespace SqExpress.CodeGenUtil.CodeGen
             else
             {
                 result = SyntaxFactory.ClassDeclaration(meta.Name)
-                    .WithModifiers(Modifiers(SyntaxKind.PublicKeyword));
+                    .WithModifiers(existingClass?.Modifiers ?? Modifiers(SyntaxKind.PublicKeyword));
             }
 
             result = result
                 .AddMembers(Constructors(meta)
                     .Concat(GenerateStaticFactory(meta))
                     .Concat(Properties(meta, oldAttributes))
+                    .Concat(GenerateWithModifiers(meta))
                     .Concat(GenerateGetColumns(meta))
                     .Concat(GenerateMapping(meta))
-                    .Concat(GenerateWithModifiers(meta))
+                    .Concat(rwClasses ? GenerateReaderClass(meta): Array.Empty<MemberDeclarationSyntax>())
+                    .Concat(rwClasses ? GenerateWriterClass(meta) : Array.Empty<MemberDeclarationSyntax>())
                     .ToArray());
 
             if (oldMembers != null && oldMembers.Length > 0)
@@ -193,12 +218,11 @@ namespace SqExpress.CodeGenUtil.CodeGen
 
         public static IEnumerable<MemberDeclarationSyntax> GenerateStaticFactory(SqModelMeta meta)
         {
-            return meta.Properties.First()
-                .Column.Select(tableColumn => SyntaxFactory
+            return ExtractTableRefs(meta).Select(tableRef => SyntaxFactory
                     .MethodDeclaration(SyntaxFactory.ParseTypeName(meta.Name), MethodNameRead)
                     .WithModifiers(Modifiers(SyntaxKind.PublicKeyword, SyntaxKind.StaticKeyword))
                     .AddParameterListParameters(FuncParameter("record", nameof(ISqDataRecordReader)))
-                    .AddParameterListParameters(FuncParameter("table", tableColumn.TableRef.TableTypeName))
+                    .AddParameterListParameters(FuncParameter("table", ExtractTableTypeName(meta, tableRef)))
                     .WithBody(SyntaxFactory.Block(SyntaxFactory.ReturnStatement(
                         SyntaxFactory.ObjectCreationExpression(SyntaxFactory.Token(SyntaxKind.NewKeyword),
                             SyntaxFactory.ParseTypeName(meta.Name),
@@ -221,14 +245,13 @@ namespace SqExpress.CodeGenUtil.CodeGen
 
         public static IEnumerable<MemberDeclarationSyntax> GenerateGetColumns(SqModelMeta meta)
         {
-            return meta.Properties.First()
-                .Column.Select(tableColumn =>
+            return ExtractTableRefs(meta).Select(tableRef =>
                 {
-
+                    string columnTypeName = ExtractTableColumnTypeName(tableRef);
                     var arrayItems = meta.Properties.Select(p => p.Column.First())
                         .Select(p => SyntaxFactory.IdentifierName("table").MemberAccess(p.ColumnName));
                     var arrayType = SyntaxFactory.ArrayType(
-                        SyntaxFactory.IdentifierName(nameof(TableColumn)),
+                        SyntaxFactory.IdentifierName(columnTypeName),
                         new SyntaxList<ArrayRankSpecifierSyntax>(new[]
                         {
                             SyntaxFactory.ArrayRankSpecifier(SyntaxFactory.Token(SyntaxKind.OpenBracketToken),
@@ -244,7 +267,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
                     return SyntaxFactory
                         .MethodDeclaration(arrayType, MethodNameGetColumns)
                         .WithModifiers(Modifiers(SyntaxKind.PublicKeyword, SyntaxKind.StaticKeyword))
-                        .AddParameterListParameters(FuncParameter("table", tableColumn.TableRef.TableTypeName))
+                        .AddParameterListParameters(FuncParameter("table", ExtractTableTypeName(meta, tableRef)))
                         .WithBody(SyntaxFactory.Block(SyntaxFactory.ReturnStatement(
                             array
                         )));
@@ -252,27 +275,34 @@ namespace SqExpress.CodeGenUtil.CodeGen
                 });
         }
 
-        public static MemberDeclarationSyntax[] GenerateMapping(SqModelMeta meta)
+        public static IEnumerable<MemberDeclarationSyntax> GenerateMapping(SqModelMeta meta)
         {
+            return ExtractTableRefs(meta).SelectMany(tr => GenerateMapping(meta, tr));
+        }
 
-            var pkCount = meta.Properties.Count(i => i.IsPrimaryKey);
+        public static MemberDeclarationSyntax[] GenerateMapping(SqModelMeta meta, SqModelTableRef tableRef)
+        {
+            if (!HasUpdater(tableRef))
+            {
+                return Array.Empty<MemberDeclarationSyntax>();
+            }
 
-            if (pkCount > 0 && pkCount < meta.Properties.Count)
+            if (meta.HasPk())
             {
                 return new []
                 {
-                    MethodDeclarationSyntax(meta, MethodNameGetMapping, null),
-                    MethodDeclarationSyntax(meta, MethodNameGetUpdateKeyMapping, true),
-                    MethodDeclarationSyntax(meta, MethodNameGetUpdateMapping, false)
+                    MethodDeclarationSyntax(meta, tableRef, MethodNameGetMapping, null),
+                    MethodDeclarationSyntax(meta, tableRef,MethodNameGetUpdateKeyMapping, true),
+                    MethodDeclarationSyntax(meta, tableRef,MethodNameGetUpdateMapping, false)
                 };
             }
             else
             {
-                return new [] { MethodDeclarationSyntax(meta, MethodNameGetMapping, null) };
+                return new [] { MethodDeclarationSyntax(meta, tableRef, MethodNameGetMapping, null) };
             }
 
 
-            static MemberDeclarationSyntax MethodDeclarationSyntax(SqModelMeta sqModelMeta, string name, bool? pkFilter)
+            static MemberDeclarationSyntax MethodDeclarationSyntax(SqModelMeta sqModelMeta, SqModelTableRef tableRef, string name, bool? pkFilter)
             {
                 var setter = SyntaxFactory.IdentifierName("s");
                 ExpressionSyntax chain = setter;
@@ -280,7 +310,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
                 foreach (var metaProperty in sqModelMeta.Properties.Where(p => pkFilter.HasValue? p.IsPrimaryKey == pkFilter.Value : !p.IsIdentity))
                 {
                     var col = setter.MemberAccess(nameof(IDataMapSetter<object, object>.Target))
-                        .MemberAccess(metaProperty.Column.First().ColumnName);
+                        .MemberAccess(metaProperty.Column.First(c=>c.TableRef.Equals(tableRef)).ColumnName);
                     ExpressionSyntax prop = setter.MemberAccess(nameof(IDataMapSetter<object, object>.Source))
                         .MemberAccess(metaProperty.Name);
                     if (metaProperty.CastType != null)
@@ -296,7 +326,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
                     .MethodDeclaration(SyntaxFactory.ParseTypeName(nameof(IRecordSetterNext)), name)
                     .WithModifiers(Modifiers(SyntaxKind.PublicKeyword, SyntaxKind.StaticKeyword))
                     .AddParameterListParameters(FuncParameter("s",
-                        $"{nameof(IDataMapSetter<object, object>)}<{sqModelMeta.Properties.First().Column.First().TableRef.TableTypeName},{sqModelMeta.Name}>"))
+                        $"{nameof(IDataMapSetter<object, object>)}<{ExtractTableTypeName(sqModelMeta, tableRef)},{sqModelMeta.Name}>"))
                     .WithBody(SyntaxFactory.Block(SyntaxFactory.ReturnStatement(chain)));
                 return methodDeclarationSyntax;
             }
@@ -327,7 +357,312 @@ namespace SqExpress.CodeGenUtil.CodeGen
 
                     )));
             });
-
         }
+
+        public static IEnumerable<MemberDeclarationSyntax> GenerateReaderClass(SqModelMeta meta)
+        {
+            return ExtractTableRefs(meta, out var addName).SelectMany(tableRef => GenerateReaderClass(meta, tableRef, addName));
+        }
+
+        public static IEnumerable<MemberDeclarationSyntax> GenerateReaderClass(SqModelMeta meta, SqModelTableRef tableRef, bool addName)
+        {
+            string tableType = ExtractTableTypeName(meta, tableRef);
+            var className = meta.Name + ReaderClassSuffix;
+            if (addName)
+            {
+                className += $"For{tableRef.TableTypeName}";
+            }
+            var classType = SyntaxFactory.ParseTypeName(className);
+
+            var baseInterface = SyntaxFactory.GenericName(
+                    SyntaxFactory.Identifier(ExtractModelReaderTypeName(tableRef)))
+                .WithTypeArgumentList(
+                    SyntaxFactory.TypeArgumentList(
+                        SyntaxFactory.SeparatedList<TypeSyntax>(
+                            new SyntaxNodeOrToken[]
+                            {
+                                SyntaxFactory.IdentifierName(meta.Name),
+                                SyntaxFactory.Token(SyntaxKind.CommaToken),
+                                SyntaxFactory.IdentifierName(tableType)
+                            })));
+            //Instance
+            var instance = SyntaxFactory.PropertyDeclaration(
+                    classType,
+                    SyntaxFactory.Identifier("Instance"))
+                .WithModifiers(
+                    SyntaxFactory.TokenList(
+                        SyntaxFactory.Token(SyntaxKind.PublicKeyword),
+                        SyntaxFactory.Token(SyntaxKind.StaticKeyword)))
+                .WithAccessorList(
+                    SyntaxFactory.AccessorList(
+                        SyntaxFactory.SingletonList(
+                            SyntaxFactory.AccessorDeclaration(
+                                    SyntaxKind.GetAccessorDeclaration)
+                                .WithSemicolonToken(
+                                    SyntaxFactory.Token(SyntaxKind.SemicolonToken)))))
+                .WithInitializer(
+                    SyntaxFactory.EqualsValueClause(
+                        SyntaxFactory.ObjectCreationExpression(classType)
+                            .WithArgumentList(SyntaxFactory.ArgumentList())))
+                .WithSemicolonToken(
+                    SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+
+            //GetColumns
+            var getColumns = SyntaxFactory.MethodDeclaration(
+                    SyntaxFactory.ArrayType(
+                            SyntaxFactory.IdentifierName(ExtractTableColumnTypeName(tableRef)))
+                        .WithRankSpecifiers(
+                            SyntaxFactory.SingletonList(
+                                SyntaxFactory.ArrayRankSpecifier(
+                                    SyntaxFactory.SingletonSeparatedList<ExpressionSyntax>(
+                                        SyntaxFactory.OmittedArraySizeExpression())))),
+                    SyntaxFactory.Identifier(MethodNameGetColumns))
+                .WithExplicitInterfaceSpecifier(SyntaxFactory.ExplicitInterfaceSpecifier(baseInterface))
+                .WithParameterList(
+                    SyntaxFactory.ParameterList(
+                        SyntaxFactory.SingletonSeparatedList(
+                            SyntaxFactory.Parameter(
+                                    SyntaxFactory.Identifier("table"))
+                                .WithType(
+                                    SyntaxFactory.IdentifierName(tableType)))))
+                .WithBody(
+                    SyntaxFactory.Block(
+                        SyntaxFactory.SingletonList<Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax>(
+                            SyntaxFactory.ReturnStatement(
+                                SyntaxFactory.InvocationExpression(
+                                        SyntaxFactory.MemberAccessExpression(
+                                            SyntaxKind.SimpleMemberAccessExpression,
+                                            SyntaxFactory.IdentifierName(meta.Name),
+                                            SyntaxFactory.IdentifierName(MethodNameGetColumns)))
+                                    .WithArgumentList(
+                                        SyntaxFactory.ArgumentList(
+                                            SyntaxFactory.SingletonSeparatedList(
+                                                SyntaxFactory.Argument(
+                                                    SyntaxFactory.IdentifierName("table")))))))));
+
+            //Read
+            var read = SyntaxFactory.MethodDeclaration(
+                    SyntaxFactory.IdentifierName(meta.Name),
+                    SyntaxFactory.Identifier(MethodNameRead))
+                .WithExplicitInterfaceSpecifier(SyntaxFactory.ExplicitInterfaceSpecifier(baseInterface))
+                .WithParameterList(
+                    SyntaxFactory.ParameterList(
+                        SyntaxFactory.SeparatedList<ParameterSyntax>(
+                            new SyntaxNodeOrToken[]
+                            {
+                                SyntaxFactory.Parameter(
+                                        SyntaxFactory.Identifier("record"))
+                                    .WithType(
+                                        SyntaxFactory.IdentifierName(nameof(ISqDataRecordReader))),
+                                SyntaxFactory.Token(SyntaxKind.CommaToken),
+                                SyntaxFactory.Parameter(
+                                        SyntaxFactory.Identifier("table"))
+                                    .WithType(
+                                        SyntaxFactory.IdentifierName(tableType))
+                            })))
+                .WithBody(
+                    SyntaxFactory.Block(
+                        SyntaxFactory.SingletonList<Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax>(
+                            SyntaxFactory.ReturnStatement(
+                                SyntaxFactory.InvocationExpression(
+                                        SyntaxFactory.MemberAccessExpression(
+                                            SyntaxKind.SimpleMemberAccessExpression,
+                                            SyntaxFactory.IdentifierName(meta.Name),
+                                            SyntaxFactory.IdentifierName(MethodNameRead)))
+                                    .WithArgumentList(
+                                        SyntaxFactory.ArgumentList(
+                                            SyntaxFactory.SeparatedList<ArgumentSyntax>(
+                                                new SyntaxNodeOrToken[]
+                                                {
+                                                    SyntaxFactory.Argument(
+                                                        SyntaxFactory.IdentifierName("record")),
+                                                    SyntaxFactory.Token(SyntaxKind.CommaToken),
+                                                    SyntaxFactory.Argument(
+                                                        SyntaxFactory.IdentifierName("table"))
+                                                })))))));
+
+
+            var readerClassDeclaration = SyntaxFactory.ClassDeclaration(className)
+                .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PrivateKeyword)))
+                .WithBaseList(SyntaxFactory.BaseList().AddTypes(SyntaxFactory.SimpleBaseType(baseInterface)))
+                .AddMembers(instance, getColumns, read);
+
+            var getReader = SyntaxFactory.MethodDeclaration(baseInterface, addName ? $"{MethodNameGetReader}For{tableRef.TableTypeName}" : MethodNameGetReader)
+                .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword),
+                    SyntaxFactory.Token(SyntaxKind.StaticKeyword))
+                .AddBodyStatements(SyntaxFactory.ReturnStatement(MemberAccess(className, "Instance")));
+
+            return new MemberDeclarationSyntax[] {getReader, readerClassDeclaration};
+        }
+
+        public static IEnumerable<MemberDeclarationSyntax> GenerateWriterClass(SqModelMeta meta)
+        {
+            return ExtractTableRefs(meta, out var addName).SelectMany(tableRef => GenerateWriterClass(meta, tableRef, addName));
+        }
+
+        public static IEnumerable<MemberDeclarationSyntax> GenerateWriterClass(SqModelMeta meta, SqModelTableRef tableRef, bool addName)
+        {
+            if (!HasUpdater(tableRef))
+            {
+                return Array.Empty<MemberDeclarationSyntax>();
+            }
+
+            var tableType = ExtractTableTypeName(meta, tableRef);
+            var className = meta.Name + UpdaterClassSuffix;
+            if (addName)
+            {
+                className += $"For{tableRef.TableTypeName}";
+            }
+            var classType = SyntaxFactory.ParseTypeName(className);
+
+            bool hasPk = meta.HasPk();
+
+            var baseInterfaceKeyLess = SyntaxFactory.GenericName(
+                    SyntaxFactory.Identifier(nameof(ISqModelUpdater<object, object>)))
+                .WithTypeArgumentList(
+                    SyntaxFactory.TypeArgumentList(
+                        SyntaxFactory.SeparatedList<TypeSyntax>(
+                            new SyntaxNodeOrToken[]
+                            {
+                                SyntaxFactory.IdentifierName(meta.Name),
+                                SyntaxFactory.Token(SyntaxKind.CommaToken),
+                                SyntaxFactory.IdentifierName(tableType)
+                            })));
+
+            var baseInterfaceKey = SyntaxFactory.GenericName(
+                    SyntaxFactory.Identifier(nameof(ISqModelUpdaterKey<object, object>)))
+                .WithTypeArgumentList(
+                    SyntaxFactory.TypeArgumentList(
+                        SyntaxFactory.SeparatedList<TypeSyntax>(
+                            new SyntaxNodeOrToken[]
+                            {
+                                SyntaxFactory.IdentifierName(meta.Name),
+                                SyntaxFactory.Token(SyntaxKind.CommaToken),
+                                SyntaxFactory.IdentifierName(tableType)
+                            })));
+            var baseInterface = hasPk ? baseInterfaceKey : baseInterfaceKeyLess;
+
+            //Instance
+            var instance = SyntaxFactory.PropertyDeclaration(
+                    classType,
+                    SyntaxFactory.Identifier("Instance"))
+                .WithModifiers(
+                    SyntaxFactory.TokenList(
+                        SyntaxFactory.Token(SyntaxKind.PublicKeyword),
+                        SyntaxFactory.Token(SyntaxKind.StaticKeyword)))
+                .WithAccessorList(
+                    SyntaxFactory.AccessorList(
+                        SyntaxFactory.SingletonList(
+                            SyntaxFactory.AccessorDeclaration(
+                                    SyntaxKind.GetAccessorDeclaration)
+                                .WithSemicolonToken(
+                                    SyntaxFactory.Token(SyntaxKind.SemicolonToken)))))
+                .WithInitializer(
+                    SyntaxFactory.EqualsValueClause(
+                        SyntaxFactory.ObjectCreationExpression(classType)
+                            .WithArgumentList(SyntaxFactory.ArgumentList())))
+                .WithSemicolonToken(
+                    SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+
+
+            //GetMapping
+            var dataMapSetterName = "dataMapSetter";
+
+            var parameterDataMapperSetter = SyntaxFactory.Parameter(
+                    SyntaxFactory.Identifier(dataMapSetterName))
+                .WithType(
+                    SyntaxFactory.GenericName(
+                            SyntaxFactory.Identifier(nameof(IDataMapSetter<object, object>)))
+                        .WithTypeArgumentList(
+                            SyntaxFactory.TypeArgumentList(
+                                SyntaxFactory.SeparatedList<TypeSyntax>(
+                                    new SyntaxNodeOrToken[]{
+                                        SyntaxFactory.IdentifierName(tableType),
+                                        SyntaxFactory.Token(SyntaxKind.CommaToken),
+                                        SyntaxFactory.IdentifierName(meta.Name)}))));
+
+
+            var updaterClassDeclaration = SyntaxFactory.ClassDeclaration(className)
+                .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PrivateKeyword)))
+                .WithBaseList(SyntaxFactory.BaseList().AddTypes(SyntaxFactory.SimpleBaseType(baseInterface)))
+                .AddMembers(
+                    instance,
+                    GetMapping(baseInterfaceKeyLess, MethodNameGetMapping));
+
+            if (hasPk)
+            {
+                updaterClassDeclaration = updaterClassDeclaration.AddMembers(
+                    GetMapping(baseInterfaceKey, MethodNameGetUpdateKeyMapping),
+                    GetMapping(baseInterfaceKey, MethodNameGetUpdateMapping));
+            }
+
+            MethodDeclarationSyntax GetMapping(GenericNameSyntax bi, string s)
+            {
+                return SyntaxFactory.MethodDeclaration(SyntaxFactory.IdentifierName(nameof(IRecordSetterNext)),
+                        SyntaxFactory.Identifier(s))
+                    .WithExplicitInterfaceSpecifier(SyntaxFactory.ExplicitInterfaceSpecifier(bi))
+                    .WithParameterList(
+                        SyntaxFactory.ParameterList(SyntaxFactory.SingletonSeparatedList(parameterDataMapperSetter)))
+                    .WithBody(
+                        SyntaxFactory.Block(
+                            SyntaxFactory.SingletonList<Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax>(
+                                SyntaxFactory.ReturnStatement(
+                                    SyntaxFactory.InvocationExpression(
+                                            SyntaxFactory.MemberAccessExpression(
+                                                SyntaxKind.SimpleMemberAccessExpression,
+                                                SyntaxFactory.IdentifierName(meta.Name),
+                                                SyntaxFactory.IdentifierName(s)))
+                                        .WithArgumentList(
+                                            SyntaxFactory.ArgumentList(
+                                                SyntaxFactory.SingletonSeparatedList(
+                                                    SyntaxFactory.Argument(
+                                                        SyntaxFactory.IdentifierName(dataMapSetterName)))))))));
+            }
+
+            var getUpdater = SyntaxFactory.MethodDeclaration(baseInterface, addName ? $"{MethodNameGetUpdater}For{tableRef.TableTypeName}" : MethodNameGetUpdater)
+                .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword),
+                    SyntaxFactory.Token(SyntaxKind.StaticKeyword))
+                .AddBodyStatements(SyntaxFactory.ReturnStatement(MemberAccess(className, "Instance")));
+
+            return new MemberDeclarationSyntax[] { getUpdater, updaterClassDeclaration };
+        }
+
+        private static string ExtractTableTypeName(SqModelMeta meta, SqModelTableRef tableRef)
+        {
+            string tableType = tableRef.TableTypeName;
+            if (tableType == meta.Name)
+            {
+                tableType = $"{tableRef.TableTypeNameSpace}.{tableType}";
+            }
+            return tableType;
+        }
+
+        private static IEnumerable<SqModelTableRef> ExtractTableRefs(SqModelMeta meta) 
+            => ExtractTableRefs(meta, out _);
+
+        private static IEnumerable<SqModelTableRef> ExtractTableRefs(SqModelMeta meta, out bool multi)
+        {
+            var first = meta.Properties.First();
+            multi = first.Column.Count > 1;
+            return first.Column.Select(c => c.TableRef);
+        }
+
+        private static string ExtractTableColumnTypeName(SqModelTableRef tableRef)
+            => tableRef.BaseTypeKindTag.Switch(
+                tableBaseRes: nameof(TableColumn), 
+                tempTableBaseRes: nameof(TableColumn), 
+                derivedTableBaseRes: nameof(ExprColumn));
+
+        private static string ExtractModelReaderTypeName(SqModelTableRef tableRef)
+            => tableRef.BaseTypeKindTag.Switch(
+                tableBaseRes: nameof(ISqModelReader<object, object>),
+                tempTableBaseRes: nameof(ISqModelReader<object, object>),
+                derivedTableBaseRes: nameof(ISqModelDerivedReaderReader<object, object>));
+
+        private static bool HasUpdater(SqModelTableRef tableRef)
+            => tableRef.BaseTypeKindTag.Switch(
+                tableBaseRes: true,
+                tempTableBaseRes: true,
+                derivedTableBaseRes: false);
     }
 }

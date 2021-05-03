@@ -1,4 +1,5 @@
-﻿using SqExpress.Syntax.Select;
+﻿using System.Collections.Generic;
+using SqExpress.Syntax.Select;
 
 namespace SqExpress.QueryBuilders.Select.Internal
 {
@@ -21,9 +22,19 @@ namespace SqExpress.QueryBuilders.Select.Internal
             return this._queryExpression;
         }
 
+        public ISelectBuilder OrderBy(ExprOrderBy orderBy)
+        {
+            return this.OrderByInternal(orderBy);
+        }
+
         public ISelectBuilder OrderBy(ExprOrderByItem item, params ExprOrderByItem[] rest)
         {
             return this.OrderByInternal(item, rest);
+        }
+
+        public ISelectBuilder OrderBy(IReadOnlyList<ExprOrderByItem> orderItems)
+        {
+            return this.OrderByInternal(orderItems);
         }
     }
 }

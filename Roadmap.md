@@ -3,7 +3,7 @@
 - [x] Delete Expression
 - [x] Update Expression
 - [x] "CASE WHEN"
-- [x] Arifmetic Expressions
+- [x] Arithmetic Expressions
 ## 0.0.5
 - [x] Make "Where" nullable
 - [x] Temporary Tables
@@ -24,16 +24,16 @@
 - [x] Binary Type
 - [x] Tables Meta Codegenerator
 - [x] Export to JSON (for .Net Core 3.1+)
-## After 0.1.0
-- [ ] "Update Data" builder
-- [ ] Split Merge into Insert Update Delete
+## 0.2.0
+- [x] "Update Data" builder
+- [x] genmodels - SqModel attribute can be used with derived and temporary tables
+- [x] "MERGE" polyfill for PostgreSql and MYSQL
+## After 0.2.0
 - [ ] Table Value Functions
 - [ ] CTE
 - [ ] "Create If Not Exists"
 - [ ] Stored Procedures Call
 - [ ] gentables - support MYSQL and PostgreSql
 - [ ] gentables - table filters
-- [ ] genmodels - Watch on Derived and temporary tables
-- [ ] genmodels - SqModelSharedAttribute - To read from JOINS
 - [ ] genmodels - list of "using"s as a parameter
 - [ ] genmodels - model mode [immutable, mutable, record] as a parameter 

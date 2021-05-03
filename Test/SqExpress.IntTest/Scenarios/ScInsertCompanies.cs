@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using SqExpress.IntTest.Context;
 using SqExpress.IntTest.Tables;
 using SqExpress.IntTest.Tables.Derived;
+using SqExpress.IntTest.Tables.Models;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.IntTest.Scenarios
@@ -41,19 +42,19 @@ namespace SqExpress.IntTest.Scenarios
 
             var tCustomerName = new CustomerName();
 
-            var users = await Select(tCustomerName.Columns)
+            var users = await Select(CustomerNameData.GetColumns(tCustomerName))
                 .From(tCustomerName)
                 .Where(tCustomerName.CustomerTypeId == 1)
                 .OrderBy(tCustomerName.Name)
                 .OffsetFetch(0, 5)
-                .QueryList(context.Database, r => ReadCustomerName(r, tCustomerName));
+                .QueryList(context.Database, r => CustomerNameData.Read(r, tCustomerName));
 
-            var companies = await Select(tCustomerName.Columns)
+            var companies = await Select(CustomerNameData.GetColumns(tCustomerName))
                 .From(tCustomerName)
                 .Where(tCustomerName.CustomerTypeId == 2)
                 .OrderBy(tCustomerName.CustomerId)
                 .OffsetFetch(0, 5)
-                .QueryList(context.Database, r => ReadCustomerName(r, tCustomerName));
+                .QueryList(context.Database, r => CustomerNameData.Read(r, tCustomerName));
 
             context.WriteLine(null);
             context.WriteLine("Top 5 Users users: ");
@@ -70,11 +71,6 @@ namespace SqExpress.IntTest.Scenarios
             foreach (var valueTuple in companies)
             {
                 Console.WriteLine(valueTuple);
-            }
-
-            (int Id, string Name, short CType) ReadCustomerName(ISqDataRecordReader r, CustomerName customerName)
-            {
-                return (Id: customerName.CustomerId.Read(r), Name: customerName.Name.Read(r), CType: customerName.CustomerTypeId.Read(r));
             }
         }
 

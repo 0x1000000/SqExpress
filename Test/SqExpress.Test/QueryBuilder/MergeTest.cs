@@ -258,7 +258,6 @@ namespace SqExpress.Test.QueryBuilder
                     .Done();
 
             });
-
         }
     }
 }

@@ -44,6 +44,7 @@ namespace SqExpress.GenSyntaxTraversal
                 Generate(projDir, @"SyntaxTreeOperations\ExprDeserializer.cs", buffer, GenerateDeserializer);
                 Generate(projDir, @"SyntaxTreeOperations\Internal\ExprModifier.cs", buffer, GenerateModifier);
                 Generate(projDir, @"SyntaxTreeOperations\Internal\ExprWalker.cs", buffer, GenerateWalker);
+                Generate(projDir, @"SyntaxTreeOperations\Internal\ExprWalkerPull.cs", buffer, GenerateWalkerPull);
                 Generate(projDir, @"SyntaxModifyExtensions.cs", buffer, GenerateSyntaxModify);
                 Console.WriteLine("Done!");
             }
@@ -235,6 +236,36 @@ namespace SqExpress.GenSyntaxTraversal
                 builder.AppendLineStart(0, "}");
             }
         }        
+
+        private static void GenerateWalkerPull(IReadOnlyList<NodeModel> models, StringBuilder stringBuilder)
+        {
+            CodeBuilder builder = new CodeBuilder(stringBuilder, 2);
+            foreach (var nodeModel in models)
+            {
+                builder.AppendLineStart(0, $"public bool Visit{nodeModel.TypeName}({nodeModel.TypeName} expr, object? arg)");
+                builder.AppendLineStart(0, "{");
+
+
+                builder.AppendLineStart(1, "switch (this.Peek().State)");
+                builder.AppendLineStart(1, "{");
+
+                var index = 0;
+                for (; index < nodeModel.SubNodes.Count; index++)
+                {
+                    var subNode = nodeModel.SubNodes[index];
+                    builder.AppendLineStart(2, $"case {index+1}:");
+                    builder.AppendLineStart(3, $"return this.SetCurrent(expr.{subNode.PropertyName});");
+                }
+                builder.AppendLineStart(2, $"case {index + 1}:");
+                builder.AppendLineStart(3, "return this.Pop();");
+
+                builder.AppendLineStart(2, "default:");
+                builder.AppendLineStart(3, "throw new SqExpressException(\"Incorrect enumerator visitor state\");");
+
+                builder.AppendLineStart(1, "}");
+                builder.AppendLineStart(0, "}");
+            }
+        }        
         
         private static void GenerateSyntaxModify(IReadOnlyList<NodeModel> models, StringBuilder stringBuilder)
         {
@@ -284,48 +315,64 @@ namespace SqExpress.GenSyntaxTraversal
                 foreach (var classDeclarationSyntax in tree.GetRoot().DescendantNodesAndSelf().OfType<ClassDeclarationSyntax>())
                 {
                     var classSymbol = semantic.GetDeclaredSymbol(classDeclarationSyntax);
-
-                    if (classSymbol != null && !classSymbol.IsAbstract && IsExpr(classSymbol) && classSymbol.Name.StartsWith("Expr"))
+                    
+                    var isSuitable = classSymbol != null 
+                                 && !classSymbol.IsAbstract 
+                                 && classSymbol.DeclaredAccessibility == Accessibility.Public
+                                 && IsExpr(classSymbol) 
+                                 && classSymbol.Name.StartsWith("Expr");
+                        
+                    if (!isSuitable)
                     {
-                        var properties = GetProperties(classSymbol);
-
-                        var subNodes = new List<SubNodeModel>();
-                        var modelProps = new List<SubNodeModel>();
-
-                        foreach (var constructor in classSymbol.Constructors)
-                        {
-                            foreach (var parameter in constructor.Parameters)
-                            {
-                                INamedTypeSymbol pType = (INamedTypeSymbol)parameter.Type;
-
-                                var correspondingProperty = properties.FirstOrDefault(prop =>
-                                    string.Equals(prop.Name,
-                                        parameter.Name,
-                                        StringComparison.CurrentCultureIgnoreCase));
-
-                                if (correspondingProperty == null)
-                                {
-                                    throw new Exception(
-                                        $"Could not find a property for the constructor arg: '{parameter.Name}'");
-                                }
-
-                                var ta = AnalyzeSymbol(ref pType);
-
-                                var subNodeModel = new SubNodeModel(correspondingProperty.Name, parameter.Name, pType.Name, ta.ListName, ta.IsNullable, ta.HostTypeName);
-                                if (ta.Expr)
-                                {
-                                    subNodes.Add(subNodeModel);
-                                }
-                                else
-                                {
-                                    modelProps.Add(subNodeModel);
-                                }
-
-                            }
-                        }
-
-                        result.Add(new NodeModel(classSymbol.Name, modelProps.Count == 0 && subNodes.Count == 0, subNodes, modelProps));
+                        continue;
                     }
+
+                    var properties = GetProperties(classSymbol);
+
+                    var subNodes = new List<SubNodeModel>();
+                    var modelProps = new List<SubNodeModel>();
+
+                    foreach (var constructor in classSymbol.Constructors)
+                    {
+                        foreach (var parameter in constructor.Parameters)
+                        {
+                            INamedTypeSymbol pType = (INamedTypeSymbol)parameter.Type;
+
+                            var correspondingProperty = properties.FirstOrDefault(prop =>
+                                string.Equals(prop.Name,
+                                    parameter.Name,
+                                    StringComparison.CurrentCultureIgnoreCase));
+
+                            if (correspondingProperty == null)
+                            {
+                                throw new Exception(
+                                    $"Could not find a property for the constructor arg: '{parameter.Name}'");
+                            }
+
+                            var ta = AnalyzeSymbol(ref pType);
+
+                            var subNodeModel = new SubNodeModel(correspondingProperty.Name,
+                                parameter.Name,
+                                pType.Name,
+                                ta.ListName,
+                                ta.IsNullable,
+                                ta.HostTypeName);
+                            if (ta.Expr)
+                            {
+                                subNodes.Add(subNodeModel);
+                            }
+                            else
+                            {
+                                modelProps.Add(subNodeModel);
+                            }
+
+                        }
+                    }
+
+                    result.Add(new NodeModel(classSymbol.Name,
+                        modelProps.Count == 0 && subNodes.Count == 0,
+                        subNodes,
+                        modelProps));
                 }
             }
 
@@ -335,6 +382,10 @@ namespace SqExpress.GenSyntaxTraversal
 
             bool IsExpr(INamedTypeSymbol symbol)
             {
+                if (symbol.Name == "IExpr")
+                {
+                    return true;
+                }
                 while (symbol != null)
                 {
                     if (symbol.Interfaces.Any(HasA))

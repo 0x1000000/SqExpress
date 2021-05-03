@@ -35,7 +35,7 @@ This an article that explains the library principles: ["Syntax Tree and Alternat
 17. [Temporary Tables](#temporary-tables)
 18. [Syntax Tree](#syntax-tree)
 19. [Table Descriptors Scaffolding](#table-descriptors-scaffolding)
-20. [DTOs Scaffolding](#dtos-Scaffolding)
+20. [DTOs Scaffolding](#dtos-scaffolding)
 21. [Serialization to XML](#serialization-to-xml)
 22. [Serialization to JSON](#serialization-to-json)
 23. [Serialization to Plain List](#serialization-to-plain-list)
@@ -848,6 +848,33 @@ UserId Inserted: 1,UserId Deleted: 1 , Action: UPDATE
 UserId Inserted: 2,UserId Deleted: 2 , Action: UPDATE
 ```
 
+For PostgresSQL or MySQL the library generates polyfills that use a temporary table to store passed data. For example the previous query will be converted into the following statements (OUTPUT is not supported):
+
+*Actual MYSQL:*
+```sql
+CREATE TEMPORARY TABLE `tmpMergeDataSource`(
+    `FirstName` varchar(8) character set utf8,
+    `LastName` varchar(10) character set utf8,
+    CONSTRAINT PRIMARY KEY (`FirstName`))
+;
+INSERT INTO `tmpMergeDataSource`(`FirstName`,`LastName`) 
+VALUES ('Francois','Sturman2'),('Allina','Freeborne2'),('Maye','Malloy')
+;
+UPDATE `User` `A0`,`tmpMergeDataSource` `A1` 
+SET 
+    `A0`.`LastName`=`A1`.`LastName`,
+    `A0`.`Version`=`A0`.`Version`+1,
+    `A0`.`ModifiedAt`=UTC_TIMESTAMP()
+WHERE `A0`.`FirstName`=`A1`.`FirstName`
+;
+INSERT INTO `User`(`FirstName`,`LastName`,`Version`,`ModifiedAt`) 
+SELECT `A1`.`FirstName`,`A1`.`LastName`,1,UTC_TIMESTAMP() 
+FROM `tmpMergeDataSource` `A1` 
+WHERE NOT EXISTS(SELECT 1 FROM `User` `A0` WHERE `A0`.`FirstName`=`A1`.`FirstName`)
+;
+DROP TABLE `tmpMergeDataSource`;
+```
+
 ## Temporary Tables
 In some scenarios temporary tables might be very useful and you can create such table as follows:
 ```cs
@@ -1007,6 +1034,7 @@ JOIN [dbo].[Customer]
 WHERE 
     [A0].[UserId]=7
 ```
+
 ## Table Descriptors Scaffolding
 **SqExpress** comes with the code-gen utility (it is located in the nuget package cache). It can read metadata form a database and create table descriptor classes in your code. It requires .Net Core 3.1+
 
@@ -1031,8 +1059,9 @@ dotnet $lib gentables mssql "MyConnectionString" --table-class-prefix "Tbl" -o "
 ```
 ###
 It uses Roslyn compiler so it does not overwrite existing files - it patched it with actual columns. All kind of changes like attributes, namespaces, interfaces will remain after next runs.
+
 ## DTOs Scaffolding
-You can add special attributes to column properties in table descriptor to provide information to the code-gen util to create (update) DTO classes with mappings:
+You can add special attributes to column properties in table descriptors to provide information to the code-gen util to create (update) DTO classes with mappings:
 ```cs
 public class TableUser : TableBase
 {
@@ -1136,7 +1165,7 @@ public class UserName
     }
 }
 ```
-and ```AuditData.cs```
+and [```AuditData.cs```](https://github.com/0x1000000/SqExpress/blob/main/SqExpress.GetStarted/Models/AuditData.cs)
 
 You can use them as follows:
 ```cs
@@ -1151,6 +1180,8 @@ foreach (var userName in users)
     Console.WriteLine($"{userName.Id} {userName.FirstName} {userName.LastName}");
 }
 ```
+*Note: **SqModel** attribute can be also used for temporary and derived table descriptors.*
+
 ## Serialization to XML
 Each expression can be exported to a xml string and then restored back. It can be useful to pass expressions over network:
 ```cs

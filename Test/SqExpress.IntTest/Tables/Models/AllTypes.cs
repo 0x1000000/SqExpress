@@ -118,26 +118,6 @@ namespace SqExpress.IntTest.Tables.Models
 
         public string? ColNullableXml { get; }
 
-        public static TableColumn[] GetColumns(TableItAllColumnTypes table)
-        {
-            return new TableColumn[]{table.Id, table.ColBoolean, table.ColNullableBoolean, table.ColByte, table.ColNullableByte, table.ColInt16, table.ColNullableInt16, table.ColInt32, table.ColNullableInt32, table.ColInt64, table.ColNullableInt64, table.ColDecimal, table.ColNullableDecimal, table.ColDouble, table.ColNullableDouble, table.ColDateTime, table.ColNullableDateTime, table.ColGuid, table.ColNullableGuid, table.ColStringUnicode, table.ColNullableStringUnicode, table.ColStringMax, table.ColNullableStringMax, table.ColString5, table.ColByteArraySmall, table.ColByteArrayBig, table.ColNullableByteArraySmall, table.ColNullableByteArrayBig, table.ColFixedSizeString, table.ColNullableFixedSizeString, table.ColFixedSizeByteArray, table.ColNullableFixedSizeByteArray, table.ColXml, table.ColNullableXml};
-        }
-
-        public static IRecordSetterNext GetMapping(IDataMapSetter<TableItAllColumnTypes, AllTypes> s)
-        {
-            return s.Set(s.Target.ColBoolean, s.Source.ColBoolean).Set(s.Target.ColNullableBoolean, s.Source.ColNullableBoolean).Set(s.Target.ColByte, s.Source.ColByte).Set(s.Target.ColNullableByte, s.Source.ColNullableByte).Set(s.Target.ColInt16, s.Source.ColInt16).Set(s.Target.ColNullableInt16, s.Source.ColNullableInt16).Set(s.Target.ColInt32, s.Source.ColInt32).Set(s.Target.ColNullableInt32, s.Source.ColNullableInt32).Set(s.Target.ColInt64, s.Source.ColInt64).Set(s.Target.ColNullableInt64, s.Source.ColNullableInt64).Set(s.Target.ColDecimal, s.Source.ColDecimal).Set(s.Target.ColNullableDecimal, s.Source.ColNullableDecimal).Set(s.Target.ColDouble, s.Source.ColDouble).Set(s.Target.ColNullableDouble, s.Source.ColNullableDouble).Set(s.Target.ColDateTime, s.Source.ColDateTime).Set(s.Target.ColNullableDateTime, s.Source.ColNullableDateTime).Set(s.Target.ColGuid, s.Source.ColGuid).Set(s.Target.ColNullableGuid, s.Source.ColNullableGuid).Set(s.Target.ColStringUnicode, s.Source.ColStringUnicode).Set(s.Target.ColNullableStringUnicode, s.Source.ColNullableStringUnicode).Set(s.Target.ColStringMax, s.Source.ColStringMax).Set(s.Target.ColNullableStringMax, s.Source.ColNullableStringMax).Set(s.Target.ColString5, s.Source.ColString5).Set(s.Target.ColByteArraySmall, s.Source.ColByteArraySmall).Set(s.Target.ColByteArrayBig, s.Source.ColByteArrayBig).Set(s.Target.ColNullableByteArraySmall, s.Source.ColNullableByteArraySmall).Set(s.Target.ColNullableByteArrayBig, s.Source.ColNullableByteArrayBig).Set(s.Target.ColFixedSizeString, s.Source.ColFixedSizeString).Set(s.Target.ColNullableFixedSizeString, s.Source.ColNullableFixedSizeString).Set(s.Target.ColFixedSizeByteArray, s.Source.ColFixedSizeByteArray).Set(s.Target.ColNullableFixedSizeByteArray, s.Source.ColNullableFixedSizeByteArray).Set(s.Target.ColXml, s.Source.ColXml).Set(s.Target.ColNullableXml, s.Source.ColNullableXml);
-        }
-
-        public static IRecordSetterNext GetUpdateKeyMapping(IDataMapSetter<TableItAllColumnTypes, AllTypes> s)
-        {
-            return s.Set(s.Target.Id, s.Source.Id);
-        }
-
-        public static IRecordSetterNext GetUpdateMapping(IDataMapSetter<TableItAllColumnTypes, AllTypes> s)
-        {
-            return s.Set(s.Target.ColBoolean, s.Source.ColBoolean).Set(s.Target.ColNullableBoolean, s.Source.ColNullableBoolean).Set(s.Target.ColByte, s.Source.ColByte).Set(s.Target.ColNullableByte, s.Source.ColNullableByte).Set(s.Target.ColInt16, s.Source.ColInt16).Set(s.Target.ColNullableInt16, s.Source.ColNullableInt16).Set(s.Target.ColInt32, s.Source.ColInt32).Set(s.Target.ColNullableInt32, s.Source.ColNullableInt32).Set(s.Target.ColInt64, s.Source.ColInt64).Set(s.Target.ColNullableInt64, s.Source.ColNullableInt64).Set(s.Target.ColDecimal, s.Source.ColDecimal).Set(s.Target.ColNullableDecimal, s.Source.ColNullableDecimal).Set(s.Target.ColDouble, s.Source.ColDouble).Set(s.Target.ColNullableDouble, s.Source.ColNullableDouble).Set(s.Target.ColDateTime, s.Source.ColDateTime).Set(s.Target.ColNullableDateTime, s.Source.ColNullableDateTime).Set(s.Target.ColGuid, s.Source.ColGuid).Set(s.Target.ColNullableGuid, s.Source.ColNullableGuid).Set(s.Target.ColStringUnicode, s.Source.ColStringUnicode).Set(s.Target.ColNullableStringUnicode, s.Source.ColNullableStringUnicode).Set(s.Target.ColStringMax, s.Source.ColStringMax).Set(s.Target.ColNullableStringMax, s.Source.ColNullableStringMax).Set(s.Target.ColString5, s.Source.ColString5).Set(s.Target.ColByteArraySmall, s.Source.ColByteArraySmall).Set(s.Target.ColByteArrayBig, s.Source.ColByteArrayBig).Set(s.Target.ColNullableByteArraySmall, s.Source.ColNullableByteArraySmall).Set(s.Target.ColNullableByteArrayBig, s.Source.ColNullableByteArrayBig).Set(s.Target.ColFixedSizeString, s.Source.ColFixedSizeString).Set(s.Target.ColNullableFixedSizeString, s.Source.ColNullableFixedSizeString).Set(s.Target.ColFixedSizeByteArray, s.Source.ColFixedSizeByteArray).Set(s.Target.ColNullableFixedSizeByteArray, s.Source.ColNullableFixedSizeByteArray).Set(s.Target.ColXml, s.Source.ColXml).Set(s.Target.ColNullableXml, s.Source.ColNullableXml);
-        }
-
         public AllTypes WithId(int id)
         {
             return new AllTypes(id: id, colBoolean: this.ColBoolean, colNullableBoolean: this.ColNullableBoolean, colByte: this.ColByte, colNullableByte: this.ColNullableByte, colInt16: this.ColInt16, colNullableInt16: this.ColNullableInt16, colInt32: this.ColInt32, colNullableInt32: this.ColNullableInt32, colInt64: this.ColInt64, colNullableInt64: this.ColNullableInt64, colDecimal: this.ColDecimal, colNullableDecimal: this.ColNullableDecimal, colDouble: this.ColDouble, colNullableDouble: this.ColNullableDouble, colDateTime: this.ColDateTime, colNullableDateTime: this.ColNullableDateTime, colGuid: this.ColGuid, colNullableGuid: this.ColNullableGuid, colStringUnicode: this.ColStringUnicode, colNullableStringUnicode: this.ColNullableStringUnicode, colStringMax: this.ColStringMax, colNullableStringMax: this.ColNullableStringMax, colString5: this.ColString5, colByteArraySmall: this.ColByteArraySmall, colByteArrayBig: this.ColByteArrayBig, colNullableByteArraySmall: this.ColNullableByteArraySmall, colNullableByteArrayBig: this.ColNullableByteArrayBig, colFixedSizeString: this.ColFixedSizeString, colNullableFixedSizeString: this.ColNullableFixedSizeString, colFixedSizeByteArray: this.ColFixedSizeByteArray, colNullableFixedSizeByteArray: this.ColNullableFixedSizeByteArray, colXml: this.ColXml, colNullableXml: this.ColNullableXml);
@@ -306,6 +286,69 @@ namespace SqExpress.IntTest.Tables.Models
         public AllTypes WithColNullableXml(string? colNullableXml)
         {
             return new AllTypes(id: this.Id, colBoolean: this.ColBoolean, colNullableBoolean: this.ColNullableBoolean, colByte: this.ColByte, colNullableByte: this.ColNullableByte, colInt16: this.ColInt16, colNullableInt16: this.ColNullableInt16, colInt32: this.ColInt32, colNullableInt32: this.ColNullableInt32, colInt64: this.ColInt64, colNullableInt64: this.ColNullableInt64, colDecimal: this.ColDecimal, colNullableDecimal: this.ColNullableDecimal, colDouble: this.ColDouble, colNullableDouble: this.ColNullableDouble, colDateTime: this.ColDateTime, colNullableDateTime: this.ColNullableDateTime, colGuid: this.ColGuid, colNullableGuid: this.ColNullableGuid, colStringUnicode: this.ColStringUnicode, colNullableStringUnicode: this.ColNullableStringUnicode, colStringMax: this.ColStringMax, colNullableStringMax: this.ColNullableStringMax, colString5: this.ColString5, colByteArraySmall: this.ColByteArraySmall, colByteArrayBig: this.ColByteArrayBig, colNullableByteArraySmall: this.ColNullableByteArraySmall, colNullableByteArrayBig: this.ColNullableByteArrayBig, colFixedSizeString: this.ColFixedSizeString, colNullableFixedSizeString: this.ColNullableFixedSizeString, colFixedSizeByteArray: this.ColFixedSizeByteArray, colNullableFixedSizeByteArray: this.ColNullableFixedSizeByteArray, colXml: this.ColXml, colNullableXml: colNullableXml);
+        }
+
+        public static TableColumn[] GetColumns(TableItAllColumnTypes table)
+        {
+            return new TableColumn[]{table.Id, table.ColBoolean, table.ColNullableBoolean, table.ColByte, table.ColNullableByte, table.ColInt16, table.ColNullableInt16, table.ColInt32, table.ColNullableInt32, table.ColInt64, table.ColNullableInt64, table.ColDecimal, table.ColNullableDecimal, table.ColDouble, table.ColNullableDouble, table.ColDateTime, table.ColNullableDateTime, table.ColGuid, table.ColNullableGuid, table.ColStringUnicode, table.ColNullableStringUnicode, table.ColStringMax, table.ColNullableStringMax, table.ColString5, table.ColByteArraySmall, table.ColByteArrayBig, table.ColNullableByteArraySmall, table.ColNullableByteArrayBig, table.ColFixedSizeString, table.ColNullableFixedSizeString, table.ColFixedSizeByteArray, table.ColNullableFixedSizeByteArray, table.ColXml, table.ColNullableXml};
+        }
+
+        public static IRecordSetterNext GetMapping(IDataMapSetter<TableItAllColumnTypes, AllTypes> s)
+        {
+            return s.Set(s.Target.ColBoolean, s.Source.ColBoolean).Set(s.Target.ColNullableBoolean, s.Source.ColNullableBoolean).Set(s.Target.ColByte, s.Source.ColByte).Set(s.Target.ColNullableByte, s.Source.ColNullableByte).Set(s.Target.ColInt16, s.Source.ColInt16).Set(s.Target.ColNullableInt16, s.Source.ColNullableInt16).Set(s.Target.ColInt32, s.Source.ColInt32).Set(s.Target.ColNullableInt32, s.Source.ColNullableInt32).Set(s.Target.ColInt64, s.Source.ColInt64).Set(s.Target.ColNullableInt64, s.Source.ColNullableInt64).Set(s.Target.ColDecimal, s.Source.ColDecimal).Set(s.Target.ColNullableDecimal, s.Source.ColNullableDecimal).Set(s.Target.ColDouble, s.Source.ColDouble).Set(s.Target.ColNullableDouble, s.Source.ColNullableDouble).Set(s.Target.ColDateTime, s.Source.ColDateTime).Set(s.Target.ColNullableDateTime, s.Source.ColNullableDateTime).Set(s.Target.ColGuid, s.Source.ColGuid).Set(s.Target.ColNullableGuid, s.Source.ColNullableGuid).Set(s.Target.ColStringUnicode, s.Source.ColStringUnicode).Set(s.Target.ColNullableStringUnicode, s.Source.ColNullableStringUnicode).Set(s.Target.ColStringMax, s.Source.ColStringMax).Set(s.Target.ColNullableStringMax, s.Source.ColNullableStringMax).Set(s.Target.ColString5, s.Source.ColString5).Set(s.Target.ColByteArraySmall, s.Source.ColByteArraySmall).Set(s.Target.ColByteArrayBig, s.Source.ColByteArrayBig).Set(s.Target.ColNullableByteArraySmall, s.Source.ColNullableByteArraySmall).Set(s.Target.ColNullableByteArrayBig, s.Source.ColNullableByteArrayBig).Set(s.Target.ColFixedSizeString, s.Source.ColFixedSizeString).Set(s.Target.ColNullableFixedSizeString, s.Source.ColNullableFixedSizeString).Set(s.Target.ColFixedSizeByteArray, s.Source.ColFixedSizeByteArray).Set(s.Target.ColNullableFixedSizeByteArray, s.Source.ColNullableFixedSizeByteArray).Set(s.Target.ColXml, s.Source.ColXml).Set(s.Target.ColNullableXml, s.Source.ColNullableXml);
+        }
+
+        public static IRecordSetterNext GetUpdateKeyMapping(IDataMapSetter<TableItAllColumnTypes, AllTypes> s)
+        {
+            return s.Set(s.Target.Id, s.Source.Id);
+        }
+
+        public static IRecordSetterNext GetUpdateMapping(IDataMapSetter<TableItAllColumnTypes, AllTypes> s)
+        {
+            return s.Set(s.Target.ColBoolean, s.Source.ColBoolean).Set(s.Target.ColNullableBoolean, s.Source.ColNullableBoolean).Set(s.Target.ColByte, s.Source.ColByte).Set(s.Target.ColNullableByte, s.Source.ColNullableByte).Set(s.Target.ColInt16, s.Source.ColInt16).Set(s.Target.ColNullableInt16, s.Source.ColNullableInt16).Set(s.Target.ColInt32, s.Source.ColInt32).Set(s.Target.ColNullableInt32, s.Source.ColNullableInt32).Set(s.Target.ColInt64, s.Source.ColInt64).Set(s.Target.ColNullableInt64, s.Source.ColNullableInt64).Set(s.Target.ColDecimal, s.Source.ColDecimal).Set(s.Target.ColNullableDecimal, s.Source.ColNullableDecimal).Set(s.Target.ColDouble, s.Source.ColDouble).Set(s.Target.ColNullableDouble, s.Source.ColNullableDouble).Set(s.Target.ColDateTime, s.Source.ColDateTime).Set(s.Target.ColNullableDateTime, s.Source.ColNullableDateTime).Set(s.Target.ColGuid, s.Source.ColGuid).Set(s.Target.ColNullableGuid, s.Source.ColNullableGuid).Set(s.Target.ColStringUnicode, s.Source.ColStringUnicode).Set(s.Target.ColNullableStringUnicode, s.Source.ColNullableStringUnicode).Set(s.Target.ColStringMax, s.Source.ColStringMax).Set(s.Target.ColNullableStringMax, s.Source.ColNullableStringMax).Set(s.Target.ColString5, s.Source.ColString5).Set(s.Target.ColByteArraySmall, s.Source.ColByteArraySmall).Set(s.Target.ColByteArrayBig, s.Source.ColByteArrayBig).Set(s.Target.ColNullableByteArraySmall, s.Source.ColNullableByteArraySmall).Set(s.Target.ColNullableByteArrayBig, s.Source.ColNullableByteArrayBig).Set(s.Target.ColFixedSizeString, s.Source.ColFixedSizeString).Set(s.Target.ColNullableFixedSizeString, s.Source.ColNullableFixedSizeString).Set(s.Target.ColFixedSizeByteArray, s.Source.ColFixedSizeByteArray).Set(s.Target.ColNullableFixedSizeByteArray, s.Source.ColNullableFixedSizeByteArray).Set(s.Target.ColXml, s.Source.ColXml).Set(s.Target.ColNullableXml, s.Source.ColNullableXml);
+        }
+
+        public static ISqModelReader<AllTypes, TableItAllColumnTypes> GetReader()
+        {
+            return AllTypesReader.Instance;
+        }
+
+        private class AllTypesReader : ISqModelReader<AllTypes, TableItAllColumnTypes>
+        {
+            public static AllTypesReader Instance { get; } = new AllTypesReader();
+            TableColumn[] ISqModelReader<AllTypes, TableItAllColumnTypes>.GetColumns(TableItAllColumnTypes table)
+            {
+                return AllTypes.GetColumns(table);
+            }
+
+            AllTypes ISqModelReader<AllTypes, TableItAllColumnTypes>.Read(ISqDataRecordReader record, TableItAllColumnTypes table)
+            {
+                return AllTypes.Read(record, table);
+            }
+        }
+
+        public static ISqModelUpdaterKey<AllTypes, TableItAllColumnTypes> GetUpdater()
+        {
+            return AllTypesUpdater.Instance;
+        }
+
+        private class AllTypesUpdater : ISqModelUpdaterKey<AllTypes, TableItAllColumnTypes>
+        {
+            public static AllTypesUpdater Instance { get; } = new AllTypesUpdater();
+            IRecordSetterNext ISqModelUpdater<AllTypes, TableItAllColumnTypes>.GetMapping(IDataMapSetter<TableItAllColumnTypes, AllTypes> dataMapSetter)
+            {
+                return AllTypes.GetMapping(dataMapSetter);
+            }
+
+            IRecordSetterNext ISqModelUpdaterKey<AllTypes, TableItAllColumnTypes>.GetUpdateKeyMapping(IDataMapSetter<TableItAllColumnTypes, AllTypes> dataMapSetter)
+            {
+                return AllTypes.GetUpdateKeyMapping(dataMapSetter);
+            }
+
+            IRecordSetterNext ISqModelUpdaterKey<AllTypes, TableItAllColumnTypes>.GetUpdateMapping(IDataMapSetter<TableItAllColumnTypes, AllTypes> dataMapSetter)
+            {
+                return AllTypes.GetUpdateMapping(dataMapSetter);
+            }
         }
     }
 }

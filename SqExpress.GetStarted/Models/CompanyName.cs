@@ -22,6 +22,16 @@ namespace SqExpress.GetStarted.Models
 
         public string Name { get; }
 
+        public CompanyName WithId(int id)
+        {
+            return new CompanyName(id: id, name: this.Name);
+        }
+
+        public CompanyName WithName(string name)
+        {
+            return new CompanyName(id: this.Id, name: name);
+        }
+
         public static TableColumn[] GetColumns(TableCompany table)
         {
             return new TableColumn[]{table.CompanyId, table.CompanyName};
@@ -40,16 +50,6 @@ namespace SqExpress.GetStarted.Models
         public static IRecordSetterNext GetUpdateMapping(IDataMapSetter<TableCompany, CompanyName> s)
         {
             return s.Set(s.Target.CompanyName, s.Source.Name);
-        }
-
-        public CompanyName WithId(int id)
-        {
-            return new CompanyName(id: id, name: this.Name);
-        }
-
-        public CompanyName WithName(string name)
-        {
-            return new CompanyName(id: this.Id, name: name);
         }
     }
 }

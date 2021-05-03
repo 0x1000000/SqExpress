@@ -16,11 +16,12 @@ namespace SqExpress.CodeGenUtil.CodeGen
 
                 var classSyntax = propertySyntax.FindParentOrDefault<ClassDeclarationSyntax>()!;
 
-
+                var baseTypeKindTag = SyntaxHelpers.GetTableClassKind(classSyntax) 
+                                                  ?? throw new SqExpressCodeGenException($"Unknown base class in '{classSyntax.Identifier.ValueText}'");
 
                 var namespaceSyntax = classSyntax.FindParentOrDefault<NamespaceDeclarationSyntax>()!;
 
-                var tableNamespace = namespaceSyntax.Name.ToString();
+                var tableNamespace = namespaceSyntax?.Name.ToString() ?? string.Empty;
 
                 var tableName = classSyntax.Identifier.ValueText;
 
@@ -54,7 +55,8 @@ namespace SqExpress.CodeGenUtil.CodeGen
                     tableName: tableName,
                     columnName: columnName,
                     isPrimaryKey: identity.Pk,
-                    isIdentity: identity.Idendity);
+                    isIdentity: identity.Idendity,
+                    baseTypeKindTag: baseTypeKindTag);
             }
 
             static T? GetAttributeProperty<T>(AttributeSyntax attribute, string name) where T : ExpressionSyntax
@@ -104,7 +106,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
 
                 var property = meta.AddPropertyCheckExistence(new SqModelPropertyMeta(raw.FieldName, raw.FieldTypeName, raw.CastTypeName, raw.IsPrimaryKey, raw.IsIdentity));
 
-                property.AddColumnCheckExistence(meta.Name, new SqModelPropertyTableColMeta(new SqModelTableRef(raw.TableName, raw.TableNamespace), raw.ColumnName));
+                property.AddColumnCheckExistence(meta.Name, new SqModelPropertyTableColMeta(new SqModelTableRef(raw.TableName, raw.TableNamespace, raw.BaseTypeKindTag), raw.ColumnName));
             }
 
             var res =  acc.Values.OrderBy(v => v.Name).ToList();

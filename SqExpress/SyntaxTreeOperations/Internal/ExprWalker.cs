@@ -508,6 +508,12 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             this._visitor.EndVisitExpr(expr, arg);
             return res;
         }
+        public bool VisitExprList(ExprList expr, TCtx arg)
+        {
+            var res = this.Visit(expr, "List", arg, out var argOut) && this.Accept("Expressions",expr.Expressions, argOut);
+            this._visitor.EndVisitExpr(expr, arg);
+            return res;
+        }
         public bool VisitExprMerge(ExprMerge expr, TCtx arg)
         {
             var res = this.Visit(expr, "Merge", arg, out var argOut) && this.Accept("TargetTable",expr.TargetTable, argOut) && this.Accept("Source",expr.Source, argOut) && this.Accept("On",expr.On, argOut) && this.Accept("WhenMatched",expr.WhenMatched, argOut) && this.Accept("WhenNotMatchedByTarget",expr.WhenNotMatchedByTarget, argOut) && this.Accept("WhenNotMatchedBySource",expr.WhenNotMatchedBySource, argOut);
@@ -615,6 +621,12 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         {
             var res = this.Visit(expr, "QueryExpression", arg, out var argOut) && this.Accept("Left",expr.Left, argOut) && this.Accept("Right",expr.Right, argOut);
             this.VisitPlainProperty("QueryExpressionType",expr.QueryExpressionType, argOut);
+            this._visitor.EndVisitExpr(expr, arg);
+            return res;
+        }
+        public bool VisitExprQueryList(ExprQueryList expr, TCtx arg)
+        {
+            var res = this.Visit(expr, "QueryList", arg, out var argOut) && this.Accept("Expressions",expr.Expressions, argOut);
             this._visitor.EndVisitExpr(expr, arg);
             return res;
         }
