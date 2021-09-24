@@ -40,6 +40,7 @@ This an article that explains the library principles: ["Syntax Tree and Alternat
 22. [Serialization to JSON](#serialization-to-json)
 23. [Serialization to Plain List](#serialization-to-plain-list)
 24. [Auto-Mapper](#auto-mapper)
+25. [Using in ASP.Net](#using-in-aspnet)
 
 # Get Started
 
@@ -1435,3 +1436,11 @@ var result = await Select(table.Columns)
     .QueryList(context.Database, r => mapper.Map<IDataRecord, AllColumnTypesDto>(r));
 ```
 [(taken from "Test/SqExpress.IntTest/Scenarios/ScAllColumnTypes.cs")](https://github.com/0x1000000/SqExpress/blob/main/Test/SqExpress.IntTest/Scenarios/ScAllColumnTypes.cs#L26)
+
+## Using in ASP.Net
+There is a demo ASP.Net project which is supposed to show how [SqExpress](https://github.com/0x1000000/SqGoods/tree/init-tmp) can be used in a real web app. It is not yet done but the basics are already implemented.
+The ideas:
+1.	Each API request uses only one sql connection which is stored in [a connection storage](https://github.com/0x1000000/SqGoods/blob/init-tmp/SqGoods.DomainLogic/DataAccess/MsSqlConnectionStorage.cs);
+2.	The connection storage [can create an instance of SqDatabase](https://github.com/0x1000000/SqGoods/blob/init-tmp/SqGoods.DomainLogic/DataAccess/MsSqlConnectionStorage.cs#L18);
+3.	The connection storage and SqDatabase [have “Scoped” lifecycle](https://github.com/0x1000000/SqGoods/blob/init-tmp/SqGoods.DomainLogic/DomainLogicRegistration.cs#L17);
+4.	SqDatabase is used in [entity repositories which are responsible for “Domain Logic”](https://github.com/0x1000000/SqGoods/blob/init-tmp/SqGoods.DomainLogic/Repositories/SgCategoryRepository.cs).
