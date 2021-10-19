@@ -2,6 +2,8 @@ using System;
 using SqExpress;
 using SqExpress.QueryBuilders.RecordSetter;
 using SqExpress.IntTest.Tables;
+using SqExpress.Syntax.Names;
+using System.Collections.Generic;
 
 namespace SqExpress.IntTest.Tables.Models
 {
@@ -60,7 +62,7 @@ namespace SqExpress.IntTest.Tables.Models
         private class TestMergeDataReader : ISqModelReader<TestMergeData, TestMergeTmpTable>
         {
             public static TestMergeDataReader Instance { get; } = new TestMergeDataReader();
-            TableColumn[] ISqModelReader<TestMergeData, TestMergeTmpTable>.GetColumns(TestMergeTmpTable table)
+            IReadOnlyList<ExprColumn> ISqModelReader<TestMergeData, TestMergeTmpTable>.GetColumns(TestMergeTmpTable table)
             {
                 return TestMergeData.GetColumns(table);
             }

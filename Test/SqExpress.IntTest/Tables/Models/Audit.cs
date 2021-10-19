@@ -2,6 +2,8 @@ using System;
 using SqExpress;
 using SqExpress.QueryBuilders.RecordSetter;
 using SqExpress.IntTest.Tables;
+using SqExpress.Syntax.Names;
+using System.Collections.Generic;
 
 namespace SqExpress.IntTest.Tables.Models
 {
@@ -73,7 +75,7 @@ namespace SqExpress.IntTest.Tables.Models
         private class AuditReaderForTableItCompany : ISqModelReader<Audit, TableItCompany>
         {
             public static AuditReaderForTableItCompany Instance { get; } = new AuditReaderForTableItCompany();
-            TableColumn[] ISqModelReader<Audit, TableItCompany>.GetColumns(TableItCompany table)
+            IReadOnlyList<ExprColumn> ISqModelReader<Audit, TableItCompany>.GetColumns(TableItCompany table)
             {
                 return Audit.GetColumns(table);
             }
@@ -92,7 +94,7 @@ namespace SqExpress.IntTest.Tables.Models
         private class AuditReaderForTableItUser : ISqModelReader<Audit, TableItUser>
         {
             public static AuditReaderForTableItUser Instance { get; } = new AuditReaderForTableItUser();
-            TableColumn[] ISqModelReader<Audit, TableItUser>.GetColumns(TableItUser table)
+            IReadOnlyList<ExprColumn> ISqModelReader<Audit, TableItUser>.GetColumns(TableItUser table)
             {
                 return Audit.GetColumns(table);
             }

@@ -53,31 +53,49 @@ namespace SqExpress.CodeGenUtil.CodeGen
                     .FirstOrDefault(cd => cd.Identifier.ValueText == meta.Name);
             }
 
+            var namespaces =
+                new[] {
+                        nameof(System),
+                        nameof(SqExpress),
+                        $"{nameof(SqExpress)}.{nameof(SqExpress.QueryBuilders)}.{nameof(SqExpress.QueryBuilders.RecordSetter)}"
+                    }
+                    .Concat(meta.Properties.SelectMany(p => p.Column)
+                        .Select(c => c.TableRef.TableTypeNameSpace)
+                        .Where(n => n != defaultNamespace))
+                    .Distinct()
+                    .ToList();
+
+            if (rwClasses || ExtractTableRefs(meta).Any(tr => tr.BaseTypeKindTag == BaseTypeKindTag.DerivedTableBase))
+            {
+                namespaces.Add($"{nameof(SqExpress)}.{nameof(SqExpress.Syntax)}.{nameof(SqExpress.Syntax.Names)}");
+                namespaces.Add($"{nameof(System)}.{nameof(System.Collections)}.{nameof(System.Collections.Generic)}");
+            }
+
+
             if (existingClass != null)
             {
                 result = existingClass.FindParentOrDefault<CompilationUnitSyntax>() ?? throw new SqExpressCodeGenException($"Could not find compilation unit in \"{existingFilePath}\"");
 
+                foreach (var usingDirectiveSyntax in result.Usings)
+                {
+                    var existingUsing = usingDirectiveSyntax.Name.ToFullString();
+                    var index = namespaces.IndexOf(existingUsing);
+                    if (index >= 0)
+                    {
+                        namespaces.RemoveAt(index);
+                    }
+                }
+
+                if (namespaces.Count > 0)
+                {
+                    result = result.AddUsings(namespaces
+                        .Select(n => SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(n)))
+                        .ToArray());
+                }
                 result = result.ReplaceNode(existingClass, GenerateClass(meta, rwClasses, existingClass));
             }
             else
             {
-                var namespaces =
-                    new[] {
-                            nameof(System),
-                            nameof(SqExpress),
-                            $"{nameof(SqExpress)}.{nameof(SqExpress.QueryBuilders)}.{nameof(SqExpress.QueryBuilders.RecordSetter)}"
-                        }
-                        .Concat(meta.Properties.SelectMany(p => p.Column)
-                            .Select(c => c.TableRef.TableTypeNameSpace)
-                            .Where(n => n != defaultNamespace))
-                        .Distinct()
-                        .ToList();
-
-                if (ExtractTableRefs(meta).Any(tr=>tr.BaseTypeKindTag == BaseTypeKindTag.DerivedTableBase))
-                {
-                    namespaces.Add($"{nameof(SqExpress)}.{nameof(SqExpress.Syntax)}.{nameof(SqExpress.Syntax.Names)}");
-                }
-
                 result = SyntaxFactory.CompilationUnit()
                     .AddUsings(namespaces.Select(n => SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(n))).ToArray())
                     .AddMembers(SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(defaultNamespace))
@@ -375,7 +393,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
             var classType = SyntaxFactory.ParseTypeName(className);
 
             var baseInterface = SyntaxFactory.GenericName(
-                    SyntaxFactory.Identifier(ExtractModelReaderTypeName(tableRef)))
+                    SyntaxFactory.Identifier(nameof(ISqModelReader<object, object>)))
                 .WithTypeArgumentList(
                     SyntaxFactory.TypeArgumentList(
                         SyntaxFactory.SeparatedList<TypeSyntax>(
@@ -409,13 +427,15 @@ namespace SqExpress.CodeGenUtil.CodeGen
 
             //GetColumns
             var getColumns = SyntaxFactory.MethodDeclaration(
-                    SyntaxFactory.ArrayType(
-                            SyntaxFactory.IdentifierName(ExtractTableColumnTypeName(tableRef)))
-                        .WithRankSpecifiers(
-                            SyntaxFactory.SingletonList(
-                                SyntaxFactory.ArrayRankSpecifier(
-                                    SyntaxFactory.SingletonSeparatedList<ExpressionSyntax>(
-                                        SyntaxFactory.OmittedArraySizeExpression())))),
+                SyntaxFactory.GenericName(
+                        SyntaxFactory.Identifier(nameof(IReadOnlyList<object>)))
+                    .WithTypeArgumentList(
+                        SyntaxFactory.TypeArgumentList(
+                            SyntaxFactory.SeparatedList<TypeSyntax>(
+                                new SyntaxNodeOrToken[]
+                                {
+                                    SyntaxFactory.IdentifierName(nameof(ExprColumn))
+                                }))),
                     SyntaxFactory.Identifier(MethodNameGetColumns))
                 .WithExplicitInterfaceSpecifier(SyntaxFactory.ExplicitInterfaceSpecifier(baseInterface))
                 .WithParameterList(
@@ -652,12 +672,6 @@ namespace SqExpress.CodeGenUtil.CodeGen
                 tableBaseRes: nameof(TableColumn), 
                 tempTableBaseRes: nameof(TableColumn), 
                 derivedTableBaseRes: nameof(ExprColumn));
-
-        private static string ExtractModelReaderTypeName(SqModelTableRef tableRef)
-            => tableRef.BaseTypeKindTag.Switch(
-                tableBaseRes: nameof(ISqModelReader<object, object>),
-                tempTableBaseRes: nameof(ISqModelReader<object, object>),
-                derivedTableBaseRes: nameof(ISqModelDerivedReaderReader<object, object>));
 
         private static bool HasUpdater(SqModelTableRef tableRef)
             => tableRef.BaseTypeKindTag.Switch(

@@ -2,6 +2,8 @@ using System;
 using SqExpress;
 using SqExpress.QueryBuilders.RecordSetter;
 using SqExpress.IntTest.Tables;
+using SqExpress.Syntax.Names;
+using System.Collections.Generic;
 
 namespace SqExpress.IntTest.Tables.Models
 {
@@ -68,7 +70,7 @@ namespace SqExpress.IntTest.Tables.Models
         private class UserNameReader : ISqModelReader<UserName, TableItUser>
         {
             public static UserNameReader Instance { get; } = new UserNameReader();
-            TableColumn[] ISqModelReader<UserName, TableItUser>.GetColumns(TableItUser table)
+            IReadOnlyList<ExprColumn> ISqModelReader<UserName, TableItUser>.GetColumns(TableItUser table)
             {
                 return UserName.GetColumns(table);
             }

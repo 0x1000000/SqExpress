@@ -1,3 +1,7 @@
+# 0.2.1.0
+### Breaking Changes
+- ISqModelDerivedReaderReader was removed. ISqModelReader was slightly changed;
+
 # 0.2.0.0
 ### New Features
 - "MERGE" polyfill for PostgreSql and MYSQL

@@ -3,6 +3,7 @@ using SqExpress;
 using SqExpress.QueryBuilders.RecordSetter;
 using SqExpress.IntTest.Tables.Derived;
 using SqExpress.Syntax.Names;
+using System.Collections.Generic;
 
 namespace SqExpress.IntTest.Tables.Models
 {
@@ -46,20 +47,20 @@ namespace SqExpress.IntTest.Tables.Models
             return new ExprColumn[]{table.CustomerId, table.CustomerTypeId, table.Name};
         }
 
-        public static ISqModelDerivedReaderReader<CustomerNameData, CustomerName> GetReader()
+        public static ISqModelReader<CustomerNameData, CustomerName> GetReader()
         {
             return CustomerNameDataReader.Instance;
         }
 
-        private class CustomerNameDataReader : ISqModelDerivedReaderReader<CustomerNameData, CustomerName>
+        private class CustomerNameDataReader : ISqModelReader<CustomerNameData, CustomerName>
         {
             public static CustomerNameDataReader Instance { get; } = new CustomerNameDataReader();
-            ExprColumn[] ISqModelDerivedReaderReader<CustomerNameData, CustomerName>.GetColumns(CustomerName table)
+            IReadOnlyList<ExprColumn> ISqModelReader<CustomerNameData, CustomerName>.GetColumns(CustomerName table)
             {
                 return CustomerNameData.GetColumns(table);
             }
 
-            CustomerNameData ISqModelDerivedReaderReader<CustomerNameData, CustomerName>.Read(ISqDataRecordReader record, CustomerName table)
+            CustomerNameData ISqModelReader<CustomerNameData, CustomerName>.Read(ISqDataRecordReader record, CustomerName table)
             {
                 return CustomerNameData.Read(record, table);
             }

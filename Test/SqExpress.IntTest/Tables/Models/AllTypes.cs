@@ -2,6 +2,8 @@ using System;
 using SqExpress;
 using SqExpress.QueryBuilders.RecordSetter;
 using SqExpress.IntTest.Tables;
+using SqExpress.Syntax.Names;
+using System.Collections.Generic;
 
 namespace SqExpress.IntTest.Tables.Models
 {
@@ -316,7 +318,7 @@ namespace SqExpress.IntTest.Tables.Models
         private class AllTypesReader : ISqModelReader<AllTypes, TableItAllColumnTypes>
         {
             public static AllTypesReader Instance { get; } = new AllTypesReader();
-            TableColumn[] ISqModelReader<AllTypes, TableItAllColumnTypes>.GetColumns(TableItAllColumnTypes table)
+            IReadOnlyList<ExprColumn> ISqModelReader<AllTypes, TableItAllColumnTypes>.GetColumns(TableItAllColumnTypes table)
             {
                 return AllTypes.GetColumns(table);
             }

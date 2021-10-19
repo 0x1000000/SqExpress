@@ -1,5 +1,10 @@
 using System.Text.Json.Serialization;
 using SqExpress.QueryBuilders.RecordSetter;
+using SqExpress.Syntax.Names;
+using System;
+using SqExpress;
+using SqExpress.IntTest.Tables;
+using System.Collections.Generic;
 
 namespace SqExpress.IntTest.Tables.Models
 {
@@ -60,7 +65,7 @@ namespace SqExpress.IntTest.Tables.Models
         private class UserEmailReader : ISqModelReader<UserEmail, TableItUser>
         {
             public static UserEmailReader Instance { get; } = new UserEmailReader();
-            TableColumn[] ISqModelReader<UserEmail, TableItUser>.GetColumns(TableItUser table)
+            IReadOnlyList<ExprColumn> ISqModelReader<UserEmail, TableItUser>.GetColumns(TableItUser table)
             {
                 return UserEmail.GetColumns(table);
             }
