@@ -1158,6 +1158,11 @@ namespace SqExpress.SqlExport.Internal
 
         public bool VisitExprInsertValues(ExprInsertValues exprInsertValues, IExpr? parent)
         {
+            if (exprInsertValues.Items.Count < 1)
+            {
+                throw new SqExpressException("Insert values should have at least one record");
+            }
+
             this.Builder.Append("VALUES ");
 
             for (var i = 0; i < exprInsertValues.Items.Count; i++)
@@ -1186,6 +1191,7 @@ namespace SqExpress.SqlExport.Internal
         }
 
         public abstract bool VisitExprInsertQuery(ExprInsertQuery exprInsertQuery, IExpr? parent);
+        public abstract bool VisitExprIdentityInsert(ExprIdentityInsert exprIdentityInsert, IExpr? arg);
 
         protected bool VisitExprInsertQueryCommon(ExprInsertQuery exprInsertQuery, IExpr? parent)
         {

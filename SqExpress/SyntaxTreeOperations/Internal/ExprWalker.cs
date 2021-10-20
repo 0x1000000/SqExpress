@@ -425,6 +425,12 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             this._visitor.EndVisitExpr(expr, arg);
             return res;
         }
+        public bool VisitExprIdentityInsert(ExprIdentityInsert expr, TCtx arg)
+        {
+            var res = this.Visit(expr, "IdentityInsert", arg, out var argOut) && this.Accept("Insert",expr.Insert, argOut) && this.Accept("IdentityColumns",expr.IdentityColumns, argOut);
+            this._visitor.EndVisitExpr(expr, arg);
+            return res;
+        }
         public bool VisitExprInSubQuery(ExprInSubQuery expr, TCtx arg)
         {
             var res = this.Visit(expr, "InSubQuery", arg, out var argOut) && this.Accept("TestExpression",expr.TestExpression, argOut) && this.Accept("SubQuery",expr.SubQuery, argOut);

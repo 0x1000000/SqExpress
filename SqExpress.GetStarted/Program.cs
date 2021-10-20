@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Data.Common;
 using System.Data.SqlClient;
 using System.IO;
@@ -58,6 +60,7 @@ namespace SqExpress.GetStarted
                 {
                     return;
                 }
+
                 await connection.OpenAsync();
 
                 using (var database = new SqDatabase<SqlConnection>(
@@ -65,7 +68,7 @@ namespace SqExpress.GetStarted
                     commandFactory: SqlCommandFactory,
                     sqlExporter: TSqlExporter.Default))
                 {
-                    await Script(database, isMsSql:true);
+                    await Script(database, isMsSql: true);
                 }
             }
         }
@@ -87,7 +90,7 @@ namespace SqExpress.GetStarted
             using (var connection = new NpgsqlConnection(connectionString))
             {
                 if (!await CheckConnection(connection, "PostgreSQL"))
-                {  
+                {
                     return;
                 }
 
@@ -95,7 +98,7 @@ namespace SqExpress.GetStarted
                     connection: connection,
                     commandFactory: NpgsqlCommandFactory,
                     sqlExporter: new PgSqlExporter(builderOptions: SqlBuilderOptions.Default
-                        .WithSchemaMap(schemaMap: new[] {new SchemaMap(@from: "dbo", to: "public")}))))
+                        .WithSchemaMap(schemaMap: new[] { new SchemaMap(@from: "dbo", to: "public") }))))
                 {
                     await Script(database: database, isMsSql: false);
                 }
@@ -142,7 +145,8 @@ namespace SqExpress.GetStarted
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Could not open {dbName} database ({e.Message}). Check that the connection string is correct \"{connection.ConnectionString}\".");
+                Console.WriteLine(
+                    $"Could not open {dbName} database ({e.Message}). Check that the connection string is correct \"{connection.ConnectionString}\".");
                 return false;
             }
         }
@@ -169,18 +173,12 @@ namespace SqExpress.GetStarted
             await Step17ExportToJson(database);
             await Step18ExportToXml(database);
             await Step19ExportToPlain(database);
+            await Step20ExportDataToJson(database);
         }
 
         private static async Task Step1CreatingTables(ISqDatabase database)
         {
-            var tables = new TableBase[]
-            {
-                new TableUser(), 
-                new TableCompany(), 
-                new TableCustomer(),
-                new TableFavoriteFilter(),
-                new TableFavoriteFilterItem()
-            };
+            var tables = CreateTableList();
 
             foreach (var table in tables.Reverse())
             {
@@ -199,9 +197,9 @@ namespace SqExpress.GetStarted
 
             var data = new[]
             {
-                new {FirstName = "Francois", LastName = "Sturman"},
-                new {FirstName = "Allina", LastName = "Freeborne"},
-                new {FirstName = "Maye", LastName = "Maloy"},
+                new { FirstName = "Francois", LastName = "Sturman" },
+                new { FirstName = "Allina", LastName = "Freeborne" },
+                new { FirstName = "Maye", LastName = "Maloy" },
             };
 
             await InsertDataInto(tUser, data)
@@ -273,7 +271,7 @@ namespace SqExpress.GetStarted
             var tCompany = new TableCompany();
 
             Console.WriteLine("Companies:");
-            await InsertDataInto(tCompany, new[] {"Microsoft", "Google"})
+            await InsertDataInto(tCompany, new[] { "Microsoft", "Google" })
                 .MapData(s => s.Set(s.Target.CompanyName, s.Source))
                 .AlsoInsert(s => s
                     .Set(s.Target.Version, 1)
@@ -370,7 +368,7 @@ namespace SqExpress.GetStarted
         private static async Task Step10UseDerivedTables(ISqDatabase database)
         {
             var tCustomer = new DerivedTableCustomer("CUST");
-            
+
             var customers = await Select(CustomerData.GetColumns(tCustomer))
                 .From(tCustomer)
                 .Where(tCustomer.Type == 2 | tCustomer.Name.Like("%Free%"))
@@ -395,7 +393,7 @@ namespace SqExpress.GetStarted
             var numbers = Values(3, 1, 1, 7, 3, 7, 3, 7, 7, 8).AsColumns(num);
             var numbersSubQuery = TableAlias();
 
-            var mostFrequentNum = (int) await
+            var mostFrequentNum = (int)await
                 SelectTop(1, numbersSubQuery.Column(num))
                     .From(
                         Select(numbers.Column(num), CountOne().As(sum))
@@ -406,7 +404,7 @@ namespace SqExpress.GetStarted
                     .OrderBy(Desc(numbersSubQuery.Column(sum)))
                     .QueryScalar(database);
 
-            Console.WriteLine("The most frequent number: "  + mostFrequentNum);
+            Console.WriteLine("The most frequent number: " + mostFrequentNum);
         }
 
         private static async Task Step11AnalyticAndWindowFunctions(ISqDatabase database)
@@ -448,9 +446,9 @@ namespace SqExpress.GetStarted
         {
             var data = new[]
             {
-                new {FirstName = "Francois", LastName = "Sturman2"},
-                new {FirstName = "Allina", LastName = "Freeborne2"},
-                new {FirstName = "Maye", LastName = "Malloy"},
+                new { FirstName = "Francois", LastName = "Sturman2" },
+                new { FirstName = "Allina", LastName = "Freeborne2" },
+                new { FirstName = "Maye", LastName = "Malloy" },
             };
 
             var action = CustomColumnFactory.String("Actions");
@@ -547,11 +545,12 @@ namespace SqExpress.GetStarted
 
             //Checking that filter has "Type" column
             var hasVirtualColumn = filter.SyntaxTree()
-                .FirstOrDefault<ExprColumnName>(e => e.Name == "Type") != null;
+                                       .FirstOrDefault<ExprColumnName>(e => e.Name == "Type") !=
+                                   null;
 
             if (hasVirtualColumn)
             {
-                baseSelect = (ExprQuerySpecification) baseSelect.SyntaxTree()
+                baseSelect = (ExprQuerySpecification)baseSelect.SyntaxTree()
                     .Modify(e =>
                     {
                         var result = e;
@@ -685,18 +684,20 @@ namespace SqExpress.GetStarted
             var tableFavoriteFilter = new TableFavoriteFilter();
             var tableFavoriteFilterItem = new TableFavoriteFilterItem();
 
-            var filterIds = await InsertDataInto(tableFavoriteFilter, new[] {"Filter 1", "Filter 2"})
+            var filterIds = await InsertDataInto(tableFavoriteFilter, new[] { "Filter 1", "Filter 2" })
                 .MapData(s => s.Set(s.Target.Name, s.Source))
                 .Output(tableFavoriteFilter.FavoriteFilterId)
                 .QueryList(database, r => tableFavoriteFilterItem.FavoriteFilterId.Read(r));
 
-            var filter1Items = 
-                filter1.SyntaxTree().ExportToPlainList((i, id, index, b, s, value) =>
-                FilterPlainItem.Create(filterIds[0], i, id, index, b, s, value));
+            var filter1Items =
+                filter1.SyntaxTree()
+                    .ExportToPlainList((i, id, index, b, s, value) =>
+                        FilterPlainItem.Create(filterIds[0], i, id, index, b, s, value));
 
-            var filter2Items = 
-                filter2.SyntaxTree().ExportToPlainList((i, id, index, b, s, value) =>
-                FilterPlainItem.Create(filterIds[1], i, id, index, b, s, value));
+            var filter2Items =
+                filter2.SyntaxTree()
+                    .ExportToPlainList((i, id, index, b, s, value) =>
+                        FilterPlainItem.Create(filterIds[1], i, id, index, b, s, value));
 
             await InsertDataInto(tableFavoriteFilterItem, filter1Items.Concat(filter2Items))
                 .MapData(s => s
@@ -717,13 +718,13 @@ namespace SqExpress.GetStarted
                 .QueryList(
                     database,
                     r => new FilterPlainItem(
-                    favoriteFilterId: tableFavoriteFilterItem.FavoriteFilterId.Read(r),
-                    id: tableFavoriteFilterItem.Id.Read(r),
-                    parentId: tableFavoriteFilterItem.ParentId.Read(r),
-                    isTypeTag: tableFavoriteFilterItem.IsTypeTag.Read(r),
-                    arrayIndex: tableFavoriteFilterItem.ArrayIndex.Read(r),
-                    tag: tableFavoriteFilterItem.Tag.Read(r),
-                    value: tableFavoriteFilterItem.Value.Read(r)));
+                        favoriteFilterId: tableFavoriteFilterItem.FavoriteFilterId.Read(r),
+                        id: tableFavoriteFilterItem.Id.Read(r),
+                        parentId: tableFavoriteFilterItem.ParentId.Read(r),
+                        isTypeTag: tableFavoriteFilterItem.IsTypeTag.Read(r),
+                        arrayIndex: tableFavoriteFilterItem.ArrayIndex.Read(r),
+                        tag: tableFavoriteFilterItem.Tag.Read(r),
+                        value: tableFavoriteFilterItem.Value.Read(r)));
 
             var restoredFilter1 = (ExprBoolean)ExprDeserializer
                 .DeserializeFormPlainList(restoredFilterItems.Where(fi =>
@@ -738,7 +739,7 @@ namespace SqExpress.GetStarted
                 .From(tableUser)
                 .Where(restoredFilter1)
                 .Query(database,
-                    (object) null,
+                    (object)null,
                     (s, r) =>
                     {
                         Console.WriteLine($"{tableUser.FirstName.Read(r)} {tableUser.LastName.Read(r)}");
@@ -750,12 +751,159 @@ namespace SqExpress.GetStarted
                 .From(tableUser)
                 .Where(restoredFilter2)
                 .Query(database,
-                    (object) null,
+                    (object)null,
                     (s, r) =>
                     {
                         Console.WriteLine($"{tableUser.FirstName.Read(r)} {tableUser.LastName.Read(r)}");
                         return s;
                     });
+        }
+
+        private static async Task Step20ExportDataToJson(ISqDatabase database)
+        {
+            var tables = CreateTableList();
+
+            //To JSON
+            var jsonString = await ToJsonString(database, tables);
+
+            //Remove everything
+            foreach (var table in tables.Reverse())
+            {
+                await Delete(table).All().Exec(database);
+            }
+
+            //From JSON
+            await FromJsonString(sqDatabase: database, s: jsonString, tableBases: tables);
+
+            //Again to JSON
+            var jsonString2 = await ToJsonString(database, tables);
+
+            if (jsonString != jsonString2)
+            {
+                throw new Exception("Export'n'Import was not correct");
+            }
+
+            static async Task<string> ToJsonString(ISqDatabase database, TableBase[] tableBases)
+            {
+                using var ms = new MemoryStream();
+                using Utf8JsonWriter writer = new Utf8JsonWriter(ms);
+
+                writer.WriteStartObject();
+                foreach (var table in tableBases)
+                {
+                    await ReadTableDataIntoJson(writer, database, table);
+                }
+
+                writer.WriteEndObject();
+                writer.Flush();
+
+                var s = Encoding.UTF8.GetString(ms.ToArray());
+                return s;
+            }
+
+            static async Task ReadTableDataIntoJson(Utf8JsonWriter writer, ISqDatabase database, TableBase table)
+            {
+                writer.WriteStartArray(table.FullName.AsExprTableFullName().TableName.Name);
+
+                writer.WriteStartArray();
+                foreach (var column in table.Columns)
+                {
+                    writer.WriteStringValue(column.ColumnName.Name);
+                }
+
+                writer.WriteEndArray();
+
+                await Select(table.Columns)
+                    .From(table)
+                    .Query(database,
+                        r =>
+                        {
+                            writer.WriteStartArray();
+                            foreach (var column in table.Columns)
+                            {
+                                var readAsString = column.ReadAsString(r);
+                                writer.WriteStringValue(readAsString);
+                            }
+
+                            writer.WriteEndArray();
+                        });
+
+                writer.WriteEndArray();
+            }
+
+            static async Task FromJsonString(ISqDatabase sqDatabase, string s, TableBase[] tableBases)
+            {
+                var document = JsonDocument.Parse(s);
+                var pending = new Dictionary<string, JsonElement>();
+
+                using var enumerator = document.RootElement.EnumerateObject();
+                if (!enumerator.MoveNext())
+                {
+                    throw new Exception("Enumerator is empty");
+                }
+
+                foreach (var table in tableBases)
+                {
+                    var tableName = table.FullName.AsExprTableFullName().TableName.Name;
+                    JsonElement element;
+
+                    if (enumerator.Current.Name != tableName && pending.TryGetValue(tableName, out var e))
+                    {
+                        element = e;
+                    }
+                    else
+                    {
+                        while (enumerator.Current.Name != tableName)
+                        {
+                            pending.Add(enumerator.Current.Name, enumerator.Current.Value);
+                            if (!enumerator.MoveNext())
+                            {
+                                throw new Exception("Enumerator is empty");
+                            }
+                        }
+
+                        element = enumerator.Current.Value;
+                    }
+
+                    await InsertTableData(sqDatabase, table, element);
+                }
+            }
+
+            static async Task InsertTableData(ISqDatabase database, TableBase table, JsonElement element)
+            {
+                var columnsDict = table.Columns.ToDictionary(i => i.ColumnName.Name, i => i);
+                var colIndexes = element.EnumerateArray().First().EnumerateArray().Select(c => c.GetString()).ToList();
+
+                var rowsEnumerable = element
+                    .EnumerateArray()
+                    .Skip(1)
+                    .Select(e =>
+                        e.EnumerateArray()
+                            .Select((c, i) =>
+                                columnsDict[colIndexes[i]]
+                                    .FromString(c.ValueKind == JsonValueKind.Null ? null : c.GetString()))
+                            .ToList());
+
+                var insertExpr = IdentityInsertInto(table, table.Columns).Values(rowsEnumerable);
+                if (!insertExpr.Insert.Source.IsEmpty)
+                {
+                    await insertExpr.Exec(database);
+                }
+
+            }
+        }
+
+        private static TableBase[] CreateTableList()
+        {
+            var tables = new TableBase[]
+            {
+                new TableUser(),
+                new TableCompany(),
+                new TableCustomer(),
+                new TableFavoriteFilter(),
+                new TableFavoriteFilterItem()
+            };
+            return tables;
         }
     }
 

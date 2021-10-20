@@ -30,7 +30,7 @@
 
         public User(Alias alias) : base("dbo", "user", alias)
         {
-            this.UserId = this.CreateInt32Column("UserId");
+            this.UserId = this.CreateInt32Column("UserId", ColumnMeta.Identity());
             this.FirstName = this.CreateStringColumn("FirstName", 255);
             this.LastName = this.CreateStringColumn("LastName", 255);
             this.Email = this.CreateStringColumn("Email", 255);

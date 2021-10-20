@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Globalization;
 using System.IO;
 using SqExpress.Meta;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Type;
+using SqExpress.Syntax.Value;
 
 namespace SqExpress
 {
@@ -21,6 +23,17 @@ namespace SqExpress
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
 
+        public override string ReadAsString(ISqDataRecordReader recordReader) 
+            => this.ReadNullable(recordReader)?.ToString() 
+               ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
+
+        public override ExprLiteral FromString(string? value) =>
+            value == null
+                ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
+                : bool.TryParse(value, out var result)
+                    ? SqQueryBuilder.Literal(result)
+                    : throw new SqExpressException($"Could not parse '{value}' as boolean for column '{this.ColumnName.Name}'.");
+
         public BooleanCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new BooleanCustomColumn(this.ColumnName, columnSource);
 
         public BooleanCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new BooleanCustomColumn(this.ColumnName, derivedTable.Alias));
@@ -37,6 +50,15 @@ namespace SqExpress
         public new NullableBooleanTableColumn WithSource(IExprColumnSource? source) => new NullableBooleanTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString();
+
+        public override ExprLiteral FromString(string? value) =>
+            value == null
+                ? SqQueryBuilder.Literal((bool?)null)
+                : bool.TryParse(value, out var result)
+                    ? SqQueryBuilder.Literal(result)
+                    : throw new SqExpressException($"Could not parse '{value}' as boolean.");
 
         public NullableBooleanCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableBooleanCustomColumn(this.ColumnName, columnSource);
 
@@ -57,6 +79,17 @@ namespace SqExpress
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
 
+        public override string ReadAsString(ISqDataRecordReader recordReader)
+            => this.ReadNullable(recordReader)?.ToString()
+               ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
+
+        public override ExprLiteral FromString(string? value) =>
+            value == null
+                ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
+                : byte.TryParse(value, out var result)
+                    ? SqQueryBuilder.Literal(result)
+                    : throw new SqExpressException($"Could not parse '{value}' as byte for column '{this.ColumnName.Name}'.");
+
         public ByteCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new ByteCustomColumn(this.ColumnName, columnSource);
 
         public ByteCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new ByteCustomColumn(this.ColumnName, derivedTable.Alias));
@@ -73,6 +106,15 @@ namespace SqExpress
         public new NullableByteTableColumn WithSource(IExprColumnSource? source) => new NullableByteTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString();
+
+        public override ExprLiteral FromString(string? value) =>
+            value == null
+                ? SqQueryBuilder.Literal((byte?)null)
+                : byte.TryParse(value, out var result)
+                    ? SqQueryBuilder.Literal(result)
+                    : throw new SqExpressException($"Could not parse '{value}' as byte for column '{this.ColumnName.Name}'.");
 
         public NullableByteCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableByteCustomColumn(this.ColumnName, columnSource);
 
@@ -102,6 +144,27 @@ namespace SqExpress
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
 
+        public override string? ReadAsString(ISqDataRecordReader recordReader)
+        {
+            var base64Str = this.ReadNullable(recordReader);
+            return base64Str == null ? null : Convert.ToBase64String(base64Str);
+        }
+
+        public override ExprLiteral FromString(string? value)
+        {
+            if (value == null)
+                throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column");
+            try
+            {
+                var result = Convert.FromBase64String(value);
+                return SqQueryBuilder.Literal(result);
+            }
+            catch (FormatException e)
+            {
+                throw new SqExpressException($"Could not parse base64 string '{(value.Length > 50 ? value.Substring(0, 50) : value)}' for '{this.ColumnName.Name}' column.", e);
+            }
+        }
+
         public ByteCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new ByteCustomColumn(this.ColumnName, columnSource);
 
         public ByteCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new ByteCustomColumn(this.ColumnName, derivedTable.Alias));
@@ -126,6 +189,27 @@ namespace SqExpress
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
 
+        public override string? ReadAsString(ISqDataRecordReader recordReader)
+        {
+            var base64Str = this.Read(recordReader);
+            return base64Str == null ? null : Convert.ToBase64String(base64Str);
+        }
+
+        public override ExprLiteral FromString(string? value)
+        {
+            if (value == null)
+                return SqQueryBuilder.Literal((byte[]?)null);
+            try
+            {
+                var result = Convert.FromBase64String(value);
+                return SqQueryBuilder.Literal(result);
+            }
+            catch (FormatException e)
+            {
+                throw new SqExpressException($"Could not parse base64 string '{(value.Length > 50 ? value.Substring(0, 50) : value)}' for '{this.ColumnName.Name}' column.", e);
+            }
+        }
+
         public ByteCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new ByteCustomColumn(this.ColumnName, columnSource);
 
         public ByteCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new ByteCustomColumn(this.ColumnName, derivedTable.Alias));
@@ -145,6 +229,17 @@ namespace SqExpress
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
 
+        public override string ReadAsString(ISqDataRecordReader recordReader)
+            => this.ReadNullable(recordReader)?.ToString()
+               ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
+
+        public override ExprLiteral FromString(string? value) =>
+            value == null
+                ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
+                : short.TryParse(value, out var result)
+                    ? SqQueryBuilder.Literal(result)
+                    : throw new SqExpressException($"Could not parse '{value}' as short for column '{this.ColumnName.Name}'.");
+
         public Int16CustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new Int16CustomColumn(this.ColumnName, columnSource);
 
         public Int16CustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new Int16CustomColumn(this.ColumnName, derivedTable.Alias));
@@ -161,6 +256,15 @@ namespace SqExpress
         public new NullableInt16TableColumn WithSource(IExprColumnSource? source) => new NullableInt16TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString();
+
+        public override ExprLiteral FromString(string? value) =>
+            value == null
+                ? SqQueryBuilder.Literal((short?)null)
+                : short.TryParse(value, out var result)
+                    ? SqQueryBuilder.Literal(result)
+                    : throw new SqExpressException($"Could not parse '{value}' as short for column '{this.ColumnName.Name}'.");
 
         public NullableInt16CustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableInt16CustomColumn(this.ColumnName, columnSource);
 
@@ -181,6 +285,17 @@ namespace SqExpress
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
 
+        public override string ReadAsString(ISqDataRecordReader recordReader)
+            => this.ReadNullable(recordReader)?.ToString()
+               ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
+
+        public override ExprLiteral FromString(string? value) =>
+            value == null
+                ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
+                : int.TryParse(value, out var result)
+                    ? SqQueryBuilder.Literal(result)
+                    : throw new SqExpressException($"Could not parse '{value}' as int for column '{this.ColumnName.Name}'.");
+
         public Int32CustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new Int32CustomColumn(this.ColumnName, columnSource);
 
         public Int32CustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new Int32CustomColumn(this.ColumnName, derivedTable.Alias));
@@ -197,6 +312,15 @@ namespace SqExpress
         public new NullableInt32TableColumn WithSource(IExprColumnSource? source) => new NullableInt32TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString();
+
+        public override ExprLiteral FromString(string? value) =>
+            value == null
+                ? SqQueryBuilder.Literal((int?)null)
+                : int.TryParse(value, out var result)
+                    ? SqQueryBuilder.Literal(result)
+                    : throw new SqExpressException($"Could not parse '{value}' as int for column '{this.ColumnName.Name}'.");
 
         public NullableInt32CustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableInt32CustomColumn(this.ColumnName, columnSource);
 
@@ -217,6 +341,17 @@ namespace SqExpress
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
 
+        public override string ReadAsString(ISqDataRecordReader recordReader)
+            => this.ReadNullable(recordReader)?.ToString()
+               ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
+
+        public override ExprLiteral FromString(string? value) =>
+            value == null
+                ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
+                : long.TryParse(value, out var result)
+                    ? SqQueryBuilder.Literal(result)
+                    : throw new SqExpressException($"Could not parse '{value}' as long for column '{this.ColumnName.Name}'.");
+
         public Int64CustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new Int64CustomColumn(this.ColumnName, columnSource);
 
         public Int64CustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new Int64CustomColumn(this.ColumnName, derivedTable.Alias));
@@ -233,6 +368,15 @@ namespace SqExpress
         public new NullableInt64TableColumn WithSource(IExprColumnSource? source) => new NullableInt64TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString();
+
+        public override ExprLiteral FromString(string? value) =>
+            value == null
+                ? SqQueryBuilder.Literal((long?)null)
+                : long.TryParse(value, out var result)
+                    ? SqQueryBuilder.Literal(result)
+                    : throw new SqExpressException($"Could not parse '{value}' as long for column '{this.ColumnName.Name}'.");
 
         public NullableInt64CustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableInt64CustomColumn(this.ColumnName, columnSource);
 
@@ -258,6 +402,17 @@ namespace SqExpress
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
 
+        public override string ReadAsString(ISqDataRecordReader recordReader)
+            => this.ReadNullable(recordReader)?.ToString("F", CultureInfo.InvariantCulture)
+               ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
+
+        public override ExprLiteral FromString(string? value) =>
+            value == null
+                ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
+                : decimal.TryParse(value, NumberStyles.AllowDecimalPoint|NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var result)
+                    ? SqQueryBuilder.Literal(result)
+                    : throw new SqExpressException($"Could not parse '{value}' as decimal for column '{this.ColumnName.Name}'.");
+
         public DecimalCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new DecimalCustomColumn(this.ColumnName, columnSource);
 
         public DecimalCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new DecimalCustomColumn(this.ColumnName, derivedTable.Alias));
@@ -280,6 +435,14 @@ namespace SqExpress
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
 
+        public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString("F", CultureInfo.InvariantCulture);
+
+        public override ExprLiteral FromString(string? value) =>
+            value == null
+                ? SqQueryBuilder.Literal((decimal?)null)
+                : decimal.TryParse(value, NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var result)
+                    ? SqQueryBuilder.Literal(result)
+                    : throw new SqExpressException($"Could not parse '{value}' as decimal for column '{this.ColumnName.Name}'.");
         public NullableDecimalCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableDecimalCustomColumn(this.ColumnName, columnSource);
 
         public NullableDecimalCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableDecimalCustomColumn(this.ColumnName, derivedTable.Alias));
@@ -299,6 +462,17 @@ namespace SqExpress
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
 
+        public override string ReadAsString(ISqDataRecordReader recordReader)
+            => this.ReadNullable(recordReader)?.ToString("F", CultureInfo.InvariantCulture)
+               ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
+
+        public override ExprLiteral FromString(string? value) =>
+            value == null
+                ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
+                : double.TryParse(value, NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var result)
+                    ? SqQueryBuilder.Literal(result)
+                    : throw new SqExpressException($"Could not parse '{value}' as double for column '{this.ColumnName.Name}'.");
+
         public DoubleCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new DoubleCustomColumn(this.ColumnName, columnSource);
 
         public DoubleCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new DoubleCustomColumn(this.ColumnName, derivedTable.Alias));
@@ -315,6 +489,16 @@ namespace SqExpress
         public new NullableDoubleTableColumn WithSource(IExprColumnSource? source) => new NullableDoubleTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        public override string? ReadAsString(ISqDataRecordReader recordReader)
+            => this.Read(recordReader)?.ToString("F", CultureInfo.InvariantCulture);
+
+        public override ExprLiteral FromString(string? value) =>
+            value == null
+                ? SqQueryBuilder.Literal((double?)null)
+                : double.TryParse(value, NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var result)
+                    ? SqQueryBuilder.Literal(result)
+                    : throw new SqExpressException($"Could not parse '{value}' as double for column '{this.ColumnName.Name}'.");
 
         public NullableDoubleCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableDoubleCustomColumn(this.ColumnName, columnSource);
 
@@ -340,6 +524,24 @@ namespace SqExpress
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
 
+        public override string ReadAsString(ISqDataRecordReader recordReader)
+        {
+            var value = this.ReadNullable(recordReader);
+            if (value == null)
+            {
+                throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
+            }
+
+            return this.IsDate ? value.Value.ToString("yyyy-MM-dd") : value.Value.ToString("yyyy-MM-ddTHH:mm:ss.fff");
+        }
+
+        public override ExprLiteral FromString(string? value) =>
+            value == null
+                ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
+                : DateTime.TryParse(value, null, DateTimeStyles.RoundtripKind, out var result)
+                    ? SqQueryBuilder.Literal(result)
+                    : throw new SqExpressException($"Could not parse '{value}' as date(time) for column '{this.ColumnName.Name}'.");
+
         public DateTimeCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new DateTimeCustomColumn(this.ColumnName, columnSource);
 
         public DateTimeCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new DateTimeCustomColumn(this.ColumnName, derivedTable.Alias));
@@ -362,6 +564,19 @@ namespace SqExpress
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
 
+        public override string? ReadAsString(ISqDataRecordReader recordReader)
+        {
+            var value = this.Read(recordReader);
+            return value == null ? null : this.IsDate ? value.Value.ToString("yyyy-MM-dd") : value.Value.ToString("yyyy-MM-ddTHH:mm:ss.fff");
+        }
+
+        public override ExprLiteral FromString(string? value) =>
+            value == null
+                ? SqQueryBuilder.Literal((DateTime?)null)
+                : DateTime.TryParse(value, null, DateTimeStyles.RoundtripKind, out var result)
+                    ? SqQueryBuilder.Literal(result)
+                    : throw new SqExpressException($"Could not parse '{value}' as date(time) for column '{this.ColumnName.Name}'.");
+
         public NullableDateTimeCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableDateTimeCustomColumn(this.ColumnName, columnSource);
 
         public NullableDateTimeCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableDateTimeCustomColumn(this.ColumnName, derivedTable.Alias));
@@ -381,6 +596,17 @@ namespace SqExpress
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
 
+        public override string ReadAsString(ISqDataRecordReader recordReader)
+            => this.ReadNullable(recordReader)?.ToString("D")
+               ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
+
+        public override ExprLiteral FromString(string? value) =>
+            value == null
+                ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
+                : Guid.TryParse(value, out var result)
+                    ? SqQueryBuilder.Literal(result)
+                    : throw new SqExpressException($"Could not parse '{value}' as GUID for column '{this.ColumnName.Name}'.");
+
         public GuidCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new GuidCustomColumn(this.ColumnName, columnSource);
 
         public GuidCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new GuidCustomColumn(this.ColumnName, derivedTable.Alias));
@@ -397,6 +623,15 @@ namespace SqExpress
         public new NullableGuidTableColumn WithSource(IExprColumnSource? source) => new NullableGuidTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString("D");
+
+        public override ExprLiteral FromString(string? value) =>
+            value == null
+                ? SqQueryBuilder.Literal((Guid?)null)
+                : Guid.TryParse(value, out var result)
+                    ? SqQueryBuilder.Literal(result)
+                    : throw new SqExpressException($"Could not parse '{value}' as GUID for column '{this.ColumnName.Name}'.");
 
         public NullableGuidCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableGuidCustomColumn(this.ColumnName, columnSource);
 
@@ -421,6 +656,15 @@ namespace SqExpress
         public new StringTableColumn WithSource(IExprColumnSource? source) => new StringTableColumn(source, this.ColumnName, this.Table, this.SqlType, this.ColumnMeta);
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        public override string ReadAsString(ISqDataRecordReader recordReader)
+            => this.ReadNullable(recordReader)
+               ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
+
+        public override ExprLiteral FromString(string? value) =>
+            value == null
+                ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
+                : SqQueryBuilder.Literal(value);
 
         public StringCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new StringCustomColumn(this.ColumnName, columnSource);
 
@@ -452,6 +696,13 @@ namespace SqExpress
         public new NullableStringTableColumn WithSource(IExprColumnSource? source) => new NullableStringTableColumn(source, this.ColumnName, this.Table, this.SqlType, this.ColumnMeta);
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader);
+
+        public override ExprLiteral FromString(string? value) =>
+            value == null
+                ? SqQueryBuilder.Literal((string?)null)
+                : SqQueryBuilder.Literal(value);
 
         public NullableStringCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableStringCustomColumn(this.ColumnName, columnSource);
 

@@ -167,6 +167,8 @@ namespace SqExpress.Syntax
 
         TRes VisitExprInsertQuery(ExprInsertQuery exprInsertQuery, TArg arg);
 
+        TRes VisitExprIdentityInsert(ExprIdentityInsert exprIdentityInsert, TArg arg);
+
         //Update
         TRes VisitExprUpdate(ExprUpdate exprUpdate, TArg arg);
 

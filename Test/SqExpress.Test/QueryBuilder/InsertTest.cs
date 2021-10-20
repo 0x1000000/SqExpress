@@ -94,6 +94,35 @@ namespace SqExpress.Test.QueryBuilder
         }
 
         [Test]
+        public void IdentityInsertDataWithExtraTest()
+        {
+            const int usersCount = 1;
+
+            var data = new List<UserData>(usersCount);
+
+            for (int i = 0; i < usersCount; i++)
+            {
+                data.Add(new UserData
+                {
+                    UserId = i,
+                    FirstName = "First" + i,
+                });
+            }
+
+            var tbl = Tables.User();
+
+            var expr = InsertDataInto(tbl, data)
+                .MapData(i => i
+                    .Set(i.Target.UserId, i.Source.UserId)
+                    .Set(i.Target.FirstName, i.Source.FirstName))
+                .IdentityInsert()
+                .Done();
+
+            string expected = "INSERT INTO \"public\".\"user\"(\"UserId\",\"FirstName\") OVERRIDING SYSTEM VALUE VALUES (0,'First0');select setval(pg_get_serial_sequence('\"public\".\"user\"','UserId'),(SELECT MAX(\"UserId\") FROM \"public\".\"user\"));";
+            Assert.AreEqual(expected, expr.ToPgSql());
+        }
+
+        [Test]
         public void InsertExprTest()
         {
             var tbl = Tables.User();

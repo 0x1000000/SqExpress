@@ -7,13 +7,13 @@ namespace SqExpress
 {
     public class ColumnMeta
     {
-        internal bool IsPrimaryKey { get; }
+        public bool IsPrimaryKey { get; }
 
-        internal bool IsIdentity { get; }
+        public bool IsIdentity { get; }
 
-        internal IReadOnlyList<TableColumn>? ForeignKeyColumns { get; }
+        public IReadOnlyList<TableColumn>? ForeignKeyColumns { get; }
 
-        internal ExprValue? ColumnDefaultValue { get; }
+        public ExprValue? ColumnDefaultValue { get; }
 
         internal ColumnMeta(bool isPrimaryKey, bool isIdentity, IReadOnlyList<TableColumn>? foreignFactory, ExprValue? defaultValue)
         {

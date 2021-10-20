@@ -74,6 +74,18 @@ namespace SqExpress
         public static InsertBuilder InsertInto(ExprTable table, IReadOnlyList<ExprColumnName> columns)
             => new InsertBuilder(table, columns.AssertNotEmpty(nameof(columns)));
 
+        public static InsertBuilder InsertInto(ExprTable table, IReadOnlyList<ExprColumn> columns)
+            => new InsertBuilder(table, columns.AssertNotEmpty(nameof(columns)).SelectToReadOnlyList(x=>x.ColumnName));
+
+        public static IdentityInsertBuilder IdentityInsertInto(ExprTable table, ExprColumnName column1, params ExprColumnName[] rest)
+            => new IdentityInsertBuilder(table, Helpers.Combine(column1, rest));
+
+        public static IdentityInsertBuilder IdentityInsertInto(ExprTable table, IReadOnlyList<ExprColumnName> columns)
+            => new IdentityInsertBuilder(table, columns.AssertNotEmpty(nameof(columns)));
+
+        public static IdentityInsertBuilder IdentityInsertInto(ExprTable table, IReadOnlyList<ExprColumn> columns)
+            => new IdentityInsertBuilder(table, columns.AssertNotEmpty(nameof(columns)).SelectToReadOnlyList(x => x.ColumnName));
+
         public static UpdateBuilder Update(ExprTable target)
             => new UpdateBuilder(target, new List<ExprColumnSetClause>());
 

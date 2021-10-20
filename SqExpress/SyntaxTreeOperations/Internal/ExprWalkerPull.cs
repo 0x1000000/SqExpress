@@ -847,6 +847,20 @@ namespace SqExpress.SyntaxTreeOperations.Internal
                     throw new SqExpressException("Incorrect enumerator visitor state");
             }
         }
+        public bool VisitExprIdentityInsert(ExprIdentityInsert expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.Insert);
+                case 2:
+                    return this.SetCurrent(expr.IdentityColumns);
+                case 3:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
         public bool VisitExprInSubQuery(ExprInSubQuery expr, object? arg)
         {
             switch (this.Peek().State)

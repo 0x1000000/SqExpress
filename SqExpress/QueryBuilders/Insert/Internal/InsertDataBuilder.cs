@@ -142,6 +142,17 @@ namespace SqExpress.QueryBuilders.Insert.Internal
             return new ExprInsert(this._target.FullName, columns, insertSource);
         }
 
+        ExprIdentityInsert IIdentityInsertDataBuilderFinal.Done()
+        {
+            var insertExpr = this.Done();
+            return new ExprIdentityInsert(insertExpr, IdentityInsertBuilder.ExprColumnNames(this._target));
+        }
+
+        public IIdentityInsertDataBuilderFinal IdentityInsert()
+        {
+            return this;
+        }
+
         public IInsertDataBuilderFinalOutput Output(ExprAliasedColumnName column, params ExprAliasedColumnName[] rest)
         {
             this._output.AssertFatalNull(nameof(this._output));

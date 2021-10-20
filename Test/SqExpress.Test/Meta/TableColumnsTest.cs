@@ -1,4 +1,6 @@
-﻿using System.Linq;
+﻿using System;
+using System.Globalization;
+using System.Linq;
 using Moq;
 using NUnit.Framework;
 using SqExpress.Syntax.Names;
@@ -53,6 +55,13 @@ namespace SqExpress.Test.Meta
             customColumn.Read(reader.Object);
 
             reader.Verify(r => r.GetBoolean(It.Is<string>(name => name == customColumn.ColumnName.Name)), Times.Exactly(2));
+
+            Assert.Throws<SqExpressException>(() => this.Table.ColBoolean.ReadAsString(reader.Object));
+            reader.Setup(r=>r.GetNullableBoolean(It.Is<string>(name => name == customColumn.ColumnName.Name))).Returns(true);
+            Assert.AreEqual(true.ToString(),this.Table.ColBoolean.ReadAsString(reader.Object));
+
+            Assert.AreEqual("1", this.Table.ColBoolean.FromString("True").ToSql());
+            Assert.Throws<SqExpressException>(() => this.Table.ColBoolean.FromString(null));
         }
 
         [Test]
@@ -76,6 +85,13 @@ namespace SqExpress.Test.Meta
             customColumn.Read(reader.Object);
 
             reader.Verify(r => r.GetNullableBoolean(It.Is<string>(name => name == customColumn.ColumnName.Name)), Times.Exactly(2));
+
+            Assert.IsNull(this.Table.ColNullableBoolean.ReadAsString(reader.Object));
+            reader.Setup(r => r.GetNullableBoolean(It.Is<string>(name => name == customColumn.ColumnName.Name))).Returns(true);
+            Assert.AreEqual(true.ToString(), this.Table.ColNullableBoolean.ReadAsString(reader.Object));
+
+            Assert.AreEqual("0", this.Table.ColNullableBoolean.FromString("False").ToSql());
+            Assert.AreEqual("NULL", this.Table.ColNullableBoolean.FromString(null).ToSql());
         }
 
         [Test]
@@ -99,6 +115,13 @@ namespace SqExpress.Test.Meta
             customColumn.Read(reader.Object);
 
             reader.Verify(r => r.GetByte(It.Is<string>(name => name == customColumn.ColumnName.Name)), Times.Exactly(2));
+
+            Assert.Throws<SqExpressException>(() => this.Table.ColByte.ReadAsString(reader.Object));
+            reader.Setup(r => r.GetNullableByte(It.Is<string>(name => name == customColumn.ColumnName.Name))).Returns(255);
+            Assert.AreEqual(255.ToString(), this.Table.ColByte.ReadAsString(reader.Object));
+
+            Assert.AreEqual("255", this.Table.ColByte.FromString("255").ToSql());
+            Assert.Throws<SqExpressException>(() => this.Table.ColByte.FromString(null));
         }
 
         [Test]
@@ -122,6 +145,13 @@ namespace SqExpress.Test.Meta
             customColumn.Read(reader.Object);
 
             reader.Verify(r => r.GetNullableByte(It.Is<string>(name => name == customColumn.ColumnName.Name)), Times.Exactly(2));
+
+            Assert.IsNull(this.Table.ColNullableByte.ReadAsString(reader.Object));
+            reader.Setup(r => r.GetNullableByte(It.Is<string>(name => name == customColumn.ColumnName.Name))).Returns(255);
+            Assert.AreEqual(255.ToString(), this.Table.ColNullableByte.ReadAsString(reader.Object));
+
+            Assert.AreEqual("255", this.Table.ColNullableByte.FromString("255").ToSql());
+            Assert.AreEqual("NULL", this.Table.ColNullableByte.FromString(null).ToSql());
         }
 
         [Test]
@@ -145,6 +175,13 @@ namespace SqExpress.Test.Meta
             customColumn.Read(reader.Object);
 
             reader.Verify(r => r.GetInt16(It.Is<string>(name => name == customColumn.ColumnName.Name)), Times.Exactly(2));
+
+            Assert.Throws<SqExpressException>(() => this.Table.ColInt16.ReadAsString(reader.Object));
+            reader.Setup(r => r.GetNullableInt16(It.Is<string>(name => name == customColumn.ColumnName.Name))).Returns(10000);
+            Assert.AreEqual(10000.ToString(), this.Table.ColInt16.ReadAsString(reader.Object));
+
+            Assert.AreEqual("10000", this.Table.ColInt16.FromString("10000").ToSql());
+            Assert.Throws<SqExpressException>(() => this.Table.ColInt16.FromString(null));
         }
 
         [Test]
@@ -168,6 +205,13 @@ namespace SqExpress.Test.Meta
             customColumn.Read(reader.Object);
 
             reader.Verify(r => r.GetNullableInt16(It.Is<string>(name => name == customColumn.ColumnName.Name)), Times.Exactly(2));
+
+            Assert.IsNull(this.Table.ColNullableInt16.ReadAsString(reader.Object));
+            reader.Setup(r => r.GetNullableInt16(It.Is<string>(name => name == customColumn.ColumnName.Name))).Returns(255);
+            Assert.AreEqual(255.ToString(), this.Table.ColNullableInt16.ReadAsString(reader.Object));
+
+            Assert.AreEqual("255", this.Table.ColNullableInt16.FromString("255").ToSql());
+            Assert.AreEqual("NULL", this.Table.ColNullableInt16.FromString(null).ToSql());
         }
 
         [Test]
@@ -191,6 +235,13 @@ namespace SqExpress.Test.Meta
             customColumn.Read(reader.Object);
 
             reader.Verify(r => r.GetInt32(It.Is<string>(name => name == customColumn.ColumnName.Name)), Times.Exactly(2));
+
+            Assert.Throws<SqExpressException>(() => this.Table.ColInt32.ReadAsString(reader.Object));
+            reader.Setup(r => r.GetNullableInt32(It.Is<string>(name => name == customColumn.ColumnName.Name))).Returns(Int32.MaxValue);
+            Assert.AreEqual(Int32.MaxValue.ToString(), this.Table.ColInt32.ReadAsString(reader.Object));
+
+            Assert.AreEqual(Int32.MinValue.ToString(), this.Table.ColInt32.FromString(Int32.MinValue.ToString()).ToSql());
+            Assert.Throws<SqExpressException>(() => this.Table.ColInt32.FromString(null));
         }
 
         [Test]
@@ -214,6 +265,13 @@ namespace SqExpress.Test.Meta
             customColumn.Read(reader.Object);
 
             reader.Verify(r => r.GetNullableInt32(It.Is<string>(name => name == customColumn.ColumnName.Name)), Times.Exactly(2));
+
+            Assert.IsNull(this.Table.ColNullableInt32.ReadAsString(reader.Object));
+            reader.Setup(r => r.GetNullableInt32(It.Is<string>(name => name == customColumn.ColumnName.Name))).Returns(Int32.MaxValue);
+            Assert.AreEqual(Int32.MaxValue.ToString(), this.Table.ColNullableInt32.ReadAsString(reader.Object));
+
+            Assert.AreEqual(Int32.MinValue.ToString(), this.Table.ColNullableInt32.FromString(Int32.MinValue.ToString()).ToSql());
+            Assert.AreEqual("NULL", this.Table.ColNullableInt32.FromString(null).ToSql());
         }
 
         [Test]
@@ -237,6 +295,13 @@ namespace SqExpress.Test.Meta
             customColumn.Read(reader.Object);
 
             reader.Verify(r => r.GetInt64(It.Is<string>(name => name == customColumn.ColumnName.Name)), Times.Exactly(2));
+
+            Assert.Throws<SqExpressException>(() => this.Table.ColInt64.ReadAsString(reader.Object));
+            reader.Setup(r => r.GetNullableInt64(It.Is<string>(name => name == customColumn.ColumnName.Name))).Returns(Int64.MaxValue);
+            Assert.AreEqual(Int64.MaxValue.ToString(), this.Table.ColInt64.ReadAsString(reader.Object));
+
+            Assert.AreEqual(Int64.MinValue.ToString(), this.Table.ColInt64.FromString(Int64.MinValue.ToString()).ToSql());
+            Assert.Throws<SqExpressException>(() => this.Table.ColInt64.FromString(null));
         }
 
         [Test]
@@ -260,6 +325,13 @@ namespace SqExpress.Test.Meta
             customColumn.Read(reader.Object);
 
             reader.Verify(r => r.GetNullableInt64(It.Is<string>(name => name == customColumn.ColumnName.Name)), Times.Exactly(2));
+
+            Assert.IsNull(this.Table.ColNullableInt64.ReadAsString(reader.Object));
+            reader.Setup(r => r.GetNullableInt64(It.Is<string>(name => name == customColumn.ColumnName.Name))).Returns(Int64.MaxValue);
+            Assert.AreEqual(Int64.MaxValue.ToString(), this.Table.ColNullableInt64.ReadAsString(reader.Object));
+
+            Assert.AreEqual(Int64.MinValue.ToString(), this.Table.ColNullableInt64.FromString(Int64.MinValue.ToString()).ToSql());
+            Assert.AreEqual("NULL", this.Table.ColNullableInt64.FromString(null).ToSql());
         }
 
         [Test]
@@ -283,6 +355,13 @@ namespace SqExpress.Test.Meta
             customColumn.Read(reader.Object);
 
             reader.Verify(r => r.GetDecimal(It.Is<string>(name => name == customColumn.ColumnName.Name)), Times.Exactly(2));
+
+            Assert.Throws<SqExpressException>(() => this.Table.ColDecimal.ReadAsString(reader.Object));
+            reader.Setup(r => r.GetNullableDecimal(It.Is<string>(name => name == customColumn.ColumnName.Name))).Returns(-12.34567m);
+            Assert.AreEqual((-12.34567m).ToString("F",CultureInfo.InvariantCulture), this.Table.ColDecimal.ReadAsString(reader.Object));
+
+            Assert.AreEqual(12.34567m.ToString("F",CultureInfo.InvariantCulture), this.Table.ColDecimal.FromString(12.34567m.ToString("F", CultureInfo.InvariantCulture)).ToSql());
+            Assert.Throws<SqExpressException>(() => this.Table.ColDecimal.FromString(null));
         }
 
         [Test]
@@ -306,6 +385,13 @@ namespace SqExpress.Test.Meta
             customColumn.Read(reader.Object);
 
             reader.Verify(r => r.GetNullableDecimal(It.Is<string>(name => name == customColumn.ColumnName.Name)), Times.Exactly(2));
+
+            Assert.IsNull(this.Table.ColNullableDecimal.ReadAsString(reader.Object));
+            reader.Setup(r => r.GetNullableDecimal(It.Is<string>(name => name == customColumn.ColumnName.Name))).Returns(-12.34567m);
+            Assert.AreEqual((-12.34567m).ToString("F", CultureInfo.InvariantCulture), this.Table.ColNullableDecimal.ReadAsString(reader.Object));
+
+            Assert.AreEqual(12.34567m.ToString("F", CultureInfo.InvariantCulture), this.Table.ColNullableDecimal.FromString(12.34567m.ToString("F", CultureInfo.InvariantCulture)).ToSql());
+            Assert.AreEqual("NULL", this.Table.ColNullableDecimal.FromString(null).ToSql());
         }
 
         [Test]
@@ -329,6 +415,13 @@ namespace SqExpress.Test.Meta
             customColumn.Read(reader.Object);
 
             reader.Verify(r => r.GetDouble(It.Is<string>(name => name == customColumn.ColumnName.Name)), Times.Exactly(2));
+
+            Assert.Throws<SqExpressException>(() => this.Table.ColDouble.ReadAsString(reader.Object));
+            reader.Setup(r => r.GetNullableDouble(It.Is<string>(name => name == customColumn.ColumnName.Name))).Returns(-12.34567);
+            Assert.AreEqual((-12.34567).ToString("F", CultureInfo.InvariantCulture), this.Table.ColDouble.ReadAsString(reader.Object));
+
+            Assert.AreEqual(12.34567.ToString("F", CultureInfo.InvariantCulture), this.Table.ColDouble.FromString(12.34567.ToString("F", CultureInfo.InvariantCulture)).ToSql());
+            Assert.Throws<SqExpressException>(() => this.Table.ColDouble.FromString(null));
         }
 
         [Test]
@@ -352,6 +445,13 @@ namespace SqExpress.Test.Meta
             customColumn.Read(reader.Object);
 
             reader.Verify(r => r.GetNullableDouble(It.Is<string>(name => name == customColumn.ColumnName.Name)), Times.Exactly(2));
+
+            Assert.IsNull(this.Table.ColNullableDouble.ReadAsString(reader.Object));
+            reader.Setup(r => r.GetNullableDouble(It.Is<string>(name => name == customColumn.ColumnName.Name))).Returns(-12.34567);
+            Assert.AreEqual((-12.34567).ToString("F", CultureInfo.InvariantCulture), this.Table.ColNullableDouble.ReadAsString(reader.Object));
+
+            Assert.AreEqual(12.34567.ToString("F", CultureInfo.InvariantCulture), this.Table.ColNullableDouble.FromString(12.34567.ToString("F", CultureInfo.InvariantCulture)).ToSql());
+            Assert.AreEqual("NULL", this.Table.ColNullableDouble.FromString(null).ToSql());
         }
 
         [Test]
@@ -375,6 +475,26 @@ namespace SqExpress.Test.Meta
             customColumn.Read(reader.Object);
 
             reader.Verify(r => r.GetDateTime(It.Is<string>(name => name == customColumn.ColumnName.Name)), Times.Exactly(2));
+
+            var date1 = new DateTime(2021, 10, 21, 9, 25, 37);
+            var dateString1 = date1.ToString("yyyy-MM-ddTHH:mm:ss.fff");
+
+            Assert.Throws<SqExpressException>(() => this.Table.ColDateTime.ReadAsString(reader.Object));
+            reader.Setup(r => r.GetNullableDateTime(It.Is<string>(name => name == customColumn.ColumnName.Name))).Returns(date1);
+            Assert.AreEqual(dateString1, this.Table.ColDateTime.ReadAsString(reader.Object));
+
+            Assert.AreEqual($"'{dateString1}'", this.Table.ColDateTime.FromString(dateString1).ToSql());
+            Assert.Throws<SqExpressException>(() => this.Table.ColDateTime.FromString(null));
+
+            var date2 = new DateTime(2021, 10, 21);
+            var dateString2 = date2.ToString("yyyy-MM-dd");
+            var dateString2Full = date2.ToString("yyyy-MM-ddTHH:mm:ss.fff");
+
+            reader.Setup(r => r.GetNullableDateTime(It.Is<string>(name => name == customColumn.ColumnName.Name))).Returns(date2);
+            Assert.AreEqual(dateString2Full, this.Table.ColDateTime.ReadAsString(reader.Object));
+
+            Assert.AreEqual($"'{dateString2}'", this.Table.ColDateTime.FromString(dateString2).ToSql());
+            Assert.Throws<SqExpressException>(() => this.Table.ColDateTime.FromString(null));
         }
 
         [Test]
@@ -398,6 +518,16 @@ namespace SqExpress.Test.Meta
             customColumn.Read(reader.Object);
 
             reader.Verify(r => r.GetNullableDateTime(It.Is<string>(name => name == customColumn.ColumnName.Name)), Times.Exactly(2));
+
+            var date = new DateTime(2021, 10, 21, 9, 25, 37);
+            var dateString = date.ToString("yyyy-MM-ddTHH:mm:ss.fff");
+
+            Assert.IsNull(this.Table.ColNullableDateTime.ReadAsString(reader.Object));
+            reader.Setup(r => r.GetNullableDateTime(It.Is<string>(name => name == customColumn.ColumnName.Name))).Returns(date);
+            Assert.AreEqual(dateString, this.Table.ColNullableDateTime.ReadAsString(reader.Object));
+
+            Assert.AreEqual($"'{dateString}'", this.Table.ColNullableDateTime.FromString(dateString).ToSql());
+            Assert.AreEqual("NULL", this.Table.ColNullableDateTime.FromString(null).ToSql());
         }
 
         [Test]
@@ -421,6 +551,16 @@ namespace SqExpress.Test.Meta
             customColumn.Read(reader.Object);
 
             reader.Verify(r => r.GetGuid(It.Is<string>(name => name == customColumn.ColumnName.Name)), Times.Exactly(2));
+
+            var guid = new Guid("3E0F7FA1-E7CA-4F6E-BF19-69C398565EA2");
+            var guidString = guid.ToString("D");
+
+            Assert.Throws<SqExpressException>(() => this.Table.ColGuid.ReadAsString(reader.Object));
+            reader.Setup(r => r.GetNullableGuid(It.Is<string>(name => name == customColumn.ColumnName.Name))).Returns(guid);
+            Assert.AreEqual(guidString, this.Table.ColGuid.ReadAsString(reader.Object));
+
+            Assert.AreEqual($"'{guidString}'", this.Table.ColGuid.FromString(guidString).ToSql());
+            Assert.Throws<SqExpressException>(() => this.Table.ColGuid.FromString(null));
         }
 
         [Test]
@@ -444,6 +584,16 @@ namespace SqExpress.Test.Meta
             customColumn.Read(reader.Object);
 
             reader.Verify(r => r.GetNullableGuid(It.Is<string>(name => name == customColumn.ColumnName.Name)), Times.Exactly(2));
+
+            var guid = new Guid("3E0F7FA1-E7CA-4F6E-BF19-69C398565EA2");
+            var guidString = guid.ToString("D");
+
+            Assert.IsNull(this.Table.ColNullableGuid.ReadAsString(reader.Object));
+            reader.Setup(r => r.GetNullableGuid(It.Is<string>(name => name == customColumn.ColumnName.Name))).Returns(guid);
+            Assert.AreEqual(guidString, this.Table.ColNullableGuid.ReadAsString(reader.Object));
+
+            Assert.AreEqual($"'{guidString}'", this.Table.ColNullableGuid.FromString(guidString).ToSql());
+            Assert.AreEqual("NULL", this.Table.ColNullableGuid.FromString(null).ToSql());
         }
 
         [Test]
@@ -467,6 +617,14 @@ namespace SqExpress.Test.Meta
             customColumn.Read(reader.Object);
 
             reader.Verify(r => r.GetString(It.Is<string>(name => name == customColumn.ColumnName.Name)), Times.Exactly(2));
+
+            Assert.Throws<SqExpressException>(() => this.Table.ColString.ReadAsString(reader.Object));
+            reader.Setup(r => r.GetNullableString(It.Is<string>(name => name == customColumn.ColumnName.Name))).Returns("AbC");
+            Assert.AreEqual("AbC", this.Table.ColString.ReadAsString(reader.Object));
+
+            Assert.AreEqual($"'{"AbC"}'", this.Table.ColString.FromString("AbC").ToSql());
+            Assert.Throws<SqExpressException>(() => this.Table.ColString.FromString(null));
+
         }
 
         [Test]
@@ -490,8 +648,14 @@ namespace SqExpress.Test.Meta
             customColumn.Read(reader.Object);
 
             reader.Verify(r => r.GetNullableString(It.Is<string>(name => name == customColumn.ColumnName.Name)), Times.Exactly(2));
-        }
 
+            Assert.IsNull(this.Table.ColNullableString.ReadAsString(reader.Object));
+            reader.Setup(r => r.GetNullableString(It.Is<string>(name => name == customColumn.ColumnName.Name))).Returns("AbC");
+            Assert.AreEqual("AbC", this.Table.ColNullableString.ReadAsString(reader.Object));
+
+            Assert.AreEqual($"'{"AbC"}'", this.Table.ColNullableString.FromString("AbC").ToSql());
+            Assert.AreEqual("NULL", this.Table.ColNullableString.FromString(null).ToSql());
+        }
     }
 
     public class DerivedTable : DerivedTableBase

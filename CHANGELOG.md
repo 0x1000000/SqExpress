@@ -1,4 +1,9 @@
 # 0.2.1.0
+### New Features
+- "ReadAsString(recordReader:ISqDataRecordReader): string" and "FromString(value: string?): ExprLiteral" are added to TableColumn. They allow perfoming mass export/import of database data.
+- Lt Gt operators overload between columns
+- ColumnMeta is public now
+- Identity Insert
 ### Breaking Changes
 - ISqModelDerivedReaderReader was removed. ISqModelReader was slightly changed;
 

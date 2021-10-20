@@ -255,6 +255,25 @@ namespace SqExpress.SqlExport.Internal
             return this.VisitExprInsertQueryCommon(exprInsertQuery, parent);
         }
 
+        public override bool VisitExprIdentityInsert(ExprIdentityInsert exprIdentityInsert, IExpr? parent)
+        {
+            if (exprIdentityInsert.IdentityColumns.Count < 1)
+            {
+                return exprIdentityInsert.Insert.Accept(this, exprIdentityInsert);
+            }
+
+            this.Builder.Append("SET IDENTITY_INSERT ");
+            exprIdentityInsert.Insert.Target.Accept(this, exprIdentityInsert);
+            this.Builder.Append(" ON;");
+
+            var result = exprIdentityInsert.Insert.Accept(this, exprIdentityInsert);
+
+            this.Builder.Append(";SET IDENTITY_INSERT ");
+            exprIdentityInsert.Insert.Target.Accept(this, exprIdentityInsert);
+            this.Builder.Append(" OFF;");
+            return result;
+        }
+
         public override bool VisitExprUpdate(ExprUpdate exprUpdate, IExpr? parent)
         {
             this.GenericUpdate(exprUpdate.Target, exprUpdate.SetClause, exprUpdate.Source, exprUpdate.Filter , exprUpdate);

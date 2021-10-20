@@ -243,6 +243,18 @@ namespace SqExpress.Syntax.Value
         public static ExprPredicateLeftRight operator !=(ExprValue a, ExprValue b)
             => new ExprBooleanNotEq(a, b);
 
+        public static ExprPredicateLeftRight operator >(ExprValue a, ExprValue b)
+            => new ExprBooleanGt(a, b);
+
+        public static ExprPredicateLeftRight operator <(ExprValue a, ExprValue b)
+            => new ExprBooleanLt(a, b);
+
+        public static ExprPredicateLeftRight operator >=(ExprValue a, ExprValue b)
+            => new ExprBooleanGtEq(a, b);
+
+        public static ExprPredicateLeftRight operator <=(ExprValue a, ExprValue b)
+            => new ExprBooleanLtEq(a, b);
+
         //Int
         public static ExprPredicateLeftRight operator ==(ExprValue a, int b)
             => new ExprBooleanEq(a, new ExprInt32Literal(b));

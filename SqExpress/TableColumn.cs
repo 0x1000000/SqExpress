@@ -1,6 +1,7 @@
 ﻿using SqExpress.Meta;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Type;
+using SqExpress.Syntax.Value;
 
 namespace SqExpress
 {
@@ -27,5 +28,9 @@ namespace SqExpress
         public bool IsNullable { get; }
 
         public ColumnMeta? ColumnMeta { get; }
+
+        public abstract string? ReadAsString(ISqDataRecordReader recordReader);
+
+        public abstract ExprLiteral FromString(string? value);
     }
 }

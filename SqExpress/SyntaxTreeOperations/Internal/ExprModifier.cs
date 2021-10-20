@@ -524,6 +524,16 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         {
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprIdentityInsert(ExprIdentityInsert exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newInsert = this.AcceptItem(exprIn.Insert, modifier);
+            var newIdentityColumns = this.AcceptNotNullCollection(exprIn.IdentityColumns, modifier);
+            if(!ReferenceEquals(exprIn.Insert, newInsert) || !ReferenceEquals(exprIn.IdentityColumns, newIdentityColumns))
+            {
+                exprIn = new ExprIdentityInsert(insert: newInsert, identityColumns: newIdentityColumns);
+            }
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprInSubQuery(ExprInSubQuery exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newTestExpression = this.AcceptItem(exprIn.TestExpression, modifier);

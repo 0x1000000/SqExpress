@@ -5,7 +5,7 @@ using SqExpress.Syntax.Update;
 
 namespace SqExpress.QueryBuilders.Insert
 {
-    internal interface IInsertDataBuilder<out TTable, out TItem> : IInsertDataBuilderMapData<TTable, TItem>, IInsertDataBuilderAlsoInsert<TTable>, IInsertDataBuilderMapOutput, IInsertDataBuilderFinalOutput
+    internal interface IInsertDataBuilder<out TTable, out TItem> : IInsertDataBuilderMapData<TTable, TItem>, IInsertDataBuilderAlsoInsert<TTable>, IInsertDataBuilderMapOutput, IInsertDataBuilderFinalOutput, IIdentityInsertDataBuilderFinal
     {
     }
 
@@ -21,9 +21,16 @@ namespace SqExpress.QueryBuilders.Insert
 
     public interface IInsertDataBuilderMapOutput : IInsertDataBuilderFinal
     {
+        IIdentityInsertDataBuilderFinal IdentityInsert();
+
         IInsertDataBuilderFinalOutput Output(ExprAliasedColumnName column, params ExprAliasedColumnName[] rest);
 
         IInsertDataBuilderFinalOutput Output(IReadOnlyList<ExprAliasedColumnName> columns);
+    }
+
+    public interface IIdentityInsertDataBuilderFinal : IExprExecFinal
+    {
+        public new ExprIdentityInsert Done();
     }
 
     public interface IInsertDataBuilderFinal : IExprExecFinal

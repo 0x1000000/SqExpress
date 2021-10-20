@@ -97,6 +97,7 @@ namespace SqExpress.SyntaxTreeOperations
                 case "GetDate": return ExprGetDate.Instance;
                 case "GetUtcDate": return ExprGetUtcDate.Instance;
                 case "GuidLiteral": return new ExprGuidLiteral(value: ReadNullableGuid(rootElement, reader, "Value"));
+                case "IdentityInsert": return new ExprIdentityInsert(insert: GetSubNode<TNode, ExprInsert>(rootElement, reader, "Insert"), identityColumns: GetSubNodeList<TNode, ExprColumnName>(rootElement, reader, "IdentityColumns"));
                 case "InSubQuery": return new ExprInSubQuery(testExpression: GetSubNode<TNode, ExprValue>(rootElement, reader, "TestExpression"), subQuery: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "SubQuery"));
                 case "InValues": return new ExprInValues(testExpression: GetSubNode<TNode, ExprValue>(rootElement, reader, "TestExpression"), items: GetSubNodeList<TNode, ExprValue>(rootElement, reader, "Items"));
                 case "Insert": return new ExprInsert(target: GetSubNode<TNode, IExprTableFullName>(rootElement, reader, "Target"), targetColumns: GetNullableSubNodeList<TNode, ExprColumnName>(rootElement, reader, "TargetColumns"), source: GetSubNode<TNode, IExprInsertSource>(rootElement, reader, "Source"));

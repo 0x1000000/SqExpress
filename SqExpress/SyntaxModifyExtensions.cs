@@ -373,6 +373,12 @@ namespace SqExpress
         public static ExprGuidLiteral WithValue(this ExprGuidLiteral original, Guid? newValue) 
             => new ExprGuidLiteral(value: newValue);
 
+        public static ExprIdentityInsert WithInsert(this ExprIdentityInsert original, ExprInsert newInsert) 
+            => new ExprIdentityInsert(insert: newInsert, identityColumns: original.IdentityColumns);
+
+        public static ExprIdentityInsert WithIdentityColumns(this ExprIdentityInsert original, IReadOnlyList<ExprColumnName> newIdentityColumns) 
+            => new ExprIdentityInsert(insert: original.Insert, identityColumns: newIdentityColumns);
+
         public static ExprInSubQuery WithTestExpression(this ExprInSubQuery original, ExprValue newTestExpression) 
             => new ExprInSubQuery(testExpression: newTestExpression, subQuery: original.SubQuery);
 

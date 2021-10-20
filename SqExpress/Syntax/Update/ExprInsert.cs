@@ -47,7 +47,7 @@ namespace SqExpress.Syntax.Update
 
     public interface IExprInsertSource : IExpr
     {
-
+        bool IsEmpty { get; }
     }
 
     public class ExprInsertValues : IExprInsertSource
@@ -57,11 +57,12 @@ namespace SqExpress.Syntax.Update
             this.Items = items;
         }
 
+        bool IExprInsertSource.IsEmpty => this.Items.Count < 1;
+
         public IReadOnlyList<ExprInsertValueRow> Items { get; }
 
         public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprInsertValues(this, arg);
-
     }
 
     public class ExprInsertQuery : IExprInsertSource
@@ -72,6 +73,8 @@ namespace SqExpress.Syntax.Update
         }
 
         public IExprQuery Query { get; }
+
+        bool IExprInsertSource.IsEmpty => false;
 
         public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprInsertQuery(this, arg);

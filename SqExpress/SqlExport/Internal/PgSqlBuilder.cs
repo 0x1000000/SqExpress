@@ -7,7 +7,6 @@ using SqExpress.Syntax;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions.Known;
-using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Type;
@@ -132,6 +131,33 @@ namespace SqExpress.SqlExport.Internal
         public override bool VisitExprInsertQuery(ExprInsertQuery exprInsertQuery, IExpr? parent)
         {
             return this.VisitExprInsertQueryCommon(exprInsertQuery, parent);
+        }
+
+        public override bool VisitExprIdentityInsert(ExprIdentityInsert exprIdentityInsert, IExpr? arg)
+        {
+            if (exprIdentityInsert.IdentityColumns.Count < 1)
+            {
+                return exprIdentityInsert.Insert.Accept(this, exprIdentityInsert);
+            }
+            this.GenericInsert(exprIdentityInsert.Insert,()=>this.Builder.Append("OVERRIDING SYSTEM VALUE"), null);
+
+            this.Builder.Append(';');
+            var exprTableSource = new ExprTable(exprIdentityInsert.Insert.Target, null);
+            foreach (var column in exprIdentityInsert.IdentityColumns)
+            {
+                this.Builder.Append("select setval(pg_get_serial_sequence('");
+                exprIdentityInsert.Insert.Target.Accept(this, exprIdentityInsert.Insert);
+                this.Builder.Append("','");
+                this.EscapeStringLiteral(this.Builder, column.Name);
+                this.Builder.Append("'),(");
+                SqQueryBuilder.Select(SqQueryBuilder.Max(column.WithSource(null)))
+                    .From(exprTableSource)
+                    .Done()
+                    .Accept(this, exprIdentityInsert);
+                this.Builder.Append("));");
+            }
+
+            return true;
         }
 
         public override bool VisitExprUpdate(ExprUpdate exprUpdate, IExpr? parent)

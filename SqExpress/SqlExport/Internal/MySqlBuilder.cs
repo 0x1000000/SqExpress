@@ -285,6 +285,11 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public override bool VisitExprIdentityInsert(ExprIdentityInsert exprIdentityInsert, IExpr? arg)
+        {
+            return exprIdentityInsert.Insert.Accept(this, exprIdentityInsert);
+        }
+
         public override bool VisitExprUpdate(ExprUpdate exprUpdate, IExpr? parent)
         {
             this.AssertNotEmptyList(exprUpdate.SetClause, "'UPDATE' statement should have at least one set clause");
