@@ -19,6 +19,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
         private const string MethodNameGetUpdateKeyMapping = "GetUpdateKeyMapping";
         private const string MethodNameGetUpdateMapping = "GetUpdateMapping";
         private const string MethodNameRead = "Read";
+        private const string MethodNameReadOrdinal = "ReadOrdinal";
         private const string ReaderClassSuffix = "Reader";
         private const string MethodNameGetReader = "GetReader";
         private const string UpdaterClassSuffix = "Updater";
@@ -31,6 +32,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
             MethodNameGetUpdateKeyMapping,
             MethodNameGetUpdateMapping,
             MethodNameRead,
+            MethodNameReadOrdinal,
             MethodNameGetReader,
             MethodNameGetUpdater
         };
@@ -180,6 +182,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
             result = result
                 .AddMembers(Constructors(meta)
                     .Concat(GenerateStaticFactory(meta))
+                    .Concat(rwClasses ? GenerateOrdinalStaticFactory(meta) : Array.Empty<MemberDeclarationSyntax>())
                     .Concat(Properties(meta, oldAttributes))
                     .Concat(GenerateWithModifiers(meta))
                     .Concat(GenerateGetColumns(meta))
@@ -249,6 +252,38 @@ namespace SqExpress.CodeGenUtil.CodeGen
                                     ExpressionSyntax invocation = MemberAccess("table", p.Column.First().ColumnName)
                                         .MemberAccess("Read")
                                         .Invoke(SyntaxFactory.ParseName("record"));
+
+                                    if (p.CastType != null)
+                                    {
+                                        invocation = SyntaxFactory.CastExpression(SyntaxFactory.ParseTypeName(p.CastType), invocation);
+                                    }
+                                    return new NamedArgument(p.Name.FirstToLower(),
+                                        invocation);
+                                })
+                                .ToArray()),
+                            null)))));
+        }
+
+        public static IEnumerable<MemberDeclarationSyntax> GenerateOrdinalStaticFactory(SqModelMeta meta)
+        {
+            return ExtractTableRefs(meta).Select(tableRef => SyntaxFactory
+                    .MethodDeclaration(SyntaxFactory.ParseTypeName(meta.Name), MethodNameReadOrdinal)
+                    .WithModifiers(Modifiers(SyntaxKind.PublicKeyword, SyntaxKind.StaticKeyword))
+                    .AddParameterListParameters(FuncParameter("record", nameof(ISqDataRecordReader)))
+                    .AddParameterListParameters(FuncParameter("table", ExtractTableTypeName(meta, tableRef)))
+                    .AddParameterListParameters(FuncParameter("offset", "int"))
+                    .WithBody(SyntaxFactory.Block(SyntaxFactory.ReturnStatement(
+                        SyntaxFactory.ObjectCreationExpression(SyntaxFactory.Token(SyntaxKind.NewKeyword),
+                            SyntaxFactory.ParseTypeName(meta.Name),
+                            ArgumentList(meta.Properties.Select((p,index) =>
+                                {
+                                    ExpressionSyntax invocation = MemberAccess("table", p.Column.First().ColumnName)
+                                        .MemberAccess("Read")
+                                        .Invoke(
+                                            SyntaxFactory.ParseName("record"),
+                                            index == 0 
+                                                ? SyntaxFactory.IdentifierName("offset")
+                                                : SyntaxFactory.BinaryExpression(SyntaxKind.AddExpression, SyntaxFactory.IdentifierName("offset"), SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(index))));
 
                                     if (p.CastType != null)
                                     {
@@ -453,7 +488,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
                                         SyntaxFactory.MemberAccessExpression(
                                             SyntaxKind.SimpleMemberAccessExpression,
                                             SyntaxFactory.IdentifierName(meta.Name),
-                                            SyntaxFactory.IdentifierName(MethodNameGetColumns)))
+                                            SyntaxFactory.IdentifierName(nameof(ISqModelReader<object, object>.GetColumns))))
                                     .WithArgumentList(
                                         SyntaxFactory.ArgumentList(
                                             SyntaxFactory.SingletonSeparatedList(
@@ -500,12 +535,59 @@ namespace SqExpress.CodeGenUtil.CodeGen
                                                     SyntaxFactory.Argument(
                                                         SyntaxFactory.IdentifierName("table"))
                                                 })))))));
+            //ReadOrdinal
+            var readOrdinal = SyntaxFactory.MethodDeclaration(
+                    SyntaxFactory.IdentifierName(meta.Name),
+                    SyntaxFactory.Identifier(MethodNameReadOrdinal))
+                .WithExplicitInterfaceSpecifier(SyntaxFactory.ExplicitInterfaceSpecifier(baseInterface))
+                .WithParameterList(
+                    SyntaxFactory.ParameterList(
+                        SyntaxFactory.SeparatedList<ParameterSyntax>(
+                            new SyntaxNodeOrToken[]
+                            {
+                                SyntaxFactory.Parameter(
+                                        SyntaxFactory.Identifier("record"))
+                                    .WithType(
+                                        SyntaxFactory.IdentifierName(nameof(ISqDataRecordReader))),
+                                SyntaxFactory.Token(SyntaxKind.CommaToken),
+                                SyntaxFactory.Parameter(
+                                        SyntaxFactory.Identifier("table"))
+                                    .WithType(
+                                        SyntaxFactory.IdentifierName(tableType)),                                SyntaxFactory.Token(SyntaxKind.CommaToken),
+                                SyntaxFactory.Parameter(
+                                        SyntaxFactory.Identifier("offset"))
+                                    .WithType(
+                                        SyntaxFactory.IdentifierName("int"))
+                            })))
+                .WithBody(
+                    SyntaxFactory.Block(
+                        SyntaxFactory.SingletonList<Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax>(
+                            SyntaxFactory.ReturnStatement(
+                                SyntaxFactory.InvocationExpression(
+                                        SyntaxFactory.MemberAccessExpression(
+                                            SyntaxKind.SimpleMemberAccessExpression,
+                                            SyntaxFactory.IdentifierName(meta.Name),
+                                            SyntaxFactory.IdentifierName(MethodNameReadOrdinal)))
+                                    .WithArgumentList(
+                                        SyntaxFactory.ArgumentList(
+                                            SyntaxFactory.SeparatedList<ArgumentSyntax>(
+                                                new SyntaxNodeOrToken[]
+                                                {
+                                                    SyntaxFactory.Argument(
+                                                        SyntaxFactory.IdentifierName("record")),
+                                                    SyntaxFactory.Token(SyntaxKind.CommaToken),
+                                                    SyntaxFactory.Argument(
+                                                        SyntaxFactory.IdentifierName("table")),
+                                                    SyntaxFactory.Token(SyntaxKind.CommaToken),
+                                                    SyntaxFactory.Argument(
+                                                        SyntaxFactory.IdentifierName("offset"))
+                                                })))))));
 
 
             var readerClassDeclaration = SyntaxFactory.ClassDeclaration(className)
                 .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PrivateKeyword)))
                 .WithBaseList(SyntaxFactory.BaseList().AddTypes(SyntaxFactory.SimpleBaseType(baseInterface)))
-                .AddMembers(instance, getColumns, read);
+                .AddMembers(instance, getColumns, read, readOrdinal);
 
             var getReader = SyntaxFactory.MethodDeclaration(baseInterface, addName ? $"{MethodNameGetReader}For{tableRef.TableTypeName}" : MethodNameGetReader)
                 .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword),

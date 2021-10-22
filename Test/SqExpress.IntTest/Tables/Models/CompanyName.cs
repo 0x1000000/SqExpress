@@ -20,6 +20,11 @@ namespace SqExpress.IntTest.Tables.Models
             return new CompanyName(id: table.CompanyId.Read(record), name: table.CompanyName.Read(record));
         }
 
+        public static CompanyName ReadOrdinal(ISqDataRecordReader record, TableItCompany table, int offset)
+        {
+            return new CompanyName(id: table.CompanyId.Read(record, offset), name: table.CompanyName.Read(record, offset + 1));
+        }
+
         public int Id { get; }
 
         public string Name { get; }
@@ -70,6 +75,11 @@ namespace SqExpress.IntTest.Tables.Models
             CompanyName ISqModelReader<CompanyName, TableItCompany>.Read(ISqDataRecordReader record, TableItCompany table)
             {
                 return CompanyName.Read(record, table);
+            }
+
+            CompanyName ISqModelReader<CompanyName, TableItCompany>.ReadOrdinal(ISqDataRecordReader record, TableItCompany table, int offset)
+            {
+                return CompanyName.ReadOrdinal(record, table, offset);
             }
         }
 

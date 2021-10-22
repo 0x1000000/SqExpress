@@ -21,6 +21,11 @@ namespace SqExpress.IntTest.Tables.Models
             return new CompanyInitData(id: table.CompanyId.Read(record), externalId: table.ExternalId.Read(record), name: table.CompanyName.Read(record));
         }
 
+        public static CompanyInitData ReadOrdinal(ISqDataRecordReader record, TableItCompany table, int offset)
+        {
+            return new CompanyInitData(id: table.CompanyId.Read(record, offset), externalId: table.ExternalId.Read(record, offset + 1), name: table.CompanyName.Read(record, offset + 2));
+        }
+
         public int Id { get; }
 
         public Guid ExternalId { get; }
@@ -78,6 +83,11 @@ namespace SqExpress.IntTest.Tables.Models
             CompanyInitData ISqModelReader<CompanyInitData, TableItCompany>.Read(ISqDataRecordReader record, TableItCompany table)
             {
                 return CompanyInitData.Read(record, table);
+            }
+
+            CompanyInitData ISqModelReader<CompanyInitData, TableItCompany>.ReadOrdinal(ISqDataRecordReader record, TableItCompany table, int offset)
+            {
+                return CompanyInitData.ReadOrdinal(record, table, offset);
             }
         }
 

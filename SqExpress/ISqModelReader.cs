@@ -8,5 +8,7 @@ namespace SqExpress
         IReadOnlyList<ExprColumn> GetColumns(TTable table);
 
         TEntity Read(ISqDataRecordReader record, TTable table);
+
+        TEntity ReadOrdinal(ISqDataRecordReader record, TTable table, int offset);
     }
 }

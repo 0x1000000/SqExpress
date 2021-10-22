@@ -21,6 +21,11 @@ namespace SqExpress.IntTest.Tables.Models
             return new UserName(id: (EntUser)table.UserId.Read(record), firstName: table.FirstName.Read(record), lastName: table.LastName.Read(record));
         }
 
+        public static UserName ReadOrdinal(ISqDataRecordReader record, TableItUser table, int offset)
+        {
+            return new UserName(id: (EntUser)table.UserId.Read(record, offset), firstName: table.FirstName.Read(record, offset + 1), lastName: table.LastName.Read(record, offset + 2));
+        }
+
         public EntUser Id { get; }
 
         public string FirstName { get; }
@@ -78,6 +83,11 @@ namespace SqExpress.IntTest.Tables.Models
             UserName ISqModelReader<UserName, TableItUser>.Read(ISqDataRecordReader record, TableItUser table)
             {
                 return UserName.Read(record, table);
+            }
+
+            UserName ISqModelReader<UserName, TableItUser>.ReadOrdinal(ISqDataRecordReader record, TableItUser table, int offset)
+            {
+                return UserName.ReadOrdinal(record, table, offset);
             }
         }
 

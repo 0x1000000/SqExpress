@@ -150,6 +150,26 @@ namespace SqExpress.Utils
             return result;
         }
 
+        public static IReadOnlyList<T> Combine<T>(IReadOnlyList<T> arg1, T arg2)
+        {
+            var result = new T[arg1.Count + 1];
+            result[result.Length - 1] = arg2;
+            if (result.Length == 1)
+            {
+                return result;
+            }
+            if (arg1 is ICollection<T> collection)
+            {
+                collection.CopyTo(result, 0);
+                return result;
+            }
+            for (int i = 0; i < arg1.Count; i++)
+            {
+                result[i] = arg1[i];
+            }
+            return result;
+        }
+
         public static IReadOnlyList<T> Combine<T>(IReadOnlyList<T> arg1, T arg2, T[] rest)
         {
             if (arg1.Count < 1)

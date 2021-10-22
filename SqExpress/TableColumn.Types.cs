@@ -19,6 +19,11 @@ namespace SqExpress
 
         public bool? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableBoolean(this.ColumnName.Name);
 
+        public bool Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetBoolean(ordinal);
+
+        public bool? ReadNullable(ISqDataRecordReader recordReader, int ordinal) 
+            => !recordReader.IsDBNull(ordinal) ? recordReader.GetBoolean(ordinal):null;
+
         public new BooleanTableColumn WithSource(IExprColumnSource? source) => new BooleanTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
@@ -46,6 +51,9 @@ namespace SqExpress
         public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableBoolean(this);
 
         public bool? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableBoolean(this.ColumnName.Name);
+
+        public bool? Read(ISqDataRecordReader recordReader, int ordinal)
+            => !recordReader.IsDBNull(ordinal) ? recordReader.GetBoolean(ordinal) : null;
 
         public new NullableBooleanTableColumn WithSource(IExprColumnSource? source) => new NullableBooleanTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
@@ -75,6 +83,11 @@ namespace SqExpress
 
         public byte? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableByte(this.ColumnName.Name);
 
+        public byte Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetByte(ordinal);
+
+        public byte? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
+            => !recordReader.IsDBNull(ordinal) ? recordReader.GetByte(ordinal) : null;
+
         public new ByteTableColumn WithSource(IExprColumnSource? source) => new ByteTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
@@ -102,6 +115,9 @@ namespace SqExpress
         public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableByte(this);
 
         public byte? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableByte(this.ColumnName.Name);
+
+        public byte? Read(ISqDataRecordReader recordReader, int ordinal)
+            => !recordReader.IsDBNull(ordinal) ? recordReader.GetByte(ordinal) : null;
 
         public new NullableByteTableColumn WithSource(IExprColumnSource? source) => new NullableByteTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
@@ -135,6 +151,11 @@ namespace SqExpress
         public byte[] Read(ISqDataRecordReader recordReader) => recordReader.GetByteArray(this.ColumnName.Name);
 
         public byte[]? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableByteArray(this.ColumnName.Name);
+
+        public byte[] Read(ISqDataRecordReader recordReader, int ordinal) => (byte[])recordReader.GetValue(ordinal);
+
+        public byte[]? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
+            => !recordReader.IsDBNull(ordinal) ? (byte[])recordReader.GetValue(ordinal) : null;
 
         public Stream GetStream(ISqDataRecordReader recordReader) => recordReader.GetStream(this.ColumnName.Name);
 
@@ -183,6 +204,9 @@ namespace SqExpress
 
         public byte[]? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableByteArray(this.ColumnName.Name);
 
+        public byte[]? Read(ISqDataRecordReader recordReader, int ordinal)
+            => !recordReader.IsDBNull(ordinal) ? (byte[])recordReader.GetValue(ordinal) : null;
+
         public Stream? GetStream(ISqDataRecordReader recordReader) => recordReader.GetStream(this.ColumnName.Name);
 
         public new ByteTableColumn WithSource(IExprColumnSource? source) => new ByteTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
@@ -225,6 +249,11 @@ namespace SqExpress
 
         public short? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableInt16(this.ColumnName.Name);
 
+        public short Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetInt16(ordinal);
+
+        public short? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
+            => !recordReader.IsDBNull(ordinal) ? recordReader.GetInt16(ordinal) : null;
+
         public new Int16TableColumn WithSource(IExprColumnSource? source) => new Int16TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
@@ -252,6 +281,9 @@ namespace SqExpress
         public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableInt16(this);
 
         public short? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableInt16(this.ColumnName.Name);
+
+        public short? Read(ISqDataRecordReader recordReader, int ordinal)
+            => !recordReader.IsDBNull(ordinal) ? recordReader.GetInt16(ordinal) : null;
 
         public new NullableInt16TableColumn WithSource(IExprColumnSource? source) => new NullableInt16TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
@@ -281,6 +313,11 @@ namespace SqExpress
 
         public int? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableInt32(this.ColumnName.Name);
 
+        public int Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetInt32(ordinal);
+
+        public int? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
+            => !recordReader.IsDBNull(ordinal) ? recordReader.GetInt32(ordinal) : null;
+
         public new Int32TableColumn WithSource(IExprColumnSource? source) => new Int32TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
@@ -308,6 +345,9 @@ namespace SqExpress
         public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableInt32(this);
 
         public int? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableInt32(this.ColumnName.Name);
+
+        public int? Read(ISqDataRecordReader recordReader, int ordinal)
+            => !recordReader.IsDBNull(ordinal) ? recordReader.GetInt32(ordinal) : null;
 
         public new NullableInt32TableColumn WithSource(IExprColumnSource? source) => new NullableInt32TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
@@ -337,6 +377,11 @@ namespace SqExpress
 
         public long? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableInt64(this.ColumnName.Name);
 
+        public long Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetInt64(ordinal);
+
+        public long? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
+            => !recordReader.IsDBNull(ordinal) ? recordReader.GetInt64(ordinal) : null;
+
         public new Int64TableColumn WithSource(IExprColumnSource? source) => new Int64TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
@@ -364,6 +409,9 @@ namespace SqExpress
         public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableInt64(this);
 
         public long? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableInt64(this.ColumnName.Name);
+
+        public long? Read(ISqDataRecordReader recordReader, int ordinal)
+            => !recordReader.IsDBNull(ordinal) ? recordReader.GetInt64(ordinal) : null;
 
         public new NullableInt64TableColumn WithSource(IExprColumnSource? source) => new NullableInt64TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
@@ -398,6 +446,11 @@ namespace SqExpress
 
         public decimal? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableDecimal(this.ColumnName.Name);
 
+        public decimal Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetDecimal(ordinal);
+
+        public decimal? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
+            => !recordReader.IsDBNull(ordinal) ? recordReader.GetDecimal(ordinal) : null;
+
         public new DecimalTableColumn WithSource(IExprColumnSource? source) => new DecimalTableColumn(source, this.ColumnName, this.Table,this.PrecisionScale, this.ColumnMeta);
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
@@ -431,6 +484,9 @@ namespace SqExpress
 
         public decimal? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableDecimal(this.ColumnName.Name);
 
+        public decimal? Read(ISqDataRecordReader recordReader, int ordinal)
+            => !recordReader.IsDBNull(ordinal) ? recordReader.GetDecimal(ordinal) : null;
+
         public new NullableDecimalTableColumn WithSource(IExprColumnSource? source) => new NullableDecimalTableColumn(source, this.ColumnName, this.Table, this.PrecisionScale ,this.ColumnMeta);
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
@@ -457,6 +513,11 @@ namespace SqExpress
         public double Read(ISqDataRecordReader recordReader) => recordReader.GetDouble(this.ColumnName.Name);
 
         public double? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableDouble(this.ColumnName.Name);
+
+        public double Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetDouble(ordinal);
+
+        public double? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
+            => !recordReader.IsDBNull(ordinal) ? recordReader.GetDouble(ordinal) : null;
 
         public new DoubleTableColumn WithSource(IExprColumnSource? source) => new DoubleTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
@@ -485,6 +546,9 @@ namespace SqExpress
         public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableDouble(this);
 
         public double? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableDouble(this.ColumnName.Name);
+
+        public double? Read(ISqDataRecordReader recordReader, int ordinal)
+            => !recordReader.IsDBNull(ordinal) ? recordReader.GetDouble(ordinal) : null;
 
         public new NullableDoubleTableColumn WithSource(IExprColumnSource? source) => new NullableDoubleTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
@@ -519,6 +583,11 @@ namespace SqExpress
         public DateTime Read(ISqDataRecordReader recordReader) => recordReader.GetDateTime(this.ColumnName.Name);
 
         public DateTime? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableDateTime(this.ColumnName.Name);
+
+        public DateTime Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetDateTime(ordinal);
+
+        public DateTime? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
+            => !recordReader.IsDBNull(ordinal) ? recordReader.GetDateTime(ordinal) : null;
 
         public new DateTimeTableColumn WithSource(IExprColumnSource? source) => new DateTimeTableColumn(source, this.ColumnName, this.Table, this.IsDate, this.ColumnMeta);
 
@@ -560,6 +629,9 @@ namespace SqExpress
 
         public DateTime? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableDateTime(this.ColumnName.Name);
 
+        public DateTime? Read(ISqDataRecordReader recordReader, int ordinal)
+            => !recordReader.IsDBNull(ordinal) ? recordReader.GetDateTime(ordinal) : null;
+
         public new NullableDateTimeTableColumn WithSource(IExprColumnSource? source) => new NullableDateTimeTableColumn(source, this.ColumnName, this.Table, this.IsDate, this.ColumnMeta);
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
@@ -592,6 +664,11 @@ namespace SqExpress
 
         public Guid? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableGuid(this.ColumnName.Name);
 
+        public Guid Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetGuid(ordinal);
+
+        public Guid? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
+            => !recordReader.IsDBNull(ordinal) ? recordReader.GetGuid(ordinal) : null;
+
         public new GuidTableColumn WithSource(IExprColumnSource? source) => new GuidTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
@@ -619,6 +696,9 @@ namespace SqExpress
         public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableGuid(this);
 
         public Guid? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableGuid(this.ColumnName.Name);
+
+        public Guid? Read(ISqDataRecordReader recordReader, int ordinal)
+            => !recordReader.IsDBNull(ordinal) ? recordReader.GetGuid(ordinal) : null;
 
         public new NullableGuidTableColumn WithSource(IExprColumnSource? source) => new NullableGuidTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
@@ -652,6 +732,11 @@ namespace SqExpress
         public string Read(ISqDataRecordReader recordReader) => recordReader.GetString(this.ColumnName.Name);
 
         public string? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableString(this.ColumnName.Name);
+
+        public string Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetString(ordinal);
+
+        public string? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
+            => !recordReader.IsDBNull(ordinal) ? recordReader.GetString(ordinal) : null;
 
         public new StringTableColumn WithSource(IExprColumnSource? source) => new StringTableColumn(source, this.ColumnName, this.Table, this.SqlType, this.ColumnMeta);
 
@@ -692,6 +777,9 @@ namespace SqExpress
         public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableString(this);
 
         public string? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableString(this.ColumnName.Name);
+
+        public string? Read(ISqDataRecordReader recordReader, int ordinal)
+            => !recordReader.IsDBNull(ordinal) ? recordReader.GetString(ordinal) : null;
 
         public new NullableStringTableColumn WithSource(IExprColumnSource? source) => new NullableStringTableColumn(source, this.ColumnName, this.Table, this.SqlType, this.ColumnMeta);
 

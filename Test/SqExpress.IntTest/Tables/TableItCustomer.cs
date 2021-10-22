@@ -18,10 +18,13 @@ namespace SqExpress.IntTest.Tables
             this.AddUniqueIndex(this.CompanyId, this.UserId);
         }
 
+        [SqModel("Customer")]
         public Int32TableColumn CustomerId { get; }
 
+        [SqModel("Customer")]
         public NullableInt32TableColumn UserId { get; }
 
+        [SqModel("Customer")]
         public NullableInt32TableColumn CompanyId { get; }
     }
 }

@@ -20,6 +20,11 @@ namespace SqExpress.IntTest.Tables.Models
             return new TestMergeData(id: table.Id.Read(record), value: table.Value.Read(record));
         }
 
+        public static TestMergeData ReadOrdinal(ISqDataRecordReader record, TestMergeTmpTable table, int offset)
+        {
+            return new TestMergeData(id: table.Id.Read(record, offset), value: table.Value.Read(record, offset + 1));
+        }
+
         public int Id { get; }
 
         public int Value { get; }
@@ -70,6 +75,11 @@ namespace SqExpress.IntTest.Tables.Models
             TestMergeData ISqModelReader<TestMergeData, TestMergeTmpTable>.Read(ISqDataRecordReader record, TestMergeTmpTable table)
             {
                 return TestMergeData.Read(record, table);
+            }
+
+            TestMergeData ISqModelReader<TestMergeData, TestMergeTmpTable>.ReadOrdinal(ISqDataRecordReader record, TestMergeTmpTable table, int offset)
+            {
+                return TestMergeData.ReadOrdinal(record, table, offset);
             }
         }
 

@@ -21,6 +21,11 @@ namespace SqExpress.IntTest.Tables.Models
             return new UserEmail(id: (EntUser)table.UserId.Read(record), email: table.Email.Read(record));
         }
 
+        public static UserEmail ReadOrdinal(ISqDataRecordReader record, TableItUser table, int offset)
+        {
+            return new UserEmail(id: (EntUser)table.UserId.Read(record, offset), email: table.Email.Read(record, offset + 1));
+        }
+
         [JsonPropertyName("id")]
         public EntUser Id { get; }
 
@@ -73,6 +78,11 @@ namespace SqExpress.IntTest.Tables.Models
             UserEmail ISqModelReader<UserEmail, TableItUser>.Read(ISqDataRecordReader record, TableItUser table)
             {
                 return UserEmail.Read(record, table);
+            }
+
+            UserEmail ISqModelReader<UserEmail, TableItUser>.ReadOrdinal(ISqDataRecordReader record, TableItUser table, int offset)
+            {
+                return UserEmail.ReadOrdinal(record, table, offset);
             }
         }
 

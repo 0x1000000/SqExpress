@@ -17,10 +17,12 @@ namespace SqExpress.IntTest.Tables
             this.Notes = this.CreateNullableStringColumn(name: "Notes", size: 100, isUnicode: true, isText: false, columnMeta: null);
         }
 
+        [SqModel("OrderDateCreated")]
         public Int32TableColumn OrderId { get; }
 
         public Int32TableColumn CustomerId { get; }
 
+        [SqModel("OrderDateCreated")]
         public DateTimeTableColumn DateCreated { get; }
 
         public NullableStringTableColumn Notes { get; }

@@ -26,6 +26,16 @@ namespace SqExpress.IntTest.Tables.Models
             return new Audit(version: table.Version.Read(record), created: table.Created.Read(record), modified: table.Modified.Read(record));
         }
 
+        public static Audit ReadOrdinal(ISqDataRecordReader record, TableItCompany table, int offset)
+        {
+            return new Audit(version: table.Version.Read(record, offset), created: table.Created.Read(record, offset + 1), modified: table.Modified.Read(record, offset + 2));
+        }
+
+        public static Audit ReadOrdinal(ISqDataRecordReader record, TableItUser table, int offset)
+        {
+            return new Audit(version: table.Version.Read(record, offset), created: table.Created.Read(record, offset + 1), modified: table.Modified.Read(record, offset + 2));
+        }
+
         public int Version { get; }
 
         public DateTime Created { get; }
@@ -84,6 +94,11 @@ namespace SqExpress.IntTest.Tables.Models
             {
                 return Audit.Read(record, table);
             }
+
+            Audit ISqModelReader<Audit, TableItCompany>.ReadOrdinal(ISqDataRecordReader record, TableItCompany table, int offset)
+            {
+                return Audit.ReadOrdinal(record, table, offset);
+            }
         }
 
         public static ISqModelReader<Audit, TableItUser> GetReaderForTableItUser()
@@ -102,6 +117,11 @@ namespace SqExpress.IntTest.Tables.Models
             Audit ISqModelReader<Audit, TableItUser>.Read(ISqDataRecordReader record, TableItUser table)
             {
                 return Audit.Read(record, table);
+            }
+
+            Audit ISqModelReader<Audit, TableItUser>.ReadOrdinal(ISqDataRecordReader record, TableItUser table, int offset)
+            {
+                return Audit.ReadOrdinal(record, table, offset);
             }
         }
 

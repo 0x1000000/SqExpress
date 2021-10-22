@@ -133,5 +133,15 @@ namespace SqExpress
 
             return result;
         }
+
+        public static ExprOrderBy ThenBy(this ExprOrderByItem item, ExprOrderByItem thenBy)
+        {
+            return new ExprOrderBy(new[] { item, thenBy });
+        }
+
+        public static ExprOrderBy ThenBy(this ExprOrderBy order, ExprOrderByItem thenBy)
+        {
+            return new ExprOrderBy(Helpers.Combine(order.OrderList, thenBy));
+        }
     }
 }
