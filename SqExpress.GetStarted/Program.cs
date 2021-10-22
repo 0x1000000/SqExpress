@@ -170,10 +170,11 @@ namespace SqExpress.GetStarted
             await Step14TreeExploring(database);
             await Step15SyntaxModification(database);
             await Step16Models(database);
-            await Step17ExportToJson(database);
-            await Step18ExportToXml(database);
-            await Step19ExportToPlain(database);
-            await Step20ExportDataToJson(database);
+            await Step17ModelsSelectBuilder(database);
+            await Step18ExportToJson(database);
+            await Step19ExportToXml(database);
+            await Step20ExportToPlain(database);
+            await Step21ExportDataToJson(database);
         }
 
         private static async Task Step1CreatingTables(ISqDatabase database)
@@ -614,7 +615,28 @@ namespace SqExpress.GetStarted
             }
         }
 
-        private static async Task Step17ExportToJson(ISqDatabase database)
+        private static async Task Step17ModelsSelectBuilder(ISqDatabase database)
+        {
+            var page = await SqModelSelectBuilder
+                .Select(ModelEmptyReader.Get<TableCustomer>())
+                .LeftJoin(UserName.GetReader(), on: t => t.Table.UserId == t.JoinedTable1.UserId)
+                .LeftJoin(CompanyName.GetReader(), on: t => t.Table.CompanyId == t.JoinedTable2.CompanyId)
+                .Find(0,
+                    10,
+                    filter: null,
+                    order: t => Asc(IsNull(t.JoinedTable1.FirstName + t.JoinedTable1.LastName,
+                        t.JoinedTable2.CompanyName)),
+                    r => (r.JoinedModel1 != null ? r.JoinedModel1.FirstName + " "+ r.JoinedModel1.LastName : null) ??
+                         r.JoinedModel2?.Name ?? "Unknown")
+                .QueryPage(database);
+
+            foreach (var name in page.Items)
+            {
+                Console.WriteLine(name);
+            }
+        }
+
+        private static async Task Step18ExportToJson(ISqDatabase database)
         {
             var tableUser = new TableUser(Alias.Empty);
 
@@ -645,7 +667,7 @@ namespace SqExpress.GetStarted
             }
         }
 
-        private static async Task Step18ExportToXml(ISqDatabase database)
+        private static async Task Step19ExportToXml(ISqDatabase database)
         {
             var tableUser = new TableUser(Alias.Empty);
 
@@ -674,7 +696,7 @@ namespace SqExpress.GetStarted
             }
         }
 
-        private static async Task Step19ExportToPlain(ISqDatabase database)
+        private static async Task Step20ExportToPlain(ISqDatabase database)
         {
             var tableUser = new TableUser(Alias.Empty);
 
@@ -759,7 +781,7 @@ namespace SqExpress.GetStarted
                     });
         }
 
-        private static async Task Step20ExportDataToJson(ISqDatabase database)
+        private static async Task Step21ExportDataToJson(ISqDatabase database)
         {
             var tables = CreateTableList();
 

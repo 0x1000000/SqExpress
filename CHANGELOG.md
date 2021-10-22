@@ -1,9 +1,13 @@
 # 0.2.1.0
 ### New Features
-- "ReadAsString(recordReader:ISqDataRecordReader): string" and "FromString(value: string?): ExprLiteral" are added to TableColumn. They allow perfoming mass export/import of database data.
+- "ReadAsString(recordReader:ISqDataRecordReader): string" and "FromString(value: string?): ExprLiteral" are added to TableColumn. They allow performing mass export/import of database data.
 - Lt Gt operators overload between columns
 - ColumnMeta is public now
 - Identity Insert
+- SqModelSelectBuilder - Fluent API that allows quickly get a tuple of DTO SqModels from tables join
+- Column method "Read" now has an overload that receives an ordinal index
+- "ReadOrdinal" was added to ISqModelReader
+- ThenBy for ExprOrderItem andExprOrderBy
 ### Breaking Changes
 - ISqModelDerivedReaderReader was removed. ISqModelReader was slightly changed;
 

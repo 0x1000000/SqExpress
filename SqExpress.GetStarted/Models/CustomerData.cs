@@ -3,6 +3,7 @@ using SqExpress;
 using SqExpress.QueryBuilders.RecordSetter;
 using SqExpress.GetStarted;
 using SqExpress.Syntax.Names;
+using System.Collections.Generic;
 
 namespace SqExpress.GetStarted.Models
 {
@@ -18,6 +19,11 @@ namespace SqExpress.GetStarted.Models
         public static CustomerData Read(ISqDataRecordReader record, DerivedTableCustomer table)
         {
             return new CustomerData(id: table.CustomerId.Read(record), customerType: table.Type.Read(record), name: table.Name.Read(record));
+        }
+
+        public static CustomerData ReadOrdinal(ISqDataRecordReader record, DerivedTableCustomer table, int offset)
+        {
+            return new CustomerData(id: table.CustomerId.Read(record, offset), customerType: table.Type.Read(record, offset + 1), name: table.Name.Read(record, offset + 2));
         }
 
         public int Id { get; }
@@ -44,6 +50,30 @@ namespace SqExpress.GetStarted.Models
         public static ExprColumn[] GetColumns(DerivedTableCustomer table)
         {
             return new ExprColumn[]{table.CustomerId, table.Type, table.Name};
+        }
+
+        public static ISqModelReader<CustomerData, DerivedTableCustomer> GetReader()
+        {
+            return CustomerDataReader.Instance;
+        }
+
+        private class CustomerDataReader : ISqModelReader<CustomerData, DerivedTableCustomer>
+        {
+            public static CustomerDataReader Instance { get; } = new CustomerDataReader();
+            IReadOnlyList<ExprColumn> ISqModelReader<CustomerData, DerivedTableCustomer>.GetColumns(DerivedTableCustomer table)
+            {
+                return CustomerData.GetColumns(table);
+            }
+
+            CustomerData ISqModelReader<CustomerData, DerivedTableCustomer>.Read(ISqDataRecordReader record, DerivedTableCustomer table)
+            {
+                return CustomerData.Read(record, table);
+            }
+
+            CustomerData ISqModelReader<CustomerData, DerivedTableCustomer>.ReadOrdinal(ISqDataRecordReader record, DerivedTableCustomer table, int offset)
+            {
+                return CustomerData.ReadOrdinal(record, table, offset);
+            }
         }
 
         public int CustomerId { get; }

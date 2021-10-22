@@ -5215,5 +5215,320 @@ namespace SqExpress.ModelSelect
             return new ModelRequestData<TRes>(query, ResultMapper);
         }
     }
-    //CodeGenEnd
+//CodeGenEnd
+
+/*
+    public class GenerateModelQuery
+    {
+        readonly struct GenericType
+        {
+            public GenericType(string name, bool left, int index)
+            {
+                this.Name = name;
+                this.Left = left;
+                this.Index = index;
+            }
+
+            public readonly string Name;
+            public readonly bool Left;
+            public readonly int Index;
+
+            public void Deconstruct(out string name, out bool left, out int index)
+            {
+                name = this.Name;
+                left = this.Left;
+                index = this.Index;
+            }
+
+            public static implicit operator GenericType(ValueTuple<string, bool, int> t) =>
+                new GenericType(t.Item1, t.Item2, t.Item3);
+        }
+
+        public static void Do()
+        {
+            var max = 7;
+
+            var path = @"!!!";
+
+            var tmpPath = @"!!!\tmp.tmp";
+
+
+            using StreamWriter tmpWriter = new StreamWriter(tmpPath, false);
+
+            bool gen = false;
+            bool output = false;
+            foreach (var originalLine in File.ReadLines(path))
+            {
+                if (!gen)
+                {
+                    tmpWriter.WriteLine(originalLine);
+                    if (originalLine == "//CodeGenStart")
+                    {
+                        gen = true;
+                    }
+                }
+                else
+                {
+                    if (!output)
+                    {
+                        //GenerateTablesContextClass(max, s => tmpWriter.WriteLine(s));
+
+                        var combinations = Enumerable.Range(1, max).SelectMany(GenFor);
+
+                        foreach (var combination in combinations)
+                        {
+                            GenerateSelectClass(combination, max, s => tmpWriter.WriteLine(s));
+                        }
+
+                        output = true;
+                    }
+
+                    if (originalLine == "//CodeGenEnd")
+                    {
+                        tmpWriter.WriteLine(originalLine);
+                        gen = false;
+                    }
+                }
+            }
+            tmpWriter.Close();
+            File.Move(tmpPath, path, true);
+        }
+
+
+        private static IEnumerable<(int I, int L)> GenFor(int index)
+        {
+            for (int numOfI = 0; numOfI <= index; numOfI++)
+            {
+                yield return (numOfI, index - numOfI);
+            }
+        }
+
+        public static void GenerateTablesContextClass(int max, Action<string> writeLine)
+        {
+            for (int i = 1; i <= max; i++)
+            {
+                var typesPrev = string.Join(", ", Enumerable.Range(1, i-1).Select(num => $"TJoinedTable{num}"));
+                var types = string.Join(", ", Enumerable.Range(1, i).Select(num => $"TJoinedTable{num}"));
+
+                var declarations = string.Join(", ", Enumerable.Range(1, i).Select(num => $"TJoinedTable{num} JoinedTable{num}"));
+
+                writeLine($"public interface IModelSelectTablesContext<TTable,{types}>{(i>1 ? $" : IModelSelectTablesContext<TTable,{typesPrev}>" : string.Empty)}");
+                writeLine("{");
+                if (i == 1)
+                {
+                    writeLine("TTable Table {get;}");
+                }
+                writeLine($"TJoinedTable{i} JoinedTable{i} {{get;}}");
+                writeLine("}");
+                writeLine($"internal record ModelSelectTablesContext<TTable,{types}>(TTable Table, {declarations}): IModelSelectTablesContext<TTable,{types}>;");
+            }
+        }
+
+        public static void GenerateSelectClass((int I, int L) comb, int max, Action<string> writeLine)
+        {
+            bool hasL = comb.L > 0;
+
+            GenericType[] currentTypes = GenerateGenericTypes(comb);
+
+
+            var lastCurrentType = currentTypes.Last();
+            var readerType = GetReaderType(lastCurrentType);
+            var readerNameIndex = GetNameIndex(lastCurrentType);
+
+            var onType = GetOnType(lastCurrentType, currentTypes);
+            var onNameIndex = GetNameIndex(lastCurrentType);
+
+            (int I, int L) combPrev = (comb.L > 0 ? comb.I : (comb.I > 0 ? comb.I - 1 : 0), comb.L > 0 ? comb.L - 1 : 0);
+            var prevTypes = GenerateGenericTypes(combPrev);
+            var prevClassName = combPrev.I == 0 && combPrev.L == 0 ? "ModelSelect<T, TTable>" : $"ModelSelect{combPrev.I}{combPrev.L}{(combPrev.L>0? "Left":"")}<{PrintGenTypesWithTables(prevTypes)}>";
+
+            var thisClassName = $"ModelSelect{comb.I}{comb.L}{(hasL ? "Left" : "")}";
+            var thisClassGenericName = $"{thisClassName}<{PrintGenTypesWithTables(currentTypes)}>";
+            writeLine($"public class {thisClassGenericName} {PrintGenTablesRestrictions(currentTypes)}");
+            writeLine("{");
+            writeLine($"internal readonly {prevClassName} Source;");
+            writeLine($"internal readonly {readerType} Reader{readerNameIndex};");
+            writeLine($"internal readonly {onType} On{onNameIndex};");
+            writeLine($"internal {thisClassName}({prevClassName} source, {readerType} reader, {onType} on)");
+            writeLine("{");
+            writeLine("this.Source = source;");
+            writeLine($"this.Reader{readerNameIndex} = reader;");
+            writeLine($"this.On{onNameIndex} = on;");
+            writeLine("}");
+
+            bool first = true;
+            foreach (var genericType in prevTypes)
+            {
+                writeLine($"internal {GetReaderType(genericType)} Reader{GetNameIndex(genericType)}=>this.Source.Reader{GetNameIndex(genericType)};");
+
+                if (!first)
+                {
+                    writeLine($"internal {GetOnType(genericType, prevTypes)} On{GetNameIndex(genericType)}=>this.Source.On{GetNameIndex(genericType)};");
+                }
+
+                first = false;
+            }
+
+            var nextI = comb.I + 1;
+            if (!hasL && nextI<=max)
+            {
+                var nextGeneration = GenerateGenericTypes((nextI, 0));
+                var last = nextGeneration[^1];
+                var nextGen = $"{last.Name}, {last.Name}Table";
+                var printGenTypesWithTables = PrintGenTypesWithTables(nextGeneration);
+                writeLine($"public ModelSelect{nextI}0<{printGenTypesWithTables}> InnerJoin<{nextGen}>(ISqModelReader<{nextGen}> reader, Func<IModelSelectTablesContext<{PrintGenTypesTables(nextGeneration)}>, ExprBoolean> on) where {last.Name}Table : IExprTableSource, new()");
+                writeLine($"=> new ModelSelect{nextI}0<{printGenTypesWithTables}>(this, reader, on);");
+            }
+
+            nextI = comb.I + comb.L + 1;
+            if (nextI <= max)
+            {
+                var nextGeneration = GenerateGenericTypes((comb.I, comb.L+1));
+                var last = nextGeneration[^1];
+                var nextGen = $"{last.Name}, {last.Name}Table";
+                var printGenTypesWithTables = PrintGenTypesWithTables(nextGeneration);
+
+                var nextClassName = $"ModelSelect{comb.I}{comb.L + 1}Left<{printGenTypesWithTables}>";
+                writeLine($"public {nextClassName} LeftJoin<{nextGen}>(ISqModelReader<{nextGen}> reader, Func<IModelSelectTablesContext<{PrintGenTypesTables(nextGeneration)}>, ExprBoolean> on) where {last.Name}Table : IExprTableSource, new()");
+                writeLine($"=> new {nextClassName}(this, reader, on);");
+            }
+            //Get
+            AppendGet(currentTypes, writeLine);
+            AppendGetGeneric(currentTypes, writeLine);
+
+            //End of class
+            writeLine("}"); 
+        }
+
+        private static void AppendGet(GenericType[] currentTypes, Action<string> writeLine)
+        {
+            writeLine($"public ModelRequestData<TRes> Get<TRes>(Func<IModelSelectTablesContext<{PrintGenTypesTables(currentTypes)}>, ExprBoolean>? filter, Func<IModelSelectTablesContext<{PrintGenTypesTables(currentTypes)}>, ExprOrderBy>? order, Func<ModelRowData<{PrintGenTypesLeft(currentTypes)}>, TRes> mapper)");
+            writeLine("{");
+            writeLine("return GenericGet<TRes>(mapper, filter, order, null);");
+            writeLine("}");
+
+            writeLine($"public ModelRangeRequestData<TRes> Find<TRes>(int offset, int pageSize, Func<IModelSelectTablesContext<{PrintGenTypesTables(currentTypes)}>, ExprBoolean>? filter, Func<IModelSelectTablesContext<{PrintGenTypesTables(currentTypes)}>, ExprOrderBy> order, Func<ModelRowData<{PrintGenTypesLeft(currentTypes)}>, TRes> mapper)");
+            writeLine("{");
+            writeLine("var r = GenericGet<TRes>(mapper, filter, order, new KeyValuePair<int,int>(offset, pageSize));");
+            writeLine("return new ModelRangeRequestData<TRes>((ExprSelectOffsetFetch)r.Expr, r.Mapper);");
+            writeLine("}");
+        }
+
+        private static void AppendGetGeneric(GenericType[] currentTypes, Action<string> writeLine)
+        {
+            writeLine($"private ModelRequestData<TRes> GenericGet<TRes>(Func<ModelRowData<{PrintGenTypesLeft(currentTypes)}>, TRes> mapper, Func<IModelSelectTablesContext<{PrintGenTypesTables(currentTypes)}>, ExprBoolean>? filter, Func<IModelSelectTablesContext<{PrintGenTypesTables(currentTypes)}>, ExprOrderBy>? order, KeyValuePair<int,int>? offsetFetch)");
+            writeLine("{");
+            writeLine($"var tablesContext = new ModelSelectTablesContext<{PrintGenTypesTables(currentTypes)}>({string.Join(", ", currentTypes.Select(t => $"new {t.Name}Table()"))});");
+            writeLine("IExprQuery query;");
+
+            var getColumns = currentTypes.Select((t, i) => $"this.Reader{GetNameIndex(t)}.GetColumns(tablesContext.{(i > 0 ? $"JoinedTable{i}" : "Table")})");
+            writeLine($"var filtered = SqQueryBuilder.Select(ModelQueryBuilderHelper.BuildColumns(out var offsets,{string.Join(",", getColumns)}))");
+            writeLine(".From(tablesContext.Table)");
+            foreach (var currentType in currentTypes.Skip(1))
+            {
+                if (currentType.Left)
+                {
+                    writeLine($".LeftJoin(tablesContext.JoinedTable{currentType.Index}, this.On{currentType.Index}(tablesContext))");
+                }
+                else
+                {
+                    writeLine($".InnerJoin(tablesContext.JoinedTable{currentType.Index}, this.On{currentType.Index}(tablesContext))");
+                }
+            }
+
+            writeLine(".Where(filter?.Invoke(tablesContext));");
+
+            writeLine(@"
+    if (order != null)
+    {
+        var ordered = filtered.OrderBy(order(tablesContext));
+
+        if (offsetFetch != null)
+        {
+            query = ordered.OffsetFetch(offsetFetch.Value.Key, offsetFetch.Value.Value).Done();
+        }
+        else
+        {
+            query = ordered.Done();
+        }
+    }
+    else
+    {
+        query = filtered.Done();
+    }");
+            writeLine("TRes ResultMapper(ISqDataRecordReader r)");
+
+            writeLine("{");
+
+            var readers = currentTypes.Skip(1)
+                .Select(ct =>
+                {
+                    if (ct.Left)
+                    {
+                        return
+                            $"ModelQueryBuilderHelper.IsAllNull(r, offsets, {ct.Index}) ? default : this.Reader{ct.Index}.ReadOrdinal(r, tablesContext.JoinedTable{ct.Index}, offsets[{ct.Index}])";
+                    }
+
+                    return
+                        $"this.Reader{ct.Index}.ReadOrdinal(r, tablesContext.JoinedTable{ct.Index}, offsets[{ct.Index}])";
+                });
+
+            writeLine($"var tuple = new ModelRowData<{PrintGenTypesLeft(currentTypes)}>(this.Reader.ReadOrdinal(r, tablesContext.Table, 0), {string.Join(",", readers)});");
+            writeLine("return mapper(tuple);");
+            writeLine("}");
+            writeLine("return new ModelRequestData<TRes>(query, ResultMapper);");
+            //
+            writeLine("}");
+        }
+
+        private static string GetOnType(GenericType lastCurrentType, GenericType[] currentTypes)
+        {
+            return $"Func<IModelSelectTablesContext<{PrintGenTypesTables(currentTypes, lastCurrentType.Index + 1)}>, ExprBoolean>";
+        }
+
+        private static string GetReaderType(GenericType type)
+        {
+            return $"ISqModelReader<{type.Name}, {type.Name}Table>";
+        }
+
+        private static string GetNameIndex(GenericType type) => type.Index > 0 ? type.Index.ToString() : string.Empty;
+
+        private static GenericType[] GenerateGenericTypes((int I, int L) comb)
+        {
+            var types = new GenericType[1 + comb.I + comb.L];
+            types[0] = ("T", false, 0);
+            for (int i = 1; i < comb.I + 1; i++)
+            {
+                types[i] = ($"TJ{i}", false, i);
+            }
+
+            for (int i = comb.I + 1; i < types.Length; i++)
+            {
+                types[i] = ($"TL{i}", true, i);
+            }
+
+            return types;
+        }
+
+        private static string PrintGenTypesLeft(GenericType[] types) =>
+            string.Join(',', types.Select(t => t.Name + (t.Left ? "?" : "")));
+
+        private static string PrintGenTypes(GenericType[] types, int? max = null) =>
+            max.HasValue
+                ? string.Join(',', types.Select(t => t.Name).Take(max.Value))
+                : string.Join(',', types.Select(t => t.Name));
+
+        private static string PrintGenTypesTables(GenericType[] types, int? max = null) =>
+            max.HasValue
+                ? string.Join(',', types.Select(t => t.Name + "Table").Take(max.Value))
+                : string.Join(',', types.Select(t => t.Name + "Table"));
+
+        private static string PrintGenTypesWithTables(GenericType[] types) =>
+            string.Join(',', types.SelectMany(t => new []{t.Name, t.Name + "Table"}));
+
+        private static string PrintGenTablesRestrictions(GenericType[] types) =>
+            string.Join(' ', types.Select(t => $"where {t.Name}Table : IExprTableSource, new()"));
+
+    }
+*/
 }
