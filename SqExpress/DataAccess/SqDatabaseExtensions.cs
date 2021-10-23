@@ -17,6 +17,16 @@ namespace SqExpress.DataAccess
                 });
         }
 
+        public static Task Query(this ISqDatabase database, IExprQuery query, Func<ISqDataRecordReader, Task> handler)
+        {
+            return database.Query<object?>(query,
+                null,
+                async (acc, r) =>
+                {
+                    await handler(r);
+                    return acc;
+                });
+        }
         public static Task<List<T>> QueryList<T>(this ISqDatabase database, IExprQuery expr, Func<ISqDataRecordReader, T> factory, Predicate<T>? predicateItem = null)
         {
             return database.Query(expr,

@@ -21,6 +21,8 @@ namespace SqExpress.DataAccess
 
         Task<TAgg> Query<TAgg>(IExprQuery query, TAgg seed, Func<TAgg, ISqDataRecordReader, TAgg> aggregator);
 
+        Task<TAgg> Query<TAgg>(IExprQuery query, TAgg seed, Func<TAgg, ISqDataRecordReader, Task<TAgg>> aggregator);
+
         Task<object> QueryScalar(IExprQuery query);
 
         Task Exec(IExprExec statement);
@@ -139,6 +141,37 @@ namespace SqExpress.DataAccess
                     while (await reader.ReadAsync())
                     {
                         result = aggregator(result, proxy);
+                    }
+                }
+            }
+            return result;
+        }
+
+        public async Task<TAgg> Query<TAgg>(IExprQuery query, TAgg seed, Func<TAgg, ISqDataRecordReader, Task<TAgg>> aggregator)
+        {
+            this.CheckDisposed();
+            var result = seed;
+            var sql = this._sqlExporter.ToSql(query);
+
+            var command = await this.CreateCommand(sql);
+
+            DbDataReader? reader;
+            try
+            {
+                reader = await command.ExecuteReaderAsync();
+            }
+            catch (Exception e)
+            {
+                throw new SqDatabaseCommandException(sql, e.Message, e);
+            }
+            if (reader != null)
+            {
+                using (reader)
+                {
+                    var proxy = new DbReaderProxy(reader);
+                    while (await reader.ReadAsync())
+                    {
+                        result = await aggregator(result, proxy);
                     }
                 }
             }

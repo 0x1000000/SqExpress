@@ -55,6 +55,11 @@ namespace SqExpress.Test
             return (TAgg)res;
         }
 
+        public Task<TAgg> Query<TAgg>(IExprQuery query, TAgg seed, Func<TAgg, ISqDataRecordReader, Task<TAgg>> aggregator)
+        {
+            throw new NotImplementedException();
+        }
+
         public Task<object> QueryScalar(IExprQuery query)
         {
             throw new NotImplementedException();

@@ -15,6 +15,7 @@ namespace SqExpress
 {
     public static class ExprExtension
     {
+        //Sync handler
         public static Task<TAgg> Query<TAgg>(this IExprQuery query, ISqDatabase database, TAgg seed, Func<TAgg,ISqDataRecordReader, TAgg> aggregator) 
             => database.Query(query, seed, aggregator);
 
@@ -25,6 +26,19 @@ namespace SqExpress
             => database.Query(query, handler);
 
         public static Task Query(this IExprQueryFinal query, ISqDatabase database, Action<ISqDataRecordReader> handler) 
+            => database.Query(query.Done(), handler);
+
+        //Async handler
+        public static Task<TAgg> Query<TAgg>(this IExprQuery query, ISqDatabase database, TAgg seed, Func<TAgg,ISqDataRecordReader, Task<TAgg>> aggregator) 
+            => database.Query(query, seed, aggregator);
+
+        public static Task<TAgg> Query<TAgg>(this IExprQueryFinal query, ISqDatabase database, TAgg seed, Func<TAgg,ISqDataRecordReader, Task<TAgg>> aggregator) 
+            => database.Query(query.Done(), seed, aggregator);
+
+        public static Task Query(this IExprQuery query, ISqDatabase database, Func<ISqDataRecordReader, Task> handler) 
+            => database.Query(query, handler);
+
+        public static Task Query(this IExprQueryFinal query, ISqDatabase database, Func<ISqDataRecordReader, Task> handler) 
             => database.Query(query.Done(), handler);
 
         public static Task<List<T>> QueryList<T>(this IExprQuery query, ISqDatabase database, Func<ISqDataRecordReader, T> factory) 

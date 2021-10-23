@@ -1,4 +1,4 @@
-# 0.2.1.0
+# 0.3.0.0
 ### New Features
 - "ReadAsString(recordReader:ISqDataRecordReader): string" and "FromString(value: string?): ExprLiteral" are added to TableColumn. They allow performing mass export/import of database data.
 - Lt Gt operators overload between columns
@@ -8,6 +8,7 @@
 - Column method "Read" now has an overload that receives an ordinal index
 - "ReadOrdinal" was added to ISqModelReader
 - ThenBy for ExprOrderItem andExprOrderBy
+- ISqDatabase has a new overload for Query which receives an asynchronous record handler
 ### Breaking Changes
 - ISqModelDerivedReaderReader was removed. ISqModelReader was slightly changed;
 
