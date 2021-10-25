@@ -43,7 +43,7 @@ namespace SqExpress.CodeGenUtil
 
     public enum Verbosity
     {
-        Quite = 1,
+        Quiet = 1,
         Minimal = 2,
         Normal = 3,
         Detailed = 4

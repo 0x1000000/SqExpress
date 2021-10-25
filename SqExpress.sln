@@ -19,7 +19,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SqExpress.GetStarted", "SqExpress.GetStarted\SqExpress.GetStarted.csproj", "{AFF53CC4-8323-48FA-963A-7580353D5EFE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqExpress.CodeGenUtil", "SqExpress.CodegenUtil\SqExpress.CodeGenUtil.csproj", "{4715EA50-FE9A-4E18-B0C0-29DDE304F591}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SqExpress.CodeGenUtil", "SqExpress.CodegenUtil\SqExpress.CodeGenUtil.csproj", "{4715EA50-FE9A-4E18-B0C0-29DDE304F591}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

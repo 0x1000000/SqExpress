@@ -1,0 +1,20 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Target Name="SqModelGen" BeforeTargets="BeforeBuild" Condition="'$(SqModelGenEnable)'=='True'">
+    <Error Condition="!Exists('$(SqExpressCodeGenPath)')" Text="Could not find the SqExpress code-generation tool"></Error>
+    <PropertyGroup>
+      <NullRefParam Condition="'$(Nullable)' == 'enable'"> --null-ref-types</NullRefParam>
+      <NullRefParam Condition="'$(Nullable)' != 'enable'"></NullRefParam>
+      <CleanOutputParam Condition="'$(SqModelGenCleanOutput)'=='True'"> --clean-output</CleanOutputParam>
+      <CleanOutputParam Condition="'$(SqModelGenCleanOutput)'!='True'"></CleanOutputParam>
+    </PropertyGroup>
+    <ItemGroup>
+      <Compile Remove="$(SqModelGenOutput)/*" />
+    </ItemGroup>
+    <Exec
+      Command="dotnet &quot;$(SqExpressCodeGenPath)&quot; genmodels -i &quot;$(SqModelGenInput)&quot; -o &quot;$(SqModelGenOutput)&quot; -n &quot;$(SqModelGenNamespace)&quot; -v quiet --rw-classes$(NullRefParam)$(CleanOutputParam)"
+      WorkingDirectory="$(MSBuildProjectDirectory)"/>
+    <ItemGroup>
+      <Compile Include="$(SqModelGenOutput)/*" />
+    </ItemGroup>
+  </Target>
+</Project>

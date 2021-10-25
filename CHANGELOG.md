@@ -9,8 +9,12 @@
 - "ReadOrdinal" was added to ISqModelReader
 - ThenBy for ExprOrderItem andExprOrderBy
 - ISqDatabase has a new overload for Query which receives an asynchronous record handler
+- Build targets to run model code-generation
+- new option "--clean-output" for the model code-generation tool
+
 ### Breaking Changes
 - ISqModelDerivedReaderReader was removed. ISqModelReader was slightly changed;
+- CodeGenUtil - typo fixed in parameter "-v quiet" 
 
 # 0.2.0.0
 ### New Features

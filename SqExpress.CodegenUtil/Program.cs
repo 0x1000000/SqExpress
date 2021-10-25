@@ -194,6 +194,20 @@ namespace SqExpress.CodeGenUtil
                 if (logger.IsDetailed) logger.LogDetailed(existing ? "Existing file updated." : "New file created.");
             }
 
+            if (options.CleanOutput)
+            {
+                var modelFiles = analysis.Select(meta => $"{meta.Name}.cs").ToHashSet(StringComparer.InvariantCultureIgnoreCase);
+
+                var toRemove = Directory.EnumerateFiles(outDirectory).Where(p=> !modelFiles.Contains(Path.GetFileName(p))).ToList();
+
+                foreach (var delPath in toRemove)
+                {
+                    File.Delete(delPath);
+                    if(logger.IsNormalOrHigher) logger.LogNormal($"File {Path.GetFileName(delPath)} has been removed since it does not contain any model class");
+                }
+
+            }
+
 
             logger.LogMinimal("Model classes generation successfully completed!");
         }

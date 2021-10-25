@@ -29,7 +29,7 @@ namespace SqExpress.Test.CodeGenUtil
 
             using var dbManager = new DbManager(new DbManagerTest(),
                 new SqlConnection("Initial Catalog=_1_2_3tbl;"),
-                new GenTablesOptions(ConnectionType.MsSql, "fake", "Tab", "", "MyTables", verbosity: Verbosity.Quite));
+                new GenTablesOptions(ConnectionType.MsSql, "fake", "Tab", "", "MyTables", verbosity: Verbosity.Quiet));
 
             var tables = await dbManager.SelectTables();
 

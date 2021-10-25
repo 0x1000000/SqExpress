@@ -75,9 +75,5 @@ namespace SqExpress.GetStarted.Models
                 return CustomerData.ReadOrdinal(record, table, offset);
             }
         }
-
-        public int CustomerId { get; }
-
-        public short Type { get; }
     }
 }

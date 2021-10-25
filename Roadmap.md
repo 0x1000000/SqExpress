@@ -28,7 +28,7 @@
 - [x] "Update Data" builder
 - [x] genmodels - SqModel attribute can be used with derived and temporary tables
 - [x] "MERGE" polyfill for PostgreSql and MYSQL
-## After 0.2.0
+## After 0.3.0
 - [ ] Table Value Functions
 - [ ] CTE
 - [ ] "Create If Not Exists"

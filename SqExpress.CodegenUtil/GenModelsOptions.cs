@@ -5,7 +5,7 @@ namespace SqExpress.CodeGenUtil
     [Verb("genmodels", HelpText = "Generate model classes.")]
     public class GenModelsOptions
     {
-        public GenModelsOptions(string inputDir, string outputDir, string @namespace, Verbosity verbosity, bool rwClasses, bool nullRefTypes)
+        public GenModelsOptions(string inputDir, string outputDir, string @namespace, Verbosity verbosity, bool rwClasses, bool nullRefTypes, bool cleanOutput)
         {
             this.InputDir = inputDir;
             this.OutputDir = outputDir;
@@ -13,6 +13,7 @@ namespace SqExpress.CodeGenUtil
             this.Verbosity = verbosity;
             this.RwClasses = rwClasses;
             this.NullRefTypes = nullRefTypes;
+            this.CleanOutput = cleanOutput;
         }
 
         [Option('i',"input-dir", Required = false, Default = "", HelpText = "Path to a directory with table descriptors.")]
@@ -32,5 +33,8 @@ namespace SqExpress.CodeGenUtil
 
         [Option("null-ref-types", Required = false, Default = false, HelpText = "Adds \"?\" for nullable reference types.")]
         public bool NullRefTypes { get; }
+
+        [Option("clean-output", Required = false, Default = false, HelpText = "Removes files that do not contain any model class")]
+        public bool CleanOutput { get; }
     }
 }

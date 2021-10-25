@@ -4,10 +4,11 @@ using SqExpress.QueryBuilders.RecordSetter;
 using SqExpress.GetStarted;
 using SqExpress.Syntax.Names;
 using System.Collections.Generic;
+using SqExpress.GetStarted.Models.Extra;
 
 namespace SqExpress.GetStarted.Models
 {
-    public class CompanyName
+    public class CompanyName : IModel
     {
         public CompanyName(int id, string name)
         {
