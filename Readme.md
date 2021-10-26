@@ -17,6 +17,9 @@ This an article that explains the library principles: ["Syntax Tree and Alternat
 
 # Content
 1. [Get Started](#get-started)
+
+### Basics
+
 2. [Recreating Table](#recreating-table)
 3. [Inserting Data](#inserting-data)
 4. [Selecting Data](#selecting-data)
@@ -29,18 +32,32 @@ This an article that explains the library principles: ["Syntax Tree and Alternat
 11. [Subquries](#subquries)
 12. [Analytic And Window Functions](#analytic-and-window-functions)
 13. [Set Operators](#set-operators)
-14. [PostgreSQL](#postgreSQL)
-15. [MySQL](#mysql)
+
+### Advanced Data Modification
+
 16. [Merge](#merge)
 17. [Temporary Tables](#temporary-tables)
-18. [Syntax Tree](#syntax-tree)
-19. [Table Descriptors Scaffolding](#table-descriptors-scaffolding)
-20. [DTOs Scaffolding](#dtos-scaffolding)
+18. [Database Data Export/Import](#database-data-export-import)
+
+### Working with Expressions
+
+18. [Syntax Tree](#syntax-tree) (Traversal and Modification)
 21. [Serialization to XML](#serialization-to-xml)
 22. [Serialization to JSON](#serialization-to-json)
 23. [Serialization to Plain List](#serialization-to-plain-list)
-24. [Auto-Mapper](#auto-mapper)
+
+### Code-generation
+
+19. [Table Descriptors Scaffolding](#table-descriptors-scaffolding)
+20. [DTOs Scaffolding](#dtos-scaffolding)
+21. [Model Selection](#model-selection)
+
+### Usage
+
 25. [Using in ASP.Net](#using-in-aspnet)
+14. [PostgreSQL](#postgresql)
+15. [MySQL](#mysql)
+24. [Auto-Mapper](#auto-mapper)
 
 # Get Started
 
@@ -129,6 +146,8 @@ static async Task Main()
     }
 }
 ```
+*Note: See [PostgreSQL](#postgresql) or [MySQL](#mysql)* sections if you need to work with these databases.
+
 *Actual T-SQL:*
 ```sql
 
@@ -248,6 +267,8 @@ WHERE [A0].[LastName]='Maloy'```
 2,Allina Freeborne,1,2020-10-12T11:32:16
 3,Maye Malloy,2,2020-10-12T11:32:17
 ```
+*Note: In addition to **Update** the library also has **Insert** and **IdentityInsert** helpers (see [Database Data Export/Import](#database-data-export-import) to find an example)*
+
 ## Deleting data
 Unfortunately, regardless the fact the typo is fixed, we have to say "Good Bye" to May*:
 ```cs
@@ -418,6 +439,8 @@ WHERE NOT EXISTS(
     WHERE [A1].[CompanyId]=[A0].[CompanyId]
 )
 ```
+# Data Selection
+
 ## Joining Tables
 Now we can Join all the tables:
 ```cs
@@ -741,55 +764,6 @@ INTERSECT
     SELECT 2
 )
 ```
-## PostgreSQL
-You can run all the scenarios using Postgres SQL (of course the actual sql will be different):
-```Cs
-DbCommand NpgsqlCommandFactory(NpgsqlConnection connection, string sqlText)
-{
-    return new NpgsqlCommand(sqlText, connection);
-}
-
-const string connectionString = 
-    "Host=localhost;Port=5432;Username=postgres;Password=test;Database=test";
-
-using (var connection = new NpgsqlConnection(connectionString))
-{
-    using (var database = new SqDatabase<NpgsqlConnection>(
-        connection: connection,
-        commandFactory: NpgsqlCommandFactory,
-        sqlExporter: new PgSqlExporter(builderOptions: SqlBuilderOptions.Default
-            .WithSchemaMap(schemaMap: new[] {
-                new SchemaMap(@from: "dbo", to: "public")}))))
-    {
-        ...
-    }
-}
-```
-*Note: You need to add **Npgsql** package to your project.*
-## MySQL
-You also can run all the scenarios using My SQL:
-```Cs
-DbCommand MySqlCommandFactory(MySqlConnection connection, string sqlText)
-{
-    return new MySqlCommand(sqlText, connection);
-}
-
-const string connectionString = 
-    "server=127.0.0.1;uid=test;pwd=test;database=test";
-
-using (var connection = new MySqlConnection(connectionString))
-{
-    using (var database = new SqDatabase<MySqlConnection>(
-        connection: connection,
-        commandFactory: MySqlCommandFactory,
-        sqlExporter: new MySqlExporter(
-            builderOptions: SqlBuilderOptions.Default)))
-    {
-        ...
-    }
-}
-```
-*Note: You need to add **MySql.Data** or **MySqlConnector** package to your project.*
 ## Merge
 As a bonus, if you use MS SQL Server, you can use **Merge** statement:
 ```cs
@@ -936,7 +910,102 @@ Id: 1, Name: Francois Sturman
 Id: 4, Name: Google
 Id: 3, Name: Microsoft
 ```
+## Database Data Export Import
 
+Having a list of table descriptors you can easily export all theirs data into any text format - JSON for example:
+```cs
+static async Task<string> ToJsonString(ISqDatabase database, TableBase[] tableBases)
+{
+    using var ms = new MemoryStream();
+    using Utf8JsonWriter writer = new Utf8JsonWriter(ms);
+
+    writer.WriteStartObject();
+    foreach (var table in tableBases)
+    {
+        await ReadTableDataIntoJson(writer, database, table);
+    }
+
+    writer.WriteEndObject();
+    writer.Flush();
+
+    var s = Encoding.UTF8.GetString(ms.ToArray());
+    return s;
+}
+
+static async Task ReadTableDataIntoJson(Utf8JsonWriter writer, ISqDatabase database, TableBase table)
+{
+    writer.WriteStartArray(table.FullName.AsExprTableFullName().TableName.Name);
+
+    writer.WriteStartArray();
+    foreach (var column in table.Columns)
+    {
+        writer.WriteStringValue(column.ColumnName.Name);
+    }
+
+    writer.WriteEndArray();
+
+    await Select(table.Columns)
+        .From(table)
+        .Query(database,
+            r =>
+            {
+                writer.WriteStartArray();
+                foreach (var column in table.Columns)
+                {
+                    var readAsString = column.ReadAsString(r);
+                    writer.WriteStringValue(readAsString);
+                }
+
+                writer.WriteEndArray();
+            });
+
+    writer.WriteEndArray();
+}
+```
+Result:
+```json
+{
+    "User": [
+	["UserId", "FirstName", "LastName", "Version", "ModifiedAt"], 
+	["1", "Francois", "Sturman2", "2", "2021-10-26T08:07:03.160"], 
+	["2", "Allina", "Freeborne2", "2", "2021-10-26T08:07:03.160"], 
+	["4", "Maye", "Malloy", "1", "2021-10-26T08:07:03.160"]],
+    "Company": [
+	["CompanyId", "CompanyName", "Version", "ModifiedAt"], 
+	["1", "Microsoft", "1", "2021-10-26T08:07:03.080"], 
+	["2", "Google", "1", "2021-10-26T08:07:03.080"]],
+    "Customer": [
+	["CustomerId", "UserId", "CompanyId"], 
+	["3", null, "1"], 
+	["4", null, "2"], 
+	["1", "1", null], 
+	["2", "2", null]]
+}
+```
+Import from a text format is not difficult as well:
+```cs
+static async Task InsertTableData(ISqDatabase database, TableBase table, JsonElement element)
+{
+    var columnsDict = table.Columns.ToDictionary(i => i.ColumnName.Name, i => i);
+    var colIndexes = element.EnumerateArray().First().EnumerateArray().Select(c => c.GetString()).ToList();
+
+    var rowsEnumerable = element
+        .EnumerateArray()
+        .Skip(1)
+        .Select(e =>
+            e.EnumerateArray()
+                .Select((c, i) =>
+                    columnsDict[colIndexes[i]]
+                        .FromString(c.ValueKind == JsonValueKind.Null ? null : c.GetString()))
+                .ToList());
+
+    var insertExpr = IdentityInsertInto(table, table.Columns).Values(rowsEnumerable);
+    if (!insertExpr.Insert.Source.IsEmpty)
+    {
+        await insertExpr.Exec(database);
+    }
+}
+```
 ## Syntax Tree
 You can go through an existing syntax tree object and modify if it is required:
 ```cs
@@ -1035,154 +1104,6 @@ JOIN [dbo].[Customer]
 WHERE 
     [A0].[UserId]=7
 ```
-
-## Table Descriptors Scaffolding
-**SqExpress** comes with the code-gen utility (it is located in the nuget package cache). It can read metadata form a database and create table descriptor classes in your code. It requires .Net Core 3.1+
-
-```GenerateTables.cmd```
-```cmd
-@echo off
-set root=%userprofile%\.nuget\packages\sqexpress
-
-for /F "tokens=*" %%a in ('dir "%root%" /b /a:d /o:n') do set "lib=%root%\%%a"
-
-set lib=%lib%\tools\codegen\SqExpress.CodeGenUtil.dll
-
-dotnet "%lib%" gentables mssql "MyConnectionString" --table-class-prefix "Tbl" -o ".\Tables" -n "MyCompany.MyProject.Tables"
-```
-```GenerateTables.sh```
-```sh
-#!/bin/bash
-
-lib=~/.nuget/packages/sqexpress/$(ls ~/.nuget/packages/sqexpress -r|head -n 1)/tools/codegen/SqExpress.CodeGenUtil.dll
-
-dotnet $lib gentables mssql "MyConnectionString" --table-class-prefix "Tbl" -o "./Tables" -n "yCompany.MyProject.Tables"
-```
-###
-It uses Roslyn compiler so it does not overwrite existing files - it patched it with actual columns. All kind of changes like attributes, namespaces, interfaces will remain after next runs.
-
-## DTOs Scaffolding
-You can add special attributes to column properties in table descriptors to provide information to the code-gen util to create (update) DTO classes with mappings:
-```cs
-public class TableUser : TableBase
-{
-    [SqModel("UserName", PropertyName = "Id")]
-    public Int32TableColumn UserId { get; }
-
-    [SqModel("UserName")]
-    public StringTableColumn FirstName { get; }
-
-    [SqModel("UserName")]
-    public StringTableColumn LastName { get; }
-
-    //Audit Columns
-    [SqModel("AuditData")]
-    public Int32TableColumn Version { get; }
-
-    [SqModel("AuditData")]
-    public DateTimeTableColumn ModifiedAt { get; }
-
-    public TableUser(Alias alias) : base("dbo", "User", alias)
-    {
-        ...
-    }
-}
-```
-then you need to run the utility:
-
-```GenerateModel.cmd```
-```cmd
-@echo off
-set root=%userprofile%\.nuget\packages\sqexpress
-
-for /F "tokens=*" %%a in ('dir "%root%" /b /a:d /o:n') do set "lib=%root%\%%a"
-
-set lib=%lib%\tools\codegen\SqExpress.CodeGenUtil.dll
-
-dotnet "%lib%" genmodels -i "." -o ".\Models" -n "SqExpress.GetStarted.Models" --null-ref-types
-```
-```enerateModel.sh```
-```
-#!/bin/bash
-lib=~/.nuget/packages/sqexpress/$(ls ~/.nuget/packages/sqexpress -r|head -n 1)/tools/codegen/SqExpress.CodeGenUtil.dll
-dotnet $lib genmodels -i "." -o "./Models" -n "SqExpress.GetStarted.Models"
-```
-The result will be the following classes:
-```UserName.cs```
-```cs
-public class UserName
-{
-    public UserName(int id, string firstName, string lastName)
-    {
-        this.Id = id;
-        this.FirstName = firstName;
-        this.LastName = lastName;
-    }
-
-    public static UserName Read(ISqDataRecordReader record, TableUser table)
-    {
-        return new UserName(id: table.UserId.Read(record), firstName: table.FirstName.Read(record), lastName: table.LastName.Read(record));
-    }
-
-    public int Id { get; }
-
-    public string FirstName { get; }
-
-    public string LastName { get; }
-
-    public static TableColumn[] GetColumns(TableUser table)
-    {
-        return new TableColumn[]{table.UserId, table.FirstName, table.LastName};
-    }
-
-    public static IRecordSetterNext GetMapping(IDataMapSetter<TableUser, UserName> s)
-    {
-        return s.Set(s.Target.FirstName, s.Source.FirstName).Set(s.Target.LastName, s.Source.LastName);
-    }
-
-    public static IRecordSetterNext GetUpdateKeyMapping(IDataMapSetter<TableUser, UserName> s)
-    {
-        return s.Set(s.Target.UserId, s.Source.Id);
-    }
-
-    public static IRecordSetterNext GetUpdateMapping(IDataMapSetter<TableUser, UserName> s)
-    {
-        return s.Set(s.Target.FirstName, s.Source.FirstName).Set(s.Target.LastName, s.Source.LastName);
-    }
-
-    public UserName WithId(int id)
-    {
-        return new UserName(id: id, firstName: this.FirstName, lastName: this.LastName);
-    }
-
-    public UserName WithFirstName(string firstName)
-    {
-        return new UserName(id: this.Id, firstName: firstName, lastName: this.LastName);
-    }
-
-    public UserName WithLastName(string lastName)
-    {
-        return new UserName(id: this.Id, firstName: this.FirstName, lastName: lastName);
-    }
-}
-```
-and [```AuditData.cs```](https://github.com/0x1000000/SqExpress/blob/main/SqExpress.GetStarted/Models/AuditData.cs)
-
-You can use them as follows:
-```cs
-var tUser = new TableUser();
-
-var users = await Select(UserName.GetColumns(tUser))
-    .From(tUser)
-    .QueryList(database, r => UserName.Read(r, tUser));
-
-foreach (var userName in users)
-{
-    Console.WriteLine($"{userName.Id} {userName.FirstName} {userName.LastName}");
-}
-```
-*Note: **SqModel** attribute can be also used for temporary and derived table descriptors.*
-
 ## Serialization to XML
 Each expression can be exported to a xml string and then restored back. It can be useful to pass expressions over network:
 ```cs
@@ -1415,6 +1336,289 @@ await Select(tableUser.FirstName, tableUser.LastName)
             Console.WriteLine($"{tableUser.FirstName.Read(r)} {tableUser.LastName.Read(r)}");
         });
 ```
+## Table Descriptors Scaffolding
+**SqExpress** comes with the code-gen utility (it is located in the nuget package cache). It can read metadata form a database and create table descriptor classes in your code. It requires .Net Core 3.1+
+
+```GenerateTables.cmd```
+```cmd
+@echo off
+set root=%userprofile%\.nuget\packages\sqexpress
+
+for /F "tokens=*" %%a in ('dir "%root%" /b /a:d /o:n') do set "lib=%root%\%%a"
+
+set lib=%lib%\tools\codegen\SqExpress.CodeGenUtil.dll
+
+dotnet "%lib%" gentables mssql "MyConnectionString" --table-class-prefix "Tbl" -o ".\Tables" -n "MyCompany.MyProject.Tables"
+```
+```GenerateTables.sh```
+```sh
+#!/bin/bash
+
+lib=~/.nuget/packages/sqexpress/$(ls ~/.nuget/packages/sqexpress -r|head -n 1)/tools/codegen/SqExpress.CodeGenUtil.dll
+
+dotnet $lib gentables mssql "MyConnectionString" --table-class-prefix "Tbl" -o "./Tables" -n "yCompany.MyProject.Tables"
+```
+###
+It uses Roslyn compiler so it does not overwrite existing files - it patched it with actual columns. All kind of changes like attributes, namespaces, interfaces will remain after next runs.
+
+## DTOs Scaffolding
+You can add special attributes to column properties in table descriptors to provide information to the code-gen util to create (update) DTO classes with mappings:
+```cs
+public class TableUser : TableBase
+{
+    [SqModel("UserName", PropertyName = "Id")]
+    public Int32TableColumn UserId { get; }
+
+    [SqModel("UserName")]
+    public StringTableColumn FirstName { get; }
+
+    [SqModel("UserName")]
+    public StringTableColumn LastName { get; }
+
+    //Audit Columns
+    [SqModel("AuditData")]
+    public Int32TableColumn Version { get; }
+
+    [SqModel("AuditData")]
+    public DateTimeTableColumn ModifiedAt { get; }
+
+    public TableUser(Alias alias) : base("dbo", "User", alias)
+    {
+        ...
+    }
+}
+```
+To run the code-gen util before a project building, just define the following property in the project file:
+```
+<Project ..,>
+  <PropertyGroup>
+    ...
+    <SqModelGenEnable>true</SqModelGenEnable>
+    ...
+  </PropertyGroup>
+```
+The list of all code-generation parameters can be found here: [SqExpress.props](https://github.com/0x1000000/SqExpress/blob/main/SqExpress/SqExpress.props).
+
+The code generation tool can also be run from the command line:
+
+```GenerateModel.cmd```
+```cmd
+@echo off
+set root=%userprofile%\.nuget\packages\sqexpress
+
+for /F "tokens=*" %%a in ('dir "%root%" /b /a:d /o:n') do set "lib=%root%\%%a"
+
+set lib=%lib%\tools\codegen\SqExpress.CodeGenUtil.dll
+
+dotnet "%lib%" genmodels -i "." -o ".\Models" -n "SqExpress.GetStarted.Models" --null-ref-types
+```
+```generate-model.sh```
+```
+#!/bin/bash
+lib=~/.nuget/packages/sqexpress/$(ls ~/.nuget/packages/sqexpress -r|head -n 1)/tools/codegen/SqExpress.CodeGenUtil.dll
+dotnet $lib genmodels -i "." -o "./Models" -n "SqExpress.GetStarted.Models"
+```
+The result will be the following classes:
+
+```UserName.cs```
+```cs
+public class UserName
+{
+    public UserName(int id, string firstName, string lastName)
+    {
+        this.Id = id;
+        this.FirstName = firstName;
+        this.LastName = lastName;
+    }
+
+    public static UserName Read(ISqDataRecordReader record, TableUser table)
+    {
+        return new UserName(id: table.UserId.Read(record), firstName: table.FirstName.Read(record), lastName: table.LastName.Read(record));
+    }
+
+    public int Id { get; }
+
+    public string FirstName { get; }
+
+    public string LastName { get; }
+
+    public static TableColumn[] GetColumns(TableUser table)
+    {
+        return new TableColumn[]{table.UserId, table.FirstName, table.LastName};
+    }
+
+    public static IRecordSetterNext GetMapping(IDataMapSetter<TableUser, UserName> s)
+    {
+        return s.Set(s.Target.FirstName, s.Source.FirstName).Set(s.Target.LastName, s.Source.LastName);
+    }
+
+    public static IRecordSetterNext GetUpdateKeyMapping(IDataMapSetter<TableUser, UserName> s)
+    {
+        return s.Set(s.Target.UserId, s.Source.Id);
+    }
+
+    public static IRecordSetterNext GetUpdateMapping(IDataMapSetter<TableUser, UserName> s)
+    {
+        return s.Set(s.Target.FirstName, s.Source.FirstName).Set(s.Target.LastName, s.Source.LastName);
+    }
+
+    public UserName WithId(int id)
+    {
+        return new UserName(id: id, firstName: this.FirstName, lastName: this.LastName);
+    }
+
+    public UserName WithFirstName(string firstName)
+    {
+        return new UserName(id: this.Id, firstName: firstName, lastName: this.LastName);
+    }
+
+    public UserName WithLastName(string lastName)
+    {
+        return new UserName(id: this.Id, firstName: this.FirstName, lastName: lastName);
+    }
+}
+```
+and [```AuditData.cs```](https://github.com/0x1000000/SqExpress/blob/main/SqExpress.GetStarted/Models/AuditData.cs)
+
+You can use them as follows:
+```cs
+var tUser = new TableUser();
+
+var users = await Select(UserName.GetColumns(tUser))
+    .From(tUser)
+    .QueryList(database, r => UserName.Read(r, tUser));
+
+foreach (var userName in users)
+{
+    Console.WriteLine($"{userName.Id} {userName.FirstName} {userName.LastName}");
+}
+```
+*Note: **SqModel** attribute can be also used for temporary and derived table descriptors.*
+
+## Model Selection
+
+The library contains a fluent api that helps selecting tuples of models inner or left joined.
+```
+SqModelSelectBuilder
+    .Select(Model1.GetReader())
+    .InnerJoin(
+        Model2.GetReader(), 
+        on: t=> t.Table.Id1 == t.JoinedTable1.Id1)
+    .InnerJoin(
+        Model3.GetReader(), 
+        on: t=> t.JoinedTable2.Id2 == t.JoinedTable1.Id2)
+    ...
+    .InnerJoin(
+        ModelN.GetReader(), 
+        on: t=> t.JoinedTable(N-1).Id(N-1) == t.JoinedTable(N-2).Id(N-1)))
+    .LeftJoin(
+        Model(N+1).GetReader(), 
+        on: t=> t.JoinedTableN.IdN == t.JoinedTable(N-1).IdN))
+    ...
+    .Get(
+        filter: t=> <Boolean Expression>,
+        order: t=><Order Expression>,
+        tuple=> <Result Mapping>)
+    .QueryList(database);
+
+    ... or
+    .Find(
+        offset, pageSize,
+        filter: t=> <Boolean Expression>,
+        order: t=><Order Expression>,
+        tuple=> <Result Mapping>)
+    .QueryPage(database);
+```
+
+Example:
+
+```cs
+var page = await SqModelSelectBuilder
+    .Select(ModelEmptyReader.Get<TableCustomer>())
+    .LeftJoin(
+        UserName.GetReader(), 
+        on: t => t.Table.UserId == t.JoinedTable1.UserId)
+    .LeftJoin(
+        CompanyName.GetReader(), 
+        on: t => t.Table.CompanyId == t.JoinedTable2.CompanyId)
+    .Find(0,10,
+        filter: null,
+        order: t => Asc(
+            IsNull(
+                t.JoinedTable1.FirstName + t.JoinedTable1.LastName,
+                t.JoinedTable2.CompanyName)
+            ),
+        r => (r.JoinedModel1 != null 
+                ? r.JoinedModel1.FirstName + " "+ r.JoinedModel1.LastName 
+                : null) 
+            ??
+            r.JoinedModel2?.Name ?? "Unknown")
+    .QueryPage(database);
+
+foreach (var name in page.Items)
+{
+    Console.WriteLine(name);
+}
+
+```
+
+## Using in ASP.Net
+There is a demo ASP.Net project which is supposed to show how [SqExpress](https://github.com/0x1000000/SqGoods/tree/init-tmp) can be used in a real web app. It is not yet done but the basics are already implemented.
+The ideas:
+1.	Each API request uses only one sql connection which is stored in [a connection storage](https://github.com/0x1000000/SqGoods/blob/init-tmp/SqGoods.DomainLogic/DataAccess/MsSqlConnectionStorage.cs);
+2.	The connection storage [can create an instance of SqDatabase](https://github.com/0x1000000/SqGoods/blob/init-tmp/SqGoods.DomainLogic/DataAccess/MsSqlConnectionStorage.cs#L18);
+3.	The connection storage and SqDatabase [have “Scoped” lifecycle](https://github.com/0x1000000/SqGoods/blob/init-tmp/SqGoods.DomainLogic/DomainLogicRegistration.cs#L17);
+4.	SqDatabase is used in [entity repositories which are responsible for “Domain Logic”](https://github.com/0x1000000/SqGoods/blob/init-tmp/SqGoods.DomainLogic/Repositories/SgCategoryRepository.cs).
+## PostgreSQL
+You can run all the scenarios using Postgres SQL (of course the actual sql will be different):
+```Cs
+DbCommand NpgsqlCommandFactory(NpgsqlConnection connection, string sqlText)
+{
+    return new NpgsqlCommand(sqlText, connection);
+}
+
+const string connectionString = 
+    "Host=localhost;Port=5432;Username=postgres;Password=test;Database=test";
+
+using (var connection = new NpgsqlConnection(connectionString))
+{
+    using (var database = new SqDatabase<NpgsqlConnection>(
+        connection: connection,
+        commandFactory: NpgsqlCommandFactory,
+        sqlExporter: new PgSqlExporter(builderOptions: SqlBuilderOptions.Default
+            .WithSchemaMap(schemaMap: new[] {
+                new SchemaMap(@from: "dbo", to: "public")}))))
+    {
+        ...
+    }
+}
+```
+*Note: You need to add **Npgsql** package to your project.*
+## MySQL
+You also can run all the scenarios using My SQL:
+```Cs
+DbCommand MySqlCommandFactory(MySqlConnection connection, string sqlText)
+{
+    return new MySqlCommand(sqlText, connection);
+}
+
+const string connectionString = 
+    "server=127.0.0.1;uid=test;pwd=test;database=test";
+
+using (var connection = new MySqlConnection(connectionString))
+{
+    using (var database = new SqDatabase<MySqlConnection>(
+        connection: connection,
+        commandFactory: MySqlCommandFactory,
+        sqlExporter: new MySqlExporter(
+            builderOptions: SqlBuilderOptions.Default)))
+    {
+        ...
+    }
+}
+```
+*Note: You need to add **MySql.Data** or **MySqlConnector** package to your project.*
+
 ## Auto-Mapper
 Since the DAL works on top the ADO you can use Auto-Mapper (if you like it):
 ```cs
@@ -1436,11 +1640,3 @@ var result = await Select(table.Columns)
     .QueryList(context.Database, r => mapper.Map<IDataRecord, AllColumnTypesDto>(r));
 ```
 [(taken from "Test/SqExpress.IntTest/Scenarios/ScAllColumnTypes.cs")](https://github.com/0x1000000/SqExpress/blob/main/Test/SqExpress.IntTest/Scenarios/ScAllColumnTypes.cs#L26)
-
-## Using in ASP.Net
-There is a demo ASP.Net project which is supposed to show how [SqExpress](https://github.com/0x1000000/SqGoods/tree/init-tmp) can be used in a real web app. It is not yet done but the basics are already implemented.
-The ideas:
-1.	Each API request uses only one sql connection which is stored in [a connection storage](https://github.com/0x1000000/SqGoods/blob/init-tmp/SqGoods.DomainLogic/DataAccess/MsSqlConnectionStorage.cs);
-2.	The connection storage [can create an instance of SqDatabase](https://github.com/0x1000000/SqGoods/blob/init-tmp/SqGoods.DomainLogic/DataAccess/MsSqlConnectionStorage.cs#L18);
-3.	The connection storage and SqDatabase [have “Scoped” lifecycle](https://github.com/0x1000000/SqGoods/blob/init-tmp/SqGoods.DomainLogic/DomainLogicRegistration.cs#L17);
-4.	SqDatabase is used in [entity repositories which are responsible for “Domain Logic”](https://github.com/0x1000000/SqGoods/blob/init-tmp/SqGoods.DomainLogic/Repositories/SgCategoryRepository.cs).
