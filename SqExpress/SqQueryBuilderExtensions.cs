@@ -108,6 +108,11 @@ namespace SqExpress
         public static IReadOnlyList<IExprSelecting> Concat(this IReadOnlyList<IExprSelecting> source, IReadOnlyList<IExprSelecting> source2) 
             => Helpers.Combine(source, source2);
 
+        public static ExprBoolean JoinAsAnd(this IEnumerable<ExprBoolean> predicates) 
+            => predicates is IReadOnlyList<ExprBoolean> list 
+                ? JoinAsAnd(list) 
+                : JoinAsAnd(predicates.ToList());
+
         public static ExprBoolean JoinAsAnd(this IReadOnlyList<ExprBoolean> predicates)
         {
             predicates.AssertNotEmpty("Predicates list cannot be empty");
@@ -120,6 +125,11 @@ namespace SqExpress
 
             return result;
         }
+
+        public static ExprBoolean JoinAsOr(this IEnumerable<ExprBoolean> predicates)
+            => predicates is IReadOnlyList<ExprBoolean> list
+                ? JoinAsOr(list)
+                : JoinAsOr(predicates.ToList());
 
         public static ExprBoolean JoinAsOr(this IReadOnlyList<ExprBoolean> predicates)
         {

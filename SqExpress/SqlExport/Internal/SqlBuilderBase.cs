@@ -1123,12 +1123,7 @@ namespace SqExpress.SqlExport.Internal
         public abstract bool VisitExprExprMergeNotMatchedInsertDefault(ExprExprMergeNotMatchedInsertDefault exprExprMergeNotMatchedInsertDefault, IExpr? parent);
 
         //Insert
-
-        public bool VisitExprInsert(ExprInsert exprInsert, IExpr? parent)
-        {
-            this.GenericInsert(exprInsert, null, null);
-            return true;
-        }
+        public abstract bool VisitExprInsert(ExprInsert exprInsert, IExpr? parent);
 
         protected void GenericInsert(ExprInsert exprInsert, Action? middleHandler, Action? endHandler)
         {

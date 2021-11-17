@@ -1,4 +1,5 @@
-﻿using NUnit.Framework;
+﻿using System.Collections.Generic;
+using NUnit.Framework;
 using SqExpress.QueryBuilders.Select;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Names;
@@ -415,7 +416,7 @@ namespace SqExpress.Test.QueryBuilder
 
             var op = t.UserId == 1;
 
-            var join = new ExprBoolean[] {t.UserId == 1}.JoinAsAnd();
+            var join = ((IEnumerable<ExprBoolean>)new ExprBoolean[] {t.UserId == 1}).JoinAsAnd();
 
             Assert.AreEqual(op.ToSql(), join.ToSql());
         }
@@ -439,7 +440,7 @@ namespace SqExpress.Test.QueryBuilder
 
             var op = t.UserId == 1 | t.UserId == 2;
 
-            var join = new ExprBoolean[] {t.UserId == 1, t.UserId == 2}.JoinAsOr();
+            var join = ((IEnumerable<ExprBoolean>)new ExprBoolean[] {t.UserId == 1, t.UserId == 2}).JoinAsOr();
 
             Assert.AreEqual(op.ToSql(), join.ToSql());
         }

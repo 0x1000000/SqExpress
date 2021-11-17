@@ -6,12 +6,13 @@
       <NullRefParam Condition="'$(Nullable)' != 'enable'"></NullRefParam>
       <CleanOutputParam Condition="'$(SqModelGenCleanOutput)'=='True'"> --clean-output</CleanOutputParam>
       <CleanOutputParam Condition="'$(SqModelGenCleanOutput)'!='True'"></CleanOutputParam>
+      <ModelTypeParam Condition="'$(SqModelGenType)' != ''">  --model-type $(SqModelGenType)</ModelTypeParam>
     </PropertyGroup>
     <ItemGroup>
       <Compile Remove="$(SqModelGenOutput)/*" />
     </ItemGroup>
     <Exec
-      Command="dotnet &quot;$(SqExpressCodeGenPath)&quot; genmodels -i &quot;$(SqModelGenInput)&quot; -o &quot;$(SqModelGenOutput)&quot; -n &quot;$(SqModelGenNamespace)&quot; -v quiet --rw-classes$(NullRefParam)$(CleanOutputParam)"
+      Command="dotnet &quot;$(SqExpressCodeGenPath)&quot; genmodels -i &quot;$(SqModelGenInput)&quot; -o &quot;$(SqModelGenOutput)&quot; -n &quot;$(SqModelGenNamespace)&quot; -v quiet --rw-classes$(NullRefParam)$(CleanOutputParam)$(ModelTypeParam)"
       WorkingDirectory="$(MSBuildProjectDirectory)"/>
     <ItemGroup>
       <Compile Include="$(SqModelGenOutput)/*" />

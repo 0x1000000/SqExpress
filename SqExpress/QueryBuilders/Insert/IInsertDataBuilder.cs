@@ -1,11 +1,14 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using SqExpress.QueryBuilders.RecordSetter;
+using SqExpress.Syntax.Boolean;
+using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select.SelectItems;
 using SqExpress.Syntax.Update;
 
 namespace SqExpress.QueryBuilders.Insert
 {
-    internal interface IInsertDataBuilder<out TTable, out TItem> : IInsertDataBuilderMapData<TTable, TItem>, IInsertDataBuilderAlsoInsert<TTable>, IInsertDataBuilderMapOutput, IInsertDataBuilderFinalOutput, IIdentityInsertDataBuilderFinal
+    internal interface IInsertDataBuilder<out TTable, out TItem> : IInsertDataBuilderMapData<TTable, TItem>, IInsertDataBuilderAlsoInsert<TTable>,  IInsertDataBuilderWhere, IInsertDataBuilderMapOutput, IInsertDataBuilderFinalOutput, IIdentityInsertDataBuilderFinal
     {
     }
 
@@ -14,9 +17,16 @@ namespace SqExpress.QueryBuilders.Insert
         IInsertDataBuilderAlsoInsert<TTable> MapData(DataMapping<TTable, TItem> mapping);
     }
 
-    public interface IInsertDataBuilderAlsoInsert<out TTable> : IInsertDataBuilderMapOutput
+    public interface IInsertDataBuilderAlsoInsert<out TTable> : IInsertDataBuilderWhere
     {
-        IInsertDataBuilderMapOutput AlsoInsert(TargetInsertSelectMapping<TTable> targetInsertSelectMapping);
+        IInsertDataBuilderWhere AlsoInsert(TargetInsertSelectMapping<TTable> targetInsertSelectMapping);
+    }
+
+    public interface IInsertDataBuilderWhere : IInsertDataBuilderMapOutput
+    {
+        IInsertDataBuilderMapOutput CheckExistenceBy(ExprColumn column, params ExprColumn[] rest);
+
+        IInsertDataBuilderMapOutput CheckExistenceBy(IReadOnlyList<ExprColumn> columns);
     }
 
     public interface IInsertDataBuilderMapOutput : IInsertDataBuilderFinal

@@ -135,5 +135,50 @@ namespace SqExpress.Test.QueryBuilder
 
             Assert.AreEqual(expected, actual);
         }
+
+        [Test]
+        public void Test()
+        {
+            const int usersCount = 1;
+
+            var data = new List<UserData>(usersCount);
+
+            for (int i = 0; i < usersCount; i++)
+            {
+                data.Add(new UserData
+                {
+                    FirstName = "First" + i,
+                    LastName = "Last" + i,
+                });
+            }
+
+            var tbl = Tables.User();
+
+            var actualTSql = InsertDataInto(tbl, data)
+                .MapData(s => s.Set(s.Target.FirstName, s.Source.FirstName).Set(s.Target.LastName, s.Source.LastName))
+                .CheckExistenceBy(tbl.FirstName, tbl.LastName)
+                .Output(tbl.UserId)
+                .Done()
+                .ToSql();
+
+            Assert.AreEqual("INSERT INTO [dbo].[user]([FirstName],[LastName]) OUTPUT INSERTED.[UserId] SELECT [FirstName],[LastName] FROM (VALUES ('First0','Last0'))[A0]([FirstName],[LastName]) WHERE NOT EXISTS(SELECT 1 FROM [dbo].[user] [A1] WHERE [A1].[FirstName]=[A0].[FirstName] AND [A1].[LastName]=[A0].[LastName])", actualTSql);
+
+            var actualMySql = InsertDataInto(tbl, data)
+                .MapData(s => s.Set(s.Target.UserId, s.Source.UserId).Set(s.Target.FirstName, s.Source.FirstName).Set(s.Target.LastName, s.Source.LastName))
+                .CheckExistenceBy(tbl.FirstName, tbl.LastName)
+                .Done()
+                .ToMySql();
+
+            Assert.AreEqual("INSERT INTO `user`(`UserId`,`FirstName`,`LastName`) WITH CTE_Derived_Table_0(`UserId`,`FirstName`,`LastName`) AS(VALUES (0,'First0','Last0')) SELECT `UserId`,`FirstName`,`LastName` FROM `CTE_Derived_Table_0` `A0` WHERE NOT EXISTS(SELECT 1 FROM `user` `A1` WHERE `A1`.`FirstName`=`A0`.`FirstName` AND `A1`.`LastName`=`A0`.`LastName`)", actualMySql);
+
+            var actualMyOutputSql = InsertDataInto(tbl, data)
+                .MapData(s => s.Set(s.Target.FirstName, s.Source.FirstName).Set(s.Target.LastName, s.Source.LastName))
+                .CheckExistenceBy(tbl.FirstName, tbl.LastName)
+                .Output(tbl.UserId)
+                .Done()
+                .ToMySql();
+
+            Assert.AreEqual("INSERT INTO `user`(`FirstName`,`LastName`) WITH CTE_Derived_Table_0(`FirstName`,`LastName`) AS(VALUES ('First0','Last0')) SELECT `FirstName`,`LastName` FROM `CTE_Derived_Table_0` `A0` WHERE NOT EXISTS(SELECT 1 FROM `user` `A1` WHERE `A1`.`FirstName`=`A0`.`FirstName` AND `A1`.`LastName`=`A0`.`LastName`)  RETURNING `UserId`", actualMyOutputSql);
+        }
     }
 }

@@ -9,14 +9,12 @@ using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions.Known;
-using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Select.SelectItems;
 using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Update;
 using SqExpress.Syntax.Value;
-using SqExpress.SyntaxTreeOperations;
 using SqExpress.Utils;
 
 namespace SqExpress.SqlExport.Internal
@@ -230,10 +228,85 @@ namespace SqExpress.SqlExport.Internal
             ExprExprMergeNotMatchedInsertDefault exprExprMergeNotMatchedInsertDefault, IExpr? parent)
             => VisitMergeNotSupported();
 
+        public override bool VisitExprInsert(ExprInsert exprInsert, IExpr? parent)
+        {
+            exprInsert = PrepareGenericInsert(exprInsert, out var middleHandler);
+
+            this.GenericInsert(exprInsert, middleHandler, null);
+
+            return true;
+        }
+
+        protected ExprInsert PrepareGenericInsert(ExprInsert exprInsert, out Action? prefixBuilder)
+        {
+            //My SQL does not properly support "Derived Table Values"
+            //Also take a look at VisitExprInsertQuery.
+            List<ExprDerivedTableValues>? derivedTables = null;
+
+            var result = exprInsert.Source.SyntaxTree()
+                .Modify<ExprQuerySpecification>(query =>
+                {
+                    if (query.Where != null && query.From is ExprDerivedTableValues values)
+                    {
+                        derivedTables ??= new List<ExprDerivedTableValues>();
+                        derivedTables.Add(values);
+
+                        return query.WithFrom(
+                            new ExprTable(
+                                new ExprTableFullName(
+                                    null,
+                                    new ExprTableName(
+                                        BuildNameByIndex(derivedTables.Count-1))),
+                                values.Alias));
+                    }
+
+                    return query;
+                });
+
+            if (derivedTables != null)
+            {
+                prefixBuilder = () => PreInsert(this, this.Builder, derivedTables);
+            }
+            else
+            {
+                prefixBuilder = null;
+            }
+
+            var newSource = result as IExprInsertSource ?? throw new SqExpressException($"{nameof(IExprInsertSource)} was expected");
+
+            return newSource != exprInsert.Source ? exprInsert.WithSource(newSource) : exprInsert;
+
+            //Functions
+            static string BuildNameByIndex(int index) => $"CTE_Derived_Table_{index}";
+
+            static void PreInsert(SqlBuilderBase sqlBuilder, StringBuilder stringBuilder, IReadOnlyList<ExprDerivedTableValues> derivedTables)
+            {
+                stringBuilder.Append("WITH ");
+                for (int i = 0; i < derivedTables.Count; i++)
+                {
+                    var derivedTable = derivedTables[i];
+                    if (i != 0)
+                    {
+                        stringBuilder.Append(',');
+                    }
+
+                    stringBuilder.Append(BuildNameByIndex(i));
+
+                    sqlBuilder.AcceptListComaSeparatedPar('(', derivedTable.Columns, ')', derivedTable);
+
+                    stringBuilder.Append(" AS(");
+                    derivedTable.Values.Accept(sqlBuilder, derivedTable);
+                    stringBuilder.Append(")");
+                }
+            }
+        }
+
         public override bool VisitExprInsertOutput(ExprInsertOutput exprInsertOutput, IExpr? parent)
         {
-            this.GenericInsert(exprInsertOutput.Insert,
-                null,
+            var insertExpr = PrepareGenericInsert(exprInsertOutput.Insert, out var middleBuilder);
+
+            this.GenericInsert(insertExpr,
+                middleBuilder,
                 () =>
                 {
                     exprInsertOutput.OutputColumns.AssertNotEmpty("INSERT OUTPUT cannot be empty");
@@ -246,12 +319,13 @@ namespace SqExpress.SqlExport.Internal
         public override bool VisitExprInsertQuery(ExprInsertQuery exprInsertQuery, IExpr? parent)
         {
             //My SQL does not properly support "Derived Table Values"
+            //Also take a look at PrepareGenericInsert where Derived Tables are replaced with CTE if select has "Where" expression
             var newQuery = exprInsertQuery.Query.SyntaxTree()
                 .Modify<ExprQuerySpecification>(es =>
                 {
                     if (es.From is ExprDerivedTableValues values)
                     {
-                        List<IExprSelecting> newSelecting = new List<IExprSelecting>(es.SelectList.Count);
+                        var newSelecting = new List<IExprSelecting>(es.SelectList.Count);
                         bool star = false;
                         foreach (var exprSelecting in es.SelectList)
                         {
@@ -275,12 +349,12 @@ namespace SqExpress.SqlExport.Internal
                                 newSelecting.Add(exprSelecting);
                             }
                         }
-
-                        return new ExprQuerySpecification(newSelecting, es.Top, es.Distinct, es.From, es.Where, es.GroupBy);
+                        return es.WithSelectList(newSelecting);
                     }
 
                     return es;
                 });
+
             newQuery?.Accept(this, exprInsertQuery);
             return true;
         }

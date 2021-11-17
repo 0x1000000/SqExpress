@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -30,6 +31,23 @@ namespace SqExpress.IntTest.Scenarios
                     .Set(s.Target.Version, 1))
                 .Output(company.CompanyId)
                 .QueryList(context.Database, r=> company.CompanyId.Read(r));
+
+            var insertedDuplicates = await InsertDataInto(company, this.ReadCompanyData().Take(2))
+                .MapData(s => s
+                    .Set(s.Target.ExternalId, s.Source.ExternalId)
+                    .Set(s.Target.CompanyName, s.Source.Name))
+                .AlsoInsert(s => s
+                    .Set(s.Target.Modified, now)
+                    .Set(s.Target.Created, now)
+                    .Set(s.Target.Version, 1))
+                .CheckExistenceBy(company.ExternalId)
+                .Output(company.CompanyId)
+                .QueryList(context.Database, r => company.CompanyId.Read(r));
+
+            if (insertedDuplicates.Count > 0)
+            {
+                throw new Exception("CheckExistenceBy does not work");
+            }
 
             var customer = AllTables.GetItCustomer();
 

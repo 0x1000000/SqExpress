@@ -8,6 +8,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.VisualStudio.TestPlatform.PlatformAbstractions;
 using NUnit.Framework;
+using SqExpress.CodeGenUtil;
 using SqExpress.CodeGenUtil.CodeGen;
 
 namespace SqExpress.Test.CodeGenUtil
@@ -26,7 +27,7 @@ namespace SqExpress.Test.CodeGenUtil
                 .EnumerateTableDescriptorsModelAttributes("A", fileSystem)
                 .ParseAttribute(true)
                 .CreateAnalysis()
-                .Select(meta=> ModelClassGenerator.Generate(meta, "Org", "", true, fileSystem, out _).SyntaxTree)
+                .Select(meta=> ModelClassGenerator.Generate(meta, "Org", "", true, ModelType.ImmutableClass, fileSystem, out _).SyntaxTree)
                 .ToList();
 
             var trees = new List<SyntaxTree>();

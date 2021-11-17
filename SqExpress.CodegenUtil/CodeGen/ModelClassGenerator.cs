@@ -37,10 +37,10 @@ namespace SqExpress.CodeGenUtil.CodeGen
             MethodNameGetUpdater
         };
 
-        public static CompilationUnitSyntax Generate(SqModelMeta meta, string defaultNamespace, string existingFilePath, bool rwClasses, IFileSystem fileSystem, out bool existing)
+        public static CompilationUnitSyntax Generate(SqModelMeta meta, string defaultNamespace, string existingFilePath, bool rwClasses, ModelType modelType, IFileSystem fileSystem, out bool existing)
         {
             CompilationUnitSyntax result;
-            ClassDeclarationSyntax? existingClass = null;
+            TypeDeclarationSyntax? existingClass = null;
 
             existing = false;
 
@@ -51,7 +51,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
 
                 existingClass = tClass.GetRoot()
                     .DescendantNodes()
-                    .OfType<ClassDeclarationSyntax>()
+                    .OfType<TypeDeclarationSyntax>()
                     .FirstOrDefault(cd => cd.Identifier.ValueText == meta.Name);
             }
 
@@ -94,22 +94,41 @@ namespace SqExpress.CodeGenUtil.CodeGen
                         .Select(n => SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(n)))
                         .ToArray());
                 }
-                result = result.ReplaceNode(existingClass, GenerateClass(meta, rwClasses, existingClass));
+
+                var oldClass = existingClass;
+
+                if (oldClass is ClassDeclarationSyntax classDeclaration && modelType == ModelType.Record)
+                {
+                    oldClass = SyntaxFactory.RecordDeclaration(classDeclaration.AttributeLists,
+                        classDeclaration.Modifiers,
+                        SyntaxFactory.Token(SyntaxKind.RecordKeyword),
+                        classDeclaration.Identifier,
+                        classDeclaration.TypeParameterList,
+                        null,
+                        classDeclaration.BaseList,
+                        classDeclaration.ConstraintClauses,
+                        SyntaxFactory.Token(SyntaxKind.OpenBraceToken),
+                        classDeclaration.Members, 
+                        SyntaxFactory.Token(SyntaxKind.CloseBraceToken), 
+                        SyntaxFactory.Token(SyntaxKind.None));
+                }
+
+                result = result.ReplaceNode(existingClass, GenerateClass(meta, rwClasses, modelType, oldClass));
             }
             else
             {
                 result = SyntaxFactory.CompilationUnit()
                     .AddUsings(namespaces.Select(n => SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(n))).ToArray())
                     .AddMembers(SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(defaultNamespace))
-                        .AddMembers(GenerateClass(meta, rwClasses, null)));
+                        .AddMembers(GenerateClass(meta, rwClasses, modelType, null)));
             }
 
             return result.NormalizeWhitespace();
         }
 
-        private static ClassDeclarationSyntax GenerateClass(SqModelMeta meta, bool rwClasses, ClassDeclarationSyntax? existingClass)
+        private static TypeDeclarationSyntax GenerateClass(SqModelMeta meta, bool rwClasses, ModelType modelType, TypeDeclarationSyntax? existingClass)
         {
-            ClassDeclarationSyntax result;
+            TypeDeclarationSyntax result;
             MemberDeclarationSyntax[]? oldMembers = null;
             Dictionary<string,SyntaxList<AttributeListSyntax>>? oldAttributes = null;
             if (existingClass != null)
@@ -175,7 +194,12 @@ namespace SqExpress.CodeGenUtil.CodeGen
             }
             else
             {
-                result = SyntaxFactory.ClassDeclaration(meta.Name)
+                result = (modelType == ModelType.Record
+                        ? (TypeDeclarationSyntax)SyntaxFactory
+                            .RecordDeclaration(SyntaxFactory.Token(SyntaxKind.RecordKeyword), meta.Name)
+                            .WithOpenBraceToken(SyntaxFactory.Token(SyntaxKind.OpenBraceToken))
+                            .WithCloseBraceToken(SyntaxFactory.Token(SyntaxKind.CloseBraceToken))
+                        : SyntaxFactory.ClassDeclaration(meta.Name))
                     .WithModifiers(existingClass?.Modifiers ?? Modifiers(SyntaxKind.PublicKeyword));
             }
 
@@ -184,7 +208,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
                     .Concat(GenerateStaticFactory(meta))
                     .Concat(rwClasses ? GenerateOrdinalStaticFactory(meta) : Array.Empty<MemberDeclarationSyntax>())
                     .Concat(Properties(meta, oldAttributes))
-                    .Concat(GenerateWithModifiers(meta))
+                    .Concat(modelType == ModelType.ImmutableClass ? GenerateWithModifiers(meta) : Array.Empty<MemberDeclarationSyntax>())
                     .Concat(GenerateGetColumns(meta))
                     .Concat(GenerateMapping(meta))
                     .Concat(rwClasses ? GenerateReaderClass(meta): Array.Empty<MemberDeclarationSyntax>())

@@ -228,6 +228,12 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public override bool VisitExprInsert(ExprInsert exprInsert, IExpr? parent)
+        {
+            this.GenericInsert(exprInsert, null, null);
+            return true;
+        }
+
         public override bool VisitExprInsertOutput(ExprInsertOutput exprInsertOutput, IExpr? parent)
         {
             this.GenericInsert(exprInsertOutput.Insert,
