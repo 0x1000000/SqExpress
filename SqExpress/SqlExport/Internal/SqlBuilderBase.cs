@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using SqExpress.StatementSyntax;
 using SqExpress.Syntax;
@@ -17,6 +18,7 @@ using SqExpress.Syntax.Select.SelectItems;
 using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Update;
 using SqExpress.Syntax.Value;
+using SqExpress.SyntaxTreeOperations.Internal;
 using SqExpress.Utils;
 
 namespace SqExpress.SqlExport.Internal
@@ -1039,19 +1041,88 @@ namespace SqExpress.SqlExport.Internal
         {
             this.Builder.Append("VALUES ");
 
-            for (var i = 0; i < tableValueConstructor.Items.Count; i++)
-            {
-                var rowValue = tableValueConstructor.Items[i];
+            var nullCast = CheckForNullColCast(tableValueConstructor.Items);
 
-                if (i>0)
+            for (var rowIndex = 0; rowIndex < tableValueConstructor.Items.Count; rowIndex++)
+            {
+                var rowValue = tableValueConstructor.Items[rowIndex];
+
+                if (rowIndex>0)
                 {
                     this.Builder.Append(',');
+                }
+                else
+                {
+                    if (nullCast != null)
+                    {
+                        var newItems = rowValue
+                            .Items
+                            .Select((item, index) =>
+                            {
+                                var exprType = nullCast[index];
+                                return exprType == null ? item : SqQueryBuilder.Cast(item, exprType);
+                            })
+                            .ToList();
+                        rowValue = rowValue.WithItems(newItems);
+                    }
                 }
 
                 rowValue.Accept(this, tableValueConstructor);
             }
 
             return true;
+
+
+            //If some column contains only null then an explicit cast will be required
+            static ExprType?[]? CheckForNullColCast(IReadOnlyList<ExprValueRow> rows)
+            {
+                ExprType?[]? result = null;
+                int resultFirstRow = 0;
+                for (var rowIndex = 0; rowIndex < rows.Count; rowIndex++)
+                {
+                    var row = rows[rowIndex];
+
+                    if (result != null && result.Length != row.Items.Count)
+                    {
+                        throw new SqExpressException("All rows have to have the same number of columns");
+                    }
+
+                    bool rowAllNotNull = true;
+
+                    for (int colIndex = 0; colIndex < row.Items.Count; colIndex++)
+                    {
+                        var value = row.Items[colIndex];
+                        if (value.IsNullValue() == true)
+                        {
+                            rowAllNotNull = false;
+
+                            if (result == null)
+                            {
+                                result = new ExprType?[row.Items.Count];
+                                resultFirstRow = rowIndex;
+                            }
+                            if (resultFirstRow == rowIndex)
+                            {
+                                var varTypeDetails = value.GetTypeDetails();
+                                result[colIndex] = varTypeDetails.Type;
+                            }
+                        }
+                        else if(result != null && result[colIndex] != null)
+                        {
+                            result[colIndex] = null;
+                        }
+                    }
+
+                    if (rowAllNotNull)
+                    {
+                        result = null;
+                        break;
+                    }
+                }
+
+                return result;
+            }
+
         }
 
         public bool VisitExprDerivedTableQuery(ExprDerivedTableQuery exprDerivedTableQuery, IExpr? parent)

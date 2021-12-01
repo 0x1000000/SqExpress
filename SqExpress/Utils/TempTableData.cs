@@ -45,10 +45,7 @@ namespace SqExpress.Utils
 
         public static TempTableData FromDerivedTableValues(ExprDerivedTableValues derivedTableValues, IReadOnlyList<ExprColumnName>? keys, Alias alias = default, string? name = null)
         {
-
-            TempTableData result = new TempTableData(string.IsNullOrEmpty(name) || name == null ? GenerateName() : name, alias);
-
-            var analyzer = new ExprValueTypeAnalyzer<TableColumn?, TempTableBuilderCtx>();
+            var result = new TempTableData(string.IsNullOrEmpty(name) || name == null ? GenerateName() : name, alias);
 
             derivedTableValues.Columns.AssertNotEmpty("Columns list cannot be empty");
             derivedTableValues.Values.Items.AssertNotEmpty("Rows list cannot be empty");
@@ -69,7 +66,7 @@ namespace SqExpress.Utils
                     var value = row.Items[valueIndex];
                     var previousColumn = tableColumns[valueIndex];
                     var currentColumnName = derivedTableValues.Columns[valueIndex];
-                    var res = value.Accept(analyzer,
+                    var res = value.Accept(ExprValueTypeAnalyzer<TableColumn?, TempTableBuilderCtx>.Instance,
                         new ExprValueTypeAnalyzerCtx<TableColumn?, TempTableBuilderCtx>(
                             new TempTableBuilderCtx(
                                 currentColumnName,
@@ -112,7 +109,7 @@ namespace SqExpress.Utils
             }
         }
 
-        public TableColumn? VisitAny(TempTableBuilderCtx arg)
+        public TableColumn? VisitAny(TempTableBuilderCtx arg, bool? isNull)
         {
             return arg.PreviousType;
         }
@@ -139,37 +136,37 @@ namespace SqExpress.Utils
             throw new SqExpressException($"\"{typeof(T).Name}\" was expected");
         }
 
-        public TableColumn VisitBool(TempTableBuilderCtx arg)
+        public TableColumn VisitBool(TempTableBuilderCtx arg, bool? isNull)
         {
             return EnsureColumnType<NullableBooleanTableColumn>(arg) ??
                    new NullableBooleanTableColumn(this.Alias, arg.ColumnName, this, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
         }
 
-        public TableColumn VisitByte(TempTableBuilderCtx arg)
+        public TableColumn VisitByte(TempTableBuilderCtx arg, bool? isNull)
         {
             return EnsureColumnType<NullableByteTableColumn>(arg) ??
                    new NullableByteTableColumn(this.Alias, arg.ColumnName, this, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
         }
 
-        public TableColumn VisitInt16(TempTableBuilderCtx arg)
+        public TableColumn VisitInt16(TempTableBuilderCtx arg, bool? isNull)
         {
             return EnsureColumnType<NullableInt16TableColumn>(arg) ??
                    new NullableInt16TableColumn(this.Alias, arg.ColumnName, this, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
         }
 
-        public TableColumn VisitInt32(TempTableBuilderCtx arg)
+        public TableColumn VisitInt32(TempTableBuilderCtx arg, bool? isNull)
         {
             return EnsureColumnType<NullableInt32TableColumn>(arg) ??
                    new NullableInt32TableColumn(this.Alias, arg.ColumnName, this, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
         }
 
-        public TableColumn VisitInt64(TempTableBuilderCtx arg)
+        public TableColumn VisitInt64(TempTableBuilderCtx arg, bool? isNull)
         {
             return EnsureColumnType<NullableInt64TableColumn>(arg) ??
                    new NullableInt64TableColumn(this.Alias, arg.ColumnName, this, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
         }
 
-        public TableColumn VisitDecimal(TempTableBuilderCtx arg, DecimalPrecisionScale? decimalPrecisionScale)
+        public TableColumn VisitDecimal(TempTableBuilderCtx arg, bool? isNull, DecimalPrecisionScale? decimalPrecisionScale)
         {
             var column = EnsureColumnType<NullableDecimalTableColumn>(arg);
 
@@ -202,13 +199,13 @@ namespace SqExpress.Utils
             }
         }
 
-        public TableColumn VisitDouble(TempTableBuilderCtx arg)
+        public TableColumn VisitDouble(TempTableBuilderCtx arg, bool? isNull)
         {
             return EnsureColumnType<NullableDoubleTableColumn>(arg) ??
                    new NullableDoubleTableColumn(this.Alias, arg.ColumnName, this, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
         }
 
-        public TableColumn VisitString(TempTableBuilderCtx arg, int? size, bool fix)
+        public TableColumn VisitString(TempTableBuilderCtx arg, bool? isNull, int? size, bool fix)
         {
             var stringTableColumn = EnsureColumnType<NullableStringTableColumn>(arg);
 
@@ -237,7 +234,7 @@ namespace SqExpress.Utils
             }
         }
 
-        public TableColumn? VisitXml(TempTableBuilderCtx arg)
+        public TableColumn? VisitXml(TempTableBuilderCtx arg, bool? isNull)
         {
             return EnsureColumnType<NullableStringTableColumn>(arg) ??
                    new NullableStringTableColumn(this.Alias,
@@ -247,19 +244,19 @@ namespace SqExpress.Utils
                        arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
         }
 
-        public TableColumn? VisitDateTime(TempTableBuilderCtx arg)
+        public TableColumn? VisitDateTime(TempTableBuilderCtx arg, bool? isNull)
         {
             return EnsureColumnType<NullableDateTimeTableColumn>(arg) ??
                    new NullableDateTimeTableColumn(this.Alias, arg.ColumnName, this, false, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
         }
 
-        public TableColumn? VisitGuid(TempTableBuilderCtx arg)
+        public TableColumn? VisitGuid(TempTableBuilderCtx arg, bool? isNull)
         {
             return EnsureColumnType<NullableGuidTableColumn>(arg) ??
                    new NullableGuidTableColumn(this.Alias, arg.ColumnName, this, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
         }
 
-        public TableColumn? VisitByteArray(TempTableBuilderCtx arg, int? length, bool fix)
+        public TableColumn? VisitByteArray(TempTableBuilderCtx arg, bool? isNull, int? length, bool fix)
         {
             var arrayTableColumn = EnsureColumnType<NullableByteArrayTableColumn>(arg);
 

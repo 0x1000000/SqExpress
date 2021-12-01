@@ -5,7 +5,7 @@
     <SqModelGenOutput>Models</SqModelGenOutput>
 	  <SqModelGenNamespace>$(MSBuildProjectName).Models</SqModelGenNamespace>
 	  <SqModelGenCleanOutput>True</SqModelGenCleanOutput>
-    <SqModelGenType>ImmuatbleClass</SqModelGenType>
+    <SqModelGenType>ImmutableClass</SqModelGenType>
     <SqExpressCodeGenPath>$(MSBuildThisFileDirectory)../tools/codegen/SqExpress.CodeGenUtil.dll</SqExpressCodeGenPath>
   </PropertyGroup>
 </Project>

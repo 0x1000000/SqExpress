@@ -1,4 +1,7 @@
-﻿using NUnit.Framework;
+﻿using System;
+using System.Collections.Generic;
+using NUnit.Framework;
+using SqExpress.Syntax.Value;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.Test.QueryBuilder
@@ -81,6 +84,22 @@ namespace SqExpress.Test.QueryBuilder
                         .ToSql();
                 },
                 "Number of declared columns does not match to number of selected columns in the derived table sub query");
+        }
+
+
+        [Test]
+        public void DerivedValues_NullColl()
+        {
+            var values = Values(new[]
+            {
+                Row(1, (string?)null, (DateTime?) null, (int?)null),
+                Row(2, (string?)null, (DateTime?) null, (int?)0),
+                Row(3, (string?)null, (DateTime?) null, (int?)null)
+            });
+
+            Console.WriteLine(values.ToSql());
+
+            static IReadOnlyList<ExprValue> Row(params ExprValue[] values) => values;
         }
 
         private class SubQuery : DerivedTableBase

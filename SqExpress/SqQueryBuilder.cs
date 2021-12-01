@@ -49,6 +49,9 @@ namespace SqExpress
             public ExprTypeDateTime DateTime(bool isDate = false) => new ExprTypeDateTime(isDate);
             public ExprTypeGuid Guid => ExprTypeGuid.Instance;
             public ExprTypeString String(int? size=null, bool isUnicode=true, bool isText = false) =>new ExprTypeString(size, isUnicode, isText);
+            public ExprTypeFixSizeByteArray ByteArrayFixedSize(int size) => new ExprTypeFixSizeByteArray(size);
+            public ExprTypeByteArray ByteArray(int? size) => new ExprTypeByteArray(size);
+
         }
 
         public static ExprCast Cast(ExprValue expression, ExprType asType) 
