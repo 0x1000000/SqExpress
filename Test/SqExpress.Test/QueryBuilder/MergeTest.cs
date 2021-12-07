@@ -259,5 +259,82 @@ namespace SqExpress.Test.QueryBuilder
 
             });
         }
+        
+        [Test]
+        public void KeysOnly_NoWhenMatch()
+        {
+            var data = new []{new { Id1 = 1, Id2 = 2 }, new { Id1 = 3, Id2 = 4 } };
+
+            var merge = SqQueryBuilder.MergeDataInto(Tables.CustomerOrder(), data)
+                .MapDataKeys(s => s.Set(s.Target.CustomerId, s.Source.Id1).Set(s.Target.OrderId, s.Source.Id2))
+                .WhenNotMatchedByTargetThenInsert()
+                .WhenNotMatchedBySourceThenDelete()
+                .Done();
+
+            var sql = merge.ToSql();
+            const string expected = "MERGE [dbo].[CustomerOrder] [A0] USING (VALUES (1,2),(3,4))[A1]([CustomerId],[OrderId]) " +
+                                    "ON [A0].[CustomerId]=[A1].[CustomerId] AND [A0].[OrderId]=[A1].[OrderId] " +
+                                    "WHEN NOT MATCHED THEN INSERT([CustomerId],[OrderId]) VALUES([A1].[CustomerId],[A1].[OrderId]) " +
+                                    "WHEN NOT MATCHED BY SOURCE THEN  DELETE;";
+
+            Assert.AreEqual(expected, sql);
+        }
+
+        [Test]
+        public void KeysOnly_WhenMatchedThenDelete()
+        {
+            var data = new []{new { Id1 = 1, Id2 = 2 }, new { Id1 = 3, Id2 = 4 } };
+
+            var merge = SqQueryBuilder.MergeDataInto(Tables.CustomerOrder(), data)
+                .MapDataKeys(s => s.Set(s.Target.CustomerId, s.Source.Id1).Set(s.Target.OrderId, s.Source.Id2))
+                .WhenMatchedThenDelete()
+                .WhenNotMatchedByTargetThenInsert()
+                .WhenNotMatchedBySourceThenDelete()
+                .Done();
+
+            var sql = merge.ToSql();
+            const string expected = "MERGE [dbo].[CustomerOrder] [A0] USING (VALUES (1,2),(3,4))[A1]([CustomerId],[OrderId]) " +
+                                    "ON [A0].[CustomerId]=[A1].[CustomerId] AND [A0].[OrderId]=[A1].[OrderId] " +
+                                    "WHEN MATCHED THEN  DELETE " +
+                                    "WHEN NOT MATCHED THEN INSERT([CustomerId],[OrderId]) VALUES([A1].[CustomerId],[A1].[OrderId]) " +
+                                    "WHEN NOT MATCHED BY SOURCE THEN  DELETE;";
+
+            Assert.AreEqual(expected, sql);
+        }
+
+        [Test]
+        public void KeysOnly_WhenMatchedThenUpdate_AlsoSet()
+        {
+            var data = new []{new { Id1 = 1, Id2 = 2 }, new { Id1 = 3, Id2 = 4 } };
+
+            var merge = SqQueryBuilder.MergeDataInto(Tables.CustomerOrder(), data)
+                .MapDataKeys(s => s.Set(s.Target.CustomerId, s.Source.Id1).Set(s.Target.OrderId, s.Source.Id2))
+                .WhenMatchedThenUpdate().AlsoSet(s=>s.Set(s.Target.CustomerId, 0))
+                .WhenNotMatchedByTargetThenInsert()
+                .WhenNotMatchedBySourceThenDelete()
+                .Done();
+
+            var sql = merge.ToSql();
+            const string expected = "MERGE [dbo].[CustomerOrder] [A0] USING (VALUES (1,2),(3,4))[A1]([CustomerId],[OrderId]) " +
+                                    "ON [A0].[CustomerId]=[A1].[CustomerId] AND [A0].[OrderId]=[A1].[OrderId] " +
+                                    "WHEN MATCHED THEN UPDATE SET [A0].[CustomerId]=0 " +
+                                    "WHEN NOT MATCHED THEN INSERT([CustomerId],[OrderId]) VALUES([A1].[CustomerId],[A1].[OrderId]) " +
+                                    "WHEN NOT MATCHED BY SOURCE THEN  DELETE;";
+
+            Assert.AreEqual(expected, sql);
+        }
+
+        [Test]
+        public void KeysOnly_WhenMatchedThenUpdate_Error()
+        {
+            var data = new []{new { Id1 = 1, Id2 = 2 }, new { Id1 = 3, Id2 = 4 } };
+            Assert.Throws<SqExpressException>(() =>
+                SqQueryBuilder.MergeDataInto(Tables.CustomerOrder(), data)
+                    .MapDataKeys(s => s.Set(s.Target.CustomerId, s.Source.Id1).Set(s.Target.OrderId, s.Source.Id2))
+                    .WhenMatchedThenUpdate()
+                    .WhenNotMatchedByTargetThenInsert()
+                    .WhenNotMatchedBySourceThenDelete()
+                    .Done());
+        }
     }
 }

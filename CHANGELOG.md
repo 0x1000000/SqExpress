@@ -2,8 +2,10 @@
 ### New Features
 - the DTO code-generator now has a parameter that allows generating C# records: ```--model-type ImmutableClass|Record``` or ```<SqModelGenType>ImmutableClass|Record</SqModelGenType>```;
 - "CheckExistenceBy" in the Insert data builder what adds WHERE EXISTS(...) to a Insert source to avoid duplicates inserting;
+- ExistsIn ...
 ### Bugfix
 - When some column(s) in values constructor contains only nulls, sqexpress now adds an explicit type cast for the first cell e.g. ```CAST(NULL as int)```
+- **MergeDataInto** now allows only keys mapping unless **WhenMatchThenUpdate** is defined (without additional updates)
 
 # 0.3.0.0
 ### New Features

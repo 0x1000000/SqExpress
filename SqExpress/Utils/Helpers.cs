@@ -309,7 +309,7 @@ namespace SqExpress.Utils
             IEnumerable<TItem> data,
             TTable targetTable,
             DataMapping<TTable, TItem> dataMapKeys,
-            DataMapping<TTable, TItem> dataMap,
+            DataMapping<TTable, TItem>? dataMap,
             IndexDataMapping? extraDataMap,
             ExprTableAlias sourceTableAlias
         )
@@ -339,7 +339,7 @@ namespace SqExpress.Utils
 
                 keys.AssertNotEmpty("There should be at least one key");
 
-                dataMap(setter);
+                dataMap?.Invoke(setter);
 
                 totalColumns = allTableColumns ??= new List<ExprColumnName>(setter.Columns);
 
@@ -367,7 +367,7 @@ namespace SqExpress.Utils
 
             var exprValuesTable = new ExprDerivedTableValues(new ExprTableValueConstructor(records), sourceTableAlias, totalColumns);
 
-            if (keys.Count >= allTableColumns.Count)
+            if (keys.Count > allTableColumns.Count)
             {
                 throw new SqExpressException("The number of keys exceeds the number of columns");
             }

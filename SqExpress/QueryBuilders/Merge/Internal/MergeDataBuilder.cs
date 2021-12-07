@@ -171,7 +171,7 @@ namespace SqExpress.QueryBuilders.Merge.Internal
                 data: this._data, 
                 targetTable: this._table, 
                 dataMapKeys: this._dataMapKeys.AssertNotNull("DataMapKeys should be initialized"), 
-                dataMap: this._dataMap.AssertNotNull("DataMap should be initialized"), 
+                dataMap: this._dataMap, 
                 extraDataMap: this._extraDataMap,
                 sourceTableAlias: this._sourceTableAlias);
 
@@ -226,6 +226,12 @@ namespace SqExpress.QueryBuilders.Merge.Internal
                 }
 
                 var updateColNum = allColumns.Count - keys.Count;
+
+                if (updateColNum == 0 && extraMaps == null)
+                {
+                    throw new SqExpressException("'WHEN MATCH THEN UPDATE..' should have at least one assignment");
+                }
+
                 ExprColumnSetClause[] sets = new ExprColumnSetClause[updateColNum + (extraMaps?.Count ?? 0)];
 
                 for (int i = keys.Count; i < allColumns.Count; i++)

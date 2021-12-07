@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using SqExpress.QueryBuilders.Select;
 using SqExpress.QueryBuilders.Select.Internal;
+using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
@@ -87,6 +88,13 @@ namespace SqExpress
 
         public static ExprTableValueConstructor Values(params ExprValue[] values) 
             => new ExprTableValueConstructor(values.SelectToReadOnlyList(i=> new ExprValueRow(new[]{i})));
+
+        public static ExprBoolean ExistsIn<TTable>(Func<TTable, ExprBoolean> on)
+            where TTable : IExprTableSource, new()
+        {
+            var tbl = new TTable();
+            return Exists(SelectOne().From(tbl).Where(on(tbl)));
+        }
     }
 
     public readonly struct SelectingProxy

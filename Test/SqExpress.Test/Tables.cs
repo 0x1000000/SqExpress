@@ -24,7 +24,7 @@
         {
         }
 
-        public User(string databaseName, Alias alias = default) : base(databaseName, "dbo", "user", alias)
+        public User(string databaseName, Alias alias) : base(databaseName, "dbo", "user", alias)
         {
         }
 
