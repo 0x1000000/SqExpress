@@ -4,8 +4,10 @@ using System.Threading.Tasks;
 using System.Xml;
 using SqExpress.DataAccess;
 using SqExpress.QueryBuilders;
+using SqExpress.QueryBuilders.Select;
 using SqExpress.QueryBuilders.Update;
 using SqExpress.Syntax;
+using SqExpress.Syntax.Select;
 using SqExpress.SyntaxTreeOperations;
 using SqExpress.SyntaxTreeOperations.ExportImport;
 using SqExpress.SyntaxTreeOperations.ExportImport.Internal;
@@ -66,6 +68,30 @@ namespace SqExpress
             Func<TKey, TValue, bool>? predicate = null)
         where TKey : notnull
             => database.QueryDictionary(query.Done(), keyFactory, valueFactory, keyDuplicationHandler, predicate);
+
+        public static Task<DataPage<T>> QueryPage<T>(this ISelectOffsetFetchBuilderFinal builder, ISqDatabase database, Func<ISqDataRecordReader, T> reader)
+            => builder.Done().QueryPage(database, reader);
+
+        public static async Task<DataPage<T>> QueryPage<T>(this ExprSelectOffsetFetch query, ISqDatabase database, Func<ISqDataRecordReader, T> reader)
+        {
+            var countColumn = CustomColumnFactory.Int32("$count$");
+
+            var selectQuery = (ExprQuerySpecification)query.SelectQuery;
+
+            query = query.WithSelectQuery(
+                selectQuery.WithSelectList(selectQuery.SelectList.Concat(SqQueryBuilder.CountOneOver().As(countColumn))));
+
+            var res = await query.Query(database,
+                new KeyValuePair<List<T>, int?>(new List<T>(), null),
+                (acc, r) =>
+                {
+                    acc.Key.Add(reader(r));
+                    var total = acc.Value ?? countColumn.Read(r);
+                    return new KeyValuePair<List<T>, int?>(acc.Key, total);
+                });
+
+            return new DataPage<T>(res.Key, query.OrderBy.OffsetFetch.Offset.Value ?? 0, res.Value ?? 0);
+        }
 
         public static Task<object> QueryScalar(this IExprQuery query, ISqDatabase database)
             => database.QueryScalar(query);

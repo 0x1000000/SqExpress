@@ -1129,9 +1129,8 @@ namespace SqExpress.SqlExport.Internal
         {
             this.AcceptPar('(', exprDerivedTableQuery.Query, ')', exprDerivedTableQuery);
             exprDerivedTableQuery.Alias.Accept(this, exprDerivedTableQuery);
-            if (exprDerivedTableQuery.Columns != null)
+            if (exprDerivedTableQuery.Columns != null && exprDerivedTableQuery.Columns.Count > 0)
             {
-                exprDerivedTableQuery.Columns.AssertNotEmpty("List of columns in a derived table with values literals cannot be empty");
                 var selectedColumns = exprDerivedTableQuery.Query.GetOutputColumnNames();
 
                 if (selectedColumns.Count != exprDerivedTableQuery.Columns.Count)

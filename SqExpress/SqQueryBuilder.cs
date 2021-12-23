@@ -60,6 +60,12 @@ namespace SqExpress
         public static ExprCast Cast(IExprSelecting expression, ExprType asType) 
             => new ExprCast(expression, asType);
 
+        public static ExprColumn Column(string columnName) 
+            => new ExprColumn(null, columnName);
+
+        public static ExprColumn Column(IExprColumnSource source, string columnName) 
+            => new ExprColumn(source, columnName);
+
         public static ExprTableAlias TableAlias(Alias alias = default)
             => new ExprTableAlias(alias.BuildAliasExpression() ?? Alias.Auto.BuildAliasExpression()!);
 
