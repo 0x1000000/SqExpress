@@ -15,6 +15,10 @@ It can be used in conjunction with the “Database First” concept using an inc
 
 This an article that explains the library principles: ["Syntax Tree and Alternative to LINQ in Interaction with SQL Databases"](https://itnext.io/syntax-tree-and-alternative-to-linq-in-interaction-with-sql-databases-656b78fe00dc?source=friends_link&sk=f5f0587c08166d8824b96b48fe2cf33c)
 
+## Demo Application
+
+You can find a realistic usage of the library in this ASP.Net demo application - [SqGoods](https://github.com/0x1000000/SqGoods)
+
 # Content
 1. [Get Started](#get-started)
 
@@ -1563,12 +1567,13 @@ foreach (var name in page.Items)
 ```
 
 ## Using in ASP.Net
-There is a demo ASP.Net project which is supposed to show how [SqExpress](https://github.com/0x1000000/SqGoods/tree/init-tmp) can be used in a real web app. It is not yet done but the basics are already implemented.
+There is a demo ASP.Net project which is supposed to show how [SqExpress](https://github.com/0x1000000/SqGoods/tree/main) can be used in a real web app.
+
 The ideas:
-1.	Each API request uses only one sql connection which is stored in [a connection storage](https://github.com/0x1000000/SqGoods/blob/init-tmp/SqGoods.DomainLogic/DataAccess/MsSqlConnectionStorage.cs);
-2.	The connection storage [can create an instance of SqDatabase](https://github.com/0x1000000/SqGoods/blob/init-tmp/SqGoods.DomainLogic/DataAccess/MsSqlConnectionStorage.cs#L18);
-3.	The connection storage and SqDatabase [have “Scoped” lifecycle](https://github.com/0x1000000/SqGoods/blob/init-tmp/SqGoods.DomainLogic/DomainLogicRegistration.cs#L17);
-4.	SqDatabase is used in [entity repositories which are responsible for “Domain Logic”](https://github.com/0x1000000/SqGoods/blob/init-tmp/SqGoods.DomainLogic/Repositories/SgCategoryRepository.cs).
+1.	Each API request uses only one sql connection which is stored in [a connection storage](https://github.com/0x1000000/SqGoods/blob/main/SqGoods.DomainLogic/DataAccess/MsSqlConnectionStorage.cs);
+2.	The connection storage [can create an instance of SqDatabase](https://github.com/0x1000000/SqGoods/blob/main/SqGoods.DomainLogic/DataAccess/MsSqlConnectionStorage.cs#L18);
+3.	The connection storage and SqDatabase [have “Scoped” lifecycle](https://github.com/0x1000000/SqGoods/blob/main/SqGoods.DomainLogic/DomainLogicRegistration.cs#L17);
+4.	SqDatabase is used in [entity repositories which are responsible for “Domain Logic”](https://github.com/0x1000000/SqGoods/blob/main/SqGoods.DomainLogic/Repositories/SgCategoryRepository.cs).
 ## PostgreSQL
 You can run all the scenarios using Postgres SQL (of course the actual sql will be different):
 ```Cs
