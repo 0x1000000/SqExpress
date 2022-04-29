@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Data;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using SqExpress.DataAccess;
 using SqExpress.StatementSyntax;
@@ -43,7 +44,7 @@ namespace SqExpress.Test
 
         public readonly QueryDelegate<object>? QueryImplementation = null;
 
-        public async Task<TAgg> Query<TAgg>(IExprQuery query, TAgg seed, Func<TAgg, ISqDataRecordReader, TAgg> aggregator)
+        public async Task<TAgg> Query<TAgg>(IExprQuery query, TAgg seed, Func<TAgg, ISqDataRecordReader, TAgg> aggregator, CancellationToken cancellationToken = default)
         {
             var qi = this.QueryImplementation;
             if (qi == null)
@@ -55,22 +56,22 @@ namespace SqExpress.Test
             return (TAgg)res;
         }
 
-        public Task<TAgg> Query<TAgg>(IExprQuery query, TAgg seed, Func<TAgg, ISqDataRecordReader, Task<TAgg>> aggregator)
+        public Task<TAgg> Query<TAgg>(IExprQuery query, TAgg seed, Func<TAgg, ISqDataRecordReader, Task<TAgg>> aggregator, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
 
-        public Task<object> QueryScalar(IExprQuery query)
+        public Task<object> QueryScalar(IExprQuery query, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
 
-        public Task Exec(IExprExec statement)
+        public Task Exec(IExprExec statement, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
 
-        public Task Statement(IStatement statement)
+        public Task Statement(IStatement statement, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

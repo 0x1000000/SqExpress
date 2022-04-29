@@ -37,6 +37,7 @@ namespace SqExpress.IntTest
                     .Then(new ScTransactions(true))
                     .Then(new ScMerge())
                     .Then(new ScModelSelector())
+                    .Then(new ScCancellation())
                     ;
 
                 await ExecScenarioAll(

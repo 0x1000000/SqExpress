@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using SqExpress.DataAccess;
@@ -18,36 +19,36 @@ namespace SqExpress
     public static class ExprExtension
     {
         //Sync handler
-        public static Task<TAgg> Query<TAgg>(this IExprQuery query, ISqDatabase database, TAgg seed, Func<TAgg,ISqDataRecordReader, TAgg> aggregator) 
-            => database.Query(query, seed, aggregator);
+        public static Task<TAgg> Query<TAgg>(this IExprQuery query, ISqDatabase database, TAgg seed, Func<TAgg,ISqDataRecordReader, TAgg> aggregator, CancellationToken cancellationToken = default) 
+            => database.Query(query, seed, aggregator, cancellationToken);
 
-        public static Task<TAgg> Query<TAgg>(this IExprQueryFinal query, ISqDatabase database, TAgg seed, Func<TAgg,ISqDataRecordReader, TAgg> aggregator) 
-            => database.Query(query.Done(), seed, aggregator);
+        public static Task<TAgg> Query<TAgg>(this IExprQueryFinal query, ISqDatabase database, TAgg seed, Func<TAgg,ISqDataRecordReader, TAgg> aggregator, CancellationToken cancellationToken = default) 
+            => database.Query(query.Done(), seed, aggregator, cancellationToken);
 
-        public static Task Query(this IExprQuery query, ISqDatabase database, Action<ISqDataRecordReader> handler) 
-            => database.Query(query, handler);
+        public static Task Query(this IExprQuery query, ISqDatabase database, Action<ISqDataRecordReader> handler, CancellationToken cancellationToken = default) 
+            => database.Query(query, handler, cancellationToken: cancellationToken);
 
-        public static Task Query(this IExprQueryFinal query, ISqDatabase database, Action<ISqDataRecordReader> handler) 
-            => database.Query(query.Done(), handler);
+        public static Task Query(this IExprQueryFinal query, ISqDatabase database, Action<ISqDataRecordReader> handler, CancellationToken cancellationToken = default) 
+            => database.Query(query.Done(), handler, cancellationToken: cancellationToken);
 
         //Async handler
-        public static Task<TAgg> Query<TAgg>(this IExprQuery query, ISqDatabase database, TAgg seed, Func<TAgg,ISqDataRecordReader, Task<TAgg>> aggregator) 
-            => database.Query(query, seed, aggregator);
+        public static Task<TAgg> Query<TAgg>(this IExprQuery query, ISqDatabase database, TAgg seed, Func<TAgg,ISqDataRecordReader, Task<TAgg>> aggregator, CancellationToken cancellationToken = default) 
+            => database.Query(query, seed, aggregator, cancellationToken);
 
-        public static Task<TAgg> Query<TAgg>(this IExprQueryFinal query, ISqDatabase database, TAgg seed, Func<TAgg,ISqDataRecordReader, Task<TAgg>> aggregator) 
-            => database.Query(query.Done(), seed, aggregator);
+        public static Task<TAgg> Query<TAgg>(this IExprQueryFinal query, ISqDatabase database, TAgg seed, Func<TAgg,ISqDataRecordReader, Task<TAgg>> aggregator, CancellationToken cancellationToken = default) 
+            => database.Query(query.Done(), seed, aggregator, cancellationToken);
 
-        public static Task Query(this IExprQuery query, ISqDatabase database, Func<ISqDataRecordReader, Task> handler) 
-            => database.Query(query, handler);
+        public static Task Query(this IExprQuery query, ISqDatabase database, Func<ISqDataRecordReader, Task> handler, CancellationToken cancellationToken = default) 
+            => database.Query(query, handler, cancellationToken: cancellationToken);
 
-        public static Task Query(this IExprQueryFinal query, ISqDatabase database, Func<ISqDataRecordReader, Task> handler) 
-            => database.Query(query.Done(), handler);
+        public static Task Query(this IExprQueryFinal query, ISqDatabase database, Func<ISqDataRecordReader, Task> handler, CancellationToken cancellationToken = default) 
+            => database.Query(query.Done(), handler, cancellationToken: cancellationToken);
 
-        public static Task<List<T>> QueryList<T>(this IExprQuery query, ISqDatabase database, Func<ISqDataRecordReader, T> factory) 
-            => database.QueryList(query, factory);
+        public static Task<List<T>> QueryList<T>(this IExprQuery query, ISqDatabase database, Func<ISqDataRecordReader, T> factory, CancellationToken cancellationToken = default) 
+            => database.QueryList(query, factory, cancellationToken: cancellationToken);
 
-        public static Task<List<T>> QueryList<T>(this IExprQueryFinal query, ISqDatabase database, Func<ISqDataRecordReader, T> factory) 
-            => database.QueryList(query.Done(), factory);
+        public static Task<List<T>> QueryList<T>(this IExprQueryFinal query, ISqDatabase database, Func<ISqDataRecordReader, T> factory, CancellationToken cancellationToken = default) 
+            => database.QueryList(query.Done(), factory, cancellationToken: cancellationToken);
 
         public static Task<Dictionary<TKey, TValue>> QueryDictionary<TKey, TValue>(
             this IExprQuery query, 
@@ -55,9 +56,10 @@ namespace SqExpress
             Func<ISqDataRecordReader, TKey> keyFactory,
             Func<ISqDataRecordReader, TValue> valueFactory, 
             SqDatabaseExtensions.KeyDuplicationHandler<TKey, TValue>? keyDuplicationHandler = null,
-            Func<TKey, TValue, bool>? predicate = null)
+            Func<TKey, TValue, bool>? predicate = null,
+            CancellationToken cancellationToken = default)
         where TKey : notnull
-            => database.QueryDictionary(query, keyFactory, valueFactory, keyDuplicationHandler, predicate);
+            => database.QueryDictionary(query, keyFactory, valueFactory, keyDuplicationHandler, predicate, cancellationToken: cancellationToken);
 
         public static Task<Dictionary<TKey, TValue>> QueryDictionary<TKey, TValue>(
             this IExprQueryFinal query, 
@@ -69,10 +71,10 @@ namespace SqExpress
         where TKey : notnull
             => database.QueryDictionary(query.Done(), keyFactory, valueFactory, keyDuplicationHandler, predicate);
 
-        public static Task<DataPage<T>> QueryPage<T>(this ISelectOffsetFetchBuilderFinal builder, ISqDatabase database, Func<ISqDataRecordReader, T> reader)
-            => builder.Done().QueryPage(database, reader);
+        public static Task<DataPage<T>> QueryPage<T>(this ISelectOffsetFetchBuilderFinal builder, ISqDatabase database, Func<ISqDataRecordReader, T> reader, CancellationToken cancellationToken = default)
+            => builder.Done().QueryPage(database, reader, cancellationToken: cancellationToken);
 
-        public static async Task<DataPage<T>> QueryPage<T>(this ExprSelectOffsetFetch query, ISqDatabase database, Func<ISqDataRecordReader, T> reader)
+        public static async Task<DataPage<T>> QueryPage<T>(this ExprSelectOffsetFetch query, ISqDatabase database, Func<ISqDataRecordReader, T> reader, CancellationToken cancellationToken = default)
         {
             var countColumn = CustomColumnFactory.Int32("$count$");
 
@@ -93,20 +95,20 @@ namespace SqExpress
             return new DataPage<T>(res.Key, query.OrderBy.OffsetFetch.Offset.Value ?? 0, res.Value ?? 0);
         }
 
-        public static Task<object> QueryScalar(this IExprQuery query, ISqDatabase database)
-            => database.QueryScalar(query);
+        public static Task<object> QueryScalar(this IExprQuery query, ISqDatabase database, CancellationToken cancellationToken = default)
+            => database.QueryScalar(query, cancellationToken);
 
-        public static Task<object> QueryScalar(this IExprQueryFinal query, ISqDatabase database)
-            => database.QueryScalar(query.Done());
+        public static Task<object> QueryScalar(this IExprQueryFinal query, ISqDatabase database, CancellationToken cancellationToken = default)
+            => database.QueryScalar(query.Done(), cancellationToken);
 
-        public static Task Exec(this IExprExec query, ISqDatabase database)
-            => database.Exec(query);
+        public static Task Exec(this IExprExec query, ISqDatabase database, CancellationToken cancellationToken = default)
+            => database.Exec(query, cancellationToken);
 
-        public static Task Exec(this IExprExecFinal query, ISqDatabase database)
-            => database.Exec(query.Done());
+        public static Task Exec(this IExprExecFinal query, ISqDatabase database, CancellationToken cancellationToken = default)
+            => database.Exec(query.Done(), cancellationToken);
 
-        public static Task Exec(this IUpdateDataBuilderFinal builder, ISqDatabase database)
-            => database.Exec(builder.Done());
+        public static Task Exec(this IUpdateDataBuilderFinal builder, ISqDatabase database, CancellationToken cancellationToken = default)
+            => database.Exec(builder.Done(), cancellationToken);
 
         public static SyntaxTreeActions SyntaxTree(this IExpr expr)
         {

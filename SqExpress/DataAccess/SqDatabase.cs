@@ -19,15 +19,15 @@ namespace SqExpress.DataAccess
 
         ISqTransaction BeginTransactionOrUseExisting(IsolationLevel isolationLevel, out bool isNewTransaction);
 
-        Task<TAgg> Query<TAgg>(IExprQuery query, TAgg seed, Func<TAgg, ISqDataRecordReader, TAgg> aggregator);
+        Task<TAgg> Query<TAgg>(IExprQuery query, TAgg seed, Func<TAgg, ISqDataRecordReader, TAgg> aggregator, CancellationToken cancellationToken = default);
 
-        Task<TAgg> Query<TAgg>(IExprQuery query, TAgg seed, Func<TAgg, ISqDataRecordReader, Task<TAgg>> aggregator);
+        Task<TAgg> Query<TAgg>(IExprQuery query, TAgg seed, Func<TAgg, ISqDataRecordReader, Task<TAgg>> aggregator, CancellationToken cancellationToken = default);
 
-        Task<object> QueryScalar(IExprQuery query);
+        Task<object> QueryScalar(IExprQuery query, CancellationToken cancellationToken = default);
 
-        Task Exec(IExprExec statement);
+        Task Exec(IExprExec statement, CancellationToken cancellationToken = default);
 
-        Task Statement(IStatement statement);
+        Task Statement(IStatement statement, CancellationToken cancellationToken = default);
     }
 
     public interface ISqTransaction : IDisposable
@@ -55,7 +55,11 @@ namespace SqExpress.DataAccess
 
         private int _isDisposed;
 
-        public SqDatabase(TConnection connection, Func<TConnection, string, DbCommand> commandFactory, ISqlExporter sqlExporter, bool disposeConnection=false)
+        public SqDatabase(
+            TConnection connection, 
+            Func<TConnection, string, DbCommand> commandFactory, 
+            ISqlExporter sqlExporter, 
+            bool disposeConnection=false)
         {
             this._connection = connection;
             this._commandFactory = commandFactory;
@@ -97,49 +101,56 @@ namespace SqExpress.DataAccess
             }
         }
 
-        public async Task<object> QueryScalar(IExprQuery query)
+        public async Task<object> QueryScalar(IExprQuery query, CancellationToken cancellationToken = default)
         {
             this.CheckDisposed();
             var sql = this._sqlExporter.ToSql(query);
 
-            var command = await this.CreateCommand(sql: sql);
+            var command = await this.CreateCommand(sql, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
-            object reader;
+            object result;
             try
             {
-                reader = await command.ExecuteScalarAsync();
+                result = await command.ExecuteScalarAsync(cancellationToken);
             }
             catch (Exception e)
             {
                 throw new SqDatabaseCommandException(sql, e.Message, e);
             }
-            return reader;
+            return result;
         }
 
-        public async Task<TAgg> Query<TAgg>(IExprQuery query, TAgg seed, Func<TAgg, ISqDataRecordReader, TAgg> aggregator)
+        public async Task<TAgg> Query<TAgg>(IExprQuery query, TAgg seed, Func<TAgg, ISqDataRecordReader, TAgg> aggregator, CancellationToken cancellationToken = default)
         {
             this.CheckDisposed();
             var result = seed;
             var sql = this._sqlExporter.ToSql(query);
 
-            var command = await this.CreateCommand(sql);
+            var command = await this.CreateCommand(sql, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
             DbDataReader? reader;
             try
             {
-                reader = await command.ExecuteReaderAsync();
+                reader = await command.ExecuteReaderAsync(cancellationToken);
             }
             catch (Exception e)
             {
                 throw new SqDatabaseCommandException(sql, e.Message, e);
             }
+
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (reader != null)
             {
                 using (reader)
                 {
                     var proxy = new DbReaderProxy(reader);
-                    while (await reader.ReadAsync())
+                    while (await reader.ReadAsync(cancellationToken))
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
+
                         result = aggregator(result, proxy);
                     }
                 }
@@ -147,30 +158,43 @@ namespace SqExpress.DataAccess
             return result;
         }
 
-        public async Task<TAgg> Query<TAgg>(IExprQuery query, TAgg seed, Func<TAgg, ISqDataRecordReader, Task<TAgg>> aggregator)
+        public async Task<TAgg> Query<TAgg>(IExprQuery query, TAgg seed, Func<TAgg, ISqDataRecordReader, Task<TAgg>> aggregator, CancellationToken cancellationToken = default)
         {
             this.CheckDisposed();
             var result = seed;
             var sql = this._sqlExporter.ToSql(query);
 
-            var command = await this.CreateCommand(sql);
+            var command = await this.CreateCommand(sql, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
             DbDataReader? reader;
             try
             {
-                reader = await command.ExecuteReaderAsync();
+                reader = await command.ExecuteReaderAsync(cancellationToken);
             }
             catch (Exception e)
             {
                 throw new SqDatabaseCommandException(sql, e.Message, e);
             }
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                if (reader != null)
+                {
+                    reader.Dispose();
+                }
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
             if (reader != null)
             {
                 using (reader)
                 {
                     var proxy = new DbReaderProxy(reader);
-                    while (await reader.ReadAsync())
+                    while (await reader.ReadAsync(cancellationToken))
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
+
                         result = await aggregator(result, proxy);
                     }
                 }
@@ -178,16 +202,17 @@ namespace SqExpress.DataAccess
             return result;
         }
 
-        public async Task Exec(IExprExec statement)
+        public async Task Exec(IExprExec statement, CancellationToken cancellationToken = default)
         {
             this.CheckDisposed();
             var sql = this._sqlExporter.ToSql(statement);
 
-            var command = await this.CreateCommand(sql);
+            var command = await this.CreateCommand(sql, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
             try
             {
-                await command.ExecuteNonQueryAsync();
+                await command.ExecuteNonQueryAsync(cancellationToken);
             }
             catch (Exception e)
             {
@@ -195,16 +220,17 @@ namespace SqExpress.DataAccess
             }
         }
 
-        public async Task Statement(IStatement statement)
+        public async Task Statement(IStatement statement, CancellationToken cancellationToken = default)
         {
             this.CheckDisposed();
             var sql = this._sqlExporter.ToSql(statement);
 
-            var command = await this.CreateCommand(sql);
+            var command = await this.CreateCommand(sql, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
             try
             {
-                await command.ExecuteNonQueryAsync();
+                await command.ExecuteNonQueryAsync(cancellationToken);
             }
             catch (Exception e)
             {
@@ -254,9 +280,9 @@ namespace SqExpress.DataAccess
             }
         }
 
-        private async Task<DbCommand> CreateCommand(string sql)
+        private async Task<DbCommand> CreateCommand(string sql, CancellationToken cancellationToken)
         {
-            var connection = await this.GetOpenedConnection();
+            var connection = await this.GetOpenedConnection(cancellationToken);
             var command = this._commandFactory.Invoke(connection, sql);
 
             lock (this._tranSync)
@@ -275,11 +301,11 @@ namespace SqExpress.DataAccess
             return command;
         }
 
-        private async Task<TConnection> GetOpenedConnection()
+        private async Task<TConnection> GetOpenedConnection(CancellationToken cancellationToken)
         {
             if (this._wasClosed && this._connection.State == ConnectionState.Closed)
             {
-                await this._connection.OpenAsync();
+                await this._connection.OpenAsync(cancellationToken);
             }
             return this._connection;
         }

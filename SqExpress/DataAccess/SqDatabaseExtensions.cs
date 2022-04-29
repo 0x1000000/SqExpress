@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SqExpress.DataAccess
 {
     public static class SqDatabaseExtensions
     {
-        public static Task Query(this ISqDatabase database, IExprQuery query, Action<ISqDataRecordReader> handler)
+        public static Task Query(this ISqDatabase database, IExprQuery query, Action<ISqDataRecordReader> handler, CancellationToken cancellationToken = default)
         {
             return database.Query<object?>(query,
                 null,
@@ -14,10 +15,11 @@ namespace SqExpress.DataAccess
                 {
                     handler(r);
                     return acc;
-                });
+                },
+                cancellationToken);
         }
 
-        public static Task Query(this ISqDatabase database, IExprQuery query, Func<ISqDataRecordReader, Task> handler)
+        public static Task Query(this ISqDatabase database, IExprQuery query, Func<ISqDataRecordReader, Task> handler, CancellationToken cancellationToken = default)
         {
             return database.Query<object?>(query,
                 null,
@@ -25,9 +27,10 @@ namespace SqExpress.DataAccess
                 {
                     await handler(r);
                     return acc;
-                });
+                },
+                cancellationToken);
         }
-        public static Task<List<T>> QueryList<T>(this ISqDatabase database, IExprQuery expr, Func<ISqDataRecordReader, T> factory, Predicate<T>? predicateItem = null)
+        public static Task<List<T>> QueryList<T>(this ISqDatabase database, IExprQuery expr, Func<ISqDataRecordReader, T> factory, Predicate<T>? predicateItem = null, CancellationToken cancellationToken = default)
         {
             return database.Query(expr,
                 new List<T>(),
@@ -43,7 +46,8 @@ namespace SqExpress.DataAccess
                     }
                     acc.Add(item);
                     return acc;
-                });
+                },
+                cancellationToken);
         }
 
 
@@ -56,7 +60,8 @@ namespace SqExpress.DataAccess
             Func<ISqDataRecordReader, TKey> keyFactory, 
             Func<ISqDataRecordReader, TValue> valueFactory,
             KeyDuplicationHandler<TKey, TValue>? keyDuplicationHandler = null,
-            Func<TKey, TValue, bool>? predicate = null)
+            Func<TKey, TValue, bool>? predicate = null,
+            CancellationToken cancellationToken = default)
             where TKey : notnull
         {
             return database.Query(expr,
@@ -87,7 +92,8 @@ namespace SqExpress.DataAccess
                         }
                     }
                     return acc;
-                });
+                },
+                cancellationToken);
         }
 
     }
