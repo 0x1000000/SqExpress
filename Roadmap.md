@@ -28,7 +28,10 @@
 - [x] "Update Data" builder
 - [x] genmodels - SqModel attribute can be used with derived and temporary tables
 - [x] "MERGE" polyfill for PostgreSql and MYSQL
-## After 0.3.0
+## 0.3.1
+- [x] genmodels - model mode [immutable, mutable, record] as a parameter 
+
+## After 0.3.1
 - [ ] Table Value Functions
 - [ ] CTE
 - [ ] "Create If Not Exists"
@@ -36,4 +39,3 @@
 - [ ] gentables - support MYSQL and PostgreSql
 - [ ] gentables - table filters
 - [ ] genmodels - list of "using"s as a parameter
-- [ ] genmodels - model mode [immutable, mutable, record] as a parameter 

@@ -1,3 +1,8 @@
+# 0.3.2.0
+### New Features
+- Cancellation Token for all db calls
+- Code-gen can be used with .Net 5 and 6 runtimes
+
 # 0.3.1.0
 ### New Features
 - the DTO code-generator now has a parameter that allows generating C# records: ```--model-type ImmutableClass|Record``` or ```<SqModelGenType>ImmutableClass|Record</SqModelGenType>```;
