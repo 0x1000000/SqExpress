@@ -13,7 +13,9 @@ It can be used in conjunction with the “Code First” concept when you declare
 
 It can be used in conjunction with the “Database First” concept using an included code modification utility. The utility is also can be used to generate flexible DTO classes with all required database mappings.
 
-This an article that explains the library principles: ["Syntax Tree and Alternative to LINQ in Interaction with SQL Databases"](https://itnext.io/syntax-tree-and-alternative-to-linq-in-interaction-with-sql-databases-656b78fe00dc?source=friends_link&sk=f5f0587c08166d8824b96b48fe2cf33c)
+## Articles
+1. ["Syntax Tree and Alternative to LINQ in Interaction with SQL Databases"](https://itnext.io/syntax-tree-and-alternative-to-linq-in-interaction-with-sql-databases-656b78fe00dc?source=friends_link&sk=f5f0587c08166d8824b96b48fe2cf33c) - explains the library principles;
+2. ["Filtering by Dynamic Attributes"](https://itnext.io/filtering-by-dynamic-attributes-90ada3504361?source=friends_link&sk=35e273a9f499e6b62bacbac75873a7d2) - shows how to create dynamic queries using the library.
 
 ## Demo Application
 
