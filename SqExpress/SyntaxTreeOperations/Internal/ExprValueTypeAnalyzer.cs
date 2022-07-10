@@ -48,6 +48,11 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             return ctx.ValueVisitor.VisitDateTime(ctx.Ctx, !dateTimeLiteral.Value.HasValue);
         }
 
+        public TRes VisitExprDateTimeOffsetLiteral(ExprDateTimeOffsetLiteral dateTimeLiteral, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitDateTimeOffset(ctx.Ctx, !dateTimeLiteral.Value.HasValue);
+        }
+
         public TRes VisitExprBoolLiteral(ExprBoolLiteral boolLiteral, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
         {
             return ctx.ValueVisitor.VisitBool(ctx.Ctx, !boolLiteral.Value.HasValue);
@@ -235,6 +240,11 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeDateTime(ExprTypeDateTime exprTypeDateTime, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
         {
             return ctx.ValueVisitor.VisitDateTime(ctx.Ctx, null);
+        }
+
+        public TRes VisitExprTypeDateTimeOffset(ExprTypeDateTimeOffset exprTypeDateTimeOffset, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitDateTimeOffset(ctx.Ctx, null);
         }
 
         TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeGuid(ExprTypeGuid exprTypeGuid, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)

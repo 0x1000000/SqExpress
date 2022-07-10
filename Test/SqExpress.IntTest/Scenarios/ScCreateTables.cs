@@ -10,7 +10,7 @@ namespace SqExpress.IntTest.Scenarios
     {
         public async Task Exec(IScenarioContext context)
         {
-            IReadOnlyList<TableBase> createList = AllTables.BuildAllTableList(context.Dialect == SqlDialect.PgSql);
+            IReadOnlyList<TableBase> createList = AllTables.BuildAllTableList(context.Dialect);
 
             var dropping = createList.Reverse().Select(i => i.Script.DropIfExist()).Combine();
             await context.Database.Statement(dropping);

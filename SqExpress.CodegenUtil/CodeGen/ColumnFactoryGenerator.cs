@@ -120,6 +120,14 @@ namespace SqExpress.CodeGenUtil.CodeGen
             return InvokeThis(methodName, LiteralExpr(columnModel.DbName.Name), LiteralExpr(dateTimeColumnType.IsDate), GenColumnMeta(columnContext));
         }
 
+        public ExpressionSyntax VisitDateTimeOffsetColumnType(DateTimeOffsetColumnType dateTimeOffsetColumnType, ColumnContext columnContext)
+        {
+            ColumnModel columnModel = columnContext.ColumnModel;
+            string methodName = dateTimeOffsetColumnType.IsNullable ? nameof(this.CreateNullableDateTimeOffsetColumn) : nameof(CreateDateTimeOffsetColumn);
+
+            return InvokeThis(methodName, LiteralExpr(columnModel.DbName.Name), GenColumnMeta(columnContext));
+        }
+
         public ExpressionSyntax VisitStringColumnType(StringColumnType stringColumnType, ColumnContext columnContext)
         {
             ColumnModel columnModel = columnContext.ColumnModel;

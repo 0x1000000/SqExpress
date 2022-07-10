@@ -124,6 +124,14 @@
             => visitor.VisitExprTypeDateTime(this, arg);
     }
 
+    public class ExprTypeDateTimeOffset : ExprType
+    {
+        public static readonly ExprTypeDateTimeOffset Instance = new ExprTypeDateTimeOffset();
+
+        public override TRes Accept<TRes, TArg>(IExprTypeVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprTypeDateTimeOffset(this, arg);
+    }
+
     public class ExprTypeGuid : ExprType
     {
         public static readonly ExprTypeGuid Instance = new ExprTypeGuid();

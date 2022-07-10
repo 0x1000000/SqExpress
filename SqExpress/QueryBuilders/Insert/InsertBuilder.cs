@@ -37,6 +37,11 @@ namespace SqExpress.QueryBuilders.Insert
             return new ExprInsert(this._table.FullName, this._columns, new ExprInsertValues(rows));
         }
 
+        public ValuesBuilder Values(params ExprValue[] values)
+        {
+            return new ValuesBuilder(this, new List<ExprValue[]>()).Values(values);
+        }
+
         internal static List<ExprInsertValueRow> BuildInsertValues(IEnumerable<IReadOnlyList<ExprValue>> values)
         {
             int? capacity = values is IReadOnlyCollection<IReadOnlyList<ExprValue>> collection ? collection.Count : null;
@@ -68,6 +73,30 @@ namespace SqExpress.QueryBuilders.Insert
             }
 
             return rows;
+        }
+
+        public readonly struct ValuesBuilder
+        {
+            private readonly InsertBuilder _insertBuilder;
+            private readonly List<ExprValue[]> _valuesAcc;
+
+            internal ValuesBuilder(InsertBuilder insertBuilder, List<ExprValue[]> valuesAcc)
+            {
+                this._insertBuilder = insertBuilder;
+                this._valuesAcc = valuesAcc;
+            }
+
+            public ValuesBuilder Values(params ExprValue[] values)
+            {
+                this._valuesAcc.Add(values);
+                return this;
+            }
+
+            public ExprInsert DoneWithValues()
+            {
+                var rows = BuildInsertValues(this._valuesAcc);
+                return new ExprInsert(this._insertBuilder._table.FullName, this._insertBuilder._columns, new ExprInsertValues(rows));
+            }
         }
     }
 
@@ -104,6 +133,11 @@ namespace SqExpress.QueryBuilders.Insert
             return new ExprIdentityInsert(exprInsert, this.IdentityColumns());
         }
 
+        public ValuesBuilder Values(params ExprValue[] values)
+        {
+            return new ValuesBuilder(this, new List<ExprValue[]>()).Values(values);
+        }
+
         private IReadOnlyList<ExprColumnName> IdentityColumns()
         {
             var exprTable = this._table;
@@ -120,6 +154,31 @@ namespace SqExpress.QueryBuilders.Insert
             }
 
             return new ExprColumnName[0];
+        }
+
+        public readonly struct ValuesBuilder
+        {
+            private readonly IdentityInsertBuilder _insertBuilder;
+            private readonly List<ExprValue[]> _valuesAcc;
+
+            internal ValuesBuilder(IdentityInsertBuilder insertBuilder, List<ExprValue[]> valuesAcc)
+            {
+                this._insertBuilder = insertBuilder;
+                this._valuesAcc = valuesAcc;
+            }
+
+            public ValuesBuilder Values(params ExprValue[] values)
+            {
+                this._valuesAcc.Add(values);
+                return this;
+            }
+
+            public ExprIdentityInsert DoneWithValues()
+            {
+                var rows = InsertBuilder.BuildInsertValues(this._valuesAcc);
+                var exprInsert = new ExprInsert(this._insertBuilder._table.FullName, this._insertBuilder._columns, new ExprInsertValues(rows));
+                return new ExprIdentityInsert(exprInsert, this._insertBuilder.IdentityColumns());
+            }
         }
     }
 }

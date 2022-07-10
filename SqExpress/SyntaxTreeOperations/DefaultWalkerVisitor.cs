@@ -74,6 +74,11 @@ namespace SqExpress.SyntaxTreeOperations
         {
         }
 
+        public void VisitPlainProperty(string name, DateTimeOffset? value, TCtx ctx)
+        {
+            
+        }
+
         public void VisitPlainProperty(string name, Guid? value, TCtx ctx)
         {
         }

@@ -16,7 +16,7 @@ namespace SqExpress.IntTest.Scenarios
     {
         public async Task Exec(IScenarioContext context)
         {
-            var table = AllTables.GetItAllColumnTypes(context.Dialect == SqlDialect.PgSql);
+            var table = AllTables.GetItAllColumnTypes(context.Dialect);
 
             var jsonStringOriginal = await ReadAsJsonString(context, table);
 

@@ -198,6 +198,16 @@ namespace SqExpress.Test
             return this.GetByColName<DateTime?>(name);
         }
 
+        public DateTimeOffset GetDateTimeOffset(string name)
+        {
+            return this.GetByColName<DateTimeOffset>(name);
+        }
+
+        public DateTimeOffset? GetNullableDateTimeOffset(string name)
+        {
+            return this.GetByColName<DateTimeOffset?>(name);
+        }
+
         public Guid GetGuid(string name)
         {
             return this.GetByColName<Guid>(name);

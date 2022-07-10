@@ -324,7 +324,7 @@ namespace SqExpress.CodeGenUtil.DbManagers
                 case "date":
                     return new DateTimeColumnType(raw.Nullable, true);
                 case "datetimeoffset":
-                    return new DateTimeColumnType(raw.Nullable, false);
+                    return new DateTimeOffsetColumnType(raw.Nullable);
                 case "datetime2":
                     return new DateTimeColumnType(raw.Nullable, false);
                 case "smalldatetime":

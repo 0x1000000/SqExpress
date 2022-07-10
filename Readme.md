@@ -1362,7 +1362,7 @@ dotnet "%lib%" gentables mssql "MyConnectionString" --table-class-prefix "Tbl" -
 
 lib=~/.nuget/packages/sqexpress/$(ls ~/.nuget/packages/sqexpress -r|head -n 1)/tools/codegen/SqExpress.CodeGenUtil.dll
 
-dotnet $lib gentables mssql "MyConnectionString" --table-class-prefix "Tbl" -o "./Tables" -n "yCompany.MyProject.Tables"
+dotnet $lib gentables mssql "MyConnectionString" --table-class-prefix "Tbl" -o "./Tables" -n "MyCompany.MyProject.Tables"
 ```
 ###
 It uses Roslyn compiler so it does not overwrite existing files - it patched it with actual columns. All kind of changes like attributes, namespaces, interfaces will remain after next runs.

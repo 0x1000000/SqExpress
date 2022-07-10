@@ -41,6 +41,7 @@ namespace SqExpress.SyntaxTreeOperations
         void VisitPlainProperty(string name, decimal? value, TCtx ctx);
         void VisitPlainProperty(string name, double? value, TCtx ctx);
         void VisitPlainProperty(string name, DateTime? value, TCtx ctx);
+        void VisitPlainProperty(string name, DateTimeOffset? value, TCtx ctx);
         void VisitPlainProperty(string name, Guid? value, TCtx ctx);
         void VisitPlainProperty(string name, IReadOnlyList<byte>? value, TCtx ctx);
     }

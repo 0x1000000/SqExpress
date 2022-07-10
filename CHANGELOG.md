@@ -1,3 +1,10 @@
+# 0.3.3.0
+### New Features
+- Support of DateTimeOffset
+- ```InsertInto(t, c1, c2, ...).Values(v1,v2,..).Values(v1,v2,..)...DoneWithValues()```
+### Bugfix
+- StackOverflow on recursive foreign keys
+
 # 0.3.2.0
 ### New Features
 - Cancellation Token for all db calls

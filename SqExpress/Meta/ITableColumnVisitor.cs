@@ -38,6 +38,10 @@
 
         TRes VisitNullableDateTime(NullableDateTimeTableColumn nullableDateTimeTableColumn);
 
+        TRes VisitDateTimeOffset(DateTimeOffsetTableColumn dateTimeTableColumn);
+
+        TRes VisitNullableDateTimeOffset(NullableDateTimeOffsetTableColumn nullableDateTimeTableColumn);
+
         TRes VisitGuid(GuidTableColumn guidTableColumn);
 
         TRes VisitNullableGuid(NullableGuidTableColumn nullableGuidTableColumn);

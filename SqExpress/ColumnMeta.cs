@@ -33,6 +33,9 @@ namespace SqExpress
 
         public readonly struct ColumnMetaBuilder
         {
+            //To Prevent Cycles in Foreign Keys
+            private static readonly HashSet<object> FkFactoriesCache = new HashSet<object>();
+
             private readonly bool _isPrimaryKey;
             private readonly bool _isIdentity;
             private readonly TableColumn[]? _fks;
@@ -68,7 +71,19 @@ namespace SqExpress
 
             public ColumnMetaBuilder ForeignKey<TTable>(Func<TTable, TableColumn> fkFactory) where TTable : TableBase, new()
             {
-                var fkColumn = fkFactory(new TTable());
+                TableColumn? fkColumn;
+
+                if (!FkFactoriesCache.Contains(fkFactory))
+                {
+                    FkFactoriesCache.Add(fkFactory);
+
+                    fkColumn = fkFactory(new TTable());
+                }
+                else
+                {
+                    return this;
+                }
+                FkFactoriesCache.Clear();
 
                 var newFks = this._fks == null
                     ? new [] {fkColumn}

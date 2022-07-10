@@ -47,6 +47,7 @@ namespace SqExpress
             public ExprTypeDecimal Decimal(DecimalPrecisionScale? precisionScale = null) => new ExprTypeDecimal(precisionScale);
             public ExprTypeDouble Double => ExprTypeDouble.Instance;
             public ExprTypeDateTime DateTime(bool isDate = false) => new ExprTypeDateTime(isDate);
+            public ExprTypeDateTimeOffset DateTimeOffset => ExprTypeDateTimeOffset.Instance;
             public ExprTypeGuid Guid => ExprTypeGuid.Instance;
             public ExprTypeString String(int? size=null, bool isUnicode=true, bool isText = false) =>new ExprTypeString(size, isUnicode, isText);
             public ExprTypeFixSizeByteArray ByteArrayFixedSize(int size) => new ExprTypeFixSizeByteArray(size);

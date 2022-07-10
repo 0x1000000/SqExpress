@@ -63,6 +63,11 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             return isNull;
         }
 
+        public bool? VisitDateTimeOffset(object? arg, bool? isNull)
+        {
+            return isNull;
+        }
+
         public bool? VisitGuid(object? arg, bool? isNull)
         {
             return isNull;

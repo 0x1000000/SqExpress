@@ -18,6 +18,8 @@ namespace SqExpress.Syntax
 
         TRes VisitExprDateTimeLiteral(ExprDateTimeLiteral dateTimeLiteral, TArg arg);
 
+        TRes VisitExprDateTimeOffsetLiteral(ExprDateTimeOffsetLiteral dateTimeLiteral, TArg arg);
+
         TRes VisitExprBoolLiteral(ExprBoolLiteral boolLiteral, TArg arg);
 
         TRes VisitExprInt64Literal(ExprInt64Literal int64Literal, TArg arg);

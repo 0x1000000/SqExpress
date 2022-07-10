@@ -196,6 +196,17 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
             return false;
         }
 
+        public bool TryGetDateTimeOffset(IPlainItem node, string propertyName, out DateTimeOffset value)
+        {
+            value = default;
+            if (this.TryGetSubNode(node.Id, propertyName, null, out var prop) && prop.Value != null)
+            {
+                value = DateTimeOffset.Parse(prop.Value);
+                return true;
+            }
+            return false;
+        }
+
         public bool TryGetString(IPlainItem node, string propertyName, out string? value)
         {
             value = default;

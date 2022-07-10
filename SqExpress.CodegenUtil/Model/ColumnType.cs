@@ -11,6 +11,7 @@
         TRes VisitDoubleColumnType(DoubleColumnType doubleColumnType, TArg arg);
         TRes VisitDecimalColumnType(DecimalColumnType decimalColumnType, TArg arg);
         TRes VisitDateTimeColumnType(DateTimeColumnType dateTimeColumnType, TArg arg);
+        TRes VisitDateTimeOffsetColumnType(DateTimeOffsetColumnType dateTimeColumnType, TArg arg);
         TRes VisitStringColumnType(StringColumnType stringColumnType, TArg arg);
         TRes VisitGuidColumnType(GuidColumnType guidColumnType, TArg arg);
         TRes VisitXmlColumnType(XmlColumnType xmlColumnType, TArg arg);
@@ -142,6 +143,16 @@
         public DateTimeColumnType(bool isNullable, bool isDate) : base(isNullable)
         {
             this.IsDate = isDate;
+        }
+    }
+
+    internal class DateTimeOffsetColumnType : ColumnType
+    {
+        public override TRes Accept<TRes, TArg>(IColumnTypeVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitDateTimeOffsetColumnType(this, arg);
+
+        public DateTimeOffsetColumnType(bool isNullable) : base(isNullable)
+        {
         }
     }
 

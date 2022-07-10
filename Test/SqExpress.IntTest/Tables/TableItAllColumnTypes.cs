@@ -1,20 +1,21 @@
 using SqExpress;
+using SqExpress.IntTest.Context;
 using SqExpress.Syntax.Type;
 
 namespace SqExpress.IntTest.Tables
 {
     public class TableItAllColumnTypes : TableBase
     {
-        public TableItAllColumnTypes(bool postgres) : this(postgres, alias: SqExpress.Alias.Auto)
+        public TableItAllColumnTypes(SqlDialect sqlDialect) : this(sqlDialect, alias: SqExpress.Alias.Auto)
         {
         }
 
-        public TableItAllColumnTypes(bool postgres, Alias alias): base(schema: "dbo", name: "ItAllColumnTypes", alias: alias)
+        public TableItAllColumnTypes(SqlDialect sqlDialect, Alias alias): base(schema: "dbo", name: "ItAllColumnTypes", alias: alias)
         {
             this.Id = this.CreateInt32Column("Id", ColumnMeta.PrimaryKey().Identity());
             this.ColBoolean = this.CreateBooleanColumn("ColBoolean", null);
             this.ColNullableBoolean = this.CreateNullableBooleanColumn("ColNullableBoolean", null);
-            if (!postgres)
+            if (sqlDialect != SqlDialect.PgSql)
             {
                 this.ColByte = this.CreateByteColumn("ColByte", null);
                 this.ColNullableByte = this.CreateNullableByteColumn("ColNullableByte", null);
@@ -48,6 +49,11 @@ namespace SqExpress.IntTest.Tables
             this.ColNullableFixedSizeByteArray = this.CreateNullableFixedSizeByteArrayColumn("ColNullableFixedSizeByteArray", 2, null);
             this.ColXml = this.CreateXmlColumn("ColXml", null);
             this.ColNullableXml = this.CreateNullableXmlColumn("ColNullableXml", null);
+            if (sqlDialect != SqlDialect.MySql)
+            {
+                this.ColDateTimeOffset = this.CreateDateTimeOffsetColumn("ColDateTimeOffset");
+                this.ColNullableDateTimeOffset = this.CreateNullableDateTimeOffsetColumn("ColNullableDateTimeOffset");
+            }
         }
 
         [SqModel("AllTypes")]
@@ -151,5 +157,11 @@ namespace SqExpress.IntTest.Tables
 
         [SqModel("AllTypes")]
         public NullableStringTableColumn ColNullableXml { get; }
+
+        [SqModel("AllTypes")]
+        public DateTimeOffsetTableColumn ColDateTimeOffset { get; set; }
+
+        [SqModel("AllTypes")]
+        public NullableDateTimeOffsetTableColumn ColNullableDateTimeOffset { get; set; }
     }
 }

@@ -54,6 +54,11 @@ namespace SqExpress.QueryBuilders.RecordSetter.Internal
             return this.SetGeneric(column, SqQueryBuilder.Literal(value));
         }
 
+        public TNext Set(DateTimeOffsetTableColumn column, DateTimeOffset value)
+        {
+            return this.SetGeneric(column, SqQueryBuilder.Literal(value));
+        }
+
         public TNext Set(GuidTableColumn column, Guid value)
         {
             return this.SetGeneric(column, SqQueryBuilder.Literal(value));
@@ -105,6 +110,11 @@ namespace SqExpress.QueryBuilders.RecordSetter.Internal
         }
 
         public TNext Set(NullableDateTimeTableColumn column, DateTime? value)
+        {
+            return this.SetGeneric(column, SqQueryBuilder.Literal(value));
+        }
+
+        public TNext Set(NullableDateTimeOffsetTableColumn column, DateTimeOffset? value)
         {
             return this.SetGeneric(column, SqQueryBuilder.Literal(value));
         }
@@ -164,6 +174,11 @@ namespace SqExpress.QueryBuilders.RecordSetter.Internal
             return this.SetGeneric(column, SqQueryBuilder.Literal(value));
         }
 
+        public TNext Set(DateTimeOffsetCustomColumn column, DateTimeOffset value)
+        {
+            return this.SetGeneric(column, SqQueryBuilder.Literal(value));
+        }
+
         public TNext Set(GuidCustomColumn column, Guid value)
         {
             return this.SetGeneric(column, SqQueryBuilder.Literal(value));
@@ -215,6 +230,11 @@ namespace SqExpress.QueryBuilders.RecordSetter.Internal
         }
 
         public TNext Set(NullableDateTimeCustomColumn column, DateTime? value)
+        {
+            return this.SetGeneric(column, SqQueryBuilder.Literal(value));
+        }
+
+        public TNext Set(NullableDateTimeOffsetCustomColumn column, DateTimeOffset? value)
         {
             return this.SetGeneric(column, SqQueryBuilder.Literal(value));
         }

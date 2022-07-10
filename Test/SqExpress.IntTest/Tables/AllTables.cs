@@ -1,20 +1,21 @@
 using SqExpress;
+using SqExpress.IntTest.Context;
 
 namespace SqExpress.IntTest.Tables
 {
     public static class AllTables
     {
-        public static TableBase[] BuildAllTableList(bool postgres) => new TableBase[]
+        public static TableBase[] BuildAllTableList(SqlDialect dialect) => new TableBase[]
         {
-            GetFk0(Alias.Empty), GetItAllColumnTypes(postgres, Alias.Empty), GetFk1A(Alias.Empty), GetFk1B(Alias.Empty),
+            GetFk0(Alias.Empty), GetItAllColumnTypes(dialect, Alias.Empty), GetFk1A(Alias.Empty), GetFk1B(Alias.Empty),
             GetItCompany(Alias.Empty), GetItUser(Alias.Empty), GetFk2AB(Alias.Empty), GetItCustomer(Alias.Empty),
             GetFk3AB(Alias.Empty), GetItOrder(Alias.Empty)
         };
 
         public static TableFk0 GetFk0(Alias alias) => new TableFk0(alias);
         public static TableFk0 GetFk0() => new TableFk0(Alias.Auto);
-        public static TableItAllColumnTypes GetItAllColumnTypes(bool postgres, Alias alias) => new TableItAllColumnTypes(postgres, alias);
-        public static TableItAllColumnTypes GetItAllColumnTypes(bool postgres) => new TableItAllColumnTypes(postgres, Alias.Auto);
+        public static TableItAllColumnTypes GetItAllColumnTypes(SqlDialect dialect, Alias alias) => new TableItAllColumnTypes(dialect, alias);
+        public static TableItAllColumnTypes GetItAllColumnTypes(SqlDialect dialect) => new TableItAllColumnTypes(dialect, Alias.Auto);
         public static TableFk1A GetFk1A(Alias alias) => new TableFk1A(alias);
         public static TableFk1A GetFk1A() => new TableFk1A(Alias.Auto);
         public static TableFk1B GetFk1B(Alias alias) => new TableFk1B(alias);

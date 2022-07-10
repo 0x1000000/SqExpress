@@ -24,6 +24,8 @@ namespace SqExpress
         public static NullableDoubleCustomColumn NullableDouble(string columnName) => new NullableDoubleCustomColumn(columnName);
         public static DateTimeCustomColumn DateTime(string columnName) => new DateTimeCustomColumn(columnName);
         public static NullableDateTimeCustomColumn NullableDateTime(string columnName) => new NullableDateTimeCustomColumn(columnName);
+        public static DateTimeOffsetCustomColumn DateTimeOffset(string columnName) => new DateTimeOffsetCustomColumn(columnName);
+        public static NullableDateTimeOffsetCustomColumn NullableDateTimeOffset(string columnName) => new NullableDateTimeOffsetCustomColumn(columnName);
         public static GuidCustomColumn Guid(string columnName) => new GuidCustomColumn(columnName);
         public static NullableGuidCustomColumn NullableGuid(string columnName) => new NullableGuidCustomColumn(columnName);
         public static StringCustomColumn String(string columnName) => new StringCustomColumn(columnName);

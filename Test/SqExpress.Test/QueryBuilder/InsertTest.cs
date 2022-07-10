@@ -137,6 +137,40 @@ namespace SqExpress.Test.QueryBuilder
         }
 
         [Test]
+        public void InsertValuesTest()
+        {
+            var tbl = Tables.User();
+
+            var actual = InsertInto(tbl, tbl.FirstName, tbl.LastName, tbl.Modified, tbl.Version)
+                .Values("FirstName","LastName", GetUtcDate(), 1)
+                .Values("FirstName2", "LastName2", new DateTime(2022, 7, 10), 2)
+                .DoneWithValues()
+                .ToSql();
+            var expected = "INSERT INTO [dbo].[user]([FirstName],[LastName],[Modified],[Version]) VALUES " +
+                           "('FirstName','LastName',GETUTCDATE(),1),('FirstName2','LastName2','2022-07-10',2)";
+
+            Assert.AreEqual(expected, actual);
+        }
+
+        [Test]
+        public void IdentityInsertValuesTest()
+        {
+            var tbl = Tables.User();
+
+            var actual = IdentityInsertInto(tbl, tbl.UserId, tbl.FirstName)
+                .Values(1, "FirstName")
+                .Values(2, "FirstName2")
+                .DoneWithValues()
+                .ToSql();
+            var expected = "SET IDENTITY_INSERT [dbo].[user] ON;" +
+                           "INSERT INTO [dbo].[user]([UserId],[FirstName]) " +
+                           "VALUES (1,'FirstName'),(2,'FirstName2');" +
+                           "SET IDENTITY_INSERT [dbo].[user] OFF;";
+
+            Assert.AreEqual(expected, actual);
+        }
+
+        [Test]
         public void Test()
         {
             const int usersCount = 1;

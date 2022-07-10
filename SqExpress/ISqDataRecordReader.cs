@@ -26,6 +26,8 @@ namespace SqExpress
         double? GetNullableDouble(string name);
         DateTime GetDateTime(string name);
         DateTime? GetNullableDateTime(string name);
+        DateTimeOffset GetDateTimeOffset(string name);
+        DateTimeOffset? GetNullableDateTimeOffset(string name);
         Guid GetGuid(string name);
         Guid? GetNullableGuid(string name);
         string GetString(string name);

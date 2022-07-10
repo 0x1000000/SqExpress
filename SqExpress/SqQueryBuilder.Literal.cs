@@ -13,6 +13,7 @@ namespace SqExpress
         public static ExprGuidLiteral Literal(Guid? value) => new ExprGuidLiteral(value);
         public static ExprGuidLiteral Literal(Guid value) => new ExprGuidLiteral(value);
         public static ExprDateTimeLiteral Literal(DateTime? value) => new ExprDateTimeLiteral(value);
+        public static ExprDateTimeOffsetLiteral Literal(DateTimeOffset? value) => new ExprDateTimeOffsetLiteral(value);
         public static ExprBoolLiteral Literal(bool? value) => new ExprBoolLiteral(value);
         public static ExprBoolLiteral Literal(bool value) => new ExprBoolLiteral(value);
         public static ExprByteLiteral Literal(byte? value) => new ExprByteLiteral(value);
@@ -30,6 +31,8 @@ namespace SqExpress
         public static ExprCast LiteralCast(Guid value) => Cast(Literal(value), SqlType.Guid);
         public static ExprCast LiteralCast(DateTime? value, bool isDate = false) => Cast(Literal(value), SqlType.DateTime(isDate));
         public static ExprCast LiteralCast(DateTime value, bool isDate = false) => Cast(Literal(value), SqlType.DateTime(isDate));
+        public static ExprCast LiteralCast(DateTimeOffset? value) => Cast(Literal(value), SqlType.DateTimeOffset);
+        public static ExprCast LiteralCast(DateTimeOffset value) => Cast(Literal(value), SqlType.DateTimeOffset);
         public static ExprCast LiteralCast(bool? value) => Cast(Literal(value), SqlType.Boolean);
         public static ExprCast LiteralCast(bool value) => Cast(Literal(value), SqlType.Boolean);
         public static ExprCast LiteralCast(byte? value) => Cast(Literal(value), SqlType.Byte);

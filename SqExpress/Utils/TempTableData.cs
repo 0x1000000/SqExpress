@@ -250,6 +250,12 @@ namespace SqExpress.Utils
                    new NullableDateTimeTableColumn(this.Alias, arg.ColumnName, this, false, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
         }
 
+        public TableColumn? VisitDateTimeOffset(TempTableBuilderCtx arg, bool? isNull)
+        {
+            return EnsureColumnType<NullableDateTimeOffsetTableColumn>(arg) ??
+                   new NullableDateTimeOffsetTableColumn(this.Alias, arg.ColumnName, this, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
+        }
+
         public TableColumn? VisitGuid(TempTableBuilderCtx arg, bool? isNull)
         {
             return EnsureColumnType<NullableGuidTableColumn>(arg) ??

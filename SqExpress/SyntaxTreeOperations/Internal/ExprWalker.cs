@@ -41,6 +41,7 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         void VisitPlainProperty(string name, decimal? value, TCtx ctx) => this._visitor.VisitPlainProperty(name, value, ctx);
         void VisitPlainProperty(string name, double? value, TCtx ctx) => this._visitor.VisitPlainProperty(name, value, ctx);
         void VisitPlainProperty(string name, DateTime? value, TCtx ctx) => this._visitor.VisitPlainProperty(name, value, ctx);
+        void VisitPlainProperty(string name, DateTimeOffset? value, TCtx ctx) => this._visitor.VisitPlainProperty(name, value, ctx);
         void VisitPlainProperty(string name, Guid? value, TCtx ctx) => this._visitor.VisitPlainProperty(name, value, ctx);
         void VisitPlainProperty(string name, IReadOnlyList<byte>? value, TCtx ctx) => this._visitor.VisitPlainProperty(name, value, ctx);
 
@@ -302,6 +303,13 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         public bool VisitExprDateTimeLiteral(ExprDateTimeLiteral expr, TCtx arg)
         {
             var res = this.Visit(expr, "DateTimeLiteral", arg, out var argOut);
+            this.VisitPlainProperty("Value",expr.Value, argOut);
+            this._visitor.EndVisitExpr(expr, arg);
+            return res;
+        }
+        public bool VisitExprDateTimeOffsetLiteral(ExprDateTimeOffsetLiteral expr, TCtx arg)
+        {
+            var res = this.Visit(expr, "DateTimeOffsetLiteral", arg, out var argOut);
             this.VisitPlainProperty("Value",expr.Value, argOut);
             this._visitor.EndVisitExpr(expr, arg);
             return res;
@@ -754,6 +762,12 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         {
             var res = this.Visit(expr, "TypeDateTime", arg, out var argOut);
             this.VisitPlainProperty("IsDate",expr.IsDate, argOut);
+            this._visitor.EndVisitExpr(expr, arg);
+            return res;
+        }
+        public bool VisitExprTypeDateTimeOffset(ExprTypeDateTimeOffset expr, TCtx arg)
+        {
+            var res = this.Visit(expr, "TypeDateTimeOffset", arg, out var argOut);
             this._visitor.EndVisitExpr(expr, arg);
             return res;
         }

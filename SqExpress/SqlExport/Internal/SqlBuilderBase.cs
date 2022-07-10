@@ -255,6 +255,23 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public abstract bool VisitExprDateTimeOffsetLiteral(ExprDateTimeOffsetLiteral dateTimeLiteral, IExpr? arg);
+
+        protected bool VisitExprDateTimeOffsetLiteralCommon(ExprDateTimeOffsetLiteral dateTimeLiteral, IExpr? arg)
+        {
+            if (!dateTimeLiteral.Value.HasValue)
+            {
+                this.AppendNull();
+            }
+            else
+            {
+                this.Builder.Append('\'');
+                this.Builder.Append(dateTimeLiteral.Value.Value.ToString("O"));
+                this.Builder.Append('\'');
+            }
+            return true;
+        }
+
         public abstract bool VisitExprBoolLiteral(ExprBoolLiteral boolLiteral, IExpr? parent);
 
         public bool VisitExprInt64Literal(ExprInt64Literal int64Literal, IExpr? parent)
@@ -1339,6 +1356,8 @@ namespace SqExpress.SqlExport.Internal
         public abstract bool VisitExprTypeDouble(ExprTypeDouble exprTypeDouble, IExpr? parent);
 
         public abstract bool VisitExprTypeDateTime(ExprTypeDateTime exprTypeDateTime, IExpr? parent);
+
+        public abstract bool VisitExprTypeDateTimeOffset(ExprTypeDateTimeOffset exprTypeDateTimeOffset, IExpr? arg);
 
         public abstract bool VisitExprTypeGuid(ExprTypeGuid exprTypeGuid, IExpr? parent);
 

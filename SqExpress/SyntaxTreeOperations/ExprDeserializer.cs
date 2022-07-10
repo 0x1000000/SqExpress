@@ -78,6 +78,7 @@ namespace SqExpress.SyntaxTreeOperations
                 case "DatabaseName": return new ExprDatabaseName(name: ReadString(rootElement, reader, "Name"));
                 case "DateAdd": return new ExprDateAdd(date: GetSubNode<TNode, ExprValue>(rootElement, reader, "Date"), datePart: ReadDateAddDatePart(rootElement, reader, "DatePart"), number: ReadInt32(rootElement, reader, "Number"));
                 case "DateTimeLiteral": return new ExprDateTimeLiteral(value: ReadNullableDateTime(rootElement, reader, "Value"));
+                case "DateTimeOffsetLiteral": return new ExprDateTimeOffsetLiteral(value: ReadNullableDateTimeOffset(rootElement, reader, "Value"));
                 case "DbSchema": return new ExprDbSchema(database: GetNullableSubNode<TNode, ExprDatabaseName>(rootElement, reader, "Database"), schema: GetSubNode<TNode, ExprSchemaName>(rootElement, reader, "Schema"));
                 case "DecimalLiteral": return new ExprDecimalLiteral(value: ReadNullableDecimal(rootElement, reader, "Value"));
                 case "Default": return ExprDefault.Instance;
@@ -150,6 +151,7 @@ namespace SqExpress.SyntaxTreeOperations
                 case "TypeByte": return ExprTypeByte.Instance;
                 case "TypeByteArray": return new ExprTypeByteArray(size: ReadNullableInt32(rootElement, reader, "Size"));
                 case "TypeDateTime": return new ExprTypeDateTime(isDate: ReadBoolean(rootElement, reader, "IsDate"));
+                case "TypeDateTimeOffset": return ExprTypeDateTimeOffset.Instance;
                 case "TypeDecimal": return new ExprTypeDecimal(precisionScale: ReadNullableDecimalPrecisionScale(rootElement, reader, "PrecisionScale"));
                 case "TypeDouble": return ExprTypeDouble.Instance;
                 case "TypeFixSizeByteArray": return new ExprTypeFixSizeByteArray(size: ReadInt32(rootElement, reader, "Size"));
@@ -329,6 +331,15 @@ namespace SqExpress.SyntaxTreeOperations
         private static DateTime? ReadNullableDateTime<TNode>(TNode rootElement, IExprReader<TNode> reader, string value)
         {
             if (reader.TryGetDateTime(rootElement, value, out var result))
+            {
+                return result;
+            }
+            return null;
+        }
+
+        private static DateTimeOffset? ReadNullableDateTimeOffset<TNode>(TNode rootElement, IExprReader<TNode> reader, string value)
+        {
+            if (reader.TryGetDateTimeOffset(rootElement, value, out var result))
             {
                 return result;
             }

@@ -15,6 +15,7 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         TRes VisitString(TArg arg, bool? isNull, int? size, bool fix);
         TRes VisitXml(TArg arg, bool? isNull);
         TRes VisitDateTime(TArg arg, bool? isNull);
+        TRes VisitDateTimeOffset(TArg arg, bool? isNull);
         TRes VisitGuid(TArg arg, bool? isNull);
         TRes VisitByteArray(TArg arg, bool? isNull, int? length, bool fix);
     }

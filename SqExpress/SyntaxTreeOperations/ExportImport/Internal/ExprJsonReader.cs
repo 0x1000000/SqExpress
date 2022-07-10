@@ -95,6 +95,13 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
                    && valueNode.TryGetDateTime(out value);
         }
 
+        public bool TryGetDateTimeOffset(JsonElement node, string propertyName, out DateTimeOffset value)
+        {
+            value = default;
+            return node.TryGetProperty(propertyName, out var valueNode)
+                   && valueNode.TryGetDateTimeOffset(out value);
+        }
+
         public bool TryGetString(JsonElement node, string propertyName, out string? value)
         {
             value = default;

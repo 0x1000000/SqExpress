@@ -42,6 +42,11 @@ namespace SqExpress.SqlExport.Internal
             SqlInjectionChecker.AppendStringEscapeSingleQuote(builder, literal);
         }
 
+        public override bool VisitExprDateTimeOffsetLiteral(ExprDateTimeOffsetLiteral dateTimeLiteral, IExpr? arg)
+        {
+            return this.VisitExprDateTimeOffsetLiteralCommon(dateTimeLiteral, arg);
+        }
+
         public override bool VisitExprBoolLiteral(ExprBoolLiteral boolLiteral, IExpr? parent)
         {
             if (boolLiteral.Value.HasValue)
@@ -375,6 +380,12 @@ namespace SqExpress.SqlExport.Internal
                 this.Builder.Append("timestamp");
             }
 
+            return true;
+        }
+
+        public override bool VisitExprTypeDateTimeOffset(ExprTypeDateTimeOffset exprTypeDateTimeOffset, IExpr? arg)
+        {
+            this.Builder.Append("timestamp with time zone");
             return true;
         }
 

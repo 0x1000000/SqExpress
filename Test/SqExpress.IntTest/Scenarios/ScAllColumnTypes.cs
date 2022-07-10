@@ -18,10 +18,10 @@ namespace SqExpress.IntTest.Scenarios
         public async Task Exec(IScenarioContext context)
         {
             bool isPostgres = context.Dialect == SqlDialect.PgSql;
-            var table = new TableItAllColumnTypes(isPostgres);
+            var table = new TableItAllColumnTypes(context.Dialect);
             await context.Database.Statement(table.Script.DropAndCreate());
 
-            var testData = GetTestData(isPostgres);
+            var testData = GetTestData(context.Dialect);
 
             await InsertDataInto(table, testData)
                 .MapData(Mapping)
@@ -38,7 +38,9 @@ namespace SqExpress.IntTest.Scenarios
                     .ForMember(nameof(table.ColNullableByteArraySmall), c => c.Ignore())
                     .ForMember(nameof(table.ColNullableByteArrayBig), c => c.Ignore())
                     .ForMember(nameof(table.ColNullableFixedSizeByteArray), c => c.Ignore())
-                    .ForMember(nameof(table.ColFixedSizeByteArray), c => c.Ignore());
+                    .ForMember(nameof(table.ColFixedSizeByteArray), c => c.Ignore())
+                    .ForMember(nameof(table.ColDateTimeOffset), c => c.Ignore())
+                    .ForMember(nameof(table.ColNullableDateTimeOffset), c => c.Ignore());
 
                 if (isPostgres)
                 {
@@ -72,6 +74,15 @@ namespace SqExpress.IntTest.Scenarios
                     allColumnTypesDto.ColNullableByteArraySmall = table.ColNullableByteArraySmall.Read(r);
                     allColumnTypesDto.ColFixedSizeByteArray = table.ColFixedSizeByteArray.Read(r);
                     allColumnTypesDto.ColNullableFixedSizeByteArray = table.ColNullableFixedSizeByteArray.Read(r);
+                    if (!ReferenceEquals(table.ColDateTimeOffset, null))
+                    {
+                        allColumnTypesDto.ColDateTimeOffset = table.ColDateTimeOffset.Read(r);
+                    }
+
+                    if (!ReferenceEquals(table.ColNullableDateTimeOffset, null))
+                    {
+                        allColumnTypesDto.ColNullableDateTimeOffset = table.ColNullableDateTimeOffset.Read(r);
+                    }
 
                     return allColumnTypesDto;
                 });
@@ -139,6 +150,16 @@ namespace SqExpress.IntTest.Scenarios
                 recordSetterNext = recordSetterNext.Set(s.Target.ColNullableByte, s.Source.ColNullableByte);
             }
 
+            if (!ReferenceEquals(s.Target.ColDateTimeOffset, null))
+            {
+                recordSetterNext = recordSetterNext.Set(s.Target.ColDateTimeOffset, s.Source.ColDateTimeOffset);
+            }
+
+            if (!ReferenceEquals(s.Target.ColNullableDateTimeOffset, null))
+            {
+                recordSetterNext = recordSetterNext.Set(s.Target.ColNullableDateTimeOffset, s.Source.ColNullableDateTimeOffset);
+            }
+
             recordSetterNext = recordSetterNext
                 .Set(s.Target.ColInt16, s.Source.ColInt16)
                 .Set(s.Target.ColNullableInt16, s.Source.ColNullableInt16)
@@ -178,7 +199,7 @@ namespace SqExpress.IntTest.Scenarios
             return recordSetterNext;
         }
 
-        private static AllColumnTypesDto[] GetTestData(bool isPostgres)
+        private static AllColumnTypesDto[] GetTestData(SqlDialect dialect)
         {
             byte[] GenerateTestArray(int shift, int size)
             {
@@ -199,7 +220,7 @@ namespace SqExpress.IntTest.Scenarios
                 new AllColumnTypesDto
                 {
                     ColBoolean = true,
-                    ColByte = isPostgres ? default : byte.MaxValue,
+                    ColByte = dialect == SqlDialect.PgSql ? default : byte.MaxValue,
                     ColDateTime = new DateTime(2020, 10, 13),
                     ColDecimal = 2.123456m,
                     ColDouble = 2.123456,
@@ -214,7 +235,7 @@ namespace SqExpress.IntTest.Scenarios
                     ColByteArrayBig = GenerateTestArray(29, 65535*2),
 
                     ColNullableBoolean = true,
-                    ColNullableByte = isPostgres ? (byte?)null : byte.MaxValue,
+                    ColNullableByte = dialect == SqlDialect.PgSql ? (byte?)null : byte.MaxValue,
                     ColNullableDateTime = new DateTime(2020, 10, 13),
                     ColNullableDecimal = 2.123456m,
                     ColNullableDouble = 2.123456,
@@ -234,14 +255,16 @@ namespace SqExpress.IntTest.Scenarios
                     ColNullableFixedSizeString = "321",
 
                     ColXml = "<root><Item2 /></root>",
-                    ColNullableXml = "<root><Item /></root>"
+                    ColNullableXml = "<root><Item /></root>",
 
+                    ColDateTimeOffset = dialect == SqlDialect.MySql ? default : new DateTimeOffset(new DateTime(2022, 07, 10, 18, 10, 45), TimeSpan.FromHours(3)),
+                    ColNullableDateTimeOffset = dialect == SqlDialect.MySql ? (DateTimeOffset?)null : new DateTimeOffset(new DateTime(2022, 07, 10, 18, 10, 46), TimeSpan.FromHours(3))
                 },
 
                 new AllColumnTypesDto
                 {
                     ColBoolean = false,
-                    ColByte = isPostgres ? default : byte.MinValue,
+                    ColByte = dialect == SqlDialect.PgSql ? default : byte.MinValue,
                     ColDateTime = new DateTime(2020, 10, 14),
                     ColDecimal = -2.123456m,
                     ColDouble = -2.123456,
@@ -276,7 +299,11 @@ namespace SqExpress.IntTest.Scenarios
 
                     ColNullableFixedSizeByteArray = null,
                     ColNullableFixedSizeString = null,
-                    ColNullableXml = null
+                    ColNullableXml = null,
+
+                    ColDateTimeOffset = dialect == SqlDialect.MySql ? default : new DateTimeOffset(new DateTime(2022, 07, 10, 18, 10, 45), TimeSpan.FromHours(3)),
+
+                    ColNullableDateTimeOffset = null
                 }
             };
             return result;
@@ -349,6 +376,9 @@ namespace SqExpress.IntTest.Scenarios
             public string ColXml { get; set; } = "";
             public string? ColNullableXml { get; set; }
 
+            public DateTimeOffset ColDateTimeOffset { get; set; }
+            public DateTimeOffset? ColNullableDateTimeOffset { get; set; }
+
             public bool Equals(AllColumnTypesDto? other)
             {
                 if (ReferenceEquals(null, other)) return false;
@@ -387,7 +417,10 @@ namespace SqExpress.IntTest.Scenarios
                        this.ColFixedSizeString == other.ColFixedSizeString &&
 
                        CompareArrays(this.ColNullableFixedSizeByteArray, other.ColNullableFixedSizeByteArray) &&
-                       CompareArrays(this.ColFixedSizeByteArray, other.ColFixedSizeByteArray)
+                       CompareArrays(this.ColFixedSizeByteArray, other.ColFixedSizeByteArray) &&
+
+                       this.ColDateTimeOffset == other.ColDateTimeOffset &&
+                       this.ColNullableDateTimeOffset == other.ColNullableDateTimeOffset
                        ;
 
 
@@ -465,6 +498,9 @@ namespace SqExpress.IntTest.Scenarios
 
                 hashCode.Add(this.ColXml);
                 hashCode.Add(this.ColNullableXml);
+
+                hashCode.Add(this.ColDateTimeOffset);
+                hashCode.Add(this.ColNullableDateTimeOffset);
                 return hashCode.ToHashCode();
             }
         }

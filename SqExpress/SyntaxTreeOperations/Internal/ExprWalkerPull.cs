@@ -605,6 +605,16 @@ namespace SqExpress.SyntaxTreeOperations.Internal
                     throw new SqExpressException("Incorrect enumerator visitor state");
             }
         }
+        public bool VisitExprDateTimeOffsetLiteral(ExprDateTimeOffsetLiteral expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
         public bool VisitExprDbSchema(ExprDbSchema expr, object? arg)
         {
             switch (this.Peek().State)
@@ -1532,6 +1542,16 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
         }
         public bool VisitExprTypeDateTime(ExprTypeDateTime expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
+        public bool VisitExprTypeDateTimeOffset(ExprTypeDateTimeOffset expr, object? arg)
         {
             switch (this.Peek().State)
             {

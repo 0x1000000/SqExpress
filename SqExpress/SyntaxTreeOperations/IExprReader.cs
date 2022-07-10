@@ -20,6 +20,7 @@ namespace SqExpress.SyntaxTreeOperations
         bool TryGetDecimal(TNode node, string propertyName, out decimal value);
         bool TryGetDouble(TNode node, string propertyName, out double value);
         bool TryGetDateTime(TNode node, string propertyName, out DateTime value);
+        bool TryGetDateTimeOffset(TNode node, string propertyName, out DateTimeOffset value);
         bool TryGetString(TNode node, string propertyName, out string? value);
         bool TryGetByteArray(TNode node, string propertyName, out IReadOnlyList<byte>? value);
     }

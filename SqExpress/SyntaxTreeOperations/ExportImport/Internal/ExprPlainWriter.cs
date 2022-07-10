@@ -108,6 +108,15 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
             }
         }
 
+        public void VisitPlainProperty(string name, DateTimeOffset? value, int ctx)
+        {
+            if (value != null)
+            {
+                string ts = value.Value.ToString("O");
+                this._buffer.Add(this._factory(ctx, ctx, null, false, name, ts));
+            }
+        }
+
         public void VisitPlainProperty(string name, Guid? value, int ctx)
         {
             this._buffer.Add(this._factory(ctx, ctx, null, false, name, value?.ToString("D")));

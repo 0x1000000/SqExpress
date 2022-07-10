@@ -280,6 +280,9 @@ namespace SqExpress
         public static ExprDateTimeLiteral WithValue(this ExprDateTimeLiteral original, DateTime? newValue) 
             => new ExprDateTimeLiteral(value: newValue);
 
+        public static ExprDateTimeOffsetLiteral WithValue(this ExprDateTimeOffsetLiteral original, DateTimeOffset? newValue) 
+            => new ExprDateTimeOffsetLiteral(value: newValue);
+
         public static ExprDbSchema WithDatabase(this ExprDbSchema original, ExprDatabaseName? newDatabase) 
             => new ExprDbSchema(database: newDatabase, schema: original.Schema);
 

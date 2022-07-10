@@ -182,6 +182,20 @@ namespace SqExpress
             return result;
         }
 
+        protected DateTimeOffsetTableColumn CreateDateTimeOffsetColumn(string name, ColumnMeta? columnMeta = null)
+        {
+            var result = new DateTimeOffsetTableColumn(this.Alias, new ExprColumnName(name), this, columnMeta);
+            this._columns.Add(result);
+            return result;
+        }
+
+        protected NullableDateTimeOffsetTableColumn CreateNullableDateTimeOffsetColumn(string name, ColumnMeta? columnMeta = null)
+        {
+            var result = new NullableDateTimeOffsetTableColumn(this.Alias, new ExprColumnName(name), this, columnMeta);
+            this._columns.Add(result);
+            return result;
+        }
+
         protected GuidTableColumn CreateGuidColumn(string name, ColumnMeta? columnMeta = null)
         {
             var result = new GuidTableColumn(this.Alias, new ExprColumnName(name), this, columnMeta);

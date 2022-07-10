@@ -122,6 +122,13 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
             return el != null;
         }
 
+        public bool TryGetDateTimeOffset(XmlElement node, string propertyName, out DateTimeOffset value)
+        {
+            var el = this.FindElement(node, propertyName);
+            value = el != null ? XmlConvert.ToDateTimeOffset(el.InnerText) : default;
+            return el != null;
+        }
+
         public bool TryGetString(XmlElement node, string propertyName, out string? value)
         {
             var el = this.FindElement(node, propertyName);

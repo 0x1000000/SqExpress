@@ -198,6 +198,27 @@ namespace SqExpress
         public DateTime? Read(ISqDataRecordReader recordReader, int ordinal)
             => !recordReader.IsDBNull(ordinal) ? recordReader.GetDateTime(ordinal) : null;
     }
+    public class DateTimeOffsetCustomColumn : ExprColumn
+    {
+        internal DateTimeOffsetCustomColumn(string name, IExprColumnSource? columnSource = null) : base(columnSource, new ExprColumnName(name)) { }
+
+        internal DateTimeOffsetCustomColumn(ExprColumnName name, IExprColumnSource? columnSource) : base(columnSource, name) { }
+
+        public DateTimeOffset Read(ISqDataRecordReader recordReader) => recordReader.GetDateTimeOffset(this.ColumnName.Name);
+
+        public DateTimeOffset Read(ISqDataRecordReader recordReader, int ordinal) => (DateTimeOffset)recordReader.GetValue(ordinal);
+    }
+    public class NullableDateTimeOffsetCustomColumn : ExprColumn
+    {
+        internal NullableDateTimeOffsetCustomColumn(string name, IExprColumnSource? columnSource = null) : base(columnSource, new ExprColumnName(name)) { }
+
+        internal NullableDateTimeOffsetCustomColumn(ExprColumnName name, IExprColumnSource? columnSource) : base(columnSource, name) { }
+
+        public DateTimeOffset? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableDateTimeOffset(this.ColumnName.Name);
+
+        public DateTimeOffset? Read(ISqDataRecordReader recordReader, int ordinal)
+            => !recordReader.IsDBNull(ordinal) ? (DateTimeOffset?)recordReader.GetValue(ordinal) : null;
+    }
     public class GuidCustomColumn : ExprColumn
     {
         internal GuidCustomColumn(string name, IExprColumnSource? columnSource = null) : base(columnSource, new ExprColumnName(name)) { }

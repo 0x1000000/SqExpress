@@ -796,4 +796,79 @@ namespace SqExpress
 
         public NullableStringCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableStringCustomColumn(this.ColumnName, derivedTable.Alias));
     }
+
+    public class DateTimeOffsetTableColumn : TableColumn
+    {
+        internal DateTimeOffsetTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.DateTimeOffset, false, columnMeta)
+        {
+        }
+
+        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitDateTimeOffset(this);
+
+        public DateTimeOffset Read(ISqDataRecordReader recordReader) => recordReader.GetDateTimeOffset(this.ColumnName.Name);
+
+        public DateTimeOffset? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableDateTimeOffset(this.ColumnName.Name);
+
+        public DateTimeOffset Read(ISqDataRecordReader recordReader, int ordinal) => (DateTimeOffset)recordReader.GetValue(ordinal);
+
+        public DateTimeOffset? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
+            => !recordReader.IsDBNull(ordinal) ? (DateTimeOffset)recordReader.GetValue(ordinal) : null;
+
+        public new DateTimeOffsetTableColumn WithSource(IExprColumnSource? source) => new DateTimeOffsetTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
+
+        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        public override string ReadAsString(ISqDataRecordReader recordReader)
+        {
+            var value = this.ReadNullable(recordReader);
+            if (value == null)
+            {
+                throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
+            }
+
+            return value.Value.ToString("O");
+        }
+
+        public override ExprLiteral FromString(string? value) =>
+            value == null
+                ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
+                : DateTimeOffset.TryParse(value, null, DateTimeStyles.RoundtripKind, out var result)
+                    ? SqQueryBuilder.Literal(result)
+                    : throw new SqExpressException($"Could not parse '{value}' as datetimeoffset for column '{this.ColumnName.Name}'.");
+
+        public DateTimeCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new DateTimeCustomColumn(this.ColumnName, columnSource);
+
+        public DateTimeCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new DateTimeCustomColumn(this.ColumnName, derivedTable.Alias));
+    }
+
+    public class NullableDateTimeOffsetTableColumn : TableColumn
+    {
+        internal NullableDateTimeOffsetTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.DateTimeOffset, true, columnMeta)
+        {
+        }
+
+        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableDateTimeOffset(this);
+
+        public DateTimeOffset? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableDateTimeOffset(this.ColumnName.Name);
+
+        public DateTimeOffset? Read(ISqDataRecordReader recordReader, int ordinal)
+            => !recordReader.IsDBNull(ordinal) ? (DateTimeOffset)recordReader.GetValue(ordinal) : null;
+
+        public new NullableDateTimeOffsetTableColumn WithSource(IExprColumnSource? source) => new NullableDateTimeOffsetTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
+
+        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString("O");
+
+        public override ExprLiteral FromString(string? value) =>
+            value == null
+                ? SqQueryBuilder.Literal((DateTimeOffset?)null)
+                : DateTimeOffset.TryParse(value, null, DateTimeStyles.RoundtripKind, out var result)
+                    ? SqQueryBuilder.Literal(result)
+                    : throw new SqExpressException($"Could not parse '{value}' as datetimeoffset for column '{this.ColumnName.Name}'.");
+
+        public NullableDateTimeCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableDateTimeCustomColumn(this.ColumnName, columnSource);
+
+        public NullableDateTimeCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableDateTimeCustomColumn(this.ColumnName, derivedTable.Alias));
+    }
 }

@@ -86,6 +86,12 @@ namespace SqExpress.Syntax.Value
         public static implicit operator ExprValue(DateTime? value)
             => new ExprDateTimeLiteral(value);
 
+        public static implicit operator ExprValue(DateTimeOffset value)
+            => new ExprDateTimeOffsetLiteral(value);
+
+        public static implicit operator ExprValue(DateTimeOffset? value)
+            => new ExprDateTimeOffsetLiteral(value);
+
         //Summary
         public static ExprSum operator +(ExprValue a, ExprValue b)
             => new ExprSum(a, b);

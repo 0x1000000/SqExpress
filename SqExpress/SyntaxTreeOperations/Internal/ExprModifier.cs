@@ -374,6 +374,10 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         {
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprDateTimeOffsetLiteral(ExprDateTimeOffsetLiteral exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprDbSchema(ExprDbSchema exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newDatabase = this.AcceptNullableItem(exprIn.Database, modifier);
@@ -979,6 +983,10 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             return modifier.Invoke(exprIn);
         }
         public IExpr? VisitExprTypeDateTime(ExprTypeDateTime exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprTypeDateTimeOffset(ExprTypeDateTimeOffset exprIn, Func<IExpr, IExpr?> modifier)
         {
             return modifier.Invoke(exprIn);
         }

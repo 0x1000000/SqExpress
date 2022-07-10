@@ -24,6 +24,7 @@ namespace SqExpress.QueryBuilders.RecordSetter
         TNext Set(DecimalTableColumn column, decimal value);
         TNext Set(DoubleTableColumn column, double value);
         TNext Set(DateTimeTableColumn column, DateTime value);
+        TNext Set(DateTimeOffsetTableColumn column, DateTimeOffset value);
         TNext Set(GuidTableColumn column, Guid value);
         TNext Set(StringTableColumn column, string value);
 
@@ -36,6 +37,7 @@ namespace SqExpress.QueryBuilders.RecordSetter
         TNext Set(NullableDecimalTableColumn column, decimal? value);
         TNext Set(NullableDoubleTableColumn column, double? value);
         TNext Set(NullableDateTimeTableColumn column, DateTime? value);
+        TNext Set(NullableDateTimeOffsetTableColumn column, DateTimeOffset? value);
         TNext Set(NullableGuidTableColumn column, Guid? value);
         TNext Set(NullableStringTableColumn column, string? value);
 
@@ -48,6 +50,7 @@ namespace SqExpress.QueryBuilders.RecordSetter
         TNext Set(DecimalCustomColumn column, decimal value);
         TNext Set(DoubleCustomColumn column, double value);
         TNext Set(DateTimeCustomColumn column, DateTime value);
+        TNext Set(DateTimeOffsetCustomColumn column, DateTimeOffset value);
         TNext Set(GuidCustomColumn column, Guid value);
         TNext Set(StringCustomColumn column, string value);
 
@@ -60,6 +63,7 @@ namespace SqExpress.QueryBuilders.RecordSetter
         TNext Set(NullableDecimalCustomColumn column, decimal? value);
         TNext Set(NullableDoubleCustomColumn column, double? value);
         TNext Set(NullableDateTimeCustomColumn column, DateTime? value);
+        TNext Set(NullableDateTimeOffsetCustomColumn column, DateTimeOffset? value);
         TNext Set(NullableGuidCustomColumn column, Guid? value);
         TNext Set(NullableStringCustomColumn column, string? value);
     }

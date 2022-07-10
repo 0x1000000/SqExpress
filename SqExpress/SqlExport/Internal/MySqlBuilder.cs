@@ -50,6 +50,11 @@ namespace SqExpress.SqlExport.Internal
             SqlInjectionChecker.AppendStringEscapeSingleQuoteAndBackslash(builder, literal);
         }
 
+        public override bool VisitExprDateTimeOffsetLiteral(ExprDateTimeOffsetLiteral dateTimeLiteral, IExpr? arg)
+        {
+            throw new SqExpressException("My SQL does not support DateTimeOffset type");
+        }
+
         public override bool VisitExprBoolLiteral(ExprBoolLiteral boolLiteral, IExpr? parent)
         {
             if (boolLiteral.Value.HasValue)
@@ -652,6 +657,12 @@ namespace SqExpress.SqlExport.Internal
                 this.Builder.Append("datetime");
             }
 
+            return true;
+        }
+
+        public override bool VisitExprTypeDateTimeOffset(ExprTypeDateTimeOffset exprTypeDateTimeOffset, IExpr? arg)
+        {
+            this.Builder.Append("datetime");
             return true;
         }
 

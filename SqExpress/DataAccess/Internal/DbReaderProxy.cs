@@ -233,6 +233,28 @@ namespace SqExpress.DataAccess.Internal
             return this._dataReader.GetDateTime(ordinal);
         }
 
+        public DateTimeOffset GetDateTimeOffset(string name)
+        {
+            var ordinal = this._dataReader.GetOrdinal(name);
+            if (this._dataReader.IsDBNull(ordinal))
+            {
+                this.ThrowNull(name);
+            }
+
+            return this._dataReader.GetFieldValue<DateTimeOffset>(ordinal);
+        }
+
+        public DateTimeOffset? GetNullableDateTimeOffset(string name)
+        {
+            var ordinal = this._dataReader.GetOrdinal(name);
+            if (this._dataReader.IsDBNull(ordinal))
+            {
+                return null;
+            }
+
+            return this._dataReader.GetFieldValue<DateTimeOffset>(ordinal);
+        }
+
         public Guid GetGuid(string name)
         {
             var ordinal = this._dataReader.GetOrdinal(name);

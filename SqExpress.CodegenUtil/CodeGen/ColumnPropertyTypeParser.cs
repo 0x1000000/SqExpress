@@ -45,6 +45,10 @@ namespace SqExpress.CodeGenUtil.CodeGen
                 case nameof(DateTimeCustomColumn): return switcher.CaseDateTimeTableColumn(arg);
                 case nameof(NullableDateTimeTableColumn): return switcher.CaseNullableDateTimeTableColumn(arg);
                 case nameof(NullableDateTimeCustomColumn): return switcher.CaseNullableDateTimeTableColumn(arg);
+                case nameof(DateTimeOffsetTableColumn): return switcher.CaseDateTimeOffsetTableColumn(arg);
+                case nameof(DateTimeOffsetCustomColumn): return switcher.CaseDateTimeOffsetTableColumn(arg);
+                case nameof(NullableDateTimeOffsetTableColumn): return switcher.CaseNullableDateTimeOffsetTableColumn(arg);
+                case nameof(NullableDateTimeOffsetCustomColumn): return switcher.CaseNullableDateTimeOffsetTableColumn(arg);
                 case nameof(GuidTableColumn): return switcher.CaseGuidTableColumn(arg);
                 case nameof(GuidCustomColumn): return switcher.CaseGuidTableColumn(arg);
                 case nameof(NullableGuidTableColumn): return switcher.CaseNullableGuidTableColumn(arg);
@@ -79,6 +83,8 @@ namespace SqExpress.CodeGenUtil.CodeGen
         TRes CaseNullableDoubleTableColumn(TArg arg);
         TRes CaseDateTimeTableColumn(TArg arg);
         TRes CaseNullableDateTimeTableColumn(TArg arg);
+        TRes CaseDateTimeOffsetTableColumn(TArg arg);
+        TRes CaseNullableDateTimeOffsetTableColumn(TArg arg);
         TRes CaseGuidTableColumn(TArg arg);
         TRes CaseNullableGuidTableColumn(TArg arg);
         TRes CaseStringTableColumn(TArg arg);
@@ -183,6 +189,16 @@ namespace SqExpress.CodeGenUtil.CodeGen
         public string CaseNullableDateTimeTableColumn(bool nullRefTypes)
         {
             return "DateTime?";
+        }
+
+        public string CaseDateTimeOffsetTableColumn(bool arg)
+        {
+            return "DateTimeOffset";
+        }
+
+        public string CaseNullableDateTimeOffsetTableColumn(bool arg)
+        {
+            return "DateTimeOffset?";
         }
 
         public string CaseGuidTableColumn(bool nullRefTypes)

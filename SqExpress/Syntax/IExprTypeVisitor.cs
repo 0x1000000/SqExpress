@@ -26,6 +26,8 @@ namespace SqExpress.Syntax
 
         TRes VisitExprTypeDateTime(ExprTypeDateTime exprTypeDateTime, TArg arg);
 
+        TRes VisitExprTypeDateTimeOffset(ExprTypeDateTimeOffset exprTypeDateTimeOffset, TArg arg);
+
         TRes VisitExprTypeGuid(ExprTypeGuid exprTypeGuid, TArg arg);
 
         TRes VisitExprTypeString(ExprTypeString exprTypeString, TArg arg);

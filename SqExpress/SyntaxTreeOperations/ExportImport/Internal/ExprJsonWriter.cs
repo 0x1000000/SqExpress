@@ -131,6 +131,14 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
             }
         }
 
+        public void VisitPlainProperty(string name, DateTimeOffset? value, Utf8JsonWriter ctx)
+        {
+            if (value.HasValue)
+            {
+                ctx.WriteString(name, value.Value);
+            }
+        }
+
         public void VisitPlainProperty(string name, Guid? value, Utf8JsonWriter ctx)
         {
             if (value.HasValue)

@@ -63,6 +63,11 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             return new ExprValueTypeDetails(isNull, SqQueryBuilder.SqlType.DateTime(false));
         }
 
+        public ExprValueTypeDetails VisitDateTimeOffset(object? arg, bool? isNull)
+        {
+            return new ExprValueTypeDetails(isNull, SqQueryBuilder.SqlType.DateTimeOffset);
+        }
+
         public ExprValueTypeDetails VisitGuid(object? arg, bool? isNull)
         {
             return new ExprValueTypeDetails(isNull, SqQueryBuilder.SqlType.Guid);

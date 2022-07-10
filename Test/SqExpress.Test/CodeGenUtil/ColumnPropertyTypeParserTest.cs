@@ -112,6 +112,16 @@ namespace SqExpress.Test.CodeGenUtil
             return arg;
         }
 
+        public string CaseDateTimeOffsetTableColumn(string arg)
+        {
+            return arg;
+        }
+
+        public string CaseNullableDateTimeOffsetTableColumn(string arg)
+        {
+            return arg;
+        }
+
         public string CaseGuidTableColumn(string arg)
         {
             return arg;

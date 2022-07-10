@@ -157,6 +157,17 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
             writer.WriteEndElement();
         }
 
+        public void VisitPlainProperty(string name, DateTimeOffset? value, XmlWriter writer)
+        {
+            if (value == null)
+            {
+                return;
+            }
+            writer.WriteStartElement(name);
+            writer.WriteValue(value.Value);
+            writer.WriteEndElement();
+        }
+
         public void VisitPlainProperty(string name, Guid? value, XmlWriter writer)
         {
             if (value == null)

@@ -73,6 +73,13 @@ namespace SqExpress.CodeGenUtil.CodeGen
             return SyntaxFactory.IdentifierName(className);
         }
 
+        public IdentifierNameSyntax VisitDateTimeOffsetColumnType(DateTimeOffsetColumnType dateTimeColumnType, object? arg)
+        {
+            string className = dateTimeColumnType.IsNullable ? nameof(NullableDateTimeOffsetTableColumn) : nameof(DateTimeOffsetTableColumn);
+
+            return SyntaxFactory.IdentifierName(className);
+        }
+
         public IdentifierNameSyntax VisitStringColumnType(StringColumnType stringColumnType, object? arg)
         {
             string className = stringColumnType.IsNullable ? nameof(NullableStringTableColumn) : nameof(StringTableColumn);
