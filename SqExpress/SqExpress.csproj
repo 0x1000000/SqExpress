@@ -48,7 +48,11 @@ This an article that explains the library principles: ["Syntax Tree and Alternat
     <None Include="SqExpress.props">
       <Pack>True</Pack>
       <PackagePath>build</PackagePath>
-    </None>    
+    </None>
+    <None Include="PsTools\**\*">
+      <Pack>True</Pack>
+      <PackagePath>tools</PackagePath>
+    </None>
     <Content Include="..\tmp\tools\codegen\**\*">
       <Pack>true</Pack>
       <PackagePath>tools\codegen</PackagePath>
@@ -57,6 +61,10 @@ This an article that explains the library principles: ["Syntax Tree and Alternat
 
   <ItemGroup>
     <InternalsVisibleTo Include="SqExpress.Test,PublicKey=0024000004800000140100000602000000240000525341310008000001000100e5569caf717651dfeb29ad8a1cce789859b24c9beaf956973fb0df99af98fb249f09de4b5ba196d1b9d460cc01bb9e2096ff727d6f2cbc31aa9524523d8c43b063aed9e55b38078f71bad2939953b3cb8ed50bf2eb7a1ad7ddc39d0a1c2a863adda4e0f1bfc18d505a89ba4fb4819a948a30f2dcf82d69f880902fecb3e0b15a95a845c51e67378b94e49795016d56a28e20df984fe2b5eaaa46c6289b86d83a8a011e30f551153be568458635fa4c3bf0e4fccca70cf094bf21fb20367ce92afb72619a71225f2d147e012a9988a776863f4cd2b4933b03d6001b289f968207b0f087253b7de078824fa05887ba7f9950b3a7c223a49e03be83fa0072fe4cdc" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="PsTools\" />
   </ItemGroup>
 
   <Target Name="PreventPackInDebug" BeforeTargets="Pack" Condition="'$(Configuration)|$(Platform)'!='Release|AnyCPU'">
