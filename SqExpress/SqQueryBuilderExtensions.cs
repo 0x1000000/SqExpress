@@ -102,10 +102,10 @@ namespace SqExpress
         public static ExprDeleteOutput Output(this ExprDelete exprDelete, ExprColumn outputColumn, params ExprAliasedColumn[] rest) 
             => new ExprDeleteOutput(exprDelete, Helpers.Combine(outputColumn, rest));
 
-        public static IReadOnlyList<IExprSelecting> Concat(this IReadOnlyList<IExprSelecting> source, SelectingProxy column, params SelectingProxy[] rest) 
+        public static IReadOnlyList<IExprSelecting> Combine(this IReadOnlyList<IExprSelecting> source, SelectingProxy column, params SelectingProxy[] rest) 
             => Helpers.Combine(source, column, rest, SelectingProxy.MapSelectionProxy);
 
-        public static IReadOnlyList<IExprSelecting> Concat(this IReadOnlyList<IExprSelecting> source, IReadOnlyList<IExprSelecting> source2) 
+        public static IReadOnlyList<IExprSelecting> Combine(this IReadOnlyList<IExprSelecting> source, IReadOnlyList<IExprSelecting> source2) 
             => Helpers.Combine(source, source2);
 
         public static ExprBoolean JoinAsAnd(this IEnumerable<ExprBoolean> predicates) 

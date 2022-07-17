@@ -81,7 +81,7 @@ namespace SqExpress
             var selectQuery = (ExprQuerySpecification)query.SelectQuery;
 
             query = query.WithSelectQuery(
-                selectQuery.WithSelectList(selectQuery.SelectList.Concat(SqQueryBuilder.CountOneOver().As(countColumn))));
+                selectQuery.WithSelectList(selectQuery.SelectList.Combine(SqQueryBuilder.CountOneOver().As(countColumn))));
 
             var res = await query.Query(database,
                 new KeyValuePair<List<T>, int?>(new List<T>(), null),

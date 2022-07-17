@@ -111,13 +111,13 @@ namespace SqExpress.Test.QueryBuilder
             actual = SelectTop(Literal(2), columns).Done().ToMySql();
             Assert.AreEqual("SELECT `a`,`b` LIMIT 2", actual);
 
-            actual = SelectDistinct(columns.Concat(columns2)).Done().ToSql();
+            actual = SelectDistinct(columns.Combine(columns2)).Done().ToSql();
             Assert.AreEqual("SELECT DISTINCT [a],[b],[c],[d]", actual);
 
-            actual = SelectTopDistinct(2, columns.Concat(columns2).Concat(columnE, columnF)).Done().ToSql();
+            actual = SelectTopDistinct(2, columns.Combine(columns2).Combine(columnE, columnF)).Done().ToSql();
             Assert.AreEqual("SELECT DISTINCT TOP 2 [a],[b],[c],[d],[e],[f]", actual);
 
-            actual = SelectTopDistinct(Literal(2), columns.Concat(columns2).Concat(columnE)).Done().ToSql();
+            actual = SelectTopDistinct(Literal(2), columns.Combine(columns2).Combine(columnE)).Done().ToSql();
             Assert.AreEqual("SELECT DISTINCT TOP 2 [a],[b],[c],[d],[e]", actual);
 
         }
