@@ -38,8 +38,42 @@ namespace SqExpress.SyntaxTreeOperations
             return Deserialize(node, ExprJsonReader.Instance);
         }
 #endif
-
         public static IExpr Deserialize<TNode>(TNode rootElement, IExprReader<TNode> reader)
+        {
+            return new ExprDeserializer().DeserializeInternal(rootElement, reader);
+        }
+
+        private Dictionary<string, ExprCteQuery>? _cteCache;
+
+        private ExprCteQuery BuildCteQuery<TNode>(TNode rootElement, IExprReader<TNode> reader)
+        {
+            this._cteCache ??= new Dictionary<string, ExprCteQuery>();
+
+            var cteName = ReadString(rootElement, reader, "Name");
+            if (this._cteCache.TryGetValue(cteName, out var originalCte))
+            {
+                return new ExprCteQuery(cteName,
+                    this.GetSubNode<TNode, ExprTableAlias>(rootElement, reader, "Alias"),
+                    originalCte.Query);
+            }
+
+            var mutableCte = new ExprCteQuery(cteName,
+                this.GetSubNode<TNode, ExprTableAlias>(rootElement, reader, "Alias"),
+                null!);
+
+            this._cteCache.Add(mutableCte.Name, mutableCte);
+
+            //Creating a cycle
+            mutableCte.Query = this.GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "Query");
+            return mutableCte;
+        }
+
+        private ExprDerivedTableQuery BuildDerivedTableQuery<TNode>(TNode rootElement, IExprReader<TNode> reader)
+        {
+            return new ExprDerivedTableQuery(query: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "Query"), alias: GetSubNode<TNode, ExprTableAlias>(rootElement, reader, "Alias"), columns: GetNullableSubNodeList<TNode, ExprColumnName>(rootElement, reader, "Columns"));
+        }
+
+        private IExpr DeserializeInternal<TNode>(TNode rootElement, IExprReader<TNode> reader)
         {
             var typeTag = reader.GetNodeTypeTag(rootElement);
 
@@ -74,6 +108,9 @@ namespace SqExpress.SyntaxTreeOperations
                 case "ColumnName": return new ExprColumnName(name: ReadString(rootElement, reader, "Name"));
                 case "ColumnSetClause": return new ExprColumnSetClause(column: GetSubNode<TNode, ExprColumn>(rootElement, reader, "Column"), value: GetSubNode<TNode, IExprAssigning>(rootElement, reader, "Value"));
                 case "CrossedTable": return new ExprCrossedTable(left: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Left"), right: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Right"));
+                ////Default implementation
+                //case "CteQuery": return new ExprCteQuery(alias: GetNullableSubNode<TNode, ExprTableAlias>(rootElement, reader, "Alias"), query: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "Query"), name: ReadString(rootElement, reader, "Name"));
+                case "CteQuery": return BuildCteQuery(rootElement, reader);
                 case "CurrentRowFrameBorder": return ExprCurrentRowFrameBorder.Instance;
                 case "DatabaseName": return new ExprDatabaseName(name: ReadString(rootElement, reader, "Name"));
                 case "DateAdd": return new ExprDateAdd(date: GetSubNode<TNode, ExprValue>(rootElement, reader, "Date"), datePart: ReadDateAddDatePart(rootElement, reader, "DatePart"), number: ReadInt32(rootElement, reader, "Number"));
@@ -84,7 +121,9 @@ namespace SqExpress.SyntaxTreeOperations
                 case "Default": return ExprDefault.Instance;
                 case "Delete": return new ExprDelete(target: GetSubNode<TNode, ExprTable>(rootElement, reader, "Target"), source: GetNullableSubNode<TNode, IExprTableSource>(rootElement, reader, "Source"), filter: GetNullableSubNode<TNode, ExprBoolean>(rootElement, reader, "Filter"));
                 case "DeleteOutput": return new ExprDeleteOutput(delete: GetSubNode<TNode, ExprDelete>(rootElement, reader, "Delete"), outputColumns: GetSubNodeList<TNode, ExprAliasedColumn>(rootElement, reader, "OutputColumns"));
-                case "DerivedTableQuery": return new ExprDerivedTableQuery(query: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "Query"), alias: GetSubNode<TNode, ExprTableAlias>(rootElement, reader, "Alias"), columns: GetNullableSubNodeList<TNode, ExprColumnName>(rootElement, reader, "Columns"));
+                ////Default implementation
+                //case "DerivedTableQuery": return new ExprDerivedTableQuery(query: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "Query"), alias: GetSubNode<TNode, ExprTableAlias>(rootElement, reader, "Alias"), columns: GetNullableSubNodeList<TNode, ExprColumnName>(rootElement, reader, "Columns"));
+                case "DerivedTableQuery": return BuildDerivedTableQuery(rootElement, reader);
                 case "DerivedTableValues": return new ExprDerivedTableValues(values: GetSubNode<TNode, ExprTableValueConstructor>(rootElement, reader, "Values"), alias: GetSubNode<TNode, ExprTableAlias>(rootElement, reader, "Alias"), columns: GetSubNodeList<TNode, ExprColumnName>(rootElement, reader, "Columns"));
                 case "Div": return new ExprDiv(left: GetSubNode<TNode, ExprValue>(rootElement, reader, "Left"), right: GetSubNode<TNode, ExprValue>(rootElement, reader, "Right"));
                 case "DoubleLiteral": return new ExprDoubleLiteral(value: ReadNullableDouble(rootElement, reader, "Value"));
@@ -172,7 +211,7 @@ namespace SqExpress.SyntaxTreeOperations
             }
         }
 
-        private static IReadOnlyList<TExpr> GetSubNodeList<TNode, TExpr>(TNode currentNode, IExprReader<TNode> reader, string name)
+        private IReadOnlyList<TExpr> GetSubNodeList<TNode, TExpr>(TNode currentNode, IExprReader<TNode> reader, string name)
             where TExpr : class, IExpr
         {
             var enumerator = reader.EnumerateList(currentNode, name);
@@ -185,13 +224,13 @@ namespace SqExpress.SyntaxTreeOperations
             return enumerator.Select(i => DeserializeNodeStrongType<TNode, TExpr>(reader, i)).ToList();
         }
 
-        private static IReadOnlyList<TExpr>? GetNullableSubNodeList<TNode, TExpr>(TNode currentNode, IExprReader<TNode> reader, string name)
+        private IReadOnlyList<TExpr>? GetNullableSubNodeList<TNode, TExpr>(TNode currentNode, IExprReader<TNode> reader, string name)
             where TExpr : class, IExpr
         {
             return reader.EnumerateList(currentNode, name)?.Select(i => DeserializeNodeStrongType<TNode, TExpr>(reader, i)).ToList();
         }
 
-        private static TExpr? GetNullableSubNode<TNode, TExpr>(TNode currentNode, IExprReader<TNode> reader, string name)
+        private TExpr? GetNullableSubNode<TNode, TExpr>(TNode currentNode, IExprReader<TNode> reader, string name)
             where TExpr : class, IExpr
         {
             return reader.TryGetSubNode(currentNode, name, out var subNode) 
@@ -199,7 +238,7 @@ namespace SqExpress.SyntaxTreeOperations
                 : null;
         }
 
-        private static TExpr GetSubNode<TNode, TExpr>(TNode currentNode, IExprReader<TNode> reader, string name)
+        private TExpr GetSubNode<TNode, TExpr>(TNode currentNode, IExprReader<TNode> reader, string name)
             where TExpr : class, IExpr
         {
             return reader.TryGetSubNode(currentNode, name, out var subNode) 
@@ -207,10 +246,10 @@ namespace SqExpress.SyntaxTreeOperations
                 : throw new SqExpressException($"Property \"{name}\" is mandatory");
         }
 
-        private static TExpr DeserializeNodeStrongType<TNode, TExpr>(IExprReader<TNode> reader, TNode subNode)
+        private TExpr DeserializeNodeStrongType<TNode, TExpr>(IExprReader<TNode> reader, TNode subNode)
             where TExpr : class, IExpr
         {
-            var subExpr = Deserialize(subNode, reader);
+            var subExpr = DeserializeInternal(subNode, reader);
             if (subExpr is TExpr result)
             {
                 return result;

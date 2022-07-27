@@ -38,6 +38,9 @@ namespace SqExpress.IntTest
                     .Then(new ScMerge())
                     .Then(new ScModelSelector())
                     .Then(new ScCancellation())
+                    .Then(new ScCte())
+                    .Then(new ScCteCross())
+                    .Then(new ScTreeClosure())
                     ;
 
                 await ExecScenarioAll(

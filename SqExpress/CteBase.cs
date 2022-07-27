@@ -6,41 +6,28 @@ using SqExpress.Utils;
 
 namespace SqExpress
 {
-    public abstract class DerivedTableBase : ExprDerivedTable
+    public abstract class CteBase : ExprCte
     {
-        private ExprDerivedTableQuery? _table;
+        private ExprCteQuery? _query;
 
         private readonly List<ExprColumn> _columns = new List<ExprColumn>();
 
         public IReadOnlyList<ExprColumn> Columns => this._columns;
 
-        protected DerivedTableBase(Alias alias = default) : base(BuildAlias(alias))
+        protected CteBase(string name, Alias alias = default) : base(name, BuildAlias(alias, name))
         {
         }
 
-        private static ExprTableAlias BuildAlias(Alias alias)
+        private static ExprTableAlias? BuildAlias(Alias alias, string name)
         {
             var a = alias.BuildAliasExpression();
-            if (a == null)
-            {
-                throw new SqExpressException("Derived table alias cannot be empty");
-            }
-            return new ExprTableAlias(a);
+            return a == null ? null : new ExprTableAlias(a);
         }
-
-        protected abstract IExprSubQuery CreateQuery();
 
         public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
         {
-            this._table ??=
-                new DerivedTableQueryWithOriginalRef(this.CreateQuery(), this.Alias, this.Columns.SelectToReadOnlyList(i => i.ColumnName), this);
-            return this._table.Accept(visitor, arg);
-        }
-
-        internal T RegisterColumn<T>(T otherColumn) where T: ExprColumn
-        {
-            this._columns.Add(otherColumn);
-            return otherColumn;
+            this._query ??= new CteOriginalRef(this.Name, this.Alias, this.CreateQuery(), this);
+            return this._query.Accept(visitor, arg);
         }
 
         protected BooleanCustomColumn CreateBooleanColumn(string name)
@@ -202,6 +189,17 @@ namespace SqExpress
             var result = new StringCustomColumn(name, this.Alias);
             this._columns.Add(result);
             return result;
+        }
+    }
+
+    //It is required for proper syntax tree modification
+    internal class CteOriginalRef : ExprCteQuery
+    {
+        public CteBase Original { get; }
+
+        public CteOriginalRef(string name, ExprTableAlias? alias, IExprSubQuery query, CteBase original) : base(name, alias, query)
+        {
+            this.Original = original;
         }
     }
 }

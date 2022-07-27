@@ -92,7 +92,14 @@ namespace SqExpress.GenSyntaxTraversal
             CodeBuilder builder = new CodeBuilder(stringBuilder, 4);
             foreach (var nodeModel in models)
             {
-                builder.AppendStart(0, $"case \"{TypeTag(nodeModel.TypeName)}\": return ");
+                string pr = null;
+                if (nodeModel.IsCustomTraversal)
+                {
+                    pr = "//";
+                    builder.AppendLineStart(0, "////Default implementation");
+                }
+
+                builder.AppendStart(0, $"{pr}case \"{TypeTag(nodeModel.TypeName)}\": return ");
                 if (nodeModel.IsSingleton)
                 {
                     builder.AppendLine($"{nodeModel.TypeName}.Instance;");
@@ -120,6 +127,12 @@ namespace SqExpress.GenSyntaxTraversal
                 }
 
                 builder.AppendLine(");");
+
+                if (nodeModel.IsCustomTraversal)
+                {
+                    builder.AppendStart(0, $"case \"{TypeTag(nodeModel.TypeName)}\": return Build{TypeTag(nodeModel.TypeName)}(rootElement, reader)");
+                    builder.AppendLine(";");
+                }
             }
 
             static string GetPropertyTypeName(SubNodeModel modelProperty)
@@ -145,8 +158,14 @@ namespace SqExpress.GenSyntaxTraversal
             CodeBuilder builder = new CodeBuilder(stringBuilder, 2);
             foreach (var nodeModel in models)
             {
-                builder.AppendLineStart(0, $"public IExpr? Visit{nodeModel.TypeName}({nodeModel.TypeName} exprIn, Func<IExpr, IExpr?> modifier)");
-                builder.AppendLineStart(0, "{");
+                string pr = null;
+                if (nodeModel.IsCustomTraversal)
+                {
+                    pr = "//";
+                    builder.AppendLineStart(0, "////Default implementation");
+                }
+                builder.AppendLineStart(0, $"{pr}public IExpr? Visit{nodeModel.TypeName}({nodeModel.TypeName} exprIn, Func<IExpr, IExpr?> modifier)");
+                builder.AppendLineStart(0, $"{pr}{{");
 
                 if (nodeModel.SubNodes.Count > 0)
                 {
@@ -155,18 +174,18 @@ namespace SqExpress.GenSyntaxTraversal
                         if (!subNode.IsList)
                         {
                             builder.AppendLineStart(1, !subNode.IsNullable
-                                ? $"var new{subNode.PropertyName} = this.AcceptItem(exprIn.{subNode.PropertyName}, modifier);"
-                                : $"var new{subNode.PropertyName} = this.AcceptNullableItem(exprIn.{subNode.PropertyName}, modifier);");
+                                ? $"{pr}var new{subNode.PropertyName} = this.AcceptItem(exprIn.{subNode.PropertyName}, modifier);"
+                                : $"{pr}var new{subNode.PropertyName} = this.AcceptNullableItem(exprIn.{subNode.PropertyName}, modifier);");
                         }
                         else
                         {
                             builder.AppendLineStart(1, !subNode.IsNullable
-                                ? $"var new{subNode.PropertyName} = this.AcceptNotNullCollection(exprIn.{subNode.PropertyName}, modifier);"
-                                : $"var new{subNode.PropertyName} = this.AcceptNullCollection(exprIn.{subNode.PropertyName}, modifier);");
+                                ? $"{pr}var new{subNode.PropertyName} = this.AcceptNotNullCollection(exprIn.{subNode.PropertyName}, modifier);"
+                                : $"{pr}var new{subNode.PropertyName} = this.AcceptNullCollection(exprIn.{subNode.PropertyName}, modifier);");
                         }
                     }
 
-                    builder.AppendStart(1, "if(");
+                    builder.AppendStart(1, $"{pr}if(");
                     for (var index = 0; index < nodeModel.SubNodes.Count; index++)
                     {
                         var subNode = nodeModel.SubNodes[index];
@@ -179,8 +198,8 @@ namespace SqExpress.GenSyntaxTraversal
                     }
 
                     builder.AppendLine(")");
-                    builder.AppendLineStart(1, "{");
-                    builder.AppendStart(2, $"exprIn = new {nodeModel.TypeName}(");
+                    builder.AppendLineStart(1, $"{pr}{{");
+                    builder.AppendStart(2, $"{pr}exprIn = new {nodeModel.TypeName}(");
                     for (var index = 0; index < nodeModel.SubNodes.Count; index++)
                     {
                         var subNode = nodeModel.SubNodes[index];
@@ -203,10 +222,10 @@ namespace SqExpress.GenSyntaxTraversal
                     }
 
                     builder.AppendLine(");");
-                    builder.AppendLineStart(1, "}");
+                    builder.AppendLineStart(1, $"{pr}}}");
                 }
-                builder.AppendLineStart(1, "return modifier.Invoke(exprIn);");
-                builder.AppendLineStart(0, "}");
+                builder.AppendLineStart(1, $"{pr}return modifier.Invoke(exprIn);");
+                builder.AppendLineStart(0, $"{pr}}}");
             }
         }
 
@@ -215,25 +234,58 @@ namespace SqExpress.GenSyntaxTraversal
             CodeBuilder builder = new CodeBuilder(stringBuilder, 2);
             foreach (var nodeModel in models)
             {
-                builder.AppendLineStart(0, $"public bool Visit{nodeModel.TypeName}({nodeModel.TypeName} expr, TCtx arg)");
-                builder.AppendLineStart(0, "{");
-
-                builder.AppendStart(1, $"var res = this.Visit(expr, \"{TypeTag(nodeModel.TypeName)}\", arg, out var argOut)");
-                foreach (var subNode in nodeModel.SubNodes)
+                string pr = null;
+                if (nodeModel.IsCustomTraversal)
                 {
-                    builder.Append($" && this.Accept(\"{subNode.PropertyName}\",expr.{subNode.PropertyName}, argOut)");
+                    pr = "//";
+                    builder.AppendLineStart(0, "////Default implementation");
                 }
 
-                builder.AppendLine(";");
+                var hasSubNodes = nodeModel.SubNodes.Count > 0;
+
+                builder.AppendLineStart(0, $"{pr}public bool Visit{nodeModel.TypeName}({nodeModel.TypeName} expr, WalkerContext<TCtx> arg)");
+                builder.AppendLineStart(0, $"{pr}{{");
+                if (hasSubNodes)
+                {
+                    builder.AppendLineStart(1, $"{pr}var res = true;");
+                }
+                builder.AppendLineStart(1, $"{pr}var walkResult = this.Visit(expr, \"{TypeTag(nodeModel.TypeName)}\", arg, out var argOut);");
+                if (hasSubNodes)
+                {
+                    builder.AppendLineStart(1, $"{pr}if(walkResult == WalkResult.Continue)");
+                    builder.AppendLineStart(1, $"{pr}{{");
+                    builder.AppendStart(2, $"{pr}res = ");
+                    for (var index = 0; index < nodeModel.SubNodes.Count; index++)
+                    {
+                        var subNode = nodeModel.SubNodes[index];
+                        if (index != 0)
+                        {
+                            builder.Append(" && ");
+                        }
+                        builder.Append($"this.Accept(\"{subNode.PropertyName}\",expr.{subNode.PropertyName}, argOut)");
+                    }
+
+                    builder.AppendLine(";");
+
+                    builder.AppendLineStart(1, $"{pr}}}");
+                }
+
                 foreach (var subNode in nodeModel.Properties)
                 {
-                    builder.AppendLineStart(1, $"this.VisitPlainProperty(\"{subNode.PropertyName}\",expr.{subNode.PropertyName}, argOut);");
+                    builder.AppendLineStart(1, $"{pr}this.VisitPlainProperty(\"{subNode.PropertyName}\",expr.{subNode.PropertyName}, argOut.Context);");
                 }
 
-                builder.AppendLineStart(1, "this._visitor.EndVisitExpr(expr, arg);");
-                builder.AppendLineStart(1, "return res;");
+                builder.AppendLineStart(1, $"{pr}this.EndVisit(expr, argOut.Context);");
+                if (hasSubNodes)
+                {
+                    builder.AppendLineStart(1, $"{pr}return res && walkResult != WalkResult.Stop;");
+                }
+                else
+                {
+                    builder.AppendLineStart(1, $"{pr}return walkResult != WalkResult.Stop;");
+                }
 
-                builder.AppendLineStart(0, "}");
+                builder.AppendLineStart(0, $"{pr}}}");
             }
         }        
 
@@ -242,28 +294,35 @@ namespace SqExpress.GenSyntaxTraversal
             CodeBuilder builder = new CodeBuilder(stringBuilder, 2);
             foreach (var nodeModel in models)
             {
-                builder.AppendLineStart(0, $"public bool Visit{nodeModel.TypeName}({nodeModel.TypeName} expr, object? arg)");
-                builder.AppendLineStart(0, "{");
+                string pr = null;
+                if (nodeModel.IsCustomTraversal)
+                {
+                    pr = "//";
+                    builder.AppendLineStart(0, "////Default implementation");
+                }
+
+                builder.AppendLineStart(0, $"{pr}public bool Visit{nodeModel.TypeName}({nodeModel.TypeName} expr, object? arg)");
+                builder.AppendLineStart(0, $"{pr}{{");
 
 
-                builder.AppendLineStart(1, "switch (this.Peek().State)");
-                builder.AppendLineStart(1, "{");
+                builder.AppendLineStart(1, $"{pr}switch (this.Peek().State)");
+                builder.AppendLineStart(1, $"{pr}{{");
 
                 var index = 0;
                 for (; index < nodeModel.SubNodes.Count; index++)
                 {
                     var subNode = nodeModel.SubNodes[index];
-                    builder.AppendLineStart(2, $"case {index+1}:");
-                    builder.AppendLineStart(3, $"return this.SetCurrent(expr.{subNode.PropertyName});");
+                    builder.AppendLineStart(2, $"{pr}case {index+1}:");
+                    builder.AppendLineStart(3, $"{pr}return this.SetCurrent(expr.{subNode.PropertyName});");
                 }
-                builder.AppendLineStart(2, $"case {index + 1}:");
-                builder.AppendLineStart(3, "return this.Pop();");
+                builder.AppendLineStart(2, $"{pr}case {index + 1}:");
+                builder.AppendLineStart(3, $"{pr}return this.Pop();");
 
-                builder.AppendLineStart(2, "default:");
-                builder.AppendLineStart(3, "throw new SqExpressException(\"Incorrect enumerator visitor state\");");
+                builder.AppendLineStart(2, $"{pr}default:");
+                builder.AppendLineStart(3, $"{pr}throw new SqExpressException(\"Incorrect enumerator visitor state\");");
 
-                builder.AppendLineStart(1, "}");
-                builder.AppendLineStart(0, "}");
+                builder.AppendLineStart(1, $"{pr}}}");
+                builder.AppendLineStart(0, $"{pr}}}");
             }
         }        
         
@@ -315,7 +374,7 @@ namespace SqExpress.GenSyntaxTraversal
                 foreach (var classDeclarationSyntax in tree.GetRoot().DescendantNodesAndSelf().OfType<ClassDeclarationSyntax>())
                 {
                     var classSymbol = semantic.GetDeclaredSymbol(classDeclarationSyntax);
-                    
+
                     var isSuitable = classSymbol != null 
                                  && !classSymbol.IsAbstract 
                                  && classSymbol.DeclaredAccessibility == Accessibility.Public
@@ -369,8 +428,11 @@ namespace SqExpress.GenSyntaxTraversal
                         }
                     }
 
+                    var isCustomTraversal = classSymbol.GetAttributes().Any(a => a.AttributeClass?.Name == "SqCustomTraversalAttribute");
+
                     result.Add(new NodeModel(classSymbol.Name,
                         modelProps.Count == 0 && subNodes.Count == 0,
+                        isCustomTraversal,
                         subNodes,
                         modelProps));
                 }
@@ -504,10 +566,11 @@ namespace SqExpress.GenSyntaxTraversal
 
     public class NodeModel
     {
-        public NodeModel(string typeName, bool isSingleton, IReadOnlyList<SubNodeModel> subNodes, IReadOnlyList<SubNodeModel> properties)
+        public NodeModel(string typeName, bool isSingleton, bool isCustomTraversal, IReadOnlyList<SubNodeModel> subNodes, IReadOnlyList<SubNodeModel> properties)
         {
             this.TypeName = typeName;
             this.IsSingleton = isSingleton;
+            this.IsCustomTraversal = isCustomTraversal;
             this.SubNodes = subNodes;
             this.Properties = properties;
         }
@@ -515,6 +578,8 @@ namespace SqExpress.GenSyntaxTraversal
         public string TypeName { get; }
 
         public bool IsSingleton { get; }
+
+        public bool IsCustomTraversal { get; }
 
         public IReadOnlyList<SubNodeModel> SubNodes { get; }
 

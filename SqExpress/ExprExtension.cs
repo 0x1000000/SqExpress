@@ -126,12 +126,26 @@ namespace SqExpress
 
             public void WalkThrough<TCtx>(IWalkerVisitor<TCtx> walkerVisitor, TCtx context)
             {
-                this._expr.Accept(new ExprWalker<TCtx>(walkerVisitor), context);
+                this._expr.Accept(new ExprWalker<TCtx>(walkerVisitor), new WalkerContext<TCtx>(null, context));
             }
 
-            public void WalkThrough<TCtx>(Func<IExpr, TCtx, VisitorResult<TCtx>> walker, TCtx context)
+            public TCtx WalkThrough<TCtx>(Func<IExpr, TCtx, VisitorResult<TCtx>> walker, TCtx context)
             {
-                this._expr.Accept(new ExprWalker<TCtx>(new DefaultWalkerVisitor<TCtx>(walker)), context);
+                var walkerVisitor = new DefaultWalkerVisitor<TCtx>(walker, context);
+                this._expr.Accept(new ExprWalker<TCtx>(walkerVisitor), new WalkerContext<TCtx>(null, context));
+                return walkerVisitor.CurrentCtx;
+            }
+
+            public void WalkThroughWithParent<TCtx>(IWalkerVisitorWithParent<TCtx> walkerVisitor, TCtx context)
+            {
+                this._expr.Accept(new ExprWalker<TCtx>(walkerVisitor), new WalkerContext<TCtx>(null, context));
+            }
+
+            public TCtx WalkThroughWithParent<TCtx>(Func<IExpr, IExpr?, TCtx, VisitorResult<TCtx>> walker, TCtx context)
+            {
+                var walkerVisitor = new DefaultParentWalkerVisitorWithParent<TCtx>(walker, context);
+                this._expr.Accept(new ExprWalker<TCtx>(walkerVisitor), new WalkerContext<TCtx>(null, context));
+                return walkerVisitor.CurrentCtx;
             }
 
             public IEnumerable<IExpr> Descendants()
@@ -155,18 +169,18 @@ namespace SqExpress
                         return VisitorResult<object?>.Stop(c);
                     }
                     return VisitorResult<object?>.Continue(c);
-                })), null);
+                })), new WalkerContext<object?>(null, null));
                 return result;
             }
 
             public IExpr? Modify(Func<IExpr, IExpr?> modifier)
             {
-                return this._expr.Accept(ExprModifier.Instance, modifier);
+                return this._expr.Accept(new ExprModifier(), modifier);
             }
 
             public IExpr? Modify<TExpr>(Func<TExpr, IExpr?> modifier) where TExpr: IExpr
             {
-                return this._expr.Accept(ExprModifier.Instance,
+                return this._expr.Accept(new ExprModifier(),
                     e =>
                     {
                         if (e is TExpr te)

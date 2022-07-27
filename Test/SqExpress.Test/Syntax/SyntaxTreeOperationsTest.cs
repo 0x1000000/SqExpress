@@ -54,6 +54,49 @@ namespace SqExpress.Test.Syntax
         }
 
         [Test]
+        public void WalkThroughParentTest()
+        {
+            var tUser = Tables.User();
+            var tCustomer = Tables.Customer();
+
+            var e = Select(tUser.UserId, tUser.FirstName, tCustomer.CustomerId)
+                .From(tUser)
+                .InnerJoin(tCustomer, on: tCustomer.UserId == tUser.UserId)
+                .Done();
+
+            string expected = "ExprQuerySpecification((none)),Int32TableColumn(ExprQuerySpecification),ExprTableAlias(Int32TableColumn),ExprAliasGuid(ExprTableAlias),ExprColumnName(Int32TableColumn),StringTableColumn(ExprQuerySpecification),ExprTableAlias(StringTableColumn),ExprAliasGuid(ExprTableAlias),ExprColumnName(StringTableColumn),Int32TableColumn(ExprQuerySpecification),ExprTableAlias(Int32TableColumn),ExprAliasGuid(ExprTableAlias),ExprColumnName(Int32TableColumn),ExprJoinedTable(ExprQuerySpecification),User(ExprJoinedTable),ExprTableFullName(User),ExprDbSchema(ExprTableFullName),ExprSchemaName(ExprDbSchema),ExprTableName(ExprTableFullName),ExprTableAlias(User),ExprAliasGuid(ExprTableAlias),Customer(ExprJoinedTable),ExprTableFullName(Customer),ExprDbSchema(ExprTableFullName),ExprSchemaName(ExprDbSchema),ExprTableName(ExprTableFullName),ExprTableAlias(Customer),ExprAliasGuid(ExprTableAlias),ExprBooleanEq(ExprJoinedTable),NullableInt32TableColumn(ExprBooleanEq),ExprTableAlias(NullableInt32TableColumn),ExprAliasGuid(ExprTableAlias),ExprColumnName(NullableInt32TableColumn),Int32TableColumn(ExprBooleanEq),ExprTableAlias(Int32TableColumn),ExprAliasGuid(ExprTableAlias),ExprColumnName(Int32TableColumn),";
+
+            StringBuilder builder = new StringBuilder();
+
+            e.SyntaxTree().WalkThroughWithParent((expr, parent, ctx) =>
+            {
+                if (parent != null)
+                {
+                    var children = parent.SyntaxTree()
+                        .WalkThrough((e, list) =>
+                            {
+                                if (e != parent)
+                                {
+                                    list.Add(e);
+                                    return VisitorResult<List<IExpr>>.StopNode(list);
+                                }
+                                return VisitorResult<List<IExpr>>.Continue(list);
+                            },
+                            new List<IExpr>());
+                    Assert.IsTrue(children.Contains(expr));
+                }
+
+                builder.Append(expr.GetType().Name);
+                builder.Append($"({parent?.GetType().Name ?? "(none)"})");
+                builder.Append(',');
+                return VisitorResult<IExpr>.Continue(expr);
+            }, (IExpr)e);
+
+            Assert.AreEqual(expected, builder.ToString());
+        }
+
+
+        [Test]
         [TestCase(true)]
         [TestCase(false)]
         public void Descendants_Test(bool self)

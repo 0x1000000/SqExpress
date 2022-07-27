@@ -102,6 +102,16 @@ namespace SqExpress.Test.QueryBuilder
             static IReadOnlyList<ExprValue> Row(params ExprValue[] values) => values;
         }
 
+        [Test]
+        public void EmptyModifyTest()
+        {
+            var original = new SubQuery(new User());
+
+            var modified = original.SyntaxTree().Modify(e => e);
+
+            Assert.AreSame(original, modified);
+        }
+
         private class SubQuery : DerivedTableBase
         {
             public Int32CustomColumn UserId { get; }

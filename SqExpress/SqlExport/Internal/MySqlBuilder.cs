@@ -15,14 +15,25 @@ using SqExpress.Syntax.Select.SelectItems;
 using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Update;
 using SqExpress.Syntax.Value;
+using SqExpress.SyntaxTreeOperations;
 using SqExpress.Utils;
 
 namespace SqExpress.SqlExport.Internal
 {
     internal class MySqlBuilder : SqlBuilderBase
     {
-        public MySqlBuilder(SqlBuilderOptions? options = null, StringBuilder? externalBuilder = null) : base(options, externalBuilder)
+        public MySqlBuilder(SqlBuilderOptions? options = null, StringBuilder? externalBuilder = null) : base(options, externalBuilder, new SqlAliasGenerator(), false)
         {
+        }
+
+        private MySqlBuilder(SqlBuilderOptions? options, StringBuilder? externalBuilder, SqlAliasGenerator aliasGenerator, bool dismissCteInject) 
+            : base(options, externalBuilder, aliasGenerator, dismissCteInject)
+        {
+        }
+
+        protected override SqlBuilderBase CreateInstance(SqlAliasGenerator aliasGenerator, bool dismissCteInject)
+        {
+            return new MySqlBuilder(this.Options, new StringBuilder(), aliasGenerator, dismissCteInject);
         }
 
         public override bool VisitExprGuidLiteral(ExprGuidLiteral exprGuidLiteral, IExpr? parent)
@@ -208,6 +219,13 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        protected override void AppendRecursiveCteKeyword()
+        {
+            this.Builder.Append("RECURSIVE ");
+        }
+
+        protected override bool SupportsInlineCte() => true;
+
         private static bool VisitMergeNotSupported() =>
             throw new SqExpressException("My SQL does not support MERGE expression");
 
@@ -237,7 +255,14 @@ namespace SqExpress.SqlExport.Internal
         {
             exprInsert = PrepareGenericInsert(exprInsert, out var middleHandler);
 
-            this.GenericInsert(exprInsert, middleHandler, null);
+            this.GenericInsert(exprInsert, ()=>
+            {
+                if (middleHandler != null)
+                {
+                    this.Builder.Append(' ');
+                    middleHandler();
+                }
+            }, null);
 
             return true;
         }
@@ -311,7 +336,14 @@ namespace SqExpress.SqlExport.Internal
             var insertExpr = PrepareGenericInsert(exprInsertOutput.Insert, out var middleBuilder);
 
             this.GenericInsert(insertExpr,
-                middleBuilder,
+                () =>
+                {
+                    if (middleBuilder != null)
+                    {
+                        this.Builder.Append(' ');
+                        middleBuilder();
+                    }
+                },
                 () =>
                 {
                     exprInsertOutput.OutputColumns.AssertNotEmpty("INSERT OUTPUT cannot be empty");
@@ -373,15 +405,19 @@ namespace SqExpress.SqlExport.Internal
         {
             this.AssertNotEmptyList(exprUpdate.SetClause, "'UPDATE' statement should have at least one set clause");
 
-            var derivedTables = new HashSet<ExprDerivedTableValues>(exprUpdate.SyntaxTree().Descendants().OfType<ExprDerivedTableValues>());
-
             var derivedTableReplacements = new Dictionary<ExprDerivedTableValues, TempTableBase>();
 
             if (exprUpdate.Source != null)
             {
+                exprUpdate = ModifySourceJoins(exprUpdate: exprUpdate, exprUpdate.Source);
+
+                //Injecting derived tables 
+
+                var derivedTables = new HashSet<ExprDerivedTableValues>(exprUpdate.SyntaxTree().Descendants().OfType<ExprDerivedTableValues>());
+
                 foreach (var derivedTable in derivedTables)
                 {
-                    var keys = exprUpdate.Source.SyntaxTree()
+                    var keys = exprUpdate.Source!.SyntaxTree()
                         .Descendants()
                         .OfType<ExprBooleanEq>()
                         .Select(eq => GetKeyColumn(eq.Left, derivedTable) ?? GetKeyColumn(eq.Right, derivedTable))
@@ -389,46 +425,22 @@ namespace SqExpress.SqlExport.Internal
                         .ToList();
 
                     var insertExpr = TempTableData.FromDerivedTableValuesInsert(derivedTable, keys!, out var tTable, Alias.From(derivedTable.Alias.Alias));
-                    insertExpr.Accept(this, exprUpdate);
+                    insertExpr.Accept(this, null);
                     this.Builder.Append(";");
                     derivedTableReplacements.Add(derivedTable, tTable);
                 }
+
+                exprUpdate = (ExprUpdate)exprUpdate.SyntaxTree().Modify<ExprDerivedTableValues>(dt => derivedTableReplacements.TryGetValue(dt, out var r) ? r : dt)!;
             }
 
-            exprUpdate = (ExprUpdate)exprUpdate.SyntaxTree().Modify<ExprDerivedTableValues>(dt => derivedTableReplacements.TryGetValue(dt, out var r) ? r : dt)!;
-
             this.Builder.Append("UPDATE ");
-            exprUpdate.Target.Accept(this, exprUpdate);
-
-            ExprBoolean? sourceFilter = null;
             if (exprUpdate.Source != null)
             {
-                IReadOnlyList<IExprTableSource> tables;
-                (tables, sourceFilter) = exprUpdate.Source.ToTableMultiplication();
-                this.AssertNotEmptyList(tables, "List of tables in 'UPDATE' statement cannot be empty");
-                if (tables.Count > 1)
-                {
-                    int itemAppendCount = 0;
-                    for (int i = 0; i < tables.Count; i++)
-                    {
-                        var source = tables[i];
-
-                        if (source is ExprTable sTable && sTable.Equals(exprUpdate.Target))
-                        {
-                            continue;
-                        }
-
-                        this.Builder.Append(',');
-
-                        source.Accept(this, exprUpdate);
-                        itemAppendCount++;
-                    }
-
-                    if (itemAppendCount >= tables.Count)
-                    {
-                        throw new SqExpressException("Could not found target table in 'UPDATE' statement");
-                    }
-                }
+                exprUpdate.Source.Accept(this, exprUpdate);
+            }
+            else
+            {
+                exprUpdate.Target.Accept(this, exprUpdate);
             }
 
             this.Builder.Append(" SET ");
@@ -444,12 +456,10 @@ namespace SqExpress.SqlExport.Internal
                 setClause.Value.Accept(this, exprUpdate);
             }
 
-            var filter = Helpers.CombineNotNull(sourceFilter, exprUpdate.Filter, (l, r) => l & r);
-
-            if (filter != null)
+            if (exprUpdate.Filter != null)
             {
                 this.Builder.Append(" WHERE ");
-                filter.Accept(this, exprUpdate);
+                exprUpdate.Filter.Accept(this, exprUpdate);
             }
 
             if (derivedTableReplacements.Count > 0)
@@ -463,7 +473,6 @@ namespace SqExpress.SqlExport.Internal
 
             return true;
 
-            //Helpers
             static ExprColumnName? GetKeyColumn(ExprValue? exprValue, ExprDerivedTableValues derivedTable)
             {
                 if (exprValue is ExprColumn column)
@@ -487,13 +496,14 @@ namespace SqExpress.SqlExport.Internal
             }
             else
             {
+                exprDelete = ModifySourceJoins(exprDelete, exprDelete.Source);
                 var target = exprDelete.Target.Alias != null 
                     ? (IExprColumnSource)exprDelete.Target.Alias 
                     : exprDelete.Target.FullName;
                 this.Builder.Append("DELETE ");
                 target.Accept(this, exprDelete);
                 this.Builder.Append(" FROM ");
-                exprDelete.Source.Accept(this, exprDelete);
+                exprDelete.Source!.Accept(this, exprDelete);
             }
 
             if (exprDelete.Filter != null)
@@ -761,5 +771,63 @@ namespace SqExpress.SqlExport.Internal
 
         protected override IStatementVisitor CreateStatementSqlBuilder() 
             => new MySqlStatementBuilder(this.Options, this.Builder);
+
+        private static TExpr ModifySourceJoins<TExpr>(TExpr exprUpdate, IExprTableSource tableSource) where TExpr : IExpr
+        {
+
+            var cteToModify = new HashSet<ExprCte>();
+            var crossedToModify = new HashSet<ExprCrossedTable>();
+
+            tableSource.SyntaxTree()
+                .WalkThroughWithParent((e, parentNode, list) =>
+                {
+                    if (e is ExprCte cte && parentNode is IExprTableSource)
+                    {
+                        cteToModify.Add(cte);
+                        return VisitorResult.StopNode(list);
+                    }
+
+                    if (e is ExprCrossedTable crossed)
+                    {
+                        crossedToModify.Add(crossed);
+                    }
+
+                    return VisitorResult.Continue(list);
+                },
+                    (object?)null);
+
+            if (cteToModify.Count > 0 || crossedToModify.Count > 0)
+            {
+                exprUpdate = (TExpr)exprUpdate.SyntaxTree()
+                    .Modify(e =>
+                    {
+                        if (cteToModify.Contains(e))
+                        {
+                            var cte = (ExprCte)e;
+
+                            var subQueryAlias = cte.Alias ?? new ExprTableAlias(new ExprAlias(cte.Name));
+
+                            return SqQueryBuilder
+                                .Select(SqQueryBuilder.AllColumns())
+                                .From(cte)
+                                .Done()
+                                .As(subQueryAlias);
+                        }
+
+                        if (crossedToModify.Contains(e))
+                        {
+                            var crossed = (ExprCrossedTable)e;
+                            return new ExprJoinedTable(crossed.Left,
+                                ExprJoinedTable.ExprJoinType.Inner,
+                                crossed.Right,
+                                SqQueryBuilder.Literal(1) == 1);
+                        }
+
+                        return e;
+                    })!;
+            }
+
+            return exprUpdate;
+        }
     }
 }

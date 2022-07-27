@@ -18,6 +18,7 @@ using SqExpress.Syntax.Select.SelectItems;
 using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Update;
 using SqExpress.Syntax.Value;
+using SqExpress.SyntaxTreeOperations;
 using SqExpress.SyntaxTreeOperations.Internal;
 using SqExpress.Utils;
 
@@ -29,15 +30,25 @@ namespace SqExpress.SqlExport.Internal
 
         protected readonly StringBuilder Builder;
 
+        private readonly SqlAliasGenerator _aliasGenerator;
+
+        private readonly bool _dismissCteInject;
+
         private IStatementVisitor? _statementBuilder;
 
-        protected SqlBuilderBase(SqlBuilderOptions? options, StringBuilder? externalBuilder)
+        private int? _cteSlot;
+
+        private Dictionary<string, ExprCte>? _uniqueCteCheck;
+
+        protected SqlBuilderBase(SqlBuilderOptions? options, StringBuilder? externalBuilder, SqlAliasGenerator aliasGenerator, bool dismissCteInject)
         {
             this.Options = options ?? SqlBuilderOptions.Default;
             this.Builder = externalBuilder ?? new StringBuilder();
+            this._dismissCteInject = dismissCteInject;
+            this._aliasGenerator = aliasGenerator;
         }
 
-        private readonly SqlAliasGenerator _aliasGenerator = new SqlAliasGenerator();
+        protected abstract SqlBuilderBase CreateInstance(SqlAliasGenerator aliasGenerator, bool dismissCteInject);
 
         //Boolean Expressions
 
@@ -452,6 +463,10 @@ namespace SqExpress.SqlExport.Internal
 
         public bool VisitExprQuerySpecification(ExprQuerySpecification exprQuerySpecification, IExpr? parent)
         {
+            this.AddCteSlot(parent);
+
+            this.AcceptInlineCte(exprQuerySpecification);
+
             this.Builder.Append("SELECT ");
             if (exprQuerySpecification.Distinct)
             {
@@ -528,6 +543,10 @@ namespace SqExpress.SqlExport.Internal
 
         public bool VisitExprQueryExpression(ExprQueryExpression exprQueryExpression, IExpr? parent)
         {
+            this.AddCteSlot(parent);
+
+            this.AcceptInlineCte(exprQueryExpression);
+
             if (ForceParenthesesForQueryExpressionPart(exprQueryExpression.Left))
             {
                 this.AcceptPar('(', exprQueryExpression.Left, ')', exprQueryExpression);
@@ -571,6 +590,8 @@ namespace SqExpress.SqlExport.Internal
 
         public bool VisitExprSelect(ExprSelect exprSelect, IExpr? parent)
         {
+            this.AddCteSlot(parent);
+
             exprSelect.SelectQuery.Accept(this, exprSelect);
             this.Builder.Append(" ORDER BY ");
             exprSelect.OrderBy.Accept(this, exprSelect);
@@ -588,6 +609,8 @@ namespace SqExpress.SqlExport.Internal
 
         public bool VisitExprSelectOffsetFetch(ExprSelectOffsetFetch exprSelectOffsetFetch, IExpr? parent)
         {
+            this.AddCteSlot(parent);
+
             exprSelectOffsetFetch.SelectQuery.Accept(this, exprSelectOffsetFetch);
             this.Builder.Append(" ORDER BY ");
             exprSelectOffsetFetch.OrderBy.Accept(this, exprSelectOffsetFetch);
@@ -1176,6 +1199,24 @@ namespace SqExpress.SqlExport.Internal
 
         public abstract bool VisitExprDerivedTableValues(ExprDerivedTableValues derivedTableValues, IExpr? parent);
 
+        public bool VisitExprCteQuery(ExprCteQuery exprCte, IExpr? parent)
+        {
+            this.AddCteSlot(parent);
+            this.AddCteExpressionToSlot(exprCte);
+
+            if (parent != null)
+            {
+                this.AppendName(exprCte.Name);
+                if (exprCte.Alias != null)
+                {
+                    this.Builder.Append(' ');
+                    exprCte.Alias.Accept(this, exprCte);
+                }
+            }
+
+            return true;
+        }
+
         protected bool VisitExprDerivedTableValuesCommon(ExprDerivedTableValues derivedTableValues, IExpr? parent)
         {
             this.AcceptPar('(', derivedTableValues.Values, ')', derivedTableValues);
@@ -1222,11 +1263,8 @@ namespace SqExpress.SqlExport.Internal
                 this.AcceptListComaSeparatedPar('(', exprInsert.TargetColumns, ')', exprInsert);
             }
 
-            if (middleHandler != null)
-            {
-                this.Builder.Append(' ');
-                middleHandler();
-            }
+            middleHandler?.Invoke();
+
             this.Builder.Append(' ');
             exprInsert.Source.Accept(this, exprInsert);
             if (endHandler != null)
@@ -1369,6 +1407,12 @@ namespace SqExpress.SqlExport.Internal
 
         public abstract bool VisitExprFuncIsNull(ExprFuncIsNull exprFuncIsNull, IExpr? parent);
 
+        public bool VisitExprStatement(ExprStatement statement, IExpr? parent)
+        {
+            statement.Statement.Accept(this.GetStatementSqlBuilder());
+            return true;
+        }
+
         public abstract void AppendName(string name, char? prefix = null);
 
         protected void AppendNull()
@@ -1427,15 +1471,174 @@ namespace SqExpress.SqlExport.Internal
             return this._statementBuilder;
         }
 
-        public bool VisitExprStatement(ExprStatement statement, IExpr? parent)
+        protected void AddCteSlot(IExpr? parent)
         {
-            statement.Statement.Accept(this.GetStatementSqlBuilder());
-            return true;
+            if (!this.SupportsInlineCte() && parent == null && this._cteSlot == null)
+            {
+                this._cteSlot = this.Builder.Length;
+            }
+        }
+
+        private void AddCteExpressionToSlot(ExprCte cte)
+        {
+            if (this._dismissCteInject || this.SupportsInlineCte())
+            {
+                return;
+            }
+            if (this._cteSlot == null)
+            {
+                throw new SqExpressException("Could not add CTE expression without a proper context");
+            }
+
+            this._uniqueCteCheck ??= new Dictionary<string, ExprCte>();
+
+            if (this._uniqueCteCheck.TryGetValue(cte.Name, out var existingCte))
+            {
+                if (existingCte.GetType() != cte.GetType())
+                {
+                    throw new SqExpressException($"Different CTE with name \"{cte.Name}\" has already been added");
+                }
+            }
+            else
+            {
+                this._uniqueCteCheck.Add(cte.Name, cte);
+            }
+        }
+
+        protected void AcceptCteExpressions(IReadOnlyList<ExprCte> expressions)
+        {
+            this._uniqueCteCheck ??= new Dictionary<string, ExprCte>();
+            bool recursive = false;
+            var result = new List<ExprCte>();
+            var parents = expressions.Where(e=> !this._uniqueCteCheck.ContainsKey(e.Name)).ToList();
+            foreach (var parent in parents)
+            {
+                this._uniqueCteCheck.Add(parent.Name, parent);
+            }
+
+            result.AddRange(parents);
+            while (parents.Count > 0)
+            {
+                var nextChunk = new List<ExprCte>();
+                foreach (var cte in parents)
+                {
+                    foreach (var subCte in cte.SyntaxTree().Descendants().OfType<ExprCte>())
+                    {
+                        if (subCte.Name == cte.Name)
+                        {
+                            recursive = true;
+                        }
+                        else
+                        {
+                            if (!this._uniqueCteCheck.TryGetValue(subCte.Name, out var existingSubCte))
+                            {
+                                this._uniqueCteCheck.Add(subCte.Name, subCte);
+                                nextChunk.Add(subCte);
+                            }
+                            else
+                            {
+                                var type1 = subCte.GetType();
+                                var type2 = existingSubCte.GetType();
+
+                                if (type1 != typeof(ExprCteQuery) && type2 != typeof(ExprCteQuery) && type1 != type2)
+                                {
+                                    throw new SqExpressException($"Different CTE with name \"{cte.Name}\" has already been added");
+                                }
+                            }
+                        }
+                    }
+                }
+                result.InsertRange(0, nextChunk);
+                parents = nextChunk;
+            }
+
+            this.Builder.Append("WITH ");
+            if (recursive)
+            {
+                this.AppendRecursiveCteKeyword();
+            }
+
+            for (var index = 0; index < result.Count; index++)
+            {
+                var exprCte = result[index];
+                if (index != 0)
+                {
+                    this.Builder.Append(',');
+                }
+
+                this.AppendName(exprCte.Name);
+                this.Builder.Append(" AS");
+                this.AcceptPar('(', exprCte.CreateQuery(), ')', exprCte);
+            }
+        }
+
+        protected abstract void AppendRecursiveCteKeyword();
+
+        protected abstract bool SupportsInlineCte();
+
+        protected void AcceptInlineCte(IExprSubQuery querySpecification)
+        {
+            if (!this.SupportsInlineCte())
+            {
+                return;
+            }
+
+            //It founds a first mention of first CTE node and does not go deeper
+            var cteList = querySpecification.SyntaxTree()
+                .WalkThrough((e, c) =>
+                    {
+                        if (e is ExprCte cte && !(this._uniqueCteCheck?.ContainsKey(cte.Name) ?? false))
+                        {
+                            if (!c.ContainsKey(cte.Name))
+                            {
+                                c.Add(cte.Name, cte);
+                            }
+                            return VisitorResult<Dictionary<string, ExprCte>>.StopNode(c);
+                        }
+                        return VisitorResult<Dictionary<string, ExprCte>>.Continue(c);
+                    },
+                    new Dictionary<string, ExprCte>());
+
+            if (cteList.Count < 1)
+            {
+                return;
+            }
+
+            this.AcceptCteExpressions(cteList.Values.ToList());
+            this.Builder.Append(' ');
+        }
+
+        private string? InjectCteToSlot(out int position)
+        {
+            position = 0;
+            if (this._cteSlot == null || this._uniqueCteCheck == null)
+            {
+                return null;
+            }
+
+            position = this._cteSlot.Value;
+
+            var cteBuilder = this.CreateInstance(this._aliasGenerator, true);
+
+            var list = this._uniqueCteCheck.Values.ToList();
+
+            cteBuilder.AcceptCteExpressions(list);
+
+            return cteBuilder.ToString();
         }
 
         public override string ToString()
         {
-            return this.Builder.ToString();
+            var result = this.Builder.ToString();
+            if (!this._dismissCteInject)
+            {
+                var cteResult = this.InjectCteToSlot(out var ctePosition);
+                if (cteResult != null)
+                {
+                    result = result.Insert(ctePosition, cteResult);
+                }
+            }
+            return result;
         }
     }
 }

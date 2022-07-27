@@ -141,6 +141,8 @@ namespace SqExpress.Syntax
 
         TRes VisitExprDerivedTableValues(ExprDerivedTableValues derivedTableValues, TArg arg);
 
+        TRes VisitExprCteQuery(ExprCteQuery exprCte, TArg arg);
+
         TRes VisitExprColumnSetClause(ExprColumnSetClause columnSetClause, TArg arg);
 
         //Merge

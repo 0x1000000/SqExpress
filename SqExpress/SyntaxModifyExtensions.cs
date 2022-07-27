@@ -265,6 +265,15 @@ namespace SqExpress
         public static ExprCrossedTable WithRight(this ExprCrossedTable original, IExprTableSource newRight) 
             => new ExprCrossedTable(left: original.Left, right: newRight);
 
+        public static ExprCteQuery WithAlias(this ExprCteQuery original, ExprTableAlias? newAlias) 
+            => new ExprCteQuery(alias: newAlias, query: original.Query, name: original.Name);
+
+        public static ExprCteQuery WithQuery(this ExprCteQuery original, IExprSubQuery newQuery) 
+            => new ExprCteQuery(alias: original.Alias, query: newQuery, name: original.Name);
+
+        public static ExprCteQuery WithName(this ExprCteQuery original, String newName) 
+            => new ExprCteQuery(alias: original.Alias, query: original.Query, name: newName);
+
         public static ExprDatabaseName WithName(this ExprDatabaseName original, String newName) 
             => new ExprDatabaseName(name: newName);
 
@@ -712,6 +721,16 @@ namespace SqExpress
         public static ExprValueRow WithItems(this ExprValueRow original, IReadOnlyList<ExprValue> newItems) 
             => new ExprValueRow(items: newItems);
 
-       //CodeGenEnd
+        //CodeGenEnd
+
+        public static ExprCteQuery WithAlias(this ExprCte original, ExprTableAlias? newAlias)
+            => new ExprCteQuery(alias: newAlias, query: original.CreateQuery(), name: original.Name);
+
+        public static ExprCteQuery WithQuery(this ExprCte original, IExprSubQuery newQuery)
+            => new ExprCteQuery(alias: original.Alias, query: newQuery, name: original.Name);
+
+        public static ExprCteQuery WithName(this ExprCte original, String newName)
+            => new ExprCteQuery(alias: original.Alias, query: original.CreateQuery(), name: newName);
+
     }
 }

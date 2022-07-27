@@ -18,8 +18,18 @@ namespace SqExpress.SqlExport.Internal
 {
     internal class PgSqlBuilder : SqlBuilderBase
     {
-        public PgSqlBuilder(SqlBuilderOptions? options = null, StringBuilder? externalBuilder = null) : base(options, externalBuilder)
+        public PgSqlBuilder(SqlBuilderOptions? options = null, StringBuilder? externalBuilder = null) : base(options, externalBuilder, new SqlAliasGenerator(), false)
         {
+        }
+
+        private PgSqlBuilder(SqlBuilderOptions? options, StringBuilder? externalBuilder, SqlAliasGenerator aliasGenerator, bool dismissCteInject)
+            : base(options, externalBuilder, aliasGenerator, dismissCteInject)
+        {
+        }
+
+        protected override SqlBuilderBase CreateInstance(SqlAliasGenerator aliasGenerator, bool dismissCteInject)
+        {
+            return new PgSqlBuilder(this.Options, new StringBuilder(), aliasGenerator, dismissCteInject);
         }
 
         public override bool VisitExprGuidLiteral(ExprGuidLiteral exprGuidLiteral, IExpr? parent)
@@ -120,18 +130,28 @@ namespace SqExpress.SqlExport.Internal
             return this.VisitExprDerivedTableValuesCommon(derivedTableValues, parent);
         }
 
+        protected override void AppendRecursiveCteKeyword()
+        {
+            this.Builder.Append("RECURSIVE ");
+        }
+
+        protected override bool SupportsInlineCte() => false;
+
         public override bool VisitExprInsert(ExprInsert exprInsert, IExpr? parent)
         {
+            this.AddCteSlot(parent);
             this.GenericInsert(exprInsert, null, null);
             return true;
         }
 
         public override bool VisitExprInsertOutput(ExprInsertOutput exprInsertOutput, IExpr? parent)
         {
+            this.AddCteSlot(parent);
             this.GenericInsert(exprInsertOutput.Insert,
                 null,
                 () =>
                 {
+                    this.Builder.Append(' ');
                     exprInsertOutput.OutputColumns.AssertNotEmpty("INSERT OUTPUT cannot be empty");
                     this.Builder.Append(" RETURNING ");
                     this.AcceptListComaSeparated(exprInsertOutput.OutputColumns, exprInsertOutput);
@@ -144,13 +164,14 @@ namespace SqExpress.SqlExport.Internal
             return this.VisitExprInsertQueryCommon(exprInsertQuery, parent);
         }
 
-        public override bool VisitExprIdentityInsert(ExprIdentityInsert exprIdentityInsert, IExpr? arg)
+        public override bool VisitExprIdentityInsert(ExprIdentityInsert exprIdentityInsert, IExpr? parent)
         {
             if (exprIdentityInsert.IdentityColumns.Count < 1)
             {
                 return exprIdentityInsert.Insert.Accept(this, exprIdentityInsert);
             }
-            this.GenericInsert(exprIdentityInsert.Insert,()=>this.Builder.Append("OVERRIDING SYSTEM VALUE"), null);
+            this.AddCteSlot(parent);
+            this.GenericInsert(exprIdentityInsert.Insert,()=>this.Builder.Append(" OVERRIDING SYSTEM VALUE"), null);
 
             this.Builder.Append(';');
             var exprTableSource = new ExprTable(exprIdentityInsert.Insert.Target, null);
@@ -173,6 +194,8 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprUpdate(ExprUpdate exprUpdate, IExpr? parent)
         {
+            this.AddCteSlot(parent);
+
             this.AssertNotEmptyList(exprUpdate.SetClause, "'UPDATE' statement should have at least one set clause");
 
             this.Builder.Append("UPDATE ");
@@ -237,6 +260,8 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprDelete(ExprDelete exprDelete, IExpr? parent)
         {
+            this.AddCteSlot(parent);
+
             this.Builder.Append("DELETE FROM ");
             exprDelete.Target.Accept(this, exprDelete);
 
@@ -289,6 +314,8 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprDeleteOutput(ExprDeleteOutput exprDeleteOutput, IExpr? parent)
         {
+            this.AddCteSlot(parent);
+
             exprDeleteOutput.Delete.Accept(this, exprDeleteOutput);
             this.AssertNotEmptyList(exprDeleteOutput.OutputColumns, "Output list in 'DELETE' statement cannot be empty");
 

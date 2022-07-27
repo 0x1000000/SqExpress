@@ -4,26 +4,45 @@ using SqExpress.Syntax;
 
 namespace SqExpress.SyntaxTreeOperations
 {
+    internal enum WalkResult
+    {
+        Continue,
+        StopNode,
+        Stop
+    }
+
+    public static class VisitorResult
+    {
+        public static VisitorResult<TCtx> Continue<TCtx>(TCtx value) => VisitorResult<TCtx>.Continue(value);
+
+        public static VisitorResult<TCtx> Stop<TCtx>(TCtx value) => VisitorResult<TCtx>.Stop(value);
+
+        public static VisitorResult<TCtx> StopNode<TCtx>(TCtx value) => VisitorResult<TCtx>.StopNode(value);
+    }
+
     public readonly struct VisitorResult<TCtx>
     {
         public readonly TCtx Context;
 
-        public readonly bool IsStop;
+        public bool IsStop => this.WalkResult == WalkResult.Stop;
 
-        private VisitorResult(TCtx context, bool isTop)
+        internal readonly WalkResult WalkResult;
+
+        private VisitorResult(TCtx context, WalkResult walkResult)
         {
             this.Context = context;
-            this.IsStop = isTop;
+            this.WalkResult = walkResult;
         }
 
-        public static VisitorResult<TCtx> Continue(TCtx value) => new VisitorResult<TCtx>(value, false);
+        public static VisitorResult<TCtx> Continue(TCtx value) => new VisitorResult<TCtx>(value, WalkResult.Continue);
 
-        public static VisitorResult<TCtx> Stop(TCtx value) => new VisitorResult<TCtx>(value, true);
+        public static VisitorResult<TCtx> Stop(TCtx value) => new VisitorResult<TCtx>(value, WalkResult.Stop);
+
+        public static VisitorResult<TCtx> StopNode(TCtx value) => new VisitorResult<TCtx>(value, WalkResult.StopNode);
     }
 
-    public interface IWalkerVisitor<TCtx>
+    public interface IWalkerVisitorBase<in TCtx>
     {
-        VisitorResult<TCtx> VisitExpr(IExpr expr, string typeTag, TCtx ctx);
         void EndVisitExpr(IExpr expr, TCtx ctx);
 
         void VisitProperty(string name, bool isArray, bool isNull, TCtx ctx);
@@ -44,5 +63,15 @@ namespace SqExpress.SyntaxTreeOperations
         void VisitPlainProperty(string name, DateTimeOffset? value, TCtx ctx);
         void VisitPlainProperty(string name, Guid? value, TCtx ctx);
         void VisitPlainProperty(string name, IReadOnlyList<byte>? value, TCtx ctx);
+    }
+
+    public interface IWalkerVisitor<TCtx> : IWalkerVisitorBase<TCtx>
+    {
+        VisitorResult<TCtx> VisitExpr(IExpr expr, string typeTag, TCtx ctx);
+    }
+
+    public interface IWalkerVisitorWithParent<TCtx> : IWalkerVisitorBase<TCtx>
+    {
+        VisitorResult<TCtx> VisitExpr(IExpr expr, IExpr? parent, string typeTag, TCtx ctx);
     }
 }

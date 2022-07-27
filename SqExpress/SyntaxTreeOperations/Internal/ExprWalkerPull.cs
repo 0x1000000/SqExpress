@@ -20,6 +20,8 @@ namespace SqExpress.SyntaxTreeOperations.Internal
 {
     internal class ExprWalkerPull : IExprVisitor<bool, object?>, IEnumerator<IExpr>
     {
+        private const int MaxDeep = 1000000;
+
         public static IEnumerable<IExpr> GetEnumerable(IExpr root, bool self) => new ExprWalkerPullEnumerable(root, self);
 
         private readonly IExpr _root;
@@ -27,6 +29,8 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         private readonly bool _self;
 
         private StackItem[] _stack;
+
+        private HashSet<string>? _cteChecker;
 
         private int _stackIndex=-1;
 
@@ -44,6 +48,7 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         private void Push(IExpr expr)
         {
             this._stackIndex++;
+            this.PushWatchDog();
             if (this._stackIndex >= this._stack.Length)
             {
                 Array.Resize(ref this._stack, this._stack.Length*2);
@@ -54,11 +59,20 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         private void Push(IReadOnlyList<IExpr> expr)
         {
             this._stackIndex++;
+            this.PushWatchDog();
             if (this._stackIndex >= this._stack.Length)
             {
                 Array.Resize(ref this._stack, this._stack.Length*2);
             }
             this._stack[this._stackIndex] = new StackItem(null, expr, 0, 0);
+        }
+
+        private void PushWatchDog()
+        {
+            if (this._stackIndex >= MaxDeep)
+            {
+                throw new Exception("Expression deep has reached its limit.");
+            }
         }
 
         private ref StackItem Peek()
@@ -154,6 +168,7 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         {
             this._stackIndex = -1;
             this._stack = new StackItem[8];
+            this._cteChecker = new HashSet<string>();
             if (!this._self)
             {
                 this.SetCurrent(this._root);
@@ -200,6 +215,63 @@ namespace SqExpress.SyntaxTreeOperations.Internal
                 this.Index = index;
             }
         }
+
+        public bool VisitExprCteQuery(ExprCteQuery expr, object? arg)
+        {
+            this._cteChecker ??= new HashSet<string>();
+            if (!this._cteChecker.Contains(expr.Name))
+            {
+                bool res;
+                switch (this.Peek().State)
+                {
+                    case 1:
+                        res = this.SetCurrent(expr.Alias);
+                        break;
+                    case 2:
+                        this._cteChecker.Add(expr.Name);
+                        res = this.SetCurrent(expr.Query);
+                        break;
+                    case 3:
+                        res = this.Pop();
+                        break;
+                    default:
+                        throw new SqExpressException("Incorrect enumerator visitor state");
+                }
+
+                return res;
+            }
+
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.Alias);
+                case 2:
+                    return this.Pop();
+                case 3:
+                    this._cteChecker.Remove(expr.Name);
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
+
+        public bool VisitExprDerivedTableQuery(ExprDerivedTableQuery expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.Query);
+                case 2:
+                    return this.SetCurrent(expr.Alias);
+                case 3:
+                    return this.SetCurrent(expr.Columns);
+                case 4:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
+
         //CodeGenStart
         public bool VisitExprAggregateFunction(ExprAggregateFunction expr, object? arg)
         {
@@ -563,6 +635,21 @@ namespace SqExpress.SyntaxTreeOperations.Internal
                     throw new SqExpressException("Incorrect enumerator visitor state");
             }
         }
+        ////Default implementation
+        //public bool VisitExprCteQuery(ExprCteQuery expr, object? arg)
+        //{
+            //switch (this.Peek().State)
+            //{
+                //case 1:
+                    //return this.SetCurrent(expr.Alias);
+                //case 2:
+                    //return this.SetCurrent(expr.Query);
+                //case 3:
+                    //return this.Pop();
+                //default:
+                    //throw new SqExpressException("Incorrect enumerator visitor state");
+            //}
+        //}
         public bool VisitExprCurrentRowFrameBorder(ExprCurrentRowFrameBorder expr, object? arg)
         {
             switch (this.Peek().State)
@@ -679,22 +766,23 @@ namespace SqExpress.SyntaxTreeOperations.Internal
                     throw new SqExpressException("Incorrect enumerator visitor state");
             }
         }
-        public bool VisitExprDerivedTableQuery(ExprDerivedTableQuery expr, object? arg)
-        {
-            switch (this.Peek().State)
-            {
-                case 1:
-                    return this.SetCurrent(expr.Query);
-                case 2:
-                    return this.SetCurrent(expr.Alias);
-                case 3:
-                    return this.SetCurrent(expr.Columns);
-                case 4:
-                    return this.Pop();
-                default:
-                    throw new SqExpressException("Incorrect enumerator visitor state");
-            }
-        }
+        ////Default implementation
+        //public bool VisitExprDerivedTableQuery(ExprDerivedTableQuery expr, object? arg)
+        //{
+            //switch (this.Peek().State)
+            //{
+                //case 1:
+                    //return this.SetCurrent(expr.Query);
+                //case 2:
+                    //return this.SetCurrent(expr.Alias);
+                //case 3:
+                    //return this.SetCurrent(expr.Columns);
+                //case 4:
+                    //return this.Pop();
+                //default:
+                    //throw new SqExpressException("Incorrect enumerator visitor state");
+            //}
+        //}
         public bool VisitExprDerivedTableValues(ExprDerivedTableValues expr, object? arg)
         {
             switch (this.Peek().State)

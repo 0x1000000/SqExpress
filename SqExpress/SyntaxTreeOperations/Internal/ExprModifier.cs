@@ -18,9 +18,9 @@ namespace SqExpress.SyntaxTreeOperations.Internal
 {
     internal class ExprModifier : IExprVisitor<IExpr?, Func<IExpr, IExpr?>>
     {
-        public static readonly ExprModifier Instance = new ExprModifier();
+        private HashSet<string>? _cteChecker;
 
-        private ExprModifier() { }
+        public ExprModifier() { }
 
         private T AcceptItem<T>(T item, Func<IExpr, IExpr?> arg) where T : IExpr
         {
@@ -113,7 +113,46 @@ namespace SqExpress.SyntaxTreeOperations.Internal
 
             return collection;
         }
+        public IExpr? VisitExprCteQuery(ExprCteQuery exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            this._cteChecker ??= new HashSet<string>();
 
+            var newAlias = this.AcceptNullableItem(exprIn.Alias, modifier);
+            var newQuery = exprIn.Query;
+            if (!this._cteChecker.Contains(exprIn.Name))
+            {
+                this._cteChecker.Add(exprIn.Name);
+                newQuery = this.AcceptItem(exprIn.Query, modifier);
+                this._cteChecker.Remove(exprIn.Name);
+            }
+                
+            if (!ReferenceEquals(exprIn.Alias, newAlias) || !ReferenceEquals(exprIn.Query, newQuery))
+            {
+                exprIn = new ExprCteQuery(alias: newAlias, query: newQuery, name: exprIn.Name);
+            }
+            else if(exprIn is CteOriginalRef originalRef)
+            {
+                return modifier.Invoke(originalRef.Original);
+            }
+            return modifier.Invoke(exprIn);
+        }
+
+        public IExpr? VisitExprDerivedTableQuery(ExprDerivedTableQuery exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newQuery = this.AcceptItem(exprIn.Query, modifier);
+            var newAlias = this.AcceptItem(exprIn.Alias, modifier);
+            var newColumns = this.AcceptNullCollection(exprIn.Columns, modifier);
+            if (!ReferenceEquals(exprIn.Query, newQuery) || !ReferenceEquals(exprIn.Alias, newAlias) || !ReferenceEquals(exprIn.Columns, newColumns))
+            {
+                exprIn = new ExprDerivedTableQuery(query: newQuery, alias: newAlias, columns: newColumns);
+            }
+            else if (exprIn is DerivedTableQueryWithOriginalRef originalRef)
+            {
+                return modifier.Invoke(originalRef.Original);
+            }
+            return modifier.Invoke(exprIn);
+
+        }
 
         //CodeGenStart
         public IExpr? VisitExprAggregateFunction(ExprAggregateFunction exprIn, Func<IExpr, IExpr?> modifier)
@@ -353,6 +392,17 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             return modifier.Invoke(exprIn);
         }
+        ////Default implementation
+        //public IExpr? VisitExprCteQuery(ExprCteQuery exprIn, Func<IExpr, IExpr?> modifier)
+        //{
+            //var newAlias = this.AcceptNullableItem(exprIn.Alias, modifier);
+            //var newQuery = this.AcceptItem(exprIn.Query, modifier);
+            //if(!ReferenceEquals(exprIn.Alias, newAlias) || !ReferenceEquals(exprIn.Query, newQuery))
+            //{
+                //exprIn = new ExprCteQuery(alias: newAlias, query: newQuery, name: exprIn.Name);
+            //}
+            //return modifier.Invoke(exprIn);
+        //}
         public IExpr? VisitExprCurrentRowFrameBorder(ExprCurrentRowFrameBorder exprIn, Func<IExpr, IExpr?> modifier)
         {
             return modifier.Invoke(exprIn);
@@ -417,17 +467,18 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             return modifier.Invoke(exprIn);
         }
-        public IExpr? VisitExprDerivedTableQuery(ExprDerivedTableQuery exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            var newQuery = this.AcceptItem(exprIn.Query, modifier);
-            var newAlias = this.AcceptItem(exprIn.Alias, modifier);
-            var newColumns = this.AcceptNullCollection(exprIn.Columns, modifier);
-            if(!ReferenceEquals(exprIn.Query, newQuery) || !ReferenceEquals(exprIn.Alias, newAlias) || !ReferenceEquals(exprIn.Columns, newColumns))
-            {
-                exprIn = new ExprDerivedTableQuery(query: newQuery, alias: newAlias, columns: newColumns);
-            }
-            return modifier.Invoke(exprIn);
-        }
+        ////Default implementation
+        //public IExpr? VisitExprDerivedTableQuery(ExprDerivedTableQuery exprIn, Func<IExpr, IExpr?> modifier)
+        //{
+            //var newQuery = this.AcceptItem(exprIn.Query, modifier);
+            //var newAlias = this.AcceptItem(exprIn.Alias, modifier);
+            //var newColumns = this.AcceptNullCollection(exprIn.Columns, modifier);
+            //if(!ReferenceEquals(exprIn.Query, newQuery) || !ReferenceEquals(exprIn.Alias, newAlias) || !ReferenceEquals(exprIn.Columns, newColumns))
+            //{
+                //exprIn = new ExprDerivedTableQuery(query: newQuery, alias: newAlias, columns: newColumns);
+            //}
+            //return modifier.Invoke(exprIn);
+        //}
         public IExpr? VisitExprDerivedTableValues(ExprDerivedTableValues exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newValues = this.AcceptItem(exprIn.Values, modifier);

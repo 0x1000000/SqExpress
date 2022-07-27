@@ -7,7 +7,6 @@ using SqExpress.Syntax;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions.Known;
-using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Select.SelectItems;
@@ -20,8 +19,18 @@ namespace SqExpress.SqlExport.Internal
 {
     internal class TSqlBuilder : SqlBuilderBase
     {
-        public TSqlBuilder(SqlBuilderOptions? options = null, StringBuilder? externalBuilder = null) : base(options, externalBuilder)
+        public TSqlBuilder(SqlBuilderOptions? options = null, StringBuilder? externalBuilder = null) : base(options, externalBuilder, new SqlAliasGenerator(), false)
         {
+        }
+
+        private TSqlBuilder(SqlBuilderOptions? options, StringBuilder? externalBuilder, SqlAliasGenerator aliasGenerator, bool dismissCteInject)
+            : base(options, externalBuilder, aliasGenerator, dismissCteInject)
+        {
+        }
+
+        protected override SqlBuilderBase CreateInstance(SqlAliasGenerator aliasGenerator, bool dismissCteInject)
+        {
+            return new TSqlBuilder(this.Options, new StringBuilder(), aliasGenerator, dismissCteInject);
         }
 
         public override bool VisitExprGuidLiteral(ExprGuidLiteral exprGuidLiteral, IExpr? parent)
@@ -122,6 +131,13 @@ namespace SqExpress.SqlExport.Internal
         {
             return this.VisitExprDerivedTableValuesCommon(derivedTableValues, parent);
         }
+
+        protected override void AppendRecursiveCteKeyword()
+        {
+            
+        }
+
+        protected override bool SupportsInlineCte() => false;
 
         //Merge
 
@@ -235,17 +251,19 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprInsert(ExprInsert exprInsert, IExpr? parent)
         {
+            this.AddCteSlot(parent);
             this.GenericInsert(exprInsert, null, null);
             return true;
         }
 
         public override bool VisitExprInsertOutput(ExprInsertOutput exprInsertOutput, IExpr? parent)
         {
+            this.AddCteSlot(parent);
             this.GenericInsert(exprInsertOutput.Insert,
                 () =>
                 {
                     exprInsertOutput.OutputColumns.AssertNotEmpty("INSERT OUTPUT cannot be empty");
-                    this.Builder.Append("OUTPUT ");
+                    this.Builder.Append(" OUTPUT ");
                     for (int i = 0; i < exprInsertOutput.OutputColumns.Count; i++)
                     {
                         if (i != 0)
@@ -277,6 +295,8 @@ namespace SqExpress.SqlExport.Internal
             exprIdentityInsert.Insert.Target.Accept(this, exprIdentityInsert);
             this.Builder.Append(" ON;");
 
+            this.AddCteSlot(parent);
+
             var result = exprIdentityInsert.Insert.Accept(this, exprIdentityInsert);
 
             this.Builder.Append(";SET IDENTITY_INSERT ");
@@ -287,7 +307,36 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprUpdate(ExprUpdate exprUpdate, IExpr? parent)
         {
-            this.GenericUpdate(exprUpdate.Target, exprUpdate.SetClause, exprUpdate.Source, exprUpdate.Filter , exprUpdate);
+            this.AddCteSlot(parent);
+
+            IExprTableSource? source = exprUpdate.Source;
+            this.AssertNotEmptyList(exprUpdate.SetClause, "'UPDATE' statement should have at least one set clause");
+
+            IExprColumnSource target = exprUpdate.Target.FullName;
+
+            if (exprUpdate.Target.Alias != null)
+            {
+                target = exprUpdate.Target.Alias;
+                source ??= exprUpdate.Target;
+            }
+
+            this.Builder.Append("UPDATE ");
+            target.Accept(this, exprUpdate);
+
+            this.Builder.Append(" SET ");
+            this.AcceptListComaSeparated(exprUpdate.SetClause, exprUpdate);
+
+            if (source != null)
+            {
+                this.Builder.Append(" FROM ");
+                source.Accept(this, exprUpdate);
+            }
+            if (exprUpdate.Filter != null)
+            {
+                this.Builder.Append(" WHERE ");
+                exprUpdate.Filter.Accept(this, exprUpdate);
+            }
+
             return true;
         }
 
@@ -323,12 +372,14 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprDelete(ExprDelete exprDelete, IExpr? parent)
         {
-            this.GenericDelete(exprDelete.Target, null, exprDelete.Source, exprDelete.Filter, exprDelete);
+            this.AddCteSlot(parent);
+            this.GenericDelete(exprDelete.Target, null, exprDelete.Source, exprDelete.Filter, parent);
             return true;
         }
 
         public override bool VisitExprDeleteOutput(ExprDeleteOutput exprDeleteOutput, IExpr? parent)
         {
+            this.AddCteSlot(parent);
             this.GenericDelete(exprDeleteOutput.Delete.Target, exprDeleteOutput.OutputColumns, exprDeleteOutput.Delete.Source, exprDeleteOutput.Delete.Filter, exprDeleteOutput);
             return true;
         }
