@@ -190,7 +190,7 @@ namespace SqExpress.CodeGenUtil
             {
                 string path = Path.Combine(outDirectory, $"{meta.Name}.cs");
                 if (logger.IsDetailed) logger.LogDetailed(path);
-                await File.WriteAllTextAsync(path, ModelClassGenerator.Generate(meta, options.Namespace, path, options.RwClasses, options.ModelType, DefaultFileSystem.Instance, out var existing).ToFullString());
+                await File.WriteAllTextAsync(path, ModelClassGenerator.Generate(meta, options.Namespace, path, options.RwClasses, options.NullRefTypes, options.ModelType, DefaultFileSystem.Instance, out var existing).ToFullString());
                 if (logger.IsDetailed) logger.LogDetailed(existing ? "Existing file updated." : "New file created.");
             }
 

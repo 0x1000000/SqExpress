@@ -1,6 +1,7 @@
 ﻿#if !NETFRAMEWORK
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -27,7 +28,7 @@ namespace SqExpress.Test.CodeGenUtil
                 .EnumerateTableDescriptorsModelAttributes("A", fileSystem)
                 .ParseAttribute(true)
                 .CreateAnalysis()
-                .Select(meta=> ModelClassGenerator.Generate(meta, "Org", "", true, ModelType.ImmutableClass, fileSystem, out _).SyntaxTree)
+                .Select(meta=> ModelClassGenerator.Generate(meta, "Org", "", true, true, ModelType.ImmutableClass, fileSystem, out _).SyntaxTree)
                 .ToList();
 
             var trees = new List<SyntaxTree>();
@@ -46,6 +47,7 @@ namespace SqExpress.Test.CodeGenUtil
             compilation = compilation.AddReferences(
                 MetadataReference.CreateFromFile(Assembly.Load("netstandard, Version=2.0.0.0").Location),
                 MetadataReference.CreateFromFile(typeof(object).Assembly.GetAssemblyLocation()),
+                MetadataReference.CreateFromFile(typeof(IDataRecord).Assembly.GetAssemblyLocation()),
                 MetadataReference.CreateFromFile(Assembly
                     .Load("System.Runtime, Version=4.2.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a")
                     .Location),

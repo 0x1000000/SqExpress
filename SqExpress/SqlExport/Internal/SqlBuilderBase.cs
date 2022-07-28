@@ -397,7 +397,7 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
-        public bool VisitExprValueQuery(ExprValueQuery exprValueQuery, IExpr? arg)
+        public bool VisitExprValueQuery(ExprValueQuery exprValueQuery, IExpr? parent)
         {
             this.AcceptPar('(', exprValueQuery.Query, ')', exprValueQuery);
             return true;

@@ -25,6 +25,7 @@ namespace SqExpress.IntTest
                     .Then(new ScInsertCompanies())
                     .Then(new ScUpdateUsers())
                     .Then(new ScUpdateUserData())
+                    .Then(new ScSelectSeveralModelsWithPrefix())
                     .Then(new ScAllColumnTypes())
                     .Then(new ScAllColumnTypesExportImport())
                     .Then(new ScSelectLogic())

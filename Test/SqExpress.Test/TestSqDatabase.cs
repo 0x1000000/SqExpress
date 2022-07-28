@@ -228,12 +228,15 @@ namespace SqExpress.Test
             return this.GetByColName<string?>(name);
         }
 
+        public bool IsDBNull(string name)
+        {
+            return this.GetByColName<object?>(name) == null;
+        }
+
         public object? GetValue(string name)
         {
             return this.GetByColName<object?>(name);
-
         }
-
 
         public string GetName(int i)
         {

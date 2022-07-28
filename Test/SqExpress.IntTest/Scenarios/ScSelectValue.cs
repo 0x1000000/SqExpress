@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using SqExpress.IntTest.Context;
 using SqExpress.IntTest.Tables;
 using SqExpress.IntTest.Tables.Models;
+using SqExpress.SqlExport;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.IntTest.Scenarios
@@ -40,6 +41,23 @@ namespace SqExpress.IntTest.Scenarios
                 .QueryList(context.Database, r => (V: r.GetInt32("v"), UserId: tUser.UserId.Read(r)));
 
             if (res[0].V != res[0].UserId)
+            {
+                throw new Exception("Incorrect value");
+            }
+
+
+            var e = Select(tUser.UserId)
+                .From(tUser)
+                .Where(tUser.UserId.In(ValueQuery(Select(tUserSub.UserId)
+                    .From(tUserSub)
+                    .Where(tUserSub.UserId == 1 | tUserSub.UserId == 2)))).Done();
+
+            Console.WriteLine(TSqlExporter.Default.ToSql(e));
+
+            var r2 = await e
+                .QueryList(context.Database, r=> tUser.UserId.Read(r));
+
+            if (r2.Count != 2 || !r2.Contains(1) || !r2.Contains(2))
             {
                 throw new Exception("Incorrect value");
             }

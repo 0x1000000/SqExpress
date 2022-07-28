@@ -110,12 +110,23 @@ namespace SqExpress.CodeGenUtil.CodeGen
         public static MemberAccessExpressionSyntax MemberAccess(string expression, string member)
             => MemberAccess(SyntaxFactory.IdentifierName(expression), member);
 
-        public static MemberAccessExpressionSyntax MemberAccess(this ExpressionSyntax expression, string member)
+        public static MemberAccessExpressionSyntax MemberAccess(this ExpressionSyntax expression, string member, bool addSuppressNullable = false)
         {
-            return SyntaxFactory.MemberAccessExpression(
-                SyntaxKind.SimpleMemberAccessExpression,
-                expression,
-                SyntaxFactory.IdentifierName(member));
+            if (addSuppressNullable)
+            {
+                return SyntaxFactory.MemberAccessExpression(
+                    SyntaxKind.SimpleMemberAccessExpression,
+                    SyntaxFactory.PostfixUnaryExpression(
+                        SyntaxKind.SuppressNullableWarningExpression, expression),
+                    SyntaxFactory.IdentifierName(member));
+            }
+            else
+            {
+                return SyntaxFactory.MemberAccessExpression(
+                    SyntaxKind.SimpleMemberAccessExpression,
+                    expression,
+                    SyntaxFactory.IdentifierName(member));
+            }
         }
 
         public static MemberAccessExpressionSyntax MemberAccessGeneric(this ExpressionSyntax expression, string member, string g1)

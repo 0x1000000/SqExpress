@@ -307,6 +307,12 @@ namespace SqExpress.DataAccess.Internal
             return this._dataReader.GetValue(ordinal);
         }
 
+        public bool IsDBNull(string name)
+        {
+            var ordinal = this._dataReader.GetOrdinal(name);
+            return ((IDataRecord)this).IsDBNull(ordinal);
+        }
+
         private void ThrowNull(string columnName)
         {
             throw new SqExpressException($"Null value was not expected for columnName \"{columnName}\"");
