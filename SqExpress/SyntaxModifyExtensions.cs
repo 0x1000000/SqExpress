@@ -718,6 +718,9 @@ namespace SqExpress
         public static ExprValueFrameBorder WithFrameBorderDirection(this ExprValueFrameBorder original, FrameBorderDirection newFrameBorderDirection) 
             => new ExprValueFrameBorder(value: original.Value, frameBorderDirection: newFrameBorderDirection);
 
+        public static ExprValueQuery WithQuery(this ExprValueQuery original, IExprSubQuery newQuery) 
+            => new ExprValueQuery(query: newQuery);
+
         public static ExprValueRow WithItems(this ExprValueRow original, IReadOnlyList<ExprValue> newItems) 
             => new ExprValueRow(items: newItems);
 

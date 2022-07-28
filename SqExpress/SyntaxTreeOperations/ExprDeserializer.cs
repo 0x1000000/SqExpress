@@ -205,6 +205,7 @@ namespace SqExpress.SyntaxTreeOperations
                 case "UnsafeValue": return new ExprUnsafeValue(unsafeValue: ReadString(rootElement, reader, "UnsafeValue"));
                 case "Update": return new ExprUpdate(target: GetSubNode<TNode, ExprTable>(rootElement, reader, "Target"), setClause: GetSubNodeList<TNode, ExprColumnSetClause>(rootElement, reader, "SetClause"), source: GetNullableSubNode<TNode, IExprTableSource>(rootElement, reader, "Source"), filter: GetNullableSubNode<TNode, ExprBoolean>(rootElement, reader, "Filter"));
                 case "ValueFrameBorder": return new ExprValueFrameBorder(value: GetSubNode<TNode, ExprValue>(rootElement, reader, "Value"), frameBorderDirection: ReadFrameBorderDirection(rootElement, reader, "FrameBorderDirection"));
+                case "ValueQuery": return new ExprValueQuery(query: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "Query"));
                 case "ValueRow": return new ExprValueRow(items: GetSubNodeList<TNode, ExprValue>(rootElement, reader, "Items"));
                 //CodeGenEnd
                 default: throw new SqExpressException($"Could not recognize the type tag \"{typeTag}\"");

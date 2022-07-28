@@ -31,6 +31,7 @@ namespace SqExpress.IntTest
                     .Then(new ScSelectTop())
                     .Then(new ScSelectSets())
                     .Then(new ScTempTables())
+                    .Then(new ScSelectValue())
                     .Then(new ScCreateOrders())
                     .Then(new ScAnalyticFunctionsOrders())
                     .Then(new ScTransactions(false))

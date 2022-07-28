@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using SqExpress.QueryBuilders;
 using SqExpress.QueryBuilders.Select;
 using SqExpress.QueryBuilders.Select.Internal;
 using SqExpress.Syntax.Boolean;
@@ -88,6 +89,12 @@ namespace SqExpress
 
         public static ExprTableValueConstructor Values(params ExprValue[] values) 
             => new ExprTableValueConstructor(values.SelectToReadOnlyList(i=> new ExprValueRow(new[]{i})));
+
+        public static ExprValueQuery ValueQuery(IExprSubQuery query) 
+            => new ExprValueQuery(query);
+
+        public static ExprValueQuery ValueQuery(IExprSubQueryFinal query) 
+            => new ExprValueQuery(query.Done());
 
         public static ExprBoolean ExistsIn<TTable>(Func<TTable, ExprBoolean> on)
             where TTable : IExprTableSource, new()

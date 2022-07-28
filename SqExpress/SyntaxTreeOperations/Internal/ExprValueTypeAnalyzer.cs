@@ -106,6 +106,11 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
         }
 
+        public TRes VisitExprValueQuery(ExprValueQuery exprValueQuery, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+        }
+
         public TRes VisitExprSum(ExprSum exprSum, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
         {
             return exprSum.Left.Accept(this, ctx);

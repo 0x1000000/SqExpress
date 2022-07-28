@@ -397,6 +397,12 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public bool VisitExprValueQuery(ExprValueQuery exprValueQuery, IExpr? arg)
+        {
+            this.AcceptPar('(', exprValueQuery.Query, ')', exprValueQuery);
+            return true;
+        }
+
         //Arithmetic Expressions
 
         public bool VisitExprSum(ExprSum exprSum, IExpr? parent)

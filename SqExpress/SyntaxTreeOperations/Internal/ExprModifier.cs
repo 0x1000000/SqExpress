@@ -1110,6 +1110,15 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprValueQuery(ExprValueQuery exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newQuery = this.AcceptItem(exprIn.Query, modifier);
+            if(!ReferenceEquals(exprIn.Query, newQuery))
+            {
+                exprIn = new ExprValueQuery(query: newQuery);
+            }
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprValueRow(ExprValueRow exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newItems = this.AcceptNotNullCollection(exprIn.Items, modifier);

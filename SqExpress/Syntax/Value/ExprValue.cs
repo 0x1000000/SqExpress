@@ -521,6 +521,43 @@ namespace SqExpress.Syntax.Value
         public static ExprPredicateLeftRight operator <=(DateTime a, ExprValue b)
             => new ExprBooleanLtEq(new ExprDateTimeLiteral(a), b);
 
+        //DateTimeOffset
+        public static ExprPredicateLeftRight operator ==(ExprValue a, DateTimeOffset b)
+            => new ExprBooleanEq(a, new ExprDateTimeOffsetLiteral(b));
+
+        public static ExprPredicateLeftRight operator ==(DateTimeOffset a, ExprValue b)
+            => new ExprBooleanEq(new ExprDateTimeOffsetLiteral(a), b);
+
+        public static ExprPredicateLeftRight operator !=(ExprValue a, DateTimeOffset b)
+            => new ExprBooleanNotEq(a, new ExprDateTimeOffsetLiteral(b));
+
+        public static ExprPredicateLeftRight operator !=(DateTimeOffset a, ExprValue b)
+            => new ExprBooleanNotEq(new ExprDateTimeOffsetLiteral(a), b);
+
+        public static ExprPredicateLeftRight operator >(ExprValue a, DateTimeOffset b)
+            => new ExprBooleanGt(a, new ExprDateTimeOffsetLiteral(b));
+
+        public static ExprPredicateLeftRight operator >(DateTimeOffset a, ExprValue b)
+            => new ExprBooleanGt(new ExprDateTimeOffsetLiteral(a), b);
+
+        public static ExprPredicateLeftRight operator <(ExprValue a, DateTimeOffset b)
+            => new ExprBooleanLt(a, new ExprDateTimeOffsetLiteral(b));
+
+        public static ExprPredicateLeftRight operator <(DateTimeOffset a, ExprValue b)
+            => new ExprBooleanLt(new ExprDateTimeOffsetLiteral(a), b);
+
+        public static ExprPredicateLeftRight operator >=(ExprValue a, DateTimeOffset b)
+            => new ExprBooleanGtEq(a, new ExprDateTimeOffsetLiteral(b));
+
+        public static ExprPredicateLeftRight operator >=(DateTimeOffset a, ExprValue b)
+            => new ExprBooleanGtEq(new ExprDateTimeOffsetLiteral(a), b);
+
+        public static ExprPredicateLeftRight operator <=(ExprValue a, DateTimeOffset b)
+            => new ExprBooleanLtEq(a, new ExprDateTimeOffsetLiteral(b));
+
+        public static ExprPredicateLeftRight operator <=(DateTimeOffset a, ExprValue b)
+            => new ExprBooleanLtEq(new ExprDateTimeOffsetLiteral(a), b);
+
 
         //Guid
         public static ExprPredicateLeftRight operator ==(ExprValue a, Guid b)

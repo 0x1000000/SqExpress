@@ -464,5 +464,13 @@ namespace SqExpress.Test.QueryBuilder
             Assert.Throws<SqExpressException>(() => new ExprBoolean[0].JoinAsAnd());
         }
 
+        [Test]
+        public void TestValueQuery()
+        {
+            var actual = Select(ValueQuery(Select(1))).Done().ToSql();
+
+            Assert.AreEqual("SELECT (SELECT 1)", actual);
+        }
+
     }
 }
