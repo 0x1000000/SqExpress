@@ -3,9 +3,12 @@
     <SqModelGenEnable>false</SqModelGenEnable>
     <SqModelGenInput>.</SqModelGenInput>
     <SqModelGenOutput>Models</SqModelGenOutput>
-	  <SqModelGenNamespace>$(MSBuildProjectName).Models</SqModelGenNamespace>
-	  <SqModelGenCleanOutput>True</SqModelGenCleanOutput>
+    <SqModelGenNamespace>$(MSBuildProjectName).Models</SqModelGenNamespace>
+    <SqModelGenCleanOutput>True</SqModelGenCleanOutput>
     <SqModelGenType>ImmutableClass</SqModelGenType>
+    <SqTablseGenOutput>Tables</SqTablseGenOutput>
+    <SqTablseGenNamespace>$(MSBuildProjectName).Tables</SqTablseGenNamespace>
+    <SqTablseGenTableClassPrefix></SqTablseGenTableClassPrefix>
     <SqExpressCodeGenPath>$(MSBuildThisFileDirectory)../tools/codegen/SqExpress.CodeGenUtil.dll</SqExpressCodeGenPath>
   </PropertyGroup>
 </Project>

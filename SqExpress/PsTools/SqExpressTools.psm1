@@ -13,7 +13,7 @@ function Gen-Tables
         [string] $TableClassPrefix,
         [string] $Namespace
     )
-
+	
     CheckSqExpressReference
 
     $args = "gentables $DbType ""$ConnectionString"""
@@ -21,15 +21,23 @@ function Gen-Tables
     #OutputDir
     if(!$OutputDir)
     {
-        $OutputDir = "Tables"
+        $OutputDir = GetCurrentProjectProperty "SqTablseGenOutput"
+        if(!$OutputDir)
+        {
+            $OutputDir = "Tables"
+        }        
     }
-    if($OutputDir -ne "")
+    if($OutputDir -and $OutputDir -ne "")
     {
         $args = $args + " -o " + $OutputDir
     }
 
     #TableClassPrefix
-    if($TableClassPrefix)
+    if(!$TableClassPrefix)
+    {
+        $TableClassPrefix = GetCurrentProjectProperty "SqTablseGenTableClassPrefix"
+    }
+    if($TableClassPrefix -and $TableClassPrefix -ne "")
     {
         $args = $args + " --table-class-prefix " + $TableClassPrefix
     }
@@ -37,18 +45,23 @@ function Gen-Tables
     #Namespace
     if(!$Namespace)
     {
-        $Namespace = GetCurrentProjectProperty "ProjectName"
+        $Namespace = GetCurrentProjectProperty "SqTablseGenNamespace"
 
-        if($Namespace)
+        if(!$Namespace -or $Namespace -eq "")
         {
-            if($OutputDir -and $OutputDir -ne "")
+            $Namespace = GetCurrentProjectProperty "ProjectName"
+       
+            if($Namespace)
             {
-                $Namespace = $Namespace + "." + $OutputDir.Replace('\','.').Replace('/','.')
+                if($OutputDir -and $OutputDir -ne "")
+                {
+                    $Namespace = $Namespace + "." + $OutputDir.Replace('\','.').Replace('/','.')
+                }
+                else
+                {
+                    $Namespace = $Namespace + ".Tables"
+                }            
             }
-            else
-            {
-                $Namespace = $Namespace + ".Tables"
-            }            
         }
     }
     if($Namespace)
@@ -142,13 +155,11 @@ function CodeGenUtil($arguments){
 
     $cmd = [IO.Path]::Combine($PSScriptRoot, "codegen", "SqExpress.CodeGenUtil.dll")
 
-    if(!([IO.File]::Exists($exePath)))
+    if(!([IO.File]::Exists($cmd)))
     {
-        #WriteErrorMessage ("Could not find SqExpress codegen util at " + $cmd)
-        #exit
+        WriteErrorMessage ("Could not find SqExpress codegen util at " + $cmd)
+        exit
     }
-
-    $cmd = "C:\Users\x1000\.nuget\packages\sqexpress\0.3.3\tools\codegen\SqExpress.CodeGenUtil.dll"
 
     $cmd = """$cmd"" " + $arguments
 
@@ -199,24 +210,52 @@ function CodeGenUtil($arguments){
 }
 
 function CheckSqExpressReference
-{
-    $pReferences = (GetCurrentProjectServices).PackageReferences.GetItemsAsync().Result
+{	
+	if(IsCoreProject)
+	{
+		$pReferences = (GetCurrentProjectServices).PackageReferences.GetItemsAsync().Result
 
-    $sqExpressRef = $pReferences | where {$_.EvaluatedInclude -eq "SqExpress"} | Select -First 1
+		$sqExpressRef = $pReferences | where {$_.EvaluatedInclude -eq "SqExpress"} | Select -First 1
 
-    if(!$sqExpressRef)
-    {
-        WriteErrorMessage "Could not find a Package References to SqExpress in the selected project"
-        exit
-    }
+	}
+	else
+	{
+		$sqExpressRef = (GetMsBuildProject).Items| where {($_.ItemType -eq "PackageReference") -and ($_.EvaluatedInclude -eq "SqExpress")} | Select -First 1
+	}
+
+	if(!$sqExpressRef)
+	{
+		WriteErrorMessage "Could not find a Package References to SqExpress in the selected project"
+		exit
+	}		
 }
 
 function GetCurrentProjectProperty($propertyName)
 {
-    $projectServices = GetCurrentProjectServices
-    $properties = $projectServices.ProjectPropertiesProvider.GetCommonProperties()
+	if(IsCoreProject)
+	{
+		$projectServices = GetCurrentProjectServices
+		$properties = $projectServices.ProjectPropertiesProvider.GetCommonProperties()
 
-    return $properties.GetEvaluatedPropertyValueAsync($propertyName).Result
+		return $properties.GetEvaluatedPropertyValueAsync($propertyName).Result
+	}
+	
+	return (GetMsBuildProject).GetProperty($propertyName).EvaluatedValue
+}
+
+function IsCoreProject
+{
+	if((Get-Project).UnconfiguredProject)
+	{
+		return $true;
+	}
+	return $false;		
+}
+
+function GetMsBuildProject()
+{
+	$project = [Microsoft.Build.Evaluation.ProjectCollection]::GlobalProjectCollection.LoadedProjects|? FullPath -eq (Get-Project).FullName
+	return $project
 }
 
 function GetCurrentProjectServices
@@ -229,6 +268,37 @@ function GetCurrentProjectDir
     return Split-Path (Get-Project).FileName -Parent
 }
 
+function GetProperty($properties, $propertyName)
+{
+    try
+    {
+        return $properties.Item($propertyName).Value
+    }
+    catch
+    {
+        return $null
+    }
+}
+
+function GetCurrentProjectOutput()
+{
+	$currentProject = Get-Project
+	$activeConfiguration = $currentProject.ConfigurationManager.ActiveConfiguration
+    $currentProjectDir = GetProperty $currentProject.Properties 'FullPath'
+    $outputPath = GetProperty $activeConfiguration.Properties 'OutputPath'
+    $targetDir = [IO.Path]::GetFullPath([IO.Path]::Combine($currentProjectDir, $outputPath))
+    $targetFileName = GetProperty $currentProject.Properties 'OutputFileName'
+    $targetPath = Join-Path $targetDir $targetFileName
+
+    if(!([IO.File]::Exists($targetPath)))
+    {
+        WriteErrorMessage ("Could not find project output " + $targetPath + ". Please build the selected project first")
+        exit
+    }
+
+	return $targetPath
+}
+
 function WriteErrorMessage($message, $noPrefix)
 {
     if(!$noPrefix)
@@ -238,4 +308,3 @@ function WriteErrorMessage($message, $noPrefix)
 
     Write-Host $message -ForegroundColor DarkRed    
 }
-

@@ -31,7 +31,10 @@
 ## 0.3.1
 - [x] genmodels - model mode [immutable, mutable, record] as a parameter 
 
-## After 0.3.1
+## After 0.4
+- [x] CTE
+
+## After 0.4.0
 - [ ] Table Value Functions
 - [ ] CTE
 - [ ] "Create If Not Exists"

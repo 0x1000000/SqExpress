@@ -36,14 +36,15 @@ You can find a realistic usage of the library in this ASP.Net demo application -
 9. [Aliasing](#aliasing)
 10. [Derived Tables](#derived-tables)
 11. [Subquries](#subquries)
-12. [Analytic And Window Functions](#analytic-and-window-functions)
-13. [Set Operators](#set-operators)
+12. [CTE](#cte)
+13. [Analytic And Window Functions](#analytic-and-window-functions)
+14. [Set Operators](#set-operators)
 
 ### Advanced Data Modification
 
-16. [Merge](#merge)
-17. [Temporary Tables](#temporary-tables)
-18. [Database Data Export/Import](#database-data-export-import)
+15. [Merge](#merge)
+16. [Temporary Tables](#temporary-tables)
+17. [Database Data Export/Import](#database-data-export-import)
 
 ### Working with Expressions
 
@@ -677,6 +678,91 @@ FROM
 ORDER BY [A0].[Sum] DESC
 ```
 *Note: In this example you can see how to use **Table Value Constructor***
+
+## CTE
+
+To perform recursive (*actually "incremental"*) requests the library supports CTE (Common Table Expressions).
+
+The typical scenario is traversing some hierarchical data stored in a table, for example the following query will return a tree closure table:
+
+```cs
+class CteTreeClosure : CteBase
+{
+    public CteTreeClosure(Alias alias = default) : base(nameof(CteTreeClosure), alias)
+    {
+        this.Id = this.CreateInt32Column(nameof(this.Id));
+        this.ParentId = this.CreateNullableInt32Column(nameof(this.ParentId));
+        this.Depth = this.CreateInt32Column(nameof(this.Depth));
+    }
+
+    public Int32CustomColumn Id { get; }
+
+    public NullableInt32CustomColumn ParentId { get; }
+
+    public Int32CustomColumn Depth { get; }
+
+    public override IExprSubQuery CreateQuery()
+    {
+        var initial = new TreeData();
+        var current = new TreeData();
+
+        var previous = new CteTreeClosure();
+
+        return Select(initial.Id, initial.ParentId, Literal(1).As(this.Depth))
+            .From(initial)
+            .UnionAll(Select(
+                    previous.Id,
+                    current.ParentId,
+                    (previous.Depth + 1).As(this.Depth))
+                .From(current)
+                .InnerJoin(previous, on: previous.ParentId == current.Id))
+            .Done();
+    }
+}
+...
+
+var result = await Select(treeClosure.Id, treeClosure.ParentId, treeClosure.Depth)
+    .From(treeClosure)
+    .QueryList(context.Database,
+        r => (
+            Id: treeClosure.Id.Read(r),
+            ParentId: treeClosure.ParentId.Read(r),
+            Depth: treeClosure.Depth.Read(r)));
+
+```
+
+Working with CTEs in SqExpress is very similar to derived tables - you need to create a class derived from  **CteBase** abstract class, describe columns and implement **CreateQuery** method which will return actual CTE query where the class can be used as a table descriptor (to create recursion if it is required).
+
+The example code will generate the following sql:
+
+```sql
+WITH [CteTreeClosure] AS(
+        SELECT [A1].[Id],[A1].[ParentId],1 [Depth] 
+        FROM [#TreeData] [A1] 
+    UNION ALL 
+        SELECT [A2].[Id],[A3].[ParentId],[A2].[Depth]+1 [Depth] 
+        FROM [#TreeData] [A3] 
+        JOIN [CteTreeClosure] [A2] 
+            ON [A2].[ParentId]=[A3].[Id]
+)
+                
+SELECT [A0].[Id],[A0].[ParentId],[A0].[Depth] FROM [CteTreeClosure] [A0]
+```
+*MySql*
+```sql
+WITH RECURSIVE `CteTreeClosure` AS(
+        SELECT `A0`.`Id`,`A0`.`ParentId`,1 `Depth` 
+        FROM `TreeData` `A0` 
+    UNION ALL 
+        SELECT `A1`.`Id`,`A2`.`ParentId`,`A1`.`Depth`+1 `Depth` 
+        FROM `TreeData` `A2` 
+        JOIN `CteTreeClosure` `A1` 
+            ON `A1`.`ParentId`=`A2`.`Id`
+) 
+
+SELECT `A3`.`Id`,`A3`.`ParentId`,`A3`.`Depth` FROM `CteTreeClosure` `A3````
+```
+
 ## Analytic And Window Functions
 SqExpress supports common analytic and window functions like **ROW_NUMBER**, **RANK**, **FIRST_VALUE**, **LAST_VALUE** etc.
 ```cs
@@ -1345,6 +1431,12 @@ await Select(tableUser.FirstName, tableUser.LastName)
 ## Table Descriptors Scaffolding
 **SqExpress** comes with the code-gen utility (it is located in the nuget package cache). It can read metadata form a database and create table descriptor classes in your code. It requires .Net Core 3.1+
 
+```Package Manager Console```
+```
+SYNTAX
+    Gen-Tables [-DbType] {mssql | mysql | pgsql} [-ConnectionString] <string> [-OutputDir <string>] [-TableClassPrefix <string>] [-Namespace <string>]
+```
+
 ```GenerateTables.cmd```
 ```cmd
 @echo off
@@ -1406,6 +1498,12 @@ To run the code-gen util before a project building, just define the following pr
 The list of all code-generation parameters can be found here: [SqExpress.props](https://github.com/0x1000000/SqExpress/blob/main/SqExpress/SqExpress.props).
 
 The code generation tool can also be run from the command line:
+
+```Package Manager Console```
+```
+SYNTAX
+    Gen-Models [-InputDir <string>] [-OutputDir <string>] [-Namespace <string>] [-NoRwClasses] [-NullRefTypes] [-CleanOutput] [-ModelType {ImmutableClass | Record}]  [<CommonParameters>]
+```
 
 ```GenerateModel.cmd```
 ```cmd
