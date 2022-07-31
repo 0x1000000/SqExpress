@@ -7,7 +7,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <Authors>Dmitry Tikhonov</Authors>
     <Company />
-    <Version>0.3.3.0</Version>
+    <Version>0.4.0.0</Version>
     <Summary>SqExpress is a sql query builder which allows creating SQL expression directly in C# code with strong typing and intellisense.</Summary>
     <PackageReleaseNotes>https://github.com/0x1000000/SqExpress/blob/main/CHANGELOG.md</PackageReleaseNotes>
     <Description>SqExpress is a sql query builder which allows creating SQL expression in C# code with strong typing and intellisense (without LINQ!).
@@ -29,8 +29,8 @@ This an article that explains the library principles: ["Syntax Tree and Alternat
     <Copyright>Dmitry Tikhonov</Copyright>
     <PackageProjectUrl>https://github.com/0x1000000/SqExpress</PackageProjectUrl>
     <PackageTags>query postgresql  tsql mysql builder mssql dataaccess</PackageTags>
-    <AssemblyVersion>0.3.3.0</AssemblyVersion>
-    <FileVersion>0.3.3.0</FileVersion>
+    <AssemblyVersion>0.4.0.0</AssemblyVersion>
+    <FileVersion>0.4.0.0</FileVersion>
     <AssemblyOriginatorKeyFile>..\SqExpress.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>
     <DelaySign>false</DelaySign>

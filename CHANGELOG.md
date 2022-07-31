@@ -1,3 +1,15 @@
+# 0.4.0.0
+### New Features
+- CTE (see [readme.md](https://github.com/0x1000000/SqExpress#cte))
+- ```SqQueryBuilder.ValueQuery(...)``` - It allows using a sub-query as a value (e.g. in boolean expressions or a column)
+- Powershell commandlets **Gen-Tables** and  **Gen-Models** in Package Manager Console
+- Syntax Tree **WalkThrough** method has a new overload with a link to parent node
+- SqModels now have new methods: **GetColumnsWithPrefix**, **ReadWithPrefix**, **IsNull**, **IsNullWithPrefix**
+
+### Breaking Changes
+
+- **Concat** helper was renamed to **Combine** (to avoid a conflict with Linq)
+
 # 0.3.3.0
 ### New Features
 - Support of DateTimeOffset
