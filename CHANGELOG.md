@@ -1,3 +1,7 @@
+# 0.4.0.1
+### Bugfix
+- Infinite loop when creating tables with foreign keys from multiple threads
+
 # 0.4.0.0
 ### New Features
 - CTE (see [readme.md](https://github.com/0x1000000/SqExpress#cte))
