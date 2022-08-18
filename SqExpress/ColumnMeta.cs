@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using SqExpress.Syntax.Value;
 using SqExpress.Utils;
@@ -34,7 +35,7 @@ namespace SqExpress
         public readonly struct ColumnMetaBuilder
         {
             //To Prevent Cycles in Foreign Keys
-            private static readonly HashSet<object> FkFactoriesCache = new HashSet<object>();
+            private static readonly ConcurrentDictionary<object, byte> FkFactoriesCache = new ConcurrentDictionary<object, byte>();
 
             private readonly bool _isPrimaryKey;
             private readonly bool _isIdentity;
@@ -73,10 +74,8 @@ namespace SqExpress
             {
                 TableColumn? fkColumn;
 
-                if (!FkFactoriesCache.Contains(fkFactory))
+                if(FkFactoriesCache.TryAdd(fkFactory, 0))
                 {
-                    FkFactoriesCache.Add(fkFactory);
-
                     fkColumn = fkFactory(new TTable());
                 }
                 else

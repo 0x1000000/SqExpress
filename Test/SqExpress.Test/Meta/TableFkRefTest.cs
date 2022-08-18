@@ -1,4 +1,5 @@
-﻿using NUnit.Framework;
+﻿using System.Threading;
+using NUnit.Framework;
 
 namespace SqExpress.Test.Meta
 {
@@ -21,6 +22,27 @@ namespace SqExpress.Test.Meta
 
             Assert.AreEqual(table2.Id2.ColumnName, table1.RefId.ColumnMeta?.ForeignKeyColumns?[0].ColumnName);
             Assert.AreEqual(table1.Id1.ColumnName, table2.RefId.ColumnMeta?.ForeignKeyColumns?[0].ColumnName);
+        }
+
+        [Test]
+        public void MultiThreadTest()
+        {
+            var t1 = new Thread(Body);
+            var t2 = new Thread(Body);
+
+            t1.Start();
+            t2.Start();
+            Assert.IsTrue(t1.Join(1000));
+            Assert.IsTrue(t2.Join(1000));
+
+            void Body()
+            {
+                for (int i = 0; i < 10000; i++)
+                {
+                    new CrossFkTable1();
+                    new CrossFkTable2();
+                }
+            }
         }
 
         class SelfFkTable : TableBase
