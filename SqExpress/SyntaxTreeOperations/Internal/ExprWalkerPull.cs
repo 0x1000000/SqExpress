@@ -377,6 +377,60 @@ namespace SqExpress.SyntaxTreeOperations.Internal
                     throw new SqExpressException("Incorrect enumerator visitor state");
             }
         }
+        public bool VisitExprBitwiseAnd(ExprBitwiseAnd expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.Left);
+                case 2:
+                    return this.SetCurrent(expr.Right);
+                case 3:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
+        public bool VisitExprBitwiseNot(ExprBitwiseNot expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.Value);
+                case 2:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
+        public bool VisitExprBitwiseOr(ExprBitwiseOr expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.Left);
+                case 2:
+                    return this.SetCurrent(expr.Right);
+                case 3:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
+        public bool VisitExprBitwiseXor(ExprBitwiseXor expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.Left);
+                case 2:
+                    return this.SetCurrent(expr.Right);
+                case 3:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
         public bool VisitExprBoolLiteral(ExprBoolLiteral expr, object? arg)
         {
             switch (this.Peek().State)

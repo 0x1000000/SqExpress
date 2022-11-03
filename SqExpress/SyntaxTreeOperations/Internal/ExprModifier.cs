@@ -223,6 +223,45 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprBitwiseAnd(ExprBitwiseAnd exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newLeft = this.AcceptItem(exprIn.Left, modifier);
+            var newRight = this.AcceptItem(exprIn.Right, modifier);
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            {
+                exprIn = new ExprBitwiseAnd(left: newLeft, right: newRight);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprBitwiseNot(ExprBitwiseNot exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newValue = this.AcceptItem(exprIn.Value, modifier);
+            if(!ReferenceEquals(exprIn.Value, newValue))
+            {
+                exprIn = new ExprBitwiseNot(value: newValue);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprBitwiseOr(ExprBitwiseOr exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newLeft = this.AcceptItem(exprIn.Left, modifier);
+            var newRight = this.AcceptItem(exprIn.Right, modifier);
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            {
+                exprIn = new ExprBitwiseOr(left: newLeft, right: newRight);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprBitwiseXor(ExprBitwiseXor exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newLeft = this.AcceptItem(exprIn.Left, modifier);
+            var newRight = this.AcceptItem(exprIn.Right, modifier);
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            {
+                exprIn = new ExprBitwiseXor(left: newLeft, right: newRight);
+            }
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprBoolLiteral(ExprBoolLiteral exprIn, Func<IExpr, IExpr?> modifier)
         {
             return modifier.Invoke(exprIn);

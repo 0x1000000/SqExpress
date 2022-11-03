@@ -1,4 +1,6 @@
-﻿using NUnit.Framework;
+﻿using System;
+using NUnit.Framework;
+using SqExpress.Syntax.Value;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.Test.Syntax
@@ -35,6 +37,28 @@ namespace SqExpress.Test.Syntax
             var e = user.FirstName + " " + user.LastName;
 
             Assert.AreEqual("[FirstName]+' '+[LastName]", e.ToSql());
+        }
+
+        [Test]
+        public void Bitwise()
+        {
+            ExprValue e = Literal(21) & Literal(10) + Literal(11);
+            Assert.AreEqual("21&(10+11)", e.ToSql());
+
+            e = Literal(21) & ~Literal(10) + Literal(11);
+            Assert.AreEqual("21&(~10+11)", e.ToSql());
+
+            e = Literal(21) & ~(Literal(10) + Literal(11));
+            Assert.AreEqual("21&~(10+11)", e.ToSql());
+
+            e = Literal(5) & Literal(2) | Literal(3);
+            Assert.AreEqual("(5&2)|3", e.ToSql());
+
+            e = Literal(3) | Literal(5) & Literal(2);
+            Assert.AreEqual("3|(5&2)", e.ToSql());
+
+            e = Literal(1) ^ Literal(2) ^ ~~Literal(3) ^ Literal(4);
+            Assert.AreEqual("1^2^~~3^4", e.ToSql());
         }
     }
 }

@@ -141,6 +141,26 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             return ctx.ValueVisitor.VisitString(ctx.Ctx, null ,null, false);
         }
 
+        public TRes VisitExprBitwiseNot(ExprBitwiseNot exprBitwiseNot, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return exprBitwiseNot.Value.Accept(this, ctx);
+        }
+
+        public TRes VisitExprBitwiseAnd(ExprBitwiseAnd exprBitwiseAnd, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return exprBitwiseAnd.Left.Accept(this, ctx);
+        }
+
+        public TRes VisitExprBitwiseXor(ExprBitwiseXor exprBitwiseXor, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return exprBitwiseXor.Left.Accept(this, ctx);
+        }
+
+        public TRes VisitExprBitwiseOr(ExprBitwiseOr exprBitwiseOr, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return exprBitwiseOr.Left.Accept(this, ctx);
+        }
+
         public TRes VisitExprScalarFunction(ExprScalarFunction exprScalarFunction, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
         {
             return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);

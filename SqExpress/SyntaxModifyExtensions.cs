@@ -163,6 +163,27 @@ namespace SqExpress
         public static ExprAnalyticFunction WithOver(this ExprAnalyticFunction original, ExprOver newOver) 
             => new ExprAnalyticFunction(name: original.Name, arguments: original.Arguments, over: newOver);
 
+        public static ExprBitwiseAnd WithLeft(this ExprBitwiseAnd original, ExprValue newLeft) 
+            => new ExprBitwiseAnd(left: newLeft, right: original.Right);
+
+        public static ExprBitwiseAnd WithRight(this ExprBitwiseAnd original, ExprValue newRight) 
+            => new ExprBitwiseAnd(left: original.Left, right: newRight);
+
+        public static ExprBitwiseNot WithValue(this ExprBitwiseNot original, ExprValue newValue) 
+            => new ExprBitwiseNot(value: newValue);
+
+        public static ExprBitwiseOr WithLeft(this ExprBitwiseOr original, ExprValue newLeft) 
+            => new ExprBitwiseOr(left: newLeft, right: original.Right);
+
+        public static ExprBitwiseOr WithRight(this ExprBitwiseOr original, ExprValue newRight) 
+            => new ExprBitwiseOr(left: original.Left, right: newRight);
+
+        public static ExprBitwiseXor WithLeft(this ExprBitwiseXor original, ExprValue newLeft) 
+            => new ExprBitwiseXor(left: newLeft, right: original.Right);
+
+        public static ExprBitwiseXor WithRight(this ExprBitwiseXor original, ExprValue newRight) 
+            => new ExprBitwiseXor(left: original.Left, right: newRight);
+
         public static ExprBoolLiteral WithValue(this ExprBoolLiteral original, Boolean? newValue) 
             => new ExprBoolLiteral(value: newValue);
 

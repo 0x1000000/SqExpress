@@ -88,6 +88,10 @@ namespace SqExpress.SyntaxTreeOperations
                 case "AliasedSelecting": return new ExprAliasedSelecting(value: GetSubNode<TNode, IExprSelecting>(rootElement, reader, "Value"), alias: GetSubNode<TNode, ExprColumnAlias>(rootElement, reader, "Alias"));
                 case "AllColumns": return new ExprAllColumns(source: GetNullableSubNode<TNode, IExprColumnSource>(rootElement, reader, "Source"));
                 case "AnalyticFunction": return new ExprAnalyticFunction(name: GetSubNode<TNode, ExprFunctionName>(rootElement, reader, "Name"), arguments: GetNullableSubNodeList<TNode, ExprValue>(rootElement, reader, "Arguments"), over: GetSubNode<TNode, ExprOver>(rootElement, reader, "Over"));
+                case "BitwiseAnd": return new ExprBitwiseAnd(left: GetSubNode<TNode, ExprValue>(rootElement, reader, "Left"), right: GetSubNode<TNode, ExprValue>(rootElement, reader, "Right"));
+                case "BitwiseNot": return new ExprBitwiseNot(value: GetSubNode<TNode, ExprValue>(rootElement, reader, "Value"));
+                case "BitwiseOr": return new ExprBitwiseOr(left: GetSubNode<TNode, ExprValue>(rootElement, reader, "Left"), right: GetSubNode<TNode, ExprValue>(rootElement, reader, "Right"));
+                case "BitwiseXor": return new ExprBitwiseXor(left: GetSubNode<TNode, ExprValue>(rootElement, reader, "Left"), right: GetSubNode<TNode, ExprValue>(rootElement, reader, "Right"));
                 case "BoolLiteral": return new ExprBoolLiteral(value: ReadNullableBoolean(rootElement, reader, "Value"));
                 case "BooleanAnd": return new ExprBooleanAnd(left: GetSubNode<TNode, ExprBoolean>(rootElement, reader, "Left"), right: GetSubNode<TNode, ExprBoolean>(rootElement, reader, "Right"));
                 case "BooleanEq": return new ExprBooleanEq(left: GetSubNode<TNode, ExprValue>(rootElement, reader, "Left"), right: GetSubNode<TNode, ExprValue>(rootElement, reader, "Right"));

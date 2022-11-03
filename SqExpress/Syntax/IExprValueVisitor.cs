@@ -54,6 +54,16 @@ namespace SqExpress.Syntax
 
         TRes VisitExprStringConcat(ExprStringConcat exprStringConcat, TArg arg);
 
+        //Bitwise Expressions
+
+        TRes VisitExprBitwiseNot(ExprBitwiseNot exprBitwiseNot, TArg arg);
+
+        TRes VisitExprBitwiseAnd(ExprBitwiseAnd exprBitwiseAnd, TArg arg);
+
+        TRes VisitExprBitwiseXor(ExprBitwiseXor exprBitwiseXor, TArg arg);
+
+        TRes VisitExprBitwiseOr(ExprBitwiseOr exprBitwiseOr, TArg arg);
+
         //Functions
         TRes VisitExprScalarFunction(ExprScalarFunction exprScalarFunction, TArg arg);
 

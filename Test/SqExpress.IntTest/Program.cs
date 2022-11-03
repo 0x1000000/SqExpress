@@ -43,6 +43,7 @@ namespace SqExpress.IntTest
                     .Then(new ScCte())
                     .Then(new ScCteCross())
                     .Then(new ScTreeClosure())
+                    .Then(new ScBitwise())
                     ;
 
                 await ExecScenarioAll(

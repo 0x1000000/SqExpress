@@ -240,6 +240,64 @@ namespace SqExpress.Syntax.Value
         public static ExprModulo operator %(int? a, ExprValue b)
             => new ExprModulo(SqQueryBuilder.Literal(a), b);
 
+        //Bitwise Not
+        public static ExprBitwiseNot operator ~(ExprValue value)
+            => new ExprBitwiseNot(value);
+
+        //Bitwise And
+
+        public static ExprBitwiseAnd operator &(ExprValue a, ExprValue b)
+            => new ExprBitwiseAnd(a, b);
+
+        //Int
+        public static ExprBitwiseAnd operator &(ExprValue a, int b)
+            => new ExprBitwiseAnd(a, SqQueryBuilder.Literal(b));
+
+        public static ExprBitwiseAnd operator &(int a, ExprValue b)
+            => new ExprBitwiseAnd(SqQueryBuilder.Literal(a), b);
+
+        public static ExprBitwiseAnd operator &(ExprValue a, int? b)
+            => new ExprBitwiseAnd(a, SqQueryBuilder.Literal(b));
+
+        public static ExprBitwiseAnd operator &(int? a, ExprValue b)
+            => new ExprBitwiseAnd(SqQueryBuilder.Literal(a), b);
+
+        //Bitwise Xor
+
+        public static ExprBitwiseXor operator ^(ExprValue a, ExprValue b)
+            => new ExprBitwiseXor(a, b);
+
+        //Int
+        public static ExprBitwiseXor operator ^(ExprValue a, int b)
+            => new ExprBitwiseXor(a, SqQueryBuilder.Literal(b));
+
+        public static ExprBitwiseXor operator ^(int a, ExprValue b)
+            => new ExprBitwiseXor(SqQueryBuilder.Literal(a), b);
+
+        public static ExprBitwiseXor operator ^(ExprValue a, int? b)
+            => new ExprBitwiseXor(a, SqQueryBuilder.Literal(b));
+
+        public static ExprBitwiseXor operator ^(int? a, ExprValue b)
+            => new ExprBitwiseXor(SqQueryBuilder.Literal(a), b);
+
+        //Bitwise Or
+
+        public static ExprBitwiseOr operator |(ExprValue a, ExprValue b)
+            => new ExprBitwiseOr(a, b);
+
+        //Int
+        public static ExprBitwiseOr operator |(ExprValue a, int b)
+            => new ExprBitwiseOr(a, SqQueryBuilder.Literal(b));
+
+        public static ExprBitwiseOr operator |(int a, ExprValue b)
+            => new ExprBitwiseOr(SqQueryBuilder.Literal(a), b);
+
+        public static ExprBitwiseOr operator |(ExprValue a, int? b)
+            => new ExprBitwiseOr(a, SqQueryBuilder.Literal(b));
+
+        public static ExprBitwiseOr operator |(int? a, ExprValue b)
+            => new ExprBitwiseOr(SqQueryBuilder.Literal(a), b);
+
         //Boolean
 
         //Another Value

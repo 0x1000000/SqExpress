@@ -461,6 +461,52 @@ namespace SqExpress.SqlExport.Internal
             }
         }
 
+        public bool VisitExprBitwiseNot(ExprBitwiseNot exprBitwiseNot, IExpr? arg)
+        {
+            this.Builder.Append('~');
+            this.CheckBitParenthesizes(exprBitwiseNot.Value, exprBitwiseNot);
+            return true;
+
+        }
+
+        public bool VisitExprBitwiseAnd(ExprBitwiseAnd exprBitwiseAnd, IExpr? arg)
+        {
+            this.CheckBitParenthesizes(exprBitwiseAnd.Left, exprBitwiseAnd);
+            this.Builder.Append('&');
+            this.CheckBitParenthesizes(exprBitwiseAnd.Right, exprBitwiseAnd);
+            return true;
+        }
+
+        public bool VisitExprBitwiseXor(ExprBitwiseXor exprBitwiseXor, IExpr? arg)
+        {
+            this.CheckBitParenthesizes(exprBitwiseXor.Left, exprBitwiseXor);
+            this.Builder.Append('^');
+            this.CheckBitParenthesizes(exprBitwiseXor.Right, exprBitwiseXor);
+            return true;
+        }
+
+        public bool VisitExprBitwiseOr(ExprBitwiseOr exprBitwiseOr, IExpr? arg)
+        {
+            CheckBitParenthesizes(exprBitwiseOr.Left, exprBitwiseOr);
+            this.Builder.Append('|');
+            CheckBitParenthesizes(exprBitwiseOr.Right, exprBitwiseOr);
+            return true;
+        }
+
+        private void CheckBitParenthesizes(ExprValue exp, ExprValue parent)
+        {
+            if ((exp is ExprBitwise || exp is ExprArithmetic) && !(exp is ExprBitwiseNot)  && parent.GetType() != exp.GetType())
+            {
+                this.Builder.Append('(');
+                exp.Accept(this, parent);
+                this.Builder.Append(')');
+            }
+            else
+            {
+                exp.Accept(this, parent);
+            }
+        }
+
         //Select
 
         protected abstract void AppendSelectTop(ExprValue top, IExpr? parent);

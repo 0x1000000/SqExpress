@@ -1,3 +1,7 @@
+# 0.4.1.0
+### New Features
+- Bitwise operators (**Warning!** C# operator precedence is used)
+
 # 0.4.0.1
 ### Bugfix
 - Infinite loop when creating tables with foreign keys from multiple threads

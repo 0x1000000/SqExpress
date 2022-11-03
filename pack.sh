@@ -9,7 +9,7 @@ OUTDIRPACK="$ROOT/package"
 rm -rf "$ROOT/tmp"
 rm -rf "$OUTDIRPACK"
 
-dotnet build "$ROOT/SqExpress.GenSyntaxTraversal/SqExpress.GenSyntaxTraversal.csproj" -c Release -verbosity:quiet -noLogo
+dotnet build "$ROOT/SqExpress.GenSyntaxTraversal/SqExpress.GenSyntaxTraversal.csproj" -c Release -verbosity:quiet -noLogo -o "$ROOT/SqExpress.GenSyntaxTraversal/bin/"
 
 dotnet "$ROOT/SqExpress.GenSyntaxTraversal/bin/SqExpress.GenSyntaxTraversal.dll" "$ROOT/SqExpress"
 

@@ -261,6 +261,50 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             this.EndVisit(expr, argOut.Context);
             return res && walkResult != WalkResult.Stop;
         }
+        public bool VisitExprBitwiseAnd(ExprBitwiseAnd expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "BitwiseAnd", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("Left",expr.Left, argOut) && this.Accept("Right",expr.Right, argOut);
+            }
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
+        public bool VisitExprBitwiseNot(ExprBitwiseNot expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "BitwiseNot", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("Value",expr.Value, argOut);
+            }
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
+        public bool VisitExprBitwiseOr(ExprBitwiseOr expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "BitwiseOr", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("Left",expr.Left, argOut) && this.Accept("Right",expr.Right, argOut);
+            }
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
+        public bool VisitExprBitwiseXor(ExprBitwiseXor expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "BitwiseXor", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("Left",expr.Left, argOut) && this.Accept("Right",expr.Right, argOut);
+            }
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
         public bool VisitExprBoolLiteral(ExprBoolLiteral expr, WalkerContext<TCtx> arg)
         {
             var walkResult = this.Visit(expr, "BoolLiteral", arg, out var argOut);
