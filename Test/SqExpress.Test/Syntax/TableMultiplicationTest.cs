@@ -27,7 +27,7 @@ namespace SqExpress.Test.Syntax
             Assert.AreEqual(tCustomer, tables[1]);
             Assert.AreEqual(tCustomerOrder, tables[2]);
 
-            Assert.AreEqual("[A0].[UserId]=[A1].[UserId] AND [A2].[CustomerId]=[A0].[CustomerId]", on.ToSql());
+            Assert.AreEqual("[A0].[UserId]=[A1].[UserId] AND [A2].[CustomerId]=[A0].[CustomerId]", on!.ToSql());
         }
 
         [Test]
@@ -54,7 +54,7 @@ namespace SqExpress.Test.Syntax
             Assert.AreEqual(tCustomer, tables[2]);
             Assert.AreEqual(tCustomerOrder, tables[3]);
 
-            Assert.AreEqual("[A0].[UserId]=[A1].[UserId] AND [A2].[CustomerId]=[A3].[CustomerId]", on.ToSql());
+            Assert.AreEqual("[A0].[UserId]=[A1].[UserId] AND [A2].[CustomerId]=[A3].[CustomerId]", on!.ToSql());
         }
 
         [Test]
@@ -104,7 +104,7 @@ namespace SqExpress.Test.Syntax
             Assert.AreEqual(tCustomerOrder, tables[2]);
             Assert.AreEqual("(SELECT [A0].[CustomerId],[A0].[OrderId] FROM [dbo].[CustomerOrder] [A0])[A1]", tables[3].ToSql());
 
-            Assert.AreEqual("[A0].[UserId]=[A1].[UserId] AND([A2].[CustomerId]=[A0].[CustomerId] OR [A2].[OrderId]=[A3].[OrderId])", on.ToSql());
+            Assert.AreEqual("[A0].[UserId]=[A1].[UserId] AND([A2].[CustomerId]=[A0].[CustomerId] OR [A2].[OrderId]=[A3].[OrderId])", on!.ToSql());
         }
 
         class TestDerivedTable : DerivedTableBase

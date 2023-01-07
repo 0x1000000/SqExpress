@@ -322,15 +322,15 @@ namespace SqExpress.DataAccess.Internal
 
         byte IDataRecord.GetByte(int i) => this._dataReader.GetByte(i);
 
-        long IDataRecord.GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) 
+        long IDataRecord.GetBytes(int i, long fieldOffset, byte[]? buffer, int bufferoffset, int length) 
             => this._dataReader.GetBytes(i, fieldOffset, buffer, bufferoffset, length);
 
         char IDataRecord.GetChar(int i) => this._dataReader.GetChar(i);
 
-        long IDataRecord.GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) 
+        long IDataRecord.GetChars(int i, long fieldoffset, char[]? buffer, int bufferoffset, int length) 
             => this._dataReader.GetChars(i, fieldoffset, buffer, bufferoffset, length);
 
-        IDataReader? IDataRecord.GetData(int i) => this._dataReader.GetData(i);
+        IDataReader IDataRecord.GetData(int i) => this._dataReader.GetData(i);
 
         string IDataRecord.GetDataTypeName(int i) => this._dataReader.GetDataTypeName(i);
 
@@ -340,7 +340,7 @@ namespace SqExpress.DataAccess.Internal
 
         double IDataRecord.GetDouble(int i) => this._dataReader.GetDouble(i);
 
-        Type? IDataRecord.GetFieldType(int i) => this._dataReader.GetFieldType(i);
+        Type IDataRecord.GetFieldType(int i) => this._dataReader.GetFieldType(i);
 
         float IDataRecord.GetFloat(int i) => this._dataReader.GetFloat(i);
 

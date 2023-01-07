@@ -1,10 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netcoreapp3.1;net45</TargetFrameworks>
-    <LangVersion>8.0</LangVersion>
-    <IsPackable>false</IsPackable>
-    <Nullable>disable</Nullable>
+    <TargetFrameworks>net6;net46</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AssemblyOriginatorKeyFile>..\..\SqExpress.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>
     <DelaySign>false</DelaySign>
@@ -12,18 +12,14 @@
 
   <ItemGroup>
     <PackageReference Include="Moq" Version="4.14.6" />
-    <PackageReference Include="nunit" Version="3.12.0" />
+    <PackageReference Include="NUnit" Version="3.12.0" />
     <PackageReference Include="NUnit3TestAdapter" Version="3.15.1" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.4.0" />
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="3.9.0" Condition="'$(TargetFramework)' != 'net45'" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="3.9.0" Condition="'$(TargetFramework)' != 'net46'" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="NUnit" Version="3.12.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\..\SqExpress.CodegenUtil\SqExpress.CodeGenUtil.csproj" Condition="'$(TargetFramework)' != 'net45'" />
+    <ProjectReference Include="..\..\SqExpress.CodegenUtil\SqExpress.CodeGenUtil.csproj" Condition="'$(TargetFramework)' != 'net46'" />
     <ProjectReference Include="..\..\SqExpress\SqExpress.csproj" />
   </ItemGroup>
 

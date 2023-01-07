@@ -11,7 +11,7 @@ namespace SqExpress.IntTest.Scenarios
             var value = await SqQueryBuilder.Select(SqQueryBuilder.Literal(3) | SqQueryBuilder.Literal(5) & SqQueryBuilder.Literal(2))
                 .QueryScalar(context.Database);
 
-            if ((int)value != 3)
+            if ((int)(value ?? 0) != 3)
             {
                 throw new Exception("Unexpected bitwise operator behaviour");
             }

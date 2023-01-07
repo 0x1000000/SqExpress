@@ -23,7 +23,7 @@ namespace SqExpress.DataAccess
 
         Task<TAgg> Query<TAgg>(IExprQuery query, TAgg seed, Func<TAgg, ISqDataRecordReader, Task<TAgg>> aggregator, CancellationToken cancellationToken = default);
 
-        Task<object> QueryScalar(IExprQuery query, CancellationToken cancellationToken = default);
+        Task<object?> QueryScalar(IExprQuery query, CancellationToken cancellationToken = default);
 
         Task Exec(IExprExec statement, CancellationToken cancellationToken = default);
 
@@ -101,7 +101,7 @@ namespace SqExpress.DataAccess
             }
         }
 
-        public async Task<object> QueryScalar(IExprQuery query, CancellationToken cancellationToken = default)
+        public async Task<object?> QueryScalar(IExprQuery query, CancellationToken cancellationToken = default)
         {
             this.CheckDisposed();
             var sql = this._sqlExporter.ToSql(query);
@@ -109,7 +109,7 @@ namespace SqExpress.DataAccess
             var command = await this.CreateCommand(sql, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
-            object result;
+            object? result;
             try
             {
                 result = await command.ExecuteScalarAsync(cancellationToken);

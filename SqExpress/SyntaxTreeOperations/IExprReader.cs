@@ -5,7 +5,7 @@ namespace SqExpress.SyntaxTreeOperations
 {
     public interface IExprReader<TNode> 
     {
-        string GetNodeTypeTag(TNode node);
+        string? GetNodeTypeTag(TNode node);
 
         bool TryGetSubNode(TNode node, string propertyName, out TNode subNode);
 

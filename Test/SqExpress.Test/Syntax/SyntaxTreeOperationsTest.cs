@@ -203,7 +203,7 @@ namespace SqExpress.Test.Syntax
                             return new ExprColumnName("UserNewId");
                         }
                         return subE;
-                    });
+                    })!;
 
             //After
             Assert.AreEqual("SELECT [A0].[UserNewId],[A0].[FirstName],[A1].[CustomerId] " +
@@ -256,7 +256,7 @@ namespace SqExpress.Test.Syntax
                 .Done();
 
 
-            var items = selectExpr.SyntaxTree().ExportToPlainList(PlainItem.Create);
+            var items = selectExpr.SyntaxTree().ExportToPlainList(PlainItem.Create!);
 
             var res = ExprDeserializer.DeserializeFormPlainList(items);
 

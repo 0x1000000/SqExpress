@@ -15,7 +15,7 @@ namespace SqExpress.IntTest.Scenarios
             var tUser = AllTables.GetItUser();
             var tUserSub = AllTables.GetItUser();
 
-            var userId = (int)await SelectTop(1, tUser.UserId)
+            var userId = (int?)await SelectTop(1, tUser.UserId)
                 .From(tUser)
                 .QueryScalar(context.Database);
 

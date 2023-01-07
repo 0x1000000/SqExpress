@@ -95,10 +95,10 @@ namespace SqExpress
             return new DataPage<T>(res.Key, query.OrderBy.OffsetFetch.Offset.Value ?? 0, res.Value ?? 0);
         }
 
-        public static Task<object> QueryScalar(this IExprQuery query, ISqDatabase database, CancellationToken cancellationToken = default)
+        public static Task<object?> QueryScalar(this IExprQuery query, ISqDatabase database, CancellationToken cancellationToken = default)
             => database.QueryScalar(query, cancellationToken);
 
-        public static Task<object> QueryScalar(this IExprQueryFinal query, ISqDatabase database, CancellationToken cancellationToken = default)
+        public static Task<object?> QueryScalar(this IExprQueryFinal query, ISqDatabase database, CancellationToken cancellationToken = default)
             => database.QueryScalar(query.Done(), cancellationToken);
 
         public static Task Exec(this IExprExec query, ISqDatabase database, CancellationToken cancellationToken = default)

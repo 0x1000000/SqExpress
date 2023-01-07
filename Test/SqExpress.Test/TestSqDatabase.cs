@@ -61,7 +61,7 @@ namespace SqExpress.Test
             throw new NotImplementedException();
         }
 
-        public Task<object> QueryScalar(IExprQuery query, CancellationToken cancellationToken = default)
+        public Task<object?> QueryScalar(IExprQuery query, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -278,7 +278,7 @@ namespace SqExpress.Test
             throw new NotImplementedException();
         }
 
-        public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length)
+        public long GetBytes(int i, long fieldOffset, byte[]? buffer, int bufferoffset, int length)
         {
             throw new NotImplementedException();
         }
@@ -288,7 +288,7 @@ namespace SqExpress.Test
             throw new NotImplementedException();
         }
 
-        public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length)
+        public long GetChars(int i, long fieldoffset, char[]? buffer, int bufferoffset, int length)
         {
             throw new NotImplementedException();
         }

@@ -94,7 +94,7 @@ namespace SqExpress.GetStarted.Models
         {
             foreach (var column in GetColumnsWithPrefix(table, prefix))
             {
-                if (!record.IsDBNull(column.Alias.Name))
+                if (!record.IsDBNull(column.Alias!.Name))
                 {
                     return false;
                 }

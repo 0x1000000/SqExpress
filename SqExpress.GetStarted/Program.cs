@@ -568,7 +568,7 @@ namespace SqExpress.GetStarted
                         }
 
                         return result;
-                    });
+                    })!;
             }
 
             await baseSelect!
@@ -709,17 +709,17 @@ namespace SqExpress.GetStarted
             var filterIds = await InsertDataInto(tableFavoriteFilter, new[] { "Filter 1", "Filter 2" })
                 .MapData(s => s.Set(s.Target.Name, s.Source))
                 .Output(tableFavoriteFilter.FavoriteFilterId)
-                .QueryList(database, r => tableFavoriteFilterItem.FavoriteFilterId.Read(r));
+                .QueryList(database, tableFavoriteFilterItem.FavoriteFilterId.Read);
 
             var filter1Items =
                 filter1.SyntaxTree()
                     .ExportToPlainList((i, id, index, b, s, value) =>
-                        FilterPlainItem.Create(filterIds[0], i, id, index, b, s, value));
+                        FilterPlainItem.Create(filterIds[0], i, id, index, b, s, value ?? string.Empty));
 
             var filter2Items =
                 filter2.SyntaxTree()
                     .ExportToPlainList((i, id, index, b, s, value) =>
-                        FilterPlainItem.Create(filterIds[1], i, id, index, b, s, value));
+                        FilterPlainItem.Create(filterIds[1], i, id, index, b, s, value ?? string.Empty));
 
             await InsertDataInto(tableFavoriteFilterItem, filter1Items.Concat(filter2Items))
                 .MapData(s => s
@@ -746,7 +746,7 @@ namespace SqExpress.GetStarted
                         isTypeTag: tableFavoriteFilterItem.IsTypeTag.Read(r),
                         arrayIndex: tableFavoriteFilterItem.ArrayIndex.Read(r),
                         tag: tableFavoriteFilterItem.Tag.Read(r),
-                        value: tableFavoriteFilterItem.Value.Read(r)));
+                        value: tableFavoriteFilterItem.Value.Read(r) ?? string.Empty));
 
             var restoredFilter1 = (ExprBoolean)ExprDeserializer
                 .DeserializeFormPlainList(restoredFilterItems.Where(fi =>
@@ -761,7 +761,7 @@ namespace SqExpress.GetStarted
                 .From(tableUser)
                 .Where(restoredFilter1)
                 .Query(database,
-                    (object)null,
+                    (object?)null,
                     (s, r) =>
                     {
                         Console.WriteLine($"{tableUser.FirstName.Read(r)} {tableUser.LastName.Read(r)}");
@@ -773,7 +773,7 @@ namespace SqExpress.GetStarted
                 .From(tableUser)
                 .Where(restoredFilter2)
                 .Query(database,
-                    (object)null,
+                    (object?)null,
                     (s, r) =>
                     {
                         Console.WriteLine($"{tableUser.FirstName.Read(r)} {tableUser.LastName.Read(r)}");
@@ -902,7 +902,7 @@ namespace SqExpress.GetStarted
                     .Select(e =>
                         e.EnumerateArray()
                             .Select((c, i) =>
-                                columnsDict[colIndexes[i]]
+                                columnsDict[colIndexes[i]!]
                                     .FromString(c.ValueKind == JsonValueKind.Null ? null : c.GetString()))
                             .ToList());
 

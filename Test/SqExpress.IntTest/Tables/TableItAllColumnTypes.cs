@@ -65,11 +65,9 @@ namespace SqExpress.IntTest.Tables
         [SqModel("AllTypes")]
         public NullableBooleanTableColumn ColNullableBoolean { get; }
 
-        [SqModel("AllTypes")]
-        public ByteTableColumn ColByte { get; }
+        public ByteTableColumn? ColByte { get; }
 
-        [SqModel("AllTypes")]
-        public NullableByteTableColumn ColNullableByte { get; }
+        public NullableByteTableColumn? ColNullableByte { get; }
 
         [SqModel("AllTypes")]
         public Int16TableColumn ColInt16 { get; }
@@ -158,10 +156,8 @@ namespace SqExpress.IntTest.Tables
         [SqModel("AllTypes")]
         public NullableStringTableColumn ColNullableXml { get; }
 
-        [SqModel("AllTypes")]
-        public DateTimeOffsetTableColumn ColDateTimeOffset { get; set; }
+        public DateTimeOffsetTableColumn? ColDateTimeOffset { get; set; }
 
-        [SqModel("AllTypes")]
-        public NullableDateTimeOffsetTableColumn ColNullableDateTimeOffset { get; set; }
+        public NullableDateTimeOffsetTableColumn? ColNullableDateTimeOffset { get; set; }
     }
 }

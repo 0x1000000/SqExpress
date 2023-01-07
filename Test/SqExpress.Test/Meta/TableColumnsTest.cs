@@ -694,13 +694,8 @@ namespace SqExpress.Test.Meta
             this.ColNullableGuid = this.CreateNullableGuidColumn(nameof(ColNullableGuid));
             this.ColString = this.CreateStringColumn(nameof(this.ColString), null, true);
             this.ColNullableString = this.CreateNullableStringColumn(nameof(this.ColNullableString), null, true);
+
         }
-
-        public StringTableColumn ColString5 { get; set; }
-
-        public NullableStringTableColumn ColNullableStringMax { get; set; }
-
-        public StringTableColumn ColStringMax { get; set; }
 
         public NullableStringTableColumn ColNullableString { get; set; }
 

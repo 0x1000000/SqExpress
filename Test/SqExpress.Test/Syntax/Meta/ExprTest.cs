@@ -14,12 +14,12 @@ namespace SqExpress.Test.Syntax.Meta
             Assert.AreEqual("[test].[dbo].[User]", t.ToSql());
             Assert.AreEqual("\"test\".\"public\".\"User\"", t.ToPgSql());
 
-            t = (ExprTable) t.SyntaxTree().Modify<ExprTableFullName>(i => new ExprTableFullName(new ExprDbSchema(null, i.DbSchema!.Schema), i.TableName));
+            t = (ExprTable) t.SyntaxTree().Modify<ExprTableFullName>(i => new ExprTableFullName(new ExprDbSchema(null, i.DbSchema!.Schema), i.TableName))!;
 
             Assert.AreEqual("[dbo].[User]", t.ToSql());
             Assert.AreEqual("\"public\".\"User\"", t.ToPgSql());
 
-            t = (ExprTable) t.SyntaxTree().Modify<ExprTableFullName>(i => new ExprTableFullName(null, i.TableName));
+            t = (ExprTable) t.SyntaxTree().Modify<ExprTableFullName>(i => new ExprTableFullName(null, i.TableName))!;
 
             Assert.AreEqual("[User]", t.ToSql());
             Assert.AreEqual("\"User\"", t.ToPgSql());

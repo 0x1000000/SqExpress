@@ -9,7 +9,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
     {
         public static readonly ExprJsonReader Instance = new ExprJsonReader();
 
-        public string GetNodeTypeTag(JsonElement node)
+        public string? GetNodeTypeTag(JsonElement node)
         {
             return node.GetProperty("$type").GetString();
         }

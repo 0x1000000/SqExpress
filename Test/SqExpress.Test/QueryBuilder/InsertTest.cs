@@ -82,7 +82,7 @@ namespace SqExpress.Test.QueryBuilder
             Assert.AreEqual(actual, expected);
 
             //Serialization
-            var list = expr.SyntaxTree().ExportToPlainList(PlainItem.Create);
+            var list = expr.SyntaxTree().ExportToPlainList(PlainItem.Create!);
             var after = ExprDeserializer.DeserializeFormPlainList(list);
 
             Assert.AreEqual(expected, after.ToSql());

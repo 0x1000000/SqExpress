@@ -43,7 +43,7 @@ namespace SqExpress.IntTest.Scenarios
             context.WriteLine("...");
             context.WriteLine($"Total users inserted: {ids.Count}");
 
-            var count = (long)await Select(Cast(CountOne(), SqlType.Int64)).From(userTable).QueryScalar(context.Database);
+            var count = (long?)await Select(Cast(CountOne(), SqlType.Int64)).From(userTable).QueryScalar(context.Database);
             context.WriteLine($"Users count: {count}");
 
             await InsertCustomers(context);
@@ -83,8 +83,15 @@ namespace SqExpress.IntTest.Scenarios
         {
             var assembly = typeof(Program).GetTypeInfo().Assembly;
 
-            using Stream? resource = assembly.GetManifestResourceStream("SqExpress.IntTest.TestData.users.json");
-            var document = JsonDocument.Parse(resource);
+            const string resourceName = "SqExpress.IntTest.TestData.users.json";
+
+            using Stream? resourceStream = assembly.GetManifestResourceStream(resourceName);
+            if (resourceStream == null)
+            {
+                throw new Exception($"Could not find find resource \"{resourceName}\"");
+            }
+
+            var document = JsonDocument.Parse(resourceStream);
 
             foreach (var user in document.RootElement.EnumerateArray())
             {
@@ -97,15 +104,15 @@ namespace SqExpress.IntTest.Scenarios
                     }
                     if (userProperty.Name == "first_name")
                     {
-                        buffer.FirstName = userProperty.Value.GetString();
+                        buffer.FirstName = userProperty.Value.GetString() ?? string.Empty;
                     }
                     if (userProperty.Name == "last_name")
                     {
-                        buffer.LastName = userProperty.Value.GetString();
+                        buffer.LastName = userProperty.Value.GetString() ?? string.Empty;
                     }
                     if (userProperty.Name == "email")
                     {
-                        buffer.Email = userProperty.Value.GetString();
+                        buffer.Email = userProperty.Value.GetString() ?? string.Empty;
                     }
 
                 }

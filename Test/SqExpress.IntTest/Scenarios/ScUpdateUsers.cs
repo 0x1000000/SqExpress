@@ -13,11 +13,11 @@ namespace SqExpress.IntTest.Scenarios
             var tUser = AllTables.GetItUser();
             var tCustomer = AllTables.GetItCustomer();
 
-            var maxVersion = (int) await Select(Max(tUser.Version))
+            var maxVersion = (int?) await Select(Max(tUser.Version))
                 .From(tUser)
                 .QueryScalar(context.Database);
 
-            var countBefore = (long)await Select(Cast(CountOne(), SqlType.Int64))
+            var countBefore = (long?)await Select(Cast(CountOne(), SqlType.Int64))
                 .From(tUser)
                 .Where(tUser.Version == maxVersion & Exists(SelectOne().From(tCustomer).Where(tCustomer.UserId == tUser.UserId)))
                 .QueryScalar(context.Database);
@@ -29,7 +29,7 @@ namespace SqExpress.IntTest.Scenarios
                 .All()
                 .Exec(context.Database);
 
-            var countAfter = (long)await Select(Cast(CountOne(), SqlType.Int64))
+            var countAfter = (long?)await Select(Cast(CountOne(), SqlType.Int64))
                 .From(tUser)
                 .Where(tUser.Version == maxVersion + 1)
                 .QueryScalar(context.Database);

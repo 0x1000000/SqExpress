@@ -96,7 +96,12 @@ namespace SqExpress.IntTest.Scenarios
         {
             var assembly = typeof(Program).GetTypeInfo().Assembly;
 
-            using Stream? resource = assembly.GetManifestResourceStream("SqExpress.IntTest.TestData.company.json");
+            const string resourceName = "SqExpress.IntTest.TestData.company.json";
+            using Stream? resource = assembly.GetManifestResourceStream(resourceName);
+            if (resource == null)
+            {
+                throw new Exception($"Could not find resource name \"{resourceName}\"");
+            }
             var document = JsonDocument.Parse(resource);
 
             foreach (var user in document.RootElement.EnumerateArray())
@@ -110,7 +115,7 @@ namespace SqExpress.IntTest.Scenarios
                     }
                     if (userProperty.Name == "name")
                     {
-                        buffer.Name = userProperty.Value.GetString();
+                        buffer.Name = userProperty.Value.GetString() ?? string.Empty;
                     }
                 }
                 yield return buffer;

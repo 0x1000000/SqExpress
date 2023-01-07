@@ -70,9 +70,9 @@ namespace SqExpress.Test.CodeGenUtil
 
             var allTypes = assembly.GetTypes();
 
-            var table1 = (TableBase) Activator.CreateInstance(allTypes.Find(t => t.Name == tables[0].Name));
+            var table1 = (TableBase) Activator.CreateInstance(allTypes.Find(t => t.Name == tables[0].Name))!;
             Assert.NotNull(table1);
-            var table2 = (TableBase) Activator.CreateInstance(allTypes.Find(t => t.Name == tables[1].Name));
+            var table2 = (TableBase) Activator.CreateInstance(allTypes.Find(t => t.Name == tables[1].Name))!;
             Assert.NotNull(table2);
 
 
