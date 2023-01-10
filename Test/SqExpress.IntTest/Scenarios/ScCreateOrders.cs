@@ -18,7 +18,8 @@ namespace SqExpress.IntTest.Scenarios
 
             var numbers = Values(Enumerable.Range(1, 10).Select(Literal).ToList()).AsColumns("Num");
 
-            var getNum = numbers.Column(context.Dialect == SqlDialect.MySql ? "1" : "Num");
+            var getNum = numbers.Column("Num");
+
             await InsertInto(tOrder, tOrder.CustomerId, tOrder.Notes)
                 .From(
                     Select(vwCustomer.CustomerId, ("Notes for " + vwCustomer.Name + " No:" + Cast(getNum, SqlType.String(5))).As("Notes"))

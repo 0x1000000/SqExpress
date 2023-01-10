@@ -38,7 +38,7 @@ namespace SqExpress.IntTest.Scenarios
             var doubleResult = (double?)await Select(Cast((Literal(7) + 3 - Literal(1)) * 2 / 6, SqlType.Double))
                 .QueryScalar(context.Database);
 
-            if (Math.Abs(doubleResult ?? 0 - 3.0) > 0)
+            if (Math.Abs((doubleResult ?? 0) - 3.0) > 0)
             {
                 throw new Exception("Something went wrong");
             }

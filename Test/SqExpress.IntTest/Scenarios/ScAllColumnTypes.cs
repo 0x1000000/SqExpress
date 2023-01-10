@@ -61,8 +61,6 @@ namespace SqExpress.IntTest.Scenarios
             var expr = Select(table.Columns)
                 .From(table).Done();
 
-            context.WriteLine(PgSqlExporter.Default.ToSql(expr));
-
             var result = await expr
                 .QueryList(context.Database, r =>
                 {
@@ -127,7 +125,12 @@ namespace SqExpress.IntTest.Scenarios
                     throw new Exception("Incorrect reading using models");
                 }
 
-                await InsertDataInto(table, data).MapData(AllTypes.GetMapping).Exec(context.Database);
+                await InsertDataInto(table, data)
+                    .MapData(AllTypes.GetMapping)
+                    .AlsoInsert(m=>m
+                        .Set(m.Target.ColByte!, 0)
+                        .Set(m.Target.ColDateTimeOffset!, new DateTimeOffset(new DateTime(2022, 07, 10, 18, 10, 45), TimeSpan.FromHours(3))))
+                    .Exec(context.Database);
             }
 
 

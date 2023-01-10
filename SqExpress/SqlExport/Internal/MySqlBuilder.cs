@@ -213,7 +213,51 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprDerivedTableValues(ExprDerivedTableValues derivedTableValues, IExpr? parent)
         {
-            this.AcceptPar('(', derivedTableValues.Values, ')', derivedTableValues);
+            this.Builder.Append('(');
+            int firstRowColCount = 0;
+            for (var rowIndex = 0; rowIndex < derivedTableValues.Values.Items.Count; rowIndex++)
+            {
+                var row = derivedTableValues.Values.Items[rowIndex];
+
+                if (rowIndex != 0)
+                {
+                    if (firstRowColCount != row.Items.Count)
+                    {
+                        throw new SqExpressException($"All rows in derived values have to have the same number of columns({firstRowColCount}, {row.Items.Count})");
+                    }
+                    this.Builder.Append(" UNION ALL ");
+                }
+                else
+                {
+                    firstRowColCount = row.Items.Count;
+                }
+
+                this.Builder.Append("SELECT ");
+
+                for (var colIndex = 0; colIndex < row.Items.Count; colIndex++)
+                {
+                    var cell = row.Items[colIndex];
+
+                    if (colIndex > 0)
+                    {
+                        this.Builder.Append(',');
+                    }
+
+                    if (rowIndex == 0 && derivedTableValues.Columns.Count > 0)
+                    {
+                        if (colIndex >= derivedTableValues.Columns.Count)
+                        {
+                            throw new SqExpressException("Number or columns exceeds the number of values in the values constructor");
+                        }
+                        cell.As(derivedTableValues.Columns[colIndex]).Accept(this, row);
+                    }
+                    else
+                    {
+                        cell.Accept(this, row);
+                    }
+                }
+            }
+            this.Builder.Append(')');
             derivedTableValues.Alias.Accept(this, derivedTableValues);
 
             return true;

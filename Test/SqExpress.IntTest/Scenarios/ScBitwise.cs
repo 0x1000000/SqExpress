@@ -8,10 +8,18 @@ namespace SqExpress.IntTest.Scenarios
     {
         public async Task Exec(IScenarioContext context)
         {
-            var value = await SqQueryBuilder.Select(SqQueryBuilder.Literal(3) | SqQueryBuilder.Literal(5) & SqQueryBuilder.Literal(2))
+            var rawValue = await SqQueryBuilder.Select(SqQueryBuilder.Literal(3) | SqQueryBuilder.Literal(5) & SqQueryBuilder.Literal(2))
                 .QueryScalar(context.Database);
 
-            if ((int)(value ?? 0) != 3)
+            var value = rawValue switch
+            {
+                int i => i,
+                ulong l => (int)l,
+                _ => throw new ArgumentOutOfRangeException(rawValue?.GetType().Name ?? "null")
+            };
+
+
+            if (value != 3)
             {
                 throw new Exception("Unexpected bitwise operator behaviour");
             }
