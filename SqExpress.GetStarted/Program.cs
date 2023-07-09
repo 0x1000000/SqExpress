@@ -9,7 +9,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Xml;
-using MySql.Data.MySqlClient;
+using MySqlConnector;
 using Npgsql;
 using SqExpress.DataAccess;
 using SqExpress.GetStarted.FavoriteFilters;

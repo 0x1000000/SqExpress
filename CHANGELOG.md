@@ -1,4 +1,9 @@
 # 0.4.1.0
+
+### Breaking Changes
+- .Net Framework is not supported anymore, however, .Net Standard 2.0 is still supported
+
+# 0.4.1.0
 ### New Features
 - Bitwise operators (**Warning!** C# operator precedence is used)
 

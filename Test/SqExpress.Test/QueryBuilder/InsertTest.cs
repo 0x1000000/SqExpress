@@ -88,7 +88,7 @@ namespace SqExpress.Test.QueryBuilder
             Assert.AreEqual(expected, after.ToSql());
 
             //My SQL
-            expected = "INSERT INTO `user`(`FirstName`,`LastName`,`Email`,`RegDate`,`Version`,`Created`) SELECT `A0`.*,5,'2020-01-02' FROM (VALUES ('First0','Last0','user0@company.com','2020-01-02'),('First1','Last1','user1@company.com','2020-01-02'),('First2','Last2','user2@company.com','2020-01-02'))`A0`  RETURNING `UserId`";
+            expected = "INSERT INTO `user`(`FirstName`,`LastName`,`Email`,`RegDate`,`Version`,`Created`) SELECT `A0`.*,5,'2020-01-02' FROM (SELECT 'First0' `FirstName`,'Last0' `LastName`,'user0@company.com' `Email`,'2020-01-02' `RegDate` UNION ALL SELECT 'First1','Last1','user1@company.com','2020-01-02' UNION ALL SELECT 'First2','Last2','user2@company.com','2020-01-02')`A0`  RETURNING `UserId`";
             Assert.AreEqual(expected,after.ToMySql());
 
         }
