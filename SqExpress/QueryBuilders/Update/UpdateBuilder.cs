@@ -6,7 +6,7 @@ using SqExpress.Syntax.Value;
 
 namespace SqExpress.QueryBuilders.Update
 {
-    public readonly struct UpdateBuilder
+    public readonly struct UpdateBuilder: IUpdateSetter<UpdateBuilderSetter, ExprColumn>
     {
         private readonly ExprTable _target;
 

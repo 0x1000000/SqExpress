@@ -899,7 +899,7 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             var walkResult = this.Visit(expr, "Merge", arg, out var argOut);
             if(walkResult == WalkResult.Continue)
             {
-                res = this.Accept("TargetTable",expr.TargetTable, argOut) && this.Accept("Source",expr.Source, argOut) && this.Accept("On",expr.On, argOut) && this.Accept("WhenMatched",expr.WhenMatched, argOut) && this.Accept("WhenNotMatchedByTarget",expr.WhenNotMatchedByTarget, argOut) && this.Accept("WhenNotMatchedBySource",expr.WhenNotMatchedBySource, argOut);
+                res = this.Accept("TargetTable",expr.TargetTableBase, argOut) && this.Accept("Source",expr.Source, argOut) && this.Accept("On",expr.On, argOut) && this.Accept("WhenMatched",expr.WhenMatched, argOut) && this.Accept("WhenNotMatchedByTarget",expr.WhenNotMatchedByTarget, argOut) && this.Accept("WhenNotMatchedBySource",expr.WhenNotMatchedBySource, argOut);
             }
             this.EndVisit(expr, argOut.Context);
             return res && walkResult != WalkResult.Stop;
@@ -932,7 +932,7 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             var walkResult = this.Visit(expr, "MergeOutput", arg, out var argOut);
             if(walkResult == WalkResult.Continue)
             {
-                res = this.Accept("TargetTable",expr.TargetTable, argOut) && this.Accept("Source",expr.Source, argOut) && this.Accept("On",expr.On, argOut) && this.Accept("WhenMatched",expr.WhenMatched, argOut) && this.Accept("WhenNotMatchedByTarget",expr.WhenNotMatchedByTarget, argOut) && this.Accept("WhenNotMatchedBySource",expr.WhenNotMatchedBySource, argOut) && this.Accept("Output",expr.Output, argOut);
+                res = this.Accept("TargetTable",expr.TargetTableBase, argOut) && this.Accept("Source",expr.Source, argOut) && this.Accept("On",expr.On, argOut) && this.Accept("WhenMatched",expr.WhenMatched, argOut) && this.Accept("WhenNotMatchedByTarget",expr.WhenNotMatchedByTarget, argOut) && this.Accept("WhenNotMatchedBySource",expr.WhenNotMatchedBySource, argOut) && this.Accept("Output",expr.Output, argOut);
             }
             this.EndVisit(expr, argOut.Context);
             return res && walkResult != WalkResult.Stop;

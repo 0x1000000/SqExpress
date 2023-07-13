@@ -107,6 +107,9 @@ namespace SqExpress
             where TTable : ExprTable
             => new MergeDataBuilder<TTable, TItem>(table, data, new ExprAliasGuid(Guid.NewGuid()));
 
+        public static IMergeBuilderCondition MergeInto(ExprTable target, IExprTableSource source)
+            => new MergeBuilder(target, source);
+
         public static DeleteBuilder Delete(ExprTable target) 
             => new DeleteBuilder(target: target);
     }

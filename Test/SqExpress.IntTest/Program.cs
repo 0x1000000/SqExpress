@@ -38,6 +38,7 @@ namespace SqExpress.IntTest
                     .Then(new ScTransactions(false))
                     .Then(new ScTransactions(true))
                     .Then(new ScMerge())
+                    .Then(new ScMergeExpr())
                     .Then(new ScModelSelector())
                     .Then(new ScCancellation())
                     .Then(new ScCte())

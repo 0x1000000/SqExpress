@@ -36,7 +36,6 @@
 
 ## After 0.4.0
 - [ ] Table Value Functions
-- [ ] CTE
 - [ ] "Create If Not Exists"
 - [ ] Stored Procedures Call
 - [ ] gentables - support MYSQL and PostgreSql

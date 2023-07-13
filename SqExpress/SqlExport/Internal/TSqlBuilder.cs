@@ -144,7 +144,7 @@ namespace SqExpress.SqlExport.Internal
         public override bool VisitExprMerge(ExprMerge merge, IExpr? parent)
         {
             this.Builder.Append("MERGE ");
-            merge.TargetTable.Accept(this, merge);
+            merge.TargetTableBase.Accept(this, merge);
             this.Builder.Append(" USING ");
             merge.Source.Accept(this, merge);
             this.Builder.Append(" ON ");

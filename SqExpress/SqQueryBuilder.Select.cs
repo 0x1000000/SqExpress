@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using SqExpress.QueryBuilders;
+using SqExpress.QueryBuilders.RecordSetter;
+using SqExpress.QueryBuilders.RecordSetter.Internal;
 using SqExpress.QueryBuilders.Select;
 using SqExpress.QueryBuilders.Select.Internal;
 using SqExpress.Syntax.Boolean;
@@ -90,6 +93,40 @@ namespace SqExpress
         public static ExprTableValueConstructor Values(params ExprValue[] values) 
             => new ExprTableValueConstructor(values.SelectToReadOnlyList(i=> new ExprValueRow(new[]{i})));
 
+        public static ExprDerivedTableValues ValueTable<T>(IEnumerable<T> data, ValueConstructorMapping<T> mapping, Alias alias = default)
+        {
+            IReadOnlyList<ExprColumnName>? columns = null;
+            ValueConstructorSetter<T>? setter = null;
+            List<ExprValueRow> ? records = null;
+
+            foreach (var item in data)
+            {
+                setter ??= new ValueConstructorSetter<T>(default!);
+                setter.NextItem(item, columns?.Count);
+                mapping(setter);
+                columns ??= setter.Columns;
+                var record = setter.Record.AssertFatalNotNull(nameof(setter.Record));
+
+                if (record.Count < 1)
+                {
+                    throw new SqExpressException("There should have been at least one column");
+                }
+                setter.EnsureRecordLength();
+
+                records ??= new List<ExprValueRow>();
+                records.Add(new ExprValueRow(record));
+            }
+
+            if (records == null || columns == null)
+            {
+                throw new SqExpressException("There should have been at least item in the passed collection");
+            }
+
+            var exprTableValueConstructor = new ExprTableValueConstructor(records);
+
+            return new ExprDerivedTableValues(exprTableValueConstructor, TableAlias(alias), columns);
+        }
+        
         public static ExprValueQuery ValueQuery(IExprSubQuery query) 
             => new ExprValueQuery(query);
 

@@ -8,7 +8,7 @@ using SqExpress.Syntax.Value;
 
 namespace SqExpress.QueryBuilders.Update
 {
-    public readonly struct UpdateBuilderSetter
+    public readonly struct UpdateBuilderSetter : IUpdateSetter<UpdateBuilderSetter, ExprColumn>
     {
         private readonly ExprTable _target;
 
@@ -33,6 +33,8 @@ namespace SqExpress.QueryBuilders.Update
         public UpdateBuilderSetter Set(ExprColumn col, Guid value) => this.Set(col, SqQueryBuilder.Literal(value));
         public UpdateBuilderSetter Set(ExprColumn col, DateTime? value) => this.Set(col, SqQueryBuilder.Literal(value));
         public UpdateBuilderSetter Set(ExprColumn col, DateTime value) => this.Set(col, SqQueryBuilder.Literal(value));
+        public UpdateBuilderSetter Set(ExprColumn col, DateTimeOffset? value) => this.Set(col, SqQueryBuilder.Literal(value));
+        public UpdateBuilderSetter Set(ExprColumn col, DateTimeOffset value) => this.Set(col, SqQueryBuilder.Literal(value));
         public UpdateBuilderSetter Set(ExprColumn col, bool? value) => this.Set(col, SqQueryBuilder.Literal(value));
         public UpdateBuilderSetter Set(ExprColumn col, bool value) => this.Set(col, SqQueryBuilder.Literal(value));
         public UpdateBuilderSetter Set(ExprColumn col, byte? value) => this.Set(col, SqQueryBuilder.Literal(value));
