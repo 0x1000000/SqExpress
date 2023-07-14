@@ -63,4 +63,32 @@ public class MergeTest
         Assert.AreEqual(expected, sql);
     }
 
+    [Test]
+    public void ValueBuilder_Output()
+    {
+        var t = Tables.User();
+
+        var data = new[] { new { Id = 1, FirstName = "Alice" }, new { Id = 2, FirstName = "Bob" } };
+
+        var valueTable = SqQueryBuilder.ValueTable(data, s => s.Set(t.UserId, s.Item.Id).Set(t.FirstName, s.Item.FirstName));
+
+        var sql = SqQueryBuilder
+            .MergeInto(t, valueTable)
+            .On(t.UserId == valueTable.Column(t.UserId))
+            .WhenMatched()
+            .ThenDelete()
+            .WhenNotMatchedBySource()
+            .ThenDelete()
+            .Output()
+                .Column(valueTable.Column(t.UserId))
+                .Inserted(t.LastName.As("LN"))
+                .Deleted(t.UserId)
+                .Action("Act")
+            .Done()
+            .ToSql();
+        const string expected = "MERGE [dbo].[user] [A0] USING (VALUES (1,'Alice'),(2,'Bob'))[A1]([UserId],[FirstName]) ON [A0].[UserId]=[A1].[UserId] WHEN MATCHED THEN  DELETE WHEN NOT MATCHED BY SOURCE THEN  DELETE OUTPUT [A1].[UserId],INSERTED.[LastName] [LN],DELETED.[UserId],$ACTION [Act];";
+
+        Assert.AreEqual(expected, sql);
+    }
+
 }

@@ -1,14 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Names;
+using SqExpress.Syntax.Output;
 using SqExpress.Syntax.Select;
+using SqExpress.Syntax.Select.SelectItems;
 using SqExpress.Syntax.Update;
 using SqExpress.Syntax.Value;
 
 namespace SqExpress.QueryBuilders.Merge.Internal;
 
-internal class MergeBuilder : IMergeBuilderCondition, IMergeMatchedBuilder, IMergeMatchedThenBuilder, IMergeNotMatchedByTargetThenBuilder, IMergeNotMatchedBySourceBuilder, IMergeMatchedBySourceThenBuilder, IMergeMatchedThenUpdateBuilder, IMergeNotMatchedByTargetInsertBuilder, IMergeMatchedBySourceThenUpdateBuilder
+internal class MergeBuilder : IMergeBuilderCondition, IMergeMatchedBuilder, IMergeMatchedThenBuilder, IMergeNotMatchedByTargetThenBuilder, IMergeNotMatchedBySourceBuilder, IMergeMatchedBySourceThenBuilder, IMergeMatchedThenUpdateBuilder, IMergeNotMatchedByTargetInsertBuilder, IMergeMatchedBySourceThenUpdateBuilder, IOutputDoneFirst, IOutputDone
 {
     private readonly ExprTable _target;
 
@@ -33,6 +36,8 @@ internal class MergeBuilder : IMergeBuilderCondition, IMergeMatchedBuilder, IMer
     private bool _notMatchedDelete;
 
     private List<ExprColumnSetClause>? _notMatchedUpdate;
+
+    private List<IExprOutputColumn>? _output;
 
     public MergeBuilder(ExprTable target, IExprTableSource source)
     {
@@ -266,5 +271,70 @@ internal class MergeBuilder : IMergeBuilderCondition, IMergeMatchedBuilder, IMer
     IMergeMatchedBySourceThenUpdateBuilder IUpdateSetterLiteral<IMergeMatchedBySourceThenUpdateBuilder, ExprColumn>.Set(ExprColumn col, double? value) => this.GenericSet(ref this._notMatchedUpdate, col, SqQueryBuilder.Literal(value));
     IMergeMatchedBySourceThenUpdateBuilder IUpdateSetterLiteral<IMergeMatchedBySourceThenUpdateBuilder, ExprColumn>.Set(ExprColumn col, double value) => this.GenericSet(ref this._notMatchedUpdate, col, SqQueryBuilder.Literal(value));
 
+    public IOutputDoneFirst Output()
+    {
+        return this;
+    }
+
+    public IOutputDone Inserted(ExprColumn column)
+    {
+        this._output ??= new List<IExprOutputColumn>();
+        this._output.Add(new ExprOutputColumnInserted(column));
+        return this;
+    }
+
+    public IOutputDone Inserted(ExprAliasedColumn column)
+    {
+        this._output ??= new List<IExprOutputColumn>();
+        this._output.Add(new ExprOutputColumnInserted(new ExprAliasedColumnName(column.Column, column.Alias)));
+        return this;
+    }
+
+    public IOutputDone Deleted(ExprColumn column)
+    {
+        this._output ??= new List<IExprOutputColumn>();
+        this._output.Add(new ExprOutputColumnDeleted(column));
+        return this;
+    }
+
+    public IOutputDone Deleted(ExprAliasedColumn column)
+    {
+        this._output ??= new List<IExprOutputColumn>();
+        this._output.Add(new ExprOutputColumnDeleted(new ExprAliasedColumnName(column.Column, column.Alias)));
+        return this;
+    }
+
+    public IOutputDone Column(ExprColumn column)
+    {
+        this._output ??= new List<IExprOutputColumn>();
+        this._output.Add(new ExprOutputColumn(column));
+        return this;
+    }
+
+    public IOutputDone Column(ExprAliasedColumn column)
+    {
+        this._output ??= new List<IExprOutputColumn>();
+        this._output.Add(new ExprOutputColumn(column));
+        return this;
+    }
+
+    public IOutputDone Action(ExprColumnAlias? alias = null)
+    {
+        this._output ??= new List<IExprOutputColumn>();
+        this._output.Add(new ExprOutputAction(alias));
+        return this;
+    }
+
     IExprExec IExprExecFinal.Done() => this.Done();
+
+    ExprMergeOutput IOutputDone.Done()
+    {
+        if (this._output == null || this._output.Count < 1)
+        {
+            throw new SqExpressException("At least one output field is expected");
+        }
+        return ExprMergeOutput.FromMerge(this.Done(), new ExprOutput(this._output));
+    }
+
+    IExprQuery IExprQueryFinal.Done() => ((IOutputDone)this).Done();
 }

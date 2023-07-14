@@ -85,4 +85,16 @@ public interface IMergeMatchedBySourceThenUpdateBuilder : IMergeMatchedBySourceT
 public interface IMergeBuilderDone : IExprExecFinal
 {
     new ExprMerge Done();
+
+    IOutputDoneFirst Output();
+}
+
+public interface IOutputDoneFirst : IOutputSetter<IOutputDone>
+{
+
+}
+
+public interface IOutputDone : IOutputSetter<IOutputDone>, IExprQueryFinal
+{
+    new ExprMergeOutput Done();
 }
