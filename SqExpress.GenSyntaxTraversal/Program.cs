@@ -405,7 +405,7 @@ namespace SqExpress.GenSyntaxTraversal
                             if (correspondingProperty == null)
                             {
                                 throw new Exception(
-                                    $"Could not find a property for the constructor arg: '{parameter.Name}'");
+                                    $"Could not find a property for the constructor arg: '{parameter.Name}' in {classSymbol.Name}");
                             }
 
                             var ta = AnalyzeSymbol(ref pType);

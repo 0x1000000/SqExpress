@@ -9,7 +9,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AssemblyOriginatorKeyFile>..\SqExpress.snk</AssemblyOriginatorKeyFile>
     <UseAppHost>false</UseAppHost>
-    <SignAssembly>true</SignAssembly>
+    <SignAssembly>True</SignAssembly>
     <DelaySign>false</DelaySign>
     <AssemblyVersion>0.2.0.0</AssemblyVersion>
     <FileVersion>0.2.0.0</FileVersion>

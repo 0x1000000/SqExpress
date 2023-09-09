@@ -749,13 +749,13 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         }
         public IExpr? VisitExprMerge(ExprMerge exprIn, Func<IExpr, IExpr?> modifier)
         {
-            var newTargetTable = this.AcceptItem(exprIn.TargetTableBase, modifier);
+            var newTargetTable = this.AcceptItem(exprIn.TargetTable, modifier);
             var newSource = this.AcceptItem(exprIn.Source, modifier);
             var newOn = this.AcceptItem(exprIn.On, modifier);
             var newWhenMatched = this.AcceptNullableItem(exprIn.WhenMatched, modifier);
             var newWhenNotMatchedByTarget = this.AcceptNullableItem(exprIn.WhenNotMatchedByTarget, modifier);
             var newWhenNotMatchedBySource = this.AcceptNullableItem(exprIn.WhenNotMatchedBySource, modifier);
-            if(!ReferenceEquals(exprIn.TargetTableBase, newTargetTable) || !ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.On, newOn) || !ReferenceEquals(exprIn.WhenMatched, newWhenMatched) || !ReferenceEquals(exprIn.WhenNotMatchedByTarget, newWhenNotMatchedByTarget) || !ReferenceEquals(exprIn.WhenNotMatchedBySource, newWhenNotMatchedBySource))
+            if(!ReferenceEquals(exprIn.TargetTable, newTargetTable) || !ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.On, newOn) || !ReferenceEquals(exprIn.WhenMatched, newWhenMatched) || !ReferenceEquals(exprIn.WhenNotMatchedByTarget, newWhenNotMatchedByTarget) || !ReferenceEquals(exprIn.WhenNotMatchedBySource, newWhenNotMatchedBySource))
             {
                 exprIn = new ExprMerge(targetTable: newTargetTable, source: newSource, on: newOn, whenMatched: newWhenMatched, whenNotMatchedByTarget: newWhenNotMatchedByTarget, whenNotMatchedBySource: newWhenNotMatchedBySource);
             }
@@ -782,14 +782,14 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         }
         public IExpr? VisitExprMergeOutput(ExprMergeOutput exprIn, Func<IExpr, IExpr?> modifier)
         {
-            var newTargetTable = this.AcceptItem(exprIn.TargetTableBase, modifier);
+            var newTargetTable = this.AcceptItem(exprIn.TargetTable, modifier);
             var newSource = this.AcceptItem(exprIn.Source, modifier);
             var newOn = this.AcceptItem(exprIn.On, modifier);
             var newWhenMatched = this.AcceptNullableItem(exprIn.WhenMatched, modifier);
             var newWhenNotMatchedByTarget = this.AcceptNullableItem(exprIn.WhenNotMatchedByTarget, modifier);
             var newWhenNotMatchedBySource = this.AcceptNullableItem(exprIn.WhenNotMatchedBySource, modifier);
             var newOutput = this.AcceptItem(exprIn.Output, modifier);
-            if(!ReferenceEquals(exprIn.TargetTableBase, newTargetTable) || !ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.On, newOn) || !ReferenceEquals(exprIn.WhenMatched, newWhenMatched) || !ReferenceEquals(exprIn.WhenNotMatchedByTarget, newWhenNotMatchedByTarget) || !ReferenceEquals(exprIn.WhenNotMatchedBySource, newWhenNotMatchedBySource) || !ReferenceEquals(exprIn.Output, newOutput))
+            if(!ReferenceEquals(exprIn.TargetTable, newTargetTable) || !ReferenceEquals(exprIn.Source, newSource) || !ReferenceEquals(exprIn.On, newOn) || !ReferenceEquals(exprIn.WhenMatched, newWhenMatched) || !ReferenceEquals(exprIn.WhenNotMatchedByTarget, newWhenNotMatchedByTarget) || !ReferenceEquals(exprIn.WhenNotMatchedBySource, newWhenNotMatchedBySource) || !ReferenceEquals(exprIn.Output, newOutput))
             {
                 exprIn = new ExprMergeOutput(targetTable: newTargetTable, source: newSource, on: newOn, whenMatched: newWhenMatched, whenNotMatchedByTarget: newWhenNotMatchedByTarget, whenNotMatchedBySource: newWhenNotMatchedBySource, output: newOutput);
             }

@@ -1,5 +1,4 @@
-﻿#if !NETFRAMEWORK
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.IO;
@@ -14,8 +13,8 @@ using Microsoft.VisualStudio.TestPlatform.PlatformAbstractions;
 using NUnit.Framework;
 using SqExpress.CodeGenUtil;
 using SqExpress.CodeGenUtil.CodeGen;
-using SqExpress.CodeGenUtil.DbManagers;
-using SqExpress.CodeGenUtil.Model;
+using SqExpress.DbMetadata.Internal.DbManagers;
+using SqExpress.DbMetadata.Internal.Model;
 using SqExpress.SqlExport;
 
 namespace SqExpress.Test.CodeGenUtil
@@ -26,10 +25,10 @@ namespace SqExpress.Test.CodeGenUtil
         [Test]
         public async Task BasicTest()
         {
-
+            var genTablesOptions = new GenTablesOptions(ConnectionType.MsSql, "fake", "Tab", "", "MyTables", verbosity: Verbosity.Quiet);
             using var dbManager = new DbManager(new DbManagerTest(),
                 new SqlConnection("Initial Catalog=_1_2_3tbl;"),
-                new GenTablesOptions(ConnectionType.MsSql, "fake", "Tab", "", "MyTables", verbosity: Verbosity.Quiet));
+                new DbManagerOptions(genTablesOptions.TableClassPrefix));
 
             var tables = await dbManager.SelectTables();
 
@@ -86,4 +85,3 @@ namespace SqExpress.Test.CodeGenUtil
         }
     }
 }
-#endif

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using SqExpress.CodeGenUtil.Model.SqModel;
+using SqExpress.DbMetadata.Internal.Model.SqModel;
 
 namespace SqExpress.CodeGenUtil.CodeGen
 {

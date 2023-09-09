@@ -488,19 +488,19 @@ namespace SqExpress
             => new ExprMerge(targetTable: newTargetTable, source: original.Source, on: original.On, whenMatched: original.WhenMatched, whenNotMatchedByTarget: original.WhenNotMatchedByTarget, whenNotMatchedBySource: original.WhenNotMatchedBySource);
 
         public static ExprMerge WithSource(this ExprMerge original, IExprTableSource newSource) 
-            => new ExprMerge(targetTable: original.TargetTableBase, source: newSource, on: original.On, whenMatched: original.WhenMatched, whenNotMatchedByTarget: original.WhenNotMatchedByTarget, whenNotMatchedBySource: original.WhenNotMatchedBySource);
+            => new ExprMerge(targetTable: original.TargetTable, source: newSource, on: original.On, whenMatched: original.WhenMatched, whenNotMatchedByTarget: original.WhenNotMatchedByTarget, whenNotMatchedBySource: original.WhenNotMatchedBySource);
 
         public static ExprMerge WithOn(this ExprMerge original, ExprBoolean newOn) 
-            => new ExprMerge(targetTable: original.TargetTableBase, source: original.Source, on: newOn, whenMatched: original.WhenMatched, whenNotMatchedByTarget: original.WhenNotMatchedByTarget, whenNotMatchedBySource: original.WhenNotMatchedBySource);
+            => new ExprMerge(targetTable: original.TargetTable, source: original.Source, on: newOn, whenMatched: original.WhenMatched, whenNotMatchedByTarget: original.WhenNotMatchedByTarget, whenNotMatchedBySource: original.WhenNotMatchedBySource);
 
         public static ExprMerge WithWhenMatched(this ExprMerge original, IExprMergeMatched? newWhenMatched) 
-            => new ExprMerge(targetTable: original.TargetTableBase, source: original.Source, on: original.On, whenMatched: newWhenMatched, whenNotMatchedByTarget: original.WhenNotMatchedByTarget, whenNotMatchedBySource: original.WhenNotMatchedBySource);
+            => new ExprMerge(targetTable: original.TargetTable, source: original.Source, on: original.On, whenMatched: newWhenMatched, whenNotMatchedByTarget: original.WhenNotMatchedByTarget, whenNotMatchedBySource: original.WhenNotMatchedBySource);
 
         public static ExprMerge WithWhenNotMatchedByTarget(this ExprMerge original, IExprMergeNotMatched? newWhenNotMatchedByTarget) 
-            => new ExprMerge(targetTable: original.TargetTableBase, source: original.Source, on: original.On, whenMatched: original.WhenMatched, whenNotMatchedByTarget: newWhenNotMatchedByTarget, whenNotMatchedBySource: original.WhenNotMatchedBySource);
+            => new ExprMerge(targetTable: original.TargetTable, source: original.Source, on: original.On, whenMatched: original.WhenMatched, whenNotMatchedByTarget: newWhenNotMatchedByTarget, whenNotMatchedBySource: original.WhenNotMatchedBySource);
 
         public static ExprMerge WithWhenNotMatchedBySource(this ExprMerge original, IExprMergeMatched? newWhenNotMatchedBySource) 
-            => new ExprMerge(targetTable: original.TargetTableBase, source: original.Source, on: original.On, whenMatched: original.WhenMatched, whenNotMatchedByTarget: original.WhenNotMatchedByTarget, whenNotMatchedBySource: newWhenNotMatchedBySource);
+            => new ExprMerge(targetTable: original.TargetTable, source: original.Source, on: original.On, whenMatched: original.WhenMatched, whenNotMatchedByTarget: original.WhenNotMatchedByTarget, whenNotMatchedBySource: newWhenNotMatchedBySource);
 
         public static ExprMergeMatchedDelete WithAnd(this ExprMergeMatchedDelete original, ExprBoolean? newAnd) 
             => new ExprMergeMatchedDelete(and: newAnd);
@@ -515,22 +515,22 @@ namespace SqExpress
             => new ExprMergeOutput(targetTable: newTargetTable, source: original.Source, on: original.On, whenMatched: original.WhenMatched, whenNotMatchedByTarget: original.WhenNotMatchedByTarget, whenNotMatchedBySource: original.WhenNotMatchedBySource, output: original.Output);
 
         public static ExprMergeOutput WithSource(this ExprMergeOutput original, IExprTableSource newSource) 
-            => new ExprMergeOutput(targetTable: original.TargetTableBase, source: newSource, on: original.On, whenMatched: original.WhenMatched, whenNotMatchedByTarget: original.WhenNotMatchedByTarget, whenNotMatchedBySource: original.WhenNotMatchedBySource, output: original.Output);
+            => new ExprMergeOutput(targetTable: original.TargetTable, source: newSource, on: original.On, whenMatched: original.WhenMatched, whenNotMatchedByTarget: original.WhenNotMatchedByTarget, whenNotMatchedBySource: original.WhenNotMatchedBySource, output: original.Output);
 
         public static ExprMergeOutput WithOn(this ExprMergeOutput original, ExprBoolean newOn) 
-            => new ExprMergeOutput(targetTable: original.TargetTableBase, source: original.Source, on: newOn, whenMatched: original.WhenMatched, whenNotMatchedByTarget: original.WhenNotMatchedByTarget, whenNotMatchedBySource: original.WhenNotMatchedBySource, output: original.Output);
+            => new ExprMergeOutput(targetTable: original.TargetTable, source: original.Source, on: newOn, whenMatched: original.WhenMatched, whenNotMatchedByTarget: original.WhenNotMatchedByTarget, whenNotMatchedBySource: original.WhenNotMatchedBySource, output: original.Output);
 
         public static ExprMergeOutput WithWhenMatched(this ExprMergeOutput original, IExprMergeMatched? newWhenMatched) 
-            => new ExprMergeOutput(targetTable: original.TargetTableBase, source: original.Source, on: original.On, whenMatched: newWhenMatched, whenNotMatchedByTarget: original.WhenNotMatchedByTarget, whenNotMatchedBySource: original.WhenNotMatchedBySource, output: original.Output);
+            => new ExprMergeOutput(targetTable: original.TargetTable, source: original.Source, on: original.On, whenMatched: newWhenMatched, whenNotMatchedByTarget: original.WhenNotMatchedByTarget, whenNotMatchedBySource: original.WhenNotMatchedBySource, output: original.Output);
 
         public static ExprMergeOutput WithWhenNotMatchedByTarget(this ExprMergeOutput original, IExprMergeNotMatched? newWhenNotMatchedByTarget) 
-            => new ExprMergeOutput(targetTable: original.TargetTableBase, source: original.Source, on: original.On, whenMatched: original.WhenMatched, whenNotMatchedByTarget: newWhenNotMatchedByTarget, whenNotMatchedBySource: original.WhenNotMatchedBySource, output: original.Output);
+            => new ExprMergeOutput(targetTable: original.TargetTable, source: original.Source, on: original.On, whenMatched: original.WhenMatched, whenNotMatchedByTarget: newWhenNotMatchedByTarget, whenNotMatchedBySource: original.WhenNotMatchedBySource, output: original.Output);
 
         public static ExprMergeOutput WithWhenNotMatchedBySource(this ExprMergeOutput original, IExprMergeMatched? newWhenNotMatchedBySource) 
-            => new ExprMergeOutput(targetTable: original.TargetTableBase, source: original.Source, on: original.On, whenMatched: original.WhenMatched, whenNotMatchedByTarget: original.WhenNotMatchedByTarget, whenNotMatchedBySource: newWhenNotMatchedBySource, output: original.Output);
+            => new ExprMergeOutput(targetTable: original.TargetTable, source: original.Source, on: original.On, whenMatched: original.WhenMatched, whenNotMatchedByTarget: original.WhenNotMatchedByTarget, whenNotMatchedBySource: newWhenNotMatchedBySource, output: original.Output);
 
         public static ExprMergeOutput WithOutput(this ExprMergeOutput original, ExprOutput newOutput) 
-            => new ExprMergeOutput(targetTable: original.TargetTableBase, source: original.Source, on: original.On, whenMatched: original.WhenMatched, whenNotMatchedByTarget: original.WhenNotMatchedByTarget, whenNotMatchedBySource: original.WhenNotMatchedBySource, output: newOutput);
+            => new ExprMergeOutput(targetTable: original.TargetTable, source: original.Source, on: original.On, whenMatched: original.WhenMatched, whenNotMatchedByTarget: original.WhenNotMatchedByTarget, whenNotMatchedBySource: original.WhenNotMatchedBySource, output: newOutput);
 
         public static ExprModulo WithLeft(this ExprModulo original, ExprValue newLeft) 
             => new ExprModulo(left: newLeft, right: original.Right);

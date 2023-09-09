@@ -24,11 +24,8 @@ namespace SqExpress
             public static readonly EmptyModelReaderStorage<TTable> Instance = new EmptyModelReaderStorage<TTable>();
 
             private EmptyModelReaderStorage() { }
-#if !NETFRAMEWORK
+
             public IReadOnlyList<ExprColumn> GetColumns(TTable table) => Array.Empty<TableColumn>();
-#else
-            public IReadOnlyList<ExprColumn> GetColumns(TTable table) => new ExprColumn[0];
-#endif
 
             public int GetColumnCount() => 0;
 

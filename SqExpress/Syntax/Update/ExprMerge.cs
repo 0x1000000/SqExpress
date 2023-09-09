@@ -12,7 +12,7 @@ namespace SqExpress.Syntax.Update
     {
         public ExprMerge(ExprTable targetTable, IExprTableSource source, ExprBoolean on, IExprMergeMatched? whenMatched, IExprMergeNotMatched? whenNotMatchedByTarget, IExprMergeMatched? whenNotMatchedBySource)
         {
-            this.TargetTableBase = targetTable;
+            this.TargetTable = targetTable;
             this.Source = source;
             this.On = on;
             this.WhenMatched = whenMatched;
@@ -20,7 +20,7 @@ namespace SqExpress.Syntax.Update
             this.WhenNotMatchedBySource = whenNotMatchedBySource;
         }
 
-        public ExprTable TargetTableBase { get; }
+        public ExprTable TargetTable { get; }
 
         public IExprTableSource Source { get; }
 
@@ -38,7 +38,7 @@ namespace SqExpress.Syntax.Update
 
     public class ExprMergeOutput : ExprMerge, IExprQuery
     {
-        public static ExprMergeOutput FromMerge(ExprMerge merge, ExprOutput output) => new ExprMergeOutput(merge.TargetTableBase, merge.Source, merge.On, merge.WhenMatched, merge.WhenNotMatchedByTarget, merge.WhenNotMatchedBySource, output);
+        public static ExprMergeOutput FromMerge(ExprMerge merge, ExprOutput output) => new ExprMergeOutput(merge.TargetTable, merge.Source, merge.On, merge.WhenMatched, merge.WhenNotMatchedByTarget, merge.WhenNotMatchedBySource, output);
 
         public ExprMergeOutput(ExprTable targetTable, IExprTableSource source, ExprBoolean on, IExprMergeMatched? whenMatched, IExprMergeNotMatched? whenNotMatchedByTarget, IExprMergeMatched? whenNotMatchedBySource, ExprOutput output) : base(targetTable, source, @on, whenMatched, whenNotMatchedByTarget, whenNotMatchedBySource)
         {

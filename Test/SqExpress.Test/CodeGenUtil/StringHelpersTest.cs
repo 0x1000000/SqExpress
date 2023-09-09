@@ -1,11 +1,5 @@
-﻿#if !NETFRAMEWORK
-using System.Collections.Generic;
-using System.Data.SqlClient;
-using System.Threading.Tasks;
-using NUnit.Framework;
+﻿using NUnit.Framework;
 using SqExpress.CodeGenUtil;
-using SqExpress.CodeGenUtil.DbManagers;
-using SqExpress.CodeGenUtil.Model;
 
 namespace SqExpress.Test.CodeGenUtil
 {
@@ -38,4 +32,4 @@ namespace SqExpress.Test.CodeGenUtil
         }
     }
 }
-#endif
+

@@ -1,14 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.Common;
+using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using CommandLine;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SqExpress.CodeGenUtil.CodeGen;
-using SqExpress.CodeGenUtil.DbManagers;
 using SqExpress.CodeGenUtil.Logger;
-using SqExpress.CodeGenUtil.Model;
+using SqExpress.DbMetadata.Internal.DbManagers;
+using SqExpress.DbMetadata.Internal.Model;
 
 namespace SqExpress.CodeGenUtil
 {
@@ -217,7 +219,21 @@ namespace SqExpress.CodeGenUtil
             switch (options.ConnectionType)
             {
                 case ConnectionType.MsSql:
-                    return MsSqlDbManager.Create(options);
+                    DbConnection connection;
+                    try
+                    {
+                        connection = new SqlConnection(options.ConnectionString);
+                    }
+                    catch (ArgumentException e)
+                    {
+                        throw new SqExpressCodeGenException($"MsSQL connection string has incorrect format \"{options.ConnectionString}\"", e);
+                    }
+
+                    if (string.IsNullOrEmpty(connection.Database))
+                    {
+                        throw new SqExpressCodeGenException("MsSQL connection string has to contain \"database\" attribute");
+                    }
+                    return MsSqlDbManager.Create(new DbManagerOptions(options.TableClassPrefix), connection);
                 case ConnectionType.MySql:
                     return MySqlDbManager.Create(options.ConnectionString);
                 case ConnectionType.PgSql:

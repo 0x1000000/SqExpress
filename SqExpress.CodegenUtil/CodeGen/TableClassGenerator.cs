@@ -4,7 +4,7 @@ using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using SqExpress.CodeGenUtil.Model;
+using SqExpress.DbMetadata.Internal.Model;
 using static SqExpress.CodeGenUtil.CodeGen.SyntaxHelpers;
 namespace SqExpress.CodeGenUtil.CodeGen
 {

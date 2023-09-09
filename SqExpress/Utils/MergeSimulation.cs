@@ -57,7 +57,7 @@ namespace SqExpress.Utils
 
         private static ExtractKeysResult ExtractKeys(ExprMerge merge, IExprAlias sourceAlias)
         {
-            IExprAlias targetAlias = merge.TargetTableBase.Alias?.Alias ?? throw new SqExpressException("Target table should have an alias");
+            IExprAlias targetAlias = merge.TargetTable.Alias?.Alias ?? throw new SqExpressException("Target table should have an alias");
 
             var accSource = new List<ExprColumnName>();
             var accTarget = new List<ExprColumnName>();
@@ -95,9 +95,9 @@ namespace SqExpress.Utils
                 if (merge.WhenMatched is ExprMergeMatchedUpdate update)
                 {
                     e = SqQueryBuilder
-                        .Update(merge.TargetTableBase)
+                        .Update(merge.TargetTable)
                         .Set(update.Set)
-                        .From(merge.TargetTableBase)
+                        .From(merge.TargetTable)
                         .InnerJoin(tempTable, merge.On)
                         .Where(update.And);
                 }
@@ -112,7 +112,7 @@ namespace SqExpress.Utils
                         filter = filter & delete.And;
                     }
 
-                    e = SqQueryBuilder.Delete(merge.TargetTableBase).From(merge.TargetTableBase).Where(filter);
+                    e = SqQueryBuilder.Delete(merge.TargetTable).From(merge.TargetTable).Where(filter);
                 }
                 else
                 {
@@ -131,7 +131,7 @@ namespace SqExpress.Utils
                 {
                     var filter = !SqQueryBuilder.Exists(SqQueryBuilder
                         .SelectOne()
-                        .From(merge.TargetTableBase)
+                        .From(merge.TargetTable)
                         .Where(merge.On));
 
                     if (insert.And != null)
@@ -139,7 +139,7 @@ namespace SqExpress.Utils
                         filter = filter & insert.And;
                     }
 
-                    e = SqQueryBuilder.InsertInto(merge.TargetTableBase, insert.Columns)
+                    e = SqQueryBuilder.InsertInto(merge.TargetTable, insert.Columns)
                         .From(SqQueryBuilder.Select(insert.Values.SelectToReadOnlyList(i =>
                                 i is ExprValue v
                                     ? v
@@ -151,7 +151,7 @@ namespace SqExpress.Utils
                 {
                     var filter = !SqQueryBuilder.Exists(SqQueryBuilder
                         .SelectOne()
-                        .From(merge.TargetTableBase)
+                        .From(merge.TargetTable)
                         .Where(merge.On));
 
                     if (insertDefault.And != null)
@@ -159,7 +159,7 @@ namespace SqExpress.Utils
                         filter = filter & insertDefault.And;
                     }
 
-                    e = SqQueryBuilder.InsertInto(merge.TargetTableBase, keys.TargetKeys)
+                    e = SqQueryBuilder.InsertInto(merge.TargetTable, keys.TargetKeys)
                         .From(SqQueryBuilder.Select(keys.SourceKeys)
                             .From(tempTable)
                             .Where(filter));
@@ -189,7 +189,7 @@ namespace SqExpress.Utils
                         filter = filter & delete.And;
                     }
 
-                    e = SqQueryBuilder.Delete(merge.TargetTableBase).From(merge.TargetTableBase).Where(filter);
+                    e = SqQueryBuilder.Delete(merge.TargetTable).From(merge.TargetTable).Where(filter);
                 }
                 else if (merge.WhenNotMatchedBySource is ExprMergeMatchedUpdate update)
                 {
@@ -201,7 +201,7 @@ namespace SqExpress.Utils
                         filter = filter & update.And;
                     }
 
-                    e = SqQueryBuilder.Update(merge.TargetTableBase).Set(update.Set).Where(filter);
+                    e = SqQueryBuilder.Update(merge.TargetTable).Set(update.Set).Where(filter);
                 }
                 else
                 {

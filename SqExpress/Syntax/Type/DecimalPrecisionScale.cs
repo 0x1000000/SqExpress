@@ -16,9 +16,8 @@ namespace SqExpress.Syntax.Type
 
         public static implicit operator DecimalPrecisionScale(int precision)
             => new DecimalPrecisionScale(precision, null);
-#if !NETFRAMEWORK
+
         public static implicit operator DecimalPrecisionScale(ValueTuple<int, int> precisionScale)
             => new DecimalPrecisionScale(precisionScale.Item1, precisionScale.Item2);
-#endif
     }
 }

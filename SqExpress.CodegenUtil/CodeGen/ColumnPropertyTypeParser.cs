@@ -1,7 +1,4 @@
-﻿using System.ComponentModel;
-using SqExpress.CodeGenUtil.Model;
-
-namespace SqExpress.CodeGenUtil.CodeGen
+﻿namespace SqExpress.CodeGenUtil.CodeGen
 {
     internal class ColumnPropertyTypeParser
     {

@@ -2,7 +2,7 @@
 using System.Linq;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using SqExpress.CodeGenUtil.Model;
+using SqExpress.DbMetadata.Internal.Model;
 using SqExpress.Syntax.Type;
 using static SqExpress.CodeGenUtil.CodeGen.SyntaxHelpers;
 

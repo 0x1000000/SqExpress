@@ -1,12 +1,10 @@
-﻿#if !NETFRAMEWORK
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using SqExpress.CodeGenUtil;
-using SqExpress.CodeGenUtil.CodeGen;
-using SqExpress.CodeGenUtil.DbManagers;
-using SqExpress.CodeGenUtil.Model;
+using SqExpress.DbMetadata.Internal.DbManagers;
+using SqExpress.DbMetadata.Internal.Model;
 
 namespace SqExpress.Test.CodeGenUtil
 {
@@ -18,7 +16,8 @@ namespace SqExpress.Test.CodeGenUtil
         [Test]
         public async Task SelectTables_BasicTest()
         {
-            using var dbManager = new DbManager(this, new SqlConnection("Initial Catalog=TestDatabase;"), new GenTablesOptions(ConnectionType.MsSql, "fake", "Tab", "", "MyTables", Verbosity.Quiet));
+            var genTablesOptions = new GenTablesOptions(ConnectionType.MsSql, "fake", "Tab", "", "MyTables", Verbosity.Quiet);
+            using var dbManager = new DbManager(this, new SqlConnection("Initial Catalog=TestDatabase;"), new DbManagerOptions(genTablesOptions.TableClassPrefix));
 
             var tables = await dbManager.SelectTables();
 
@@ -118,4 +117,3 @@ namespace SqExpress.Test.CodeGenUtil
         }
     }
 }
-#endif

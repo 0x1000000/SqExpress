@@ -21,7 +21,7 @@ public class ScMergeExpr : IScenario
 
 
         var valTable = SqQueryBuilder
-            .ValueTable(userNames.Take(10).Concat(new []{new UserName((EntUser)(-1777), "New User", "Last Name")}), s => s.Set(tUser.UserId, (int)s.Item.Id).Set(tUser.FirstName, "Mode " + s.Item.FirstName));
+            .ValueTable(userNames.Take(10).Concat(new[] { new UserName((EntUser)(-1777), "New User", "Last Name") }), s => s.Set(tUser.UserId, (int)s.Item.Id).Set(tUser.FirstName, "Mode " + s.Item.FirstName));
 
         await SqQueryBuilder.MergeInto(tUser, valTable)
             .On(tUser.UserId == valTable.Column(tUser.UserId))

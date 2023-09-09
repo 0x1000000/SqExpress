@@ -1196,7 +1196,7 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             switch (this.Peek().State)
             {
                 case 1:
-                    return this.SetCurrent(expr.TargetTableBase);
+                    return this.SetCurrent(expr.TargetTable);
                 case 2:
                     return this.SetCurrent(expr.Source);
                 case 3:
@@ -1244,7 +1244,7 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             switch (this.Peek().State)
             {
                 case 1:
-                    return this.SetCurrent(expr.TargetTableBase);
+                    return this.SetCurrent(expr.TargetTable);
                 case 2:
                     return this.SetCurrent(expr.Source);
                 case 3:
