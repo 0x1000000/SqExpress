@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace SqExpress.SyntaxTreeOperations
 {
-    public interface IExprReader<TNode> 
+    public interface IExprReader<TNode>
     {
         string? GetNodeTypeTag(TNode node);
 

@@ -25,13 +25,14 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
             {
                 return arrayElement.EnumerateArray();
             }
+
             return null;
         }
 
         public bool TryGetGuid(JsonElement node, string propertyName, out Guid value)
         {
             value = default;
-            return node.TryGetProperty(propertyName, out var valueNode) 
+            return node.TryGetProperty(propertyName, out var valueNode)
                    && valueNode.TryGetGuid(out value);
         }
 
@@ -43,6 +44,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
                 value = valueNode.GetBoolean();
                 return true;
             }
+
             return false;
         }
 
@@ -110,6 +112,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
                 value = valueNode.GetString();
                 return true;
             }
+
             return false;
         }
 
@@ -124,6 +127,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
                     return true;
                 }
             }
+
             return false;
         }
     }

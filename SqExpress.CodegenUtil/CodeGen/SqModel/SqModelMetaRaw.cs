@@ -1,6 +1,6 @@
 ﻿using SqExpress.DbMetadata.Internal.Model;
 
-namespace SqExpress.DbMetadata.Internal.Model.SqModel
+namespace SqExpress.CodeGenUtil.CodeGen.SqModel
 {
     internal class SqModelMetaRaw
     {

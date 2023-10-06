@@ -14,6 +14,8 @@ namespace SqExpress.IntTest.Context
 
         void WriteLine(string? line);
 
+        ISqlExporter SqlExporter { get; }
+
         ISqDatabase CreteConnection();
     }
 

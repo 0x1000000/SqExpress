@@ -1,9 +1,14 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
 using SqExpress.DataAccess.Internal;
+using SqExpress.DbMetadata;
+using SqExpress.DbMetadata.Internal;
+using SqExpress.DbMetadata.Internal.DbManagers;
+using SqExpress.DbMetadata.Internal.Model;
 using SqExpress.SqlExport;
 using SqExpress.StatementSyntax;
 
@@ -28,6 +33,8 @@ namespace SqExpress.DataAccess
         Task Exec(IExprExec statement, CancellationToken cancellationToken = default);
 
         Task Statement(IStatement statement, CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<SqTable>> GetTables(CancellationToken cancellationToken = default);
     }
 
     public interface ISqTransaction : IDisposable
@@ -236,6 +243,37 @@ namespace SqExpress.DataAccess
             {
                 throw new SqDatabaseCommandException(sql, e.Message, e);
             }
+        }
+
+        public async Task<IReadOnlyList<SqTable>> GetTables(CancellationToken cancellationToken = default)
+        {
+            this.CheckDisposed();
+
+            if (this._sqlExporter is not TSqlExporter)
+            {
+                throw new SqExpressException("Only MS SQL is currently supported");
+            }
+
+            if (string.IsNullOrEmpty(this._connection.Database))
+            {
+                throw new SqExpressException("Connection should include a database name");
+            }
+
+
+            var dbManager = new DbManager(new MsSqlDbManager(this, this._connection.Database), this._connection, new DbManagerOptions(""));
+
+            IReadOnlyList<TableModel> tableModels;
+            try
+            {
+                tableModels = await dbManager.SelectTables();
+            }
+            catch (Exception e)
+            {
+                throw new SqExpressException("Could not read database metadata", e);
+            }
+
+            return DbModelMapper.ToSqDbTables(tableModels);
+
         }
 
         public void Dispose()

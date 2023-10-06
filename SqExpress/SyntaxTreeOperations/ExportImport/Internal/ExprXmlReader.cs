@@ -53,9 +53,10 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
                     return null;
                 }
 
-                buffer.Sort((x,y)=> x.Index - y.Index);
+                buffer.Sort((x, y) => x.Index - y.Index);
                 return buffer.SelectToReadOnlyList(i => i.Element);
             }
+
             return null;
         }
 
@@ -138,7 +139,6 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
 
         public bool TryGetByteArray(XmlElement node, string propertyName, out IReadOnlyList<byte>? value)
         {
-
             var el = this.FindElement(node, propertyName);
             if (el != null && !string.IsNullOrEmpty(el.InnerText))
             {

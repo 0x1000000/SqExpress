@@ -27,15 +27,15 @@ namespace SqExpress
         {
         }
 
-        private readonly List<TableColumn> _columns = new List<TableColumn>();
+        private readonly List<TableColumn> _columns = new();
         
-        private readonly List<IndexMeta> _indexes = new List<IndexMeta>();
+        private readonly List<IndexMeta> _indexes = new();
 
         public IReadOnlyList<TableColumn> Columns => this._columns;
 
         public IReadOnlyList<IndexMeta> Indexes => this._indexes;
 
-        public TableBaseScript Script => new TableBaseScript(this);
+        public TableBaseScript Script => new(this);
 
         protected internal void AddColumns(IEnumerable<TableColumn> columns)
         {

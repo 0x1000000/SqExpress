@@ -70,7 +70,8 @@ namespace SqExpress.SyntaxTreeOperations
 
         private ExprDerivedTableQuery BuildDerivedTableQuery<TNode>(TNode rootElement, IExprReader<TNode> reader)
         {
-            return new ExprDerivedTableQuery(query: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "Query"), alias: GetSubNode<TNode, ExprTableAlias>(rootElement, reader, "Alias"), columns: GetNullableSubNodeList<TNode, ExprColumnName>(rootElement, reader, "Columns"));
+            return new ExprDerivedTableQuery(query: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "Query"), alias: GetSubNode<TNode, ExprTableAlias>(rootElement, reader, "Alias"),
+                columns: GetNullableSubNodeList<TNode, ExprColumnName>(rootElement, reader, "Columns"));
         }
 
         private IExpr DeserializeInternal<TNode>(TNode rootElement, IExprReader<TNode> reader)
@@ -80,14 +81,22 @@ namespace SqExpress.SyntaxTreeOperations
             switch (typeTag)
             {
                 //CodeGenStart
-                case "AggregateFunction": return new ExprAggregateFunction(name: GetSubNode<TNode, ExprFunctionName>(rootElement, reader, "Name"), expression: GetSubNode<TNode, ExprValue>(rootElement, reader, "Expression"), isDistinct: ReadBoolean(rootElement, reader, "IsDistinct"));
+                case "AggregateFunction":
+                    return new ExprAggregateFunction(name: GetSubNode<TNode, ExprFunctionName>(rootElement, reader, "Name"),
+                        expression: GetSubNode<TNode, ExprValue>(rootElement, reader, "Expression"), isDistinct: ReadBoolean(rootElement, reader, "IsDistinct"));
                 case "Alias": return new ExprAlias(name: ReadString(rootElement, reader, "Name"));
                 case "AliasGuid": return new ExprAliasGuid(id: ReadGuid(rootElement, reader, "Id"));
-                case "AliasedColumn": return new ExprAliasedColumn(column: GetSubNode<TNode, ExprColumn>(rootElement, reader, "Column"), alias: GetNullableSubNode<TNode, ExprColumnAlias>(rootElement, reader, "Alias"));
-                case "AliasedColumnName": return new ExprAliasedColumnName(column: GetSubNode<TNode, ExprColumnName>(rootElement, reader, "Column"), alias: GetNullableSubNode<TNode, ExprColumnAlias>(rootElement, reader, "Alias"));
-                case "AliasedSelecting": return new ExprAliasedSelecting(value: GetSubNode<TNode, IExprSelecting>(rootElement, reader, "Value"), alias: GetSubNode<TNode, ExprColumnAlias>(rootElement, reader, "Alias"));
+                case "AliasedColumn":
+                    return new ExprAliasedColumn(column: GetSubNode<TNode, ExprColumn>(rootElement, reader, "Column"), alias: GetNullableSubNode<TNode, ExprColumnAlias>(rootElement, reader, "Alias"));
+                case "AliasedColumnName":
+                    return new ExprAliasedColumnName(column: GetSubNode<TNode, ExprColumnName>(rootElement, reader, "Column"),
+                        alias: GetNullableSubNode<TNode, ExprColumnAlias>(rootElement, reader, "Alias"));
+                case "AliasedSelecting":
+                    return new ExprAliasedSelecting(value: GetSubNode<TNode, IExprSelecting>(rootElement, reader, "Value"), alias: GetSubNode<TNode, ExprColumnAlias>(rootElement, reader, "Alias"));
                 case "AllColumns": return new ExprAllColumns(source: GetNullableSubNode<TNode, IExprColumnSource>(rootElement, reader, "Source"));
-                case "AnalyticFunction": return new ExprAnalyticFunction(name: GetSubNode<TNode, ExprFunctionName>(rootElement, reader, "Name"), arguments: GetNullableSubNodeList<TNode, ExprValue>(rootElement, reader, "Arguments"), over: GetSubNode<TNode, ExprOver>(rootElement, reader, "Over"));
+                case "AnalyticFunction":
+                    return new ExprAnalyticFunction(name: GetSubNode<TNode, ExprFunctionName>(rootElement, reader, "Name"),
+                        arguments: GetNullableSubNodeList<TNode, ExprValue>(rootElement, reader, "Arguments"), over: GetSubNode<TNode, ExprOver>(rootElement, reader, "Over"));
                 case "BitwiseAnd": return new ExprBitwiseAnd(left: GetSubNode<TNode, ExprValue>(rootElement, reader, "Left"), right: GetSubNode<TNode, ExprValue>(rootElement, reader, "Right"));
                 case "BitwiseNot": return new ExprBitwiseNot(value: GetSubNode<TNode, ExprValue>(rootElement, reader, "Value"));
                 case "BitwiseOr": return new ExprBitwiseOr(left: GetSubNode<TNode, ExprValue>(rootElement, reader, "Left"), right: GetSubNode<TNode, ExprValue>(rootElement, reader, "Right"));
@@ -104,48 +113,78 @@ namespace SqExpress.SyntaxTreeOperations
                 case "BooleanOr": return new ExprBooleanOr(left: GetSubNode<TNode, ExprBoolean>(rootElement, reader, "Left"), right: GetSubNode<TNode, ExprBoolean>(rootElement, reader, "Right"));
                 case "ByteArrayLiteral": return new ExprByteArrayLiteral(value: ReadNullableByteList(rootElement, reader, "Value"));
                 case "ByteLiteral": return new ExprByteLiteral(value: ReadNullableByte(rootElement, reader, "Value"));
-                case "Case": return new ExprCase(cases: GetSubNodeList<TNode, ExprCaseWhenThen>(rootElement, reader, "Cases"), defaultValue: GetSubNode<TNode, ExprValue>(rootElement, reader, "DefaultValue"));
-                case "CaseWhenThen": return new ExprCaseWhenThen(condition: GetSubNode<TNode, ExprBoolean>(rootElement, reader, "Condition"), value: GetSubNode<TNode, ExprValue>(rootElement, reader, "Value"));
-                case "Cast": return new ExprCast(expression: GetSubNode<TNode, IExprSelecting>(rootElement, reader, "Expression"), sqlType: GetSubNode<TNode, ExprType>(rootElement, reader, "SqlType"));
-                case "Column": return new ExprColumn(source: GetNullableSubNode<TNode, IExprColumnSource>(rootElement, reader, "Source"), columnName: GetSubNode<TNode, ExprColumnName>(rootElement, reader, "ColumnName"));
+                case "Case":
+                    return new ExprCase(cases: GetSubNodeList<TNode, ExprCaseWhenThen>(rootElement, reader, "Cases"), defaultValue: GetSubNode<TNode, ExprValue>(rootElement, reader, "DefaultValue"));
+                case "CaseWhenThen":
+                    return new ExprCaseWhenThen(condition: GetSubNode<TNode, ExprBoolean>(rootElement, reader, "Condition"), value: GetSubNode<TNode, ExprValue>(rootElement, reader, "Value"));
+                case "Cast":
+                    return new ExprCast(expression: GetSubNode<TNode, IExprSelecting>(rootElement, reader, "Expression"), sqlType: GetSubNode<TNode, ExprType>(rootElement, reader, "SqlType"));
+                case "Column":
+                    return new ExprColumn(source: GetNullableSubNode<TNode, IExprColumnSource>(rootElement, reader, "Source"),
+                        columnName: GetSubNode<TNode, ExprColumnName>(rootElement, reader, "ColumnName"));
                 case "ColumnAlias": return new ExprColumnAlias(name: ReadString(rootElement, reader, "Name"));
                 case "ColumnName": return new ExprColumnName(name: ReadString(rootElement, reader, "Name"));
-                case "ColumnSetClause": return new ExprColumnSetClause(column: GetSubNode<TNode, ExprColumn>(rootElement, reader, "Column"), value: GetSubNode<TNode, IExprAssigning>(rootElement, reader, "Value"));
-                case "CrossedTable": return new ExprCrossedTable(left: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Left"), right: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Right"));
+                case "ColumnSetClause":
+                    return new ExprColumnSetClause(column: GetSubNode<TNode, ExprColumn>(rootElement, reader, "Column"), value: GetSubNode<TNode, IExprAssigning>(rootElement, reader, "Value"));
+                case "CrossedTable":
+                    return new ExprCrossedTable(left: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Left"), right: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Right"));
                 ////Default implementation
                 //case "CteQuery": return new ExprCteQuery(alias: GetNullableSubNode<TNode, ExprTableAlias>(rootElement, reader, "Alias"), query: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "Query"), name: ReadString(rootElement, reader, "Name"));
                 case "CteQuery": return BuildCteQuery(rootElement, reader);
                 case "CurrentRowFrameBorder": return ExprCurrentRowFrameBorder.Instance;
                 case "DatabaseName": return new ExprDatabaseName(name: ReadString(rootElement, reader, "Name"));
-                case "DateAdd": return new ExprDateAdd(date: GetSubNode<TNode, ExprValue>(rootElement, reader, "Date"), datePart: ReadDateAddDatePart(rootElement, reader, "DatePart"), number: ReadInt32(rootElement, reader, "Number"));
+                case "DateAdd":
+                    return new ExprDateAdd(date: GetSubNode<TNode, ExprValue>(rootElement, reader, "Date"), datePart: ReadDateAddDatePart(rootElement, reader, "DatePart"),
+                        number: ReadInt32(rootElement, reader, "Number"));
                 case "DateTimeLiteral": return new ExprDateTimeLiteral(value: ReadNullableDateTime(rootElement, reader, "Value"));
                 case "DateTimeOffsetLiteral": return new ExprDateTimeOffsetLiteral(value: ReadNullableDateTimeOffset(rootElement, reader, "Value"));
-                case "DbSchema": return new ExprDbSchema(database: GetNullableSubNode<TNode, ExprDatabaseName>(rootElement, reader, "Database"), schema: GetSubNode<TNode, ExprSchemaName>(rootElement, reader, "Schema"));
+                case "DbSchema":
+                    return new ExprDbSchema(database: GetNullableSubNode<TNode, ExprDatabaseName>(rootElement, reader, "Database"),
+                        schema: GetSubNode<TNode, ExprSchemaName>(rootElement, reader, "Schema"));
                 case "DecimalLiteral": return new ExprDecimalLiteral(value: ReadNullableDecimal(rootElement, reader, "Value"));
                 case "Default": return ExprDefault.Instance;
-                case "Delete": return new ExprDelete(target: GetSubNode<TNode, ExprTable>(rootElement, reader, "Target"), source: GetNullableSubNode<TNode, IExprTableSource>(rootElement, reader, "Source"), filter: GetNullableSubNode<TNode, ExprBoolean>(rootElement, reader, "Filter"));
-                case "DeleteOutput": return new ExprDeleteOutput(delete: GetSubNode<TNode, ExprDelete>(rootElement, reader, "Delete"), outputColumns: GetSubNodeList<TNode, ExprAliasedColumn>(rootElement, reader, "OutputColumns"));
+                case "Delete":
+                    return new ExprDelete(target: GetSubNode<TNode, ExprTable>(rootElement, reader, "Target"), source: GetNullableSubNode<TNode, IExprTableSource>(rootElement, reader, "Source"),
+                        filter: GetNullableSubNode<TNode, ExprBoolean>(rootElement, reader, "Filter"));
+                case "DeleteOutput":
+                    return new ExprDeleteOutput(delete: GetSubNode<TNode, ExprDelete>(rootElement, reader, "Delete"),
+                        outputColumns: GetSubNodeList<TNode, ExprAliasedColumn>(rootElement, reader, "OutputColumns"));
                 ////Default implementation
                 //case "DerivedTableQuery": return new ExprDerivedTableQuery(query: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "Query"), alias: GetSubNode<TNode, ExprTableAlias>(rootElement, reader, "Alias"), columns: GetNullableSubNodeList<TNode, ExprColumnName>(rootElement, reader, "Columns"));
                 case "DerivedTableQuery": return BuildDerivedTableQuery(rootElement, reader);
-                case "DerivedTableValues": return new ExprDerivedTableValues(values: GetSubNode<TNode, ExprTableValueConstructor>(rootElement, reader, "Values"), alias: GetSubNode<TNode, ExprTableAlias>(rootElement, reader, "Alias"), columns: GetSubNodeList<TNode, ExprColumnName>(rootElement, reader, "Columns"));
+                case "DerivedTableValues":
+                    return new ExprDerivedTableValues(values: GetSubNode<TNode, ExprTableValueConstructor>(rootElement, reader, "Values"),
+                        alias: GetSubNode<TNode, ExprTableAlias>(rootElement, reader, "Alias"), columns: GetSubNodeList<TNode, ExprColumnName>(rootElement, reader, "Columns"));
                 case "Div": return new ExprDiv(left: GetSubNode<TNode, ExprValue>(rootElement, reader, "Left"), right: GetSubNode<TNode, ExprValue>(rootElement, reader, "Right"));
                 case "DoubleLiteral": return new ExprDoubleLiteral(value: ReadNullableDouble(rootElement, reader, "Value"));
                 case "Exists": return new ExprExists(subQuery: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "SubQuery"));
-                case "ExprMergeNotMatchedInsert": return new ExprExprMergeNotMatchedInsert(and: GetNullableSubNode<TNode, ExprBoolean>(rootElement, reader, "And"), columns: GetSubNodeList<TNode, ExprColumnName>(rootElement, reader, "Columns"), values: GetSubNodeList<TNode, IExprAssigning>(rootElement, reader, "Values"));
+                case "ExprMergeNotMatchedInsert":
+                    return new ExprExprMergeNotMatchedInsert(and: GetNullableSubNode<TNode, ExprBoolean>(rootElement, reader, "And"),
+                        columns: GetSubNodeList<TNode, ExprColumnName>(rootElement, reader, "Columns"), values: GetSubNodeList<TNode, IExprAssigning>(rootElement, reader, "Values"));
                 case "ExprMergeNotMatchedInsertDefault": return new ExprExprMergeNotMatchedInsertDefault(and: GetNullableSubNode<TNode, ExprBoolean>(rootElement, reader, "And"));
-                case "FrameClause": return new ExprFrameClause(start: GetSubNode<TNode, ExprFrameBorder>(rootElement, reader, "Start"), end: GetNullableSubNode<TNode, ExprFrameBorder>(rootElement, reader, "End"));
+                case "FrameClause":
+                    return new ExprFrameClause(start: GetSubNode<TNode, ExprFrameBorder>(rootElement, reader, "Start"), end: GetNullableSubNode<TNode, ExprFrameBorder>(rootElement, reader, "End"));
                 case "FuncCoalesce": return new ExprFuncCoalesce(test: GetSubNode<TNode, ExprValue>(rootElement, reader, "Test"), alts: GetSubNodeList<TNode, ExprValue>(rootElement, reader, "Alts"));
                 case "FuncIsNull": return new ExprFuncIsNull(test: GetSubNode<TNode, ExprValue>(rootElement, reader, "Test"), alt: GetSubNode<TNode, ExprValue>(rootElement, reader, "Alt"));
                 case "FunctionName": return new ExprFunctionName(builtIn: ReadBoolean(rootElement, reader, "BuiltIn"), name: ReadString(rootElement, reader, "Name"));
                 case "GetDate": return ExprGetDate.Instance;
                 case "GetUtcDate": return ExprGetUtcDate.Instance;
                 case "GuidLiteral": return new ExprGuidLiteral(value: ReadNullableGuid(rootElement, reader, "Value"));
-                case "IdentityInsert": return new ExprIdentityInsert(insert: GetSubNode<TNode, ExprInsert>(rootElement, reader, "Insert"), identityColumns: GetSubNodeList<TNode, ExprColumnName>(rootElement, reader, "IdentityColumns"));
-                case "InSubQuery": return new ExprInSubQuery(testExpression: GetSubNode<TNode, ExprValue>(rootElement, reader, "TestExpression"), subQuery: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "SubQuery"));
-                case "InValues": return new ExprInValues(testExpression: GetSubNode<TNode, ExprValue>(rootElement, reader, "TestExpression"), items: GetSubNodeList<TNode, ExprValue>(rootElement, reader, "Items"));
-                case "Insert": return new ExprInsert(target: GetSubNode<TNode, IExprTableFullName>(rootElement, reader, "Target"), targetColumns: GetNullableSubNodeList<TNode, ExprColumnName>(rootElement, reader, "TargetColumns"), source: GetSubNode<TNode, IExprInsertSource>(rootElement, reader, "Source"));
-                case "InsertOutput": return new ExprInsertOutput(insert: GetSubNode<TNode, ExprInsert>(rootElement, reader, "Insert"), outputColumns: GetSubNodeList<TNode, ExprAliasedColumnName>(rootElement, reader, "OutputColumns"));
+                case "IdentityInsert":
+                    return new ExprIdentityInsert(insert: GetSubNode<TNode, ExprInsert>(rootElement, reader, "Insert"),
+                        identityColumns: GetSubNodeList<TNode, ExprColumnName>(rootElement, reader, "IdentityColumns"));
+                case "InSubQuery":
+                    return new ExprInSubQuery(testExpression: GetSubNode<TNode, ExprValue>(rootElement, reader, "TestExpression"),
+                        subQuery: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "SubQuery"));
+                case "InValues":
+                    return new ExprInValues(testExpression: GetSubNode<TNode, ExprValue>(rootElement, reader, "TestExpression"), items: GetSubNodeList<TNode, ExprValue>(rootElement, reader, "Items"));
+                case "Insert":
+                    return new ExprInsert(target: GetSubNode<TNode, IExprTableFullName>(rootElement, reader, "Target"),
+                        targetColumns: GetNullableSubNodeList<TNode, ExprColumnName>(rootElement, reader, "TargetColumns"),
+                        source: GetSubNode<TNode, IExprInsertSource>(rootElement, reader, "Source"));
+                case "InsertOutput":
+                    return new ExprInsertOutput(insert: GetSubNode<TNode, ExprInsert>(rootElement, reader, "Insert"),
+                        outputColumns: GetSubNodeList<TNode, ExprAliasedColumnName>(rootElement, reader, "OutputColumns"));
                 case "InsertQuery": return new ExprInsertQuery(query: GetSubNode<TNode, IExprQuery>(rootElement, reader, "Query"));
                 case "InsertValueRow": return new ExprInsertValueRow(items: GetSubNodeList<TNode, IExprAssigning>(rootElement, reader, "Items"));
                 case "InsertValues": return new ExprInsertValues(items: GetSubNodeList<TNode, ExprInsertValueRow>(rootElement, reader, "Items"));
@@ -153,40 +192,75 @@ namespace SqExpress.SyntaxTreeOperations
                 case "Int32Literal": return new ExprInt32Literal(value: ReadNullableInt32(rootElement, reader, "Value"));
                 case "Int64Literal": return new ExprInt64Literal(value: ReadNullableInt64(rootElement, reader, "Value"));
                 case "IsNull": return new ExprIsNull(test: GetSubNode<TNode, ExprValue>(rootElement, reader, "Test"), not: ReadBoolean(rootElement, reader, "Not"));
-                case "JoinedTable": return new ExprJoinedTable(left: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Left"), right: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Right"), searchCondition: GetSubNode<TNode, ExprBoolean>(rootElement, reader, "SearchCondition"), joinType: ReadExprJoinType(rootElement, reader, "JoinType"));
+                case "JoinedTable":
+                    return new ExprJoinedTable(left: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Left"), right: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Right"),
+                        searchCondition: GetSubNode<TNode, ExprBoolean>(rootElement, reader, "SearchCondition"), joinType: ReadExprJoinType(rootElement, reader, "JoinType"));
                 case "Like": return new ExprLike(test: GetSubNode<TNode, ExprValue>(rootElement, reader, "Test"), pattern: GetSubNode<TNode, ExprStringLiteral>(rootElement, reader, "Pattern"));
                 case "List": return new ExprList(expressions: GetSubNodeList<TNode, IExprExec>(rootElement, reader, "Expressions"));
-                case "Merge": return new ExprMerge(targetTable: GetSubNode<TNode, ExprTable>(rootElement, reader, "TargetTable"), source: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Source"), on: GetSubNode<TNode, ExprBoolean>(rootElement, reader, "On"), whenMatched: GetNullableSubNode<TNode, IExprMergeMatched>(rootElement, reader, "WhenMatched"), whenNotMatchedByTarget: GetNullableSubNode<TNode, IExprMergeNotMatched>(rootElement, reader, "WhenNotMatchedByTarget"), whenNotMatchedBySource: GetNullableSubNode<TNode, IExprMergeMatched>(rootElement, reader, "WhenNotMatchedBySource"));
+                case "Merge":
+                    return new ExprMerge(targetTable: GetSubNode<TNode, ExprTable>(rootElement, reader, "TargetTable"), source: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Source"),
+                        on: GetSubNode<TNode, ExprBoolean>(rootElement, reader, "On"), whenMatched: GetNullableSubNode<TNode, IExprMergeMatched>(rootElement, reader, "WhenMatched"),
+                        whenNotMatchedByTarget: GetNullableSubNode<TNode, IExprMergeNotMatched>(rootElement, reader, "WhenNotMatchedByTarget"),
+                        whenNotMatchedBySource: GetNullableSubNode<TNode, IExprMergeMatched>(rootElement, reader, "WhenNotMatchedBySource"));
                 case "MergeMatchedDelete": return new ExprMergeMatchedDelete(and: GetNullableSubNode<TNode, ExprBoolean>(rootElement, reader, "And"));
-                case "MergeMatchedUpdate": return new ExprMergeMatchedUpdate(and: GetNullableSubNode<TNode, ExprBoolean>(rootElement, reader, "And"), set: GetSubNodeList<TNode, ExprColumnSetClause>(rootElement, reader, "Set"));
-                case "MergeOutput": return new ExprMergeOutput(targetTable: GetSubNode<TNode, ExprTable>(rootElement, reader, "TargetTable"), source: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Source"), on: GetSubNode<TNode, ExprBoolean>(rootElement, reader, "On"), whenMatched: GetNullableSubNode<TNode, IExprMergeMatched>(rootElement, reader, "WhenMatched"), whenNotMatchedByTarget: GetNullableSubNode<TNode, IExprMergeNotMatched>(rootElement, reader, "WhenNotMatchedByTarget"), whenNotMatchedBySource: GetNullableSubNode<TNode, IExprMergeMatched>(rootElement, reader, "WhenNotMatchedBySource"), output: GetSubNode<TNode, ExprOutput>(rootElement, reader, "Output"));
+                case "MergeMatchedUpdate":
+                    return new ExprMergeMatchedUpdate(and: GetNullableSubNode<TNode, ExprBoolean>(rootElement, reader, "And"),
+                        set: GetSubNodeList<TNode, ExprColumnSetClause>(rootElement, reader, "Set"));
+                case "MergeOutput":
+                    return new ExprMergeOutput(targetTable: GetSubNode<TNode, ExprTable>(rootElement, reader, "TargetTable"),
+                        source: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Source"), on: GetSubNode<TNode, ExprBoolean>(rootElement, reader, "On"),
+                        whenMatched: GetNullableSubNode<TNode, IExprMergeMatched>(rootElement, reader, "WhenMatched"),
+                        whenNotMatchedByTarget: GetNullableSubNode<TNode, IExprMergeNotMatched>(rootElement, reader, "WhenNotMatchedByTarget"),
+                        whenNotMatchedBySource: GetNullableSubNode<TNode, IExprMergeMatched>(rootElement, reader, "WhenNotMatchedBySource"),
+                        output: GetSubNode<TNode, ExprOutput>(rootElement, reader, "Output"));
                 case "Modulo": return new ExprModulo(left: GetSubNode<TNode, ExprValue>(rootElement, reader, "Left"), right: GetSubNode<TNode, ExprValue>(rootElement, reader, "Right"));
                 case "Mul": return new ExprMul(left: GetSubNode<TNode, ExprValue>(rootElement, reader, "Left"), right: GetSubNode<TNode, ExprValue>(rootElement, reader, "Right"));
                 case "Null": return ExprNull.Instance;
-                case "OffsetFetch": return new ExprOffsetFetch(offset: GetSubNode<TNode, ExprInt32Literal>(rootElement, reader, "Offset"), fetch: GetNullableSubNode<TNode, ExprInt32Literal>(rootElement, reader, "Fetch"));
+                case "OffsetFetch":
+                    return new ExprOffsetFetch(offset: GetSubNode<TNode, ExprInt32Literal>(rootElement, reader, "Offset"),
+                        fetch: GetNullableSubNode<TNode, ExprInt32Literal>(rootElement, reader, "Fetch"));
                 case "OrderBy": return new ExprOrderBy(orderList: GetSubNodeList<TNode, ExprOrderByItem>(rootElement, reader, "OrderList"));
                 case "OrderByItem": return new ExprOrderByItem(value: GetSubNode<TNode, ExprValue>(rootElement, reader, "Value"), descendant: ReadBoolean(rootElement, reader, "Descendant"));
-                case "OrderByOffsetFetch": return new ExprOrderByOffsetFetch(orderList: GetSubNodeList<TNode, ExprOrderByItem>(rootElement, reader, "OrderList"), offsetFetch: GetSubNode<TNode, ExprOffsetFetch>(rootElement, reader, "OffsetFetch"));
+                case "OrderByOffsetFetch":
+                    return new ExprOrderByOffsetFetch(orderList: GetSubNodeList<TNode, ExprOrderByItem>(rootElement, reader, "OrderList"),
+                        offsetFetch: GetSubNode<TNode, ExprOffsetFetch>(rootElement, reader, "OffsetFetch"));
                 case "Output": return new ExprOutput(columns: GetSubNodeList<TNode, IExprOutputColumn>(rootElement, reader, "Columns"));
                 case "OutputAction": return new ExprOutputAction(alias: GetNullableSubNode<TNode, ExprColumnAlias>(rootElement, reader, "Alias"));
                 case "OutputColumn": return new ExprOutputColumn(column: GetSubNode<TNode, ExprAliasedColumn>(rootElement, reader, "Column"));
                 case "OutputColumnDeleted": return new ExprOutputColumnDeleted(columnName: GetSubNode<TNode, ExprAliasedColumnName>(rootElement, reader, "ColumnName"));
                 case "OutputColumnInserted": return new ExprOutputColumnInserted(columnName: GetSubNode<TNode, ExprAliasedColumnName>(rootElement, reader, "ColumnName"));
-                case "Over": return new ExprOver(partitions: GetNullableSubNodeList<TNode, ExprValue>(rootElement, reader, "Partitions"), orderBy: GetNullableSubNode<TNode, ExprOrderBy>(rootElement, reader, "OrderBy"), frameClause: GetNullableSubNode<TNode, ExprFrameClause>(rootElement, reader, "FrameClause"));
-                case "QueryExpression": return new ExprQueryExpression(left: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "Left"), right: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "Right"), queryExpressionType: ReadExprQueryExpressionType(rootElement, reader, "QueryExpressionType"));
+                case "Over":
+                    return new ExprOver(partitions: GetNullableSubNodeList<TNode, ExprValue>(rootElement, reader, "Partitions"),
+                        orderBy: GetNullableSubNode<TNode, ExprOrderBy>(rootElement, reader, "OrderBy"), frameClause: GetNullableSubNode<TNode, ExprFrameClause>(rootElement, reader, "FrameClause"));
+                case "QueryExpression":
+                    return new ExprQueryExpression(left: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "Left"), right: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "Right"),
+                        queryExpressionType: ReadExprQueryExpressionType(rootElement, reader, "QueryExpressionType"));
                 case "QueryList": return new ExprQueryList(expressions: GetSubNodeList<TNode, IExprComplete>(rootElement, reader, "Expressions"));
-                case "QuerySpecification": return new ExprQuerySpecification(selectList: GetSubNodeList<TNode, IExprSelecting>(rootElement, reader, "SelectList"), top: GetNullableSubNode<TNode, ExprValue>(rootElement, reader, "Top"), from: GetNullableSubNode<TNode, IExprTableSource>(rootElement, reader, "From"), where: GetNullableSubNode<TNode, ExprBoolean>(rootElement, reader, "Where"), groupBy: GetNullableSubNodeList<TNode, ExprColumn>(rootElement, reader, "GroupBy"), distinct: ReadBoolean(rootElement, reader, "Distinct"));
-                case "ScalarFunction": return new ExprScalarFunction(schema: GetNullableSubNode<TNode, ExprDbSchema>(rootElement, reader, "Schema"), name: GetSubNode<TNode, ExprFunctionName>(rootElement, reader, "Name"), arguments: GetNullableSubNodeList<TNode, ExprValue>(rootElement, reader, "Arguments"));
+                case "QuerySpecification":
+                    return new ExprQuerySpecification(selectList: GetSubNodeList<TNode, IExprSelecting>(rootElement, reader, "SelectList"),
+                        top: GetNullableSubNode<TNode, ExprValue>(rootElement, reader, "Top"), from: GetNullableSubNode<TNode, IExprTableSource>(rootElement, reader, "From"),
+                        where: GetNullableSubNode<TNode, ExprBoolean>(rootElement, reader, "Where"), groupBy: GetNullableSubNodeList<TNode, ExprColumn>(rootElement, reader, "GroupBy"),
+                        distinct: ReadBoolean(rootElement, reader, "Distinct"));
+                case "ScalarFunction":
+                    return new ExprScalarFunction(schema: GetNullableSubNode<TNode, ExprDbSchema>(rootElement, reader, "Schema"),
+                        name: GetSubNode<TNode, ExprFunctionName>(rootElement, reader, "Name"), arguments: GetNullableSubNodeList<TNode, ExprValue>(rootElement, reader, "Arguments"));
                 case "SchemaName": return new ExprSchemaName(name: ReadString(rootElement, reader, "Name"));
-                case "Select": return new ExprSelect(selectQuery: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "SelectQuery"), orderBy: GetSubNode<TNode, ExprOrderBy>(rootElement, reader, "OrderBy"));
-                case "SelectOffsetFetch": return new ExprSelectOffsetFetch(selectQuery: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "SelectQuery"), orderBy: GetSubNode<TNode, ExprOrderByOffsetFetch>(rootElement, reader, "OrderBy"));
+                case "Select":
+                    return new ExprSelect(selectQuery: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "SelectQuery"), orderBy: GetSubNode<TNode, ExprOrderBy>(rootElement, reader, "OrderBy"));
+                case "SelectOffsetFetch":
+                    return new ExprSelectOffsetFetch(selectQuery: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "SelectQuery"),
+                        orderBy: GetSubNode<TNode, ExprOrderByOffsetFetch>(rootElement, reader, "OrderBy"));
                 case "StringConcat": return new ExprStringConcat(left: GetSubNode<TNode, ExprValue>(rootElement, reader, "Left"), right: GetSubNode<TNode, ExprValue>(rootElement, reader, "Right"));
                 case "StringLiteral": return new ExprStringLiteral(value: ReadNullableString(rootElement, reader, "Value"));
                 case "Sub": return new ExprSub(left: GetSubNode<TNode, ExprValue>(rootElement, reader, "Left"), right: GetSubNode<TNode, ExprValue>(rootElement, reader, "Right"));
                 case "Sum": return new ExprSum(left: GetSubNode<TNode, ExprValue>(rootElement, reader, "Left"), right: GetSubNode<TNode, ExprValue>(rootElement, reader, "Right"));
-                case "Table": return new ExprTable(fullName: GetSubNode<TNode, IExprTableFullName>(rootElement, reader, "FullName"), alias: GetNullableSubNode<TNode, ExprTableAlias>(rootElement, reader, "Alias"));
+                case "Table":
+                    return new ExprTable(fullName: GetSubNode<TNode, IExprTableFullName>(rootElement, reader, "FullName"),
+                        alias: GetNullableSubNode<TNode, ExprTableAlias>(rootElement, reader, "Alias"));
                 case "TableAlias": return new ExprTableAlias(alias: GetSubNode<TNode, IExprAlias>(rootElement, reader, "Alias"));
-                case "TableFullName": return new ExprTableFullName(dbSchema: GetNullableSubNode<TNode, ExprDbSchema>(rootElement, reader, "DbSchema"), tableName: GetSubNode<TNode, ExprTableName>(rootElement, reader, "TableName"));
+                case "TableFullName":
+                    return new ExprTableFullName(dbSchema: GetNullableSubNode<TNode, ExprDbSchema>(rootElement, reader, "DbSchema"),
+                        tableName: GetSubNode<TNode, ExprTableName>(rootElement, reader, "TableName"));
                 case "TableName": return new ExprTableName(name: ReadString(rootElement, reader, "Name"));
                 case "TableValueConstructor": return new ExprTableValueConstructor(items: GetSubNodeList<TNode, ExprValueRow>(rootElement, reader, "Items"));
                 case "TempTableName": return new ExprTempTableName(name: ReadString(rootElement, reader, "Name"));
@@ -203,12 +277,18 @@ namespace SqExpress.SyntaxTreeOperations
                 case "TypeInt16": return ExprTypeInt16.Instance;
                 case "TypeInt32": return ExprTypeInt32.Instance;
                 case "TypeInt64": return ExprTypeInt64.Instance;
-                case "TypeString": return new ExprTypeString(size: ReadNullableInt32(rootElement, reader, "Size"), isUnicode: ReadBoolean(rootElement, reader, "IsUnicode"), isText: ReadBoolean(rootElement, reader, "IsText"));
+                case "TypeString":
+                    return new ExprTypeString(size: ReadNullableInt32(rootElement, reader, "Size"), isUnicode: ReadBoolean(rootElement, reader, "IsUnicode"),
+                        isText: ReadBoolean(rootElement, reader, "IsText"));
                 case "TypeXml": return ExprTypeXml.Instance;
                 case "UnboundedFrameBorder": return new ExprUnboundedFrameBorder(frameBorderDirection: ReadFrameBorderDirection(rootElement, reader, "FrameBorderDirection"));
                 case "UnsafeValue": return new ExprUnsafeValue(unsafeValue: ReadString(rootElement, reader, "UnsafeValue"));
-                case "Update": return new ExprUpdate(target: GetSubNode<TNode, ExprTable>(rootElement, reader, "Target"), setClause: GetSubNodeList<TNode, ExprColumnSetClause>(rootElement, reader, "SetClause"), source: GetNullableSubNode<TNode, IExprTableSource>(rootElement, reader, "Source"), filter: GetNullableSubNode<TNode, ExprBoolean>(rootElement, reader, "Filter"));
-                case "ValueFrameBorder": return new ExprValueFrameBorder(value: GetSubNode<TNode, ExprValue>(rootElement, reader, "Value"), frameBorderDirection: ReadFrameBorderDirection(rootElement, reader, "FrameBorderDirection"));
+                case "Update":
+                    return new ExprUpdate(target: GetSubNode<TNode, ExprTable>(rootElement, reader, "Target"), setClause: GetSubNodeList<TNode, ExprColumnSetClause>(rootElement, reader, "SetClause"),
+                        source: GetNullableSubNode<TNode, IExprTableSource>(rootElement, reader, "Source"), filter: GetNullableSubNode<TNode, ExprBoolean>(rootElement, reader, "Filter"));
+                case "ValueFrameBorder":
+                    return new ExprValueFrameBorder(value: GetSubNode<TNode, ExprValue>(rootElement, reader, "Value"),
+                        frameBorderDirection: ReadFrameBorderDirection(rootElement, reader, "FrameBorderDirection"));
                 case "ValueQuery": return new ExprValueQuery(query: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "Query"));
                 case "ValueRow": return new ExprValueRow(items: GetSubNodeList<TNode, ExprValue>(rootElement, reader, "Items"));
                 //CodeGenEnd
@@ -238,16 +318,16 @@ namespace SqExpress.SyntaxTreeOperations
         private TExpr? GetNullableSubNode<TNode, TExpr>(TNode currentNode, IExprReader<TNode> reader, string name)
             where TExpr : class, IExpr
         {
-            return reader.TryGetSubNode(currentNode, name, out var subNode) 
-                ? DeserializeNodeStrongType<TNode, TExpr>(reader: reader, subNode: subNode) 
+            return reader.TryGetSubNode(currentNode, name, out var subNode)
+                ? DeserializeNodeStrongType<TNode, TExpr>(reader: reader, subNode: subNode)
                 : null;
         }
 
         private TExpr GetSubNode<TNode, TExpr>(TNode currentNode, IExprReader<TNode> reader, string name)
             where TExpr : class, IExpr
         {
-            return reader.TryGetSubNode(currentNode, name, out var subNode) 
-                ? DeserializeNodeStrongType<TNode, TExpr>(reader: reader, subNode: subNode) 
+            return reader.TryGetSubNode(currentNode, name, out var subNode)
+                ? DeserializeNodeStrongType<TNode, TExpr>(reader: reader, subNode: subNode)
                 : throw new SqExpressException($"Property \"{name}\" is mandatory");
         }
 
@@ -270,6 +350,7 @@ namespace SqExpress.SyntaxTreeOperations
             {
                 throw new SqExpressException($"Property \"{name}\" is mandatory");
             }
+
             return result;
         }
 
@@ -279,6 +360,7 @@ namespace SqExpress.SyntaxTreeOperations
             {
                 throw new SqExpressException($"Property \"{name}\" is mandatory");
             }
+
             return result!;
         }
 
@@ -288,6 +370,7 @@ namespace SqExpress.SyntaxTreeOperations
             {
                 throw new SqExpressException($"Property \"{name}\" is mandatory");
             }
+
             return result;
         }
 
@@ -297,6 +380,7 @@ namespace SqExpress.SyntaxTreeOperations
             {
                 throw new SqExpressException($"Property \"{name}\" is mandatory");
             }
+
             return result;
         }
 
@@ -306,6 +390,7 @@ namespace SqExpress.SyntaxTreeOperations
             {
                 return result;
             }
+
             return null;
         }
 
@@ -315,6 +400,7 @@ namespace SqExpress.SyntaxTreeOperations
             {
                 return result;
             }
+
             return null;
         }
 
@@ -324,6 +410,7 @@ namespace SqExpress.SyntaxTreeOperations
             {
                 return result;
             }
+
             return null;
         }
 
@@ -333,6 +420,7 @@ namespace SqExpress.SyntaxTreeOperations
             {
                 return result;
             }
+
             return null;
         }
 
@@ -342,6 +430,7 @@ namespace SqExpress.SyntaxTreeOperations
             {
                 return result;
             }
+
             return null;
         }
 
@@ -351,6 +440,7 @@ namespace SqExpress.SyntaxTreeOperations
             {
                 return result;
             }
+
             return null;
         }
 
@@ -360,6 +450,7 @@ namespace SqExpress.SyntaxTreeOperations
             {
                 return result;
             }
+
             return null;
         }
 
@@ -369,6 +460,7 @@ namespace SqExpress.SyntaxTreeOperations
             {
                 return result;
             }
+
             return null;
         }
 
@@ -378,6 +470,7 @@ namespace SqExpress.SyntaxTreeOperations
             {
                 return result;
             }
+
             return null;
         }
 
@@ -387,6 +480,7 @@ namespace SqExpress.SyntaxTreeOperations
             {
                 return result;
             }
+
             return null;
         }
 
@@ -396,6 +490,7 @@ namespace SqExpress.SyntaxTreeOperations
             {
                 return result;
             }
+
             return null;
         }
 
@@ -405,6 +500,7 @@ namespace SqExpress.SyntaxTreeOperations
             {
                 return result;
             }
+
             return null;
         }
 

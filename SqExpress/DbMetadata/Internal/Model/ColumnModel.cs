@@ -6,14 +6,14 @@ namespace SqExpress.DbMetadata.Internal.Model
     {
         public ColumnModel(string name, ColumnRef dbName, int ordinalPosition, ColumnType columnType, PkInfo? pk, bool identity, DefaultValue? defaultValue, List<ColumnRef>? fk)
         {
-            Name = name;
-            DbName = dbName;
-            OrdinalPosition = ordinalPosition;
-            ColumnType = columnType;
-            Pk = pk;
-            Identity = identity;
-            DefaultValue = defaultValue;
-            Fk = fk;
+            this.Name = name;
+            this.DbName = dbName;
+            this.OrdinalPosition = ordinalPosition;
+            this.ColumnType = columnType;
+            this.Pk = pk;
+            this.Identity = identity;
+            this.DefaultValue = defaultValue;
+            this.Fk = fk;
         }
 
         public string Name { get; }
@@ -28,21 +28,21 @@ namespace SqExpress.DbMetadata.Internal.Model
         public ColumnModel WithName(string newName) =>
             new ColumnModel(
                 name: newName,
-                dbName: DbName,
-                ordinalPosition: OrdinalPosition,
-                columnType: ColumnType,
-                pk: Pk,
-                identity: Identity,
-                defaultValue: DefaultValue,
-                fk: Fk);
+                dbName: this.DbName,
+                ordinalPosition: this.OrdinalPosition,
+                columnType: this.ColumnType,
+                pk: this.Pk,
+                identity: this.Identity,
+                defaultValue: this.DefaultValue,
+                fk: this.Fk);
     }
 
     internal readonly struct PkInfo
     {
         public PkInfo(int index, bool descending)
         {
-            Index = index;
-            Descending = descending;
+            this.Index = index;
+            this.Descending = descending;
         }
 
         public readonly int Index;
@@ -53,8 +53,8 @@ namespace SqExpress.DbMetadata.Internal.Model
     {
         public DefaultValue(DefaultValueType type, string? rawValue)
         {
-            Type = type;
-            RawValue = rawValue;
+            this.Type = type;
+            this.RawValue = rawValue;
         }
 
         public readonly DefaultValueType Type;

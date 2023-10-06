@@ -37,7 +37,7 @@ namespace SqExpress.IntTest.Scenarios
 
             var doc = JsonDocument.Parse(json);
 
-            var tableName = table.FullName.AsExprTableFullName().TableName.Name;
+            var tableName = table.FullName.TableName;
 
             foreach (var obj in doc.RootElement.EnumerateObject())
             {
@@ -75,7 +75,7 @@ namespace SqExpress.IntTest.Scenarios
             using Utf8JsonWriter writer = new Utf8JsonWriter(ms);
 
             writer.WriteStartObject();
-            writer.WriteStartArray(table.FullName.AsExprTableFullName().TableName.Name);
+            writer.WriteStartArray(table.FullName.TableName);
 
             await SqQueryBuilder
                 .Select(table.Columns)

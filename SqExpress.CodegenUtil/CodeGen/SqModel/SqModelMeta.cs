@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Xml.Linq;
 using SqExpress.DbMetadata.Internal.Model;
 
-namespace SqExpress.DbMetadata.Internal.Model.SqModel
+namespace SqExpress.CodeGenUtil.CodeGen.SqModel
 {
     internal class SqModelMeta
     {

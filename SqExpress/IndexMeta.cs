@@ -27,7 +27,7 @@ namespace SqExpress
 
         public readonly bool Descending;
 
-        private IndexMetaColumn(TableColumn column, bool descending)
+        internal IndexMetaColumn(TableColumn column, bool descending)
         {
             this.Column = column;
             this.Descending = descending;

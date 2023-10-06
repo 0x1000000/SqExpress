@@ -17,16 +17,18 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
                 writer.WriteStartElement("Expr");
                 this._root = expr;
             }
+
             writer.WriteAttributeString("typeTag", typeTag);
             return VisitorResult<XmlWriter>.Continue(writer);
         }
 
         public void EndVisitExpr(IExpr expr, XmlWriter writer)
         {
-            if (ReferenceEquals(expr,this._root))
+            if (ReferenceEquals(expr, this._root))
             {
                 writer.WriteEndElement();
             }
+
             writer.Flush();
         }
 
@@ -36,6 +38,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
             {
                 return;
             }
+
             writer.WriteStartElement(name);
         }
 
@@ -45,6 +48,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
             {
                 return;
             }
+
             writer.WriteEndElement();
         }
 
@@ -64,6 +68,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
             {
                 return;
             }
+
             writer.WriteStartElement(name);
             writer.WriteValue(value);
             writer.WriteEndElement();
@@ -75,6 +80,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
             {
                 return;
             }
+
             writer.WriteStartElement(name);
             writer.WriteValue(value.Value);
             writer.WriteEndElement();
@@ -86,6 +92,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
             {
                 return;
             }
+
             writer.WriteStartElement(name);
             writer.WriteValue(value.Value);
             writer.WriteEndElement();
@@ -97,6 +104,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
             {
                 return;
             }
+
             writer.WriteStartElement(name);
             writer.WriteValue(value.Value);
             writer.WriteEndElement();
@@ -108,6 +116,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
             {
                 return;
             }
+
             writer.WriteStartElement(name);
             writer.WriteValue(value.Value);
             writer.WriteEndElement();
@@ -119,6 +128,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
             {
                 return;
             }
+
             writer.WriteStartElement(name);
             writer.WriteValue(value.Value);
             writer.WriteEndElement();
@@ -130,6 +140,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
             {
                 return;
             }
+
             writer.WriteStartElement(name);
             writer.WriteValue(value.Value);
             writer.WriteEndElement();
@@ -141,6 +152,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
             {
                 return;
             }
+
             writer.WriteStartElement(name);
             writer.WriteValue(value.Value);
             writer.WriteEndElement();
@@ -152,6 +164,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
             {
                 return;
             }
+
             writer.WriteStartElement(name);
             writer.WriteValue(value.Value);
             writer.WriteEndElement();
@@ -163,6 +176,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
             {
                 return;
             }
+
             writer.WriteStartElement(name);
             writer.WriteValue(value.Value);
             writer.WriteEndElement();
@@ -174,6 +188,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
             {
                 return;
             }
+
             writer.WriteStartElement(name);
             writer.WriteValue(value.Value.ToString("D"));
             writer.WriteEndElement();
@@ -185,9 +200,10 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
             {
                 return;
             }
+
             writer.WriteStartAttribute(name);
             var buffer = value as byte[] ?? value.ToArray();
-            writer.WriteBase64(buffer,0, buffer.Length);
+            writer.WriteBase64(buffer, 0, buffer.Length);
             writer.WriteEndAttribute();
         }
     }

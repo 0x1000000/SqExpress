@@ -378,21 +378,8 @@ namespace SqExpress.Utils
         public static DecimalPrecisionScale CalcDecimalPrecisionScale(decimal value)
         {
             SqlDecimal sd = value;
-
             return new DecimalPrecisionScale(sd.Precision, sd.Scale);
-
-            /*if (value == 0)
-                return new DecimalPrecisionScale(0,0);
-            var bits = decimal.GetBits(value);
-
-            var scale = (int)((bits[3] >> 16) & 0x7F);
-
-            decimal d = new Decimal(bits[0], bits[1], bits[2], false, 0);
-            var precision = (int)Math.Floor(Math.Log10((double)d)) + 1;
-
-            return new DecimalPrecisionScale(precision, scale);*/
         }
-
 
         public readonly struct UpdateDataAnalysis
         {

@@ -27,5 +27,9 @@
         {
             return new ExprTableFullName(null, new ExprTableName(this.Name));
         }
+
+        public string? SchemaName => null;
+
+        public string TableName => Name;
     }
 }

@@ -10,7 +10,6 @@ namespace SqExpress.SyntaxTreeOperations
 
         public DefaultWalkerVisitor(Func<IExpr, TCtx, VisitorResult<TCtx>> walkerBody) : this(walkerBody, default!)
         {
-
         }
 
         public DefaultWalkerVisitor(Func<IExpr, TCtx, VisitorResult<TCtx>> walkerBody, TCtx currentCtx) : base(currentCtx)
@@ -107,7 +106,6 @@ namespace SqExpress.SyntaxTreeOperations
 
         public void VisitPlainProperty(string name, DateTimeOffset? value, TCtx ctx)
         {
-
         }
 
         public void VisitPlainProperty(string name, Guid? value, TCtx ctx)

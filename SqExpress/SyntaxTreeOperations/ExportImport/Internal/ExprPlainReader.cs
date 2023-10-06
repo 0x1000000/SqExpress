@@ -9,7 +9,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
         private readonly IReadOnlyDictionary<PropKey, IPlainItem> _properties;
         private readonly IReadOnlyDictionary<int, IPlainItem> _types;
 
-        public static ExprPlainReader Create(IEnumerable<IPlainItem> buffer,out IPlainItem root)
+        public static ExprPlainReader Create(IEnumerable<IPlainItem> buffer, out IPlainItem root)
         {
             var properties = new Dictionary<PropKey, IPlainItem>();
             var types = new Dictionary<int, IPlainItem>();
@@ -57,6 +57,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
                 {
                     throw new SqExpressException($"Inconsistent plain item list. Could not find type for the node: {node.Id} {node.Tag}");
                 }
+
                 return subNode.Tag;
             }
 
@@ -105,6 +106,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
                 value = Guid.Parse(prop.Value);
                 return true;
             }
+
             return false;
         }
 
@@ -116,6 +118,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
                 value = bool.Parse(prop.Value);
                 return true;
             }
+
             return false;
         }
 
@@ -127,6 +130,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
                 value = byte.Parse(prop.Value, CultureInfo.InvariantCulture);
                 return true;
             }
+
             return false;
         }
 
@@ -138,6 +142,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
                 value = short.Parse(prop.Value, CultureInfo.InvariantCulture);
                 return true;
             }
+
             return false;
         }
 
@@ -149,6 +154,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
                 value = int.Parse(prop.Value, CultureInfo.InvariantCulture);
                 return true;
             }
+
             return false;
         }
 
@@ -160,6 +166,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
                 value = long.Parse(prop.Value, CultureInfo.InvariantCulture);
                 return true;
             }
+
             return false;
         }
 
@@ -171,6 +178,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
                 value = decimal.Parse(prop.Value, CultureInfo.InvariantCulture);
                 return true;
             }
+
             return false;
         }
 
@@ -182,6 +190,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
                 value = double.Parse(prop.Value, CultureInfo.InvariantCulture);
                 return true;
             }
+
             return false;
         }
 
@@ -193,6 +202,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
                 value = DateTime.ParseExact(prop.Value, "yyyy-MM-ddTHH:mm:ss.fff", CultureInfo.InvariantCulture);
                 return true;
             }
+
             return false;
         }
 
@@ -204,6 +214,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
                 value = DateTimeOffset.Parse(prop.Value);
                 return true;
             }
+
             return false;
         }
 
@@ -215,6 +226,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
                 value = prop.Value;
                 return true;
             }
+
             return false;
         }
 
@@ -226,6 +238,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
                 value = prop.Value != null ? Convert.FromBase64String(prop.Value) : null;
                 return true;
             }
+
             return false;
         }
 

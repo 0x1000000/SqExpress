@@ -124,7 +124,6 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
 
         public void VisitPlainProperty(string name, IReadOnlyList<byte>? value, int ctx)
         {
-
             this._buffer.Add(this._factory(ctx, ctx, null, false, name, value != null ? Convert.ToBase64String(value.ToArray()) : null));
         }
     }

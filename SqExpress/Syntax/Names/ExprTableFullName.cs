@@ -22,6 +22,10 @@ namespace SqExpress.Syntax.Names
             return this;
         }
 
+        public string? SchemaName => this.DbSchema?.Schema.Name;
+
+        string IExprTableFullName.TableName => this.TableName.Name;
+
         public bool Equals(ExprTableFullName? other)
         {
             if (ReferenceEquals(null, other)) return false;

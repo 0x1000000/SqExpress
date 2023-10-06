@@ -28,6 +28,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
             {
                 return;
             }
+
             if (isArray)
             {
                 ctx.WriteStartArray(name);
@@ -44,6 +45,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
             {
                 return;
             }
+
             if (isArray)
             {
                 ctx.WriteEndArray();
@@ -56,7 +58,6 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
 
         public void EndVisitArrayItem(string name, int arrayIndex, Utf8JsonWriter ctx)
         {
-            
         }
 
         public void VisitPlainProperty(string name, string? value, Utf8JsonWriter ctx)

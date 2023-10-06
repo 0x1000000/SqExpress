@@ -45,6 +45,7 @@ namespace SqExpress.IntTest
                     .Then(new ScCteCross())
                     .Then(new ScTreeClosure())
                     .Then(new ScBitwise())
+                    .Then(new ScGetTables())
                     ;
 
                 await ExecScenarioAll(
@@ -91,42 +92,45 @@ namespace SqExpress.IntTest
 
         private static async Task ExecMsSql(IScenario scenario, string connectionString)
         {
+            var sqlExporter = TSqlExporter.Default;
             ISqDatabase Factory() =>
                 new SqDatabase<SqlConnection>(new SqlConnection(connectionString),
                     (conn, sql) => new SqlCommand(sql, conn),
-                    TSqlExporter.Default,
+                    sqlExporter,
                     disposeConnection: true);
 
             using var database = Factory();
 
-            await scenario.Exec(new ScenarioContext(database, SqlDialect.TSql, Factory));
+            await scenario.Exec(new ScenarioContext(database, SqlDialect.TSql, Factory, sqlExporter));
         }
 
         private static async Task ExecNpgSql(IScenario scenario, string connectionString)
         {
+            var sqlExporter = new PgSqlExporter(SqlBuilderOptions.Default.WithSchemaMap(new[] { new SchemaMap("dbo", "public") }));
             ISqDatabase Factory() =>
                 new SqDatabase<NpgsqlConnection>(
                     new NpgsqlConnection(connectionString),
                     (conn, sql) => new NpgsqlCommand(sql, conn),
-                    new PgSqlExporter(SqlBuilderOptions.Default.WithSchemaMap(new[] { new SchemaMap("dbo", "public") })),
+                    sqlExporter,
                     disposeConnection: true);
 
             using var database = Factory();
 
-            await scenario.Exec(new ScenarioContext(database, SqlDialect.PgSql, Factory));
+            await scenario.Exec(new ScenarioContext(database, SqlDialect.PgSql, Factory, sqlExporter));
         }
 
         private static async Task ExecMySql(IScenario scenario, string connectionString)
         {
+            var sqlExporter = new MySqlExporter(SqlBuilderOptions.Default);
             ISqDatabase Factory() =>
                 new SqDatabase<MySqlConnection>(
                     new MySqlConnection(connectionString),
                     (conn, sql) => new MySqlCommand(sql, conn),
-                    new MySqlExporter(SqlBuilderOptions.Default),
+                    sqlExporter,
                     disposeConnection: true);
 
             using var database = Factory();
-            await scenario.Exec(new ScenarioContext(database, SqlDialect.MySql, Factory));
+            await scenario.Exec(new ScenarioContext(database, SqlDialect.MySql, Factory, sqlExporter));
         }
     }
 }

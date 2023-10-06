@@ -6,7 +6,9 @@ namespace SqExpress.SyntaxTreeOperations.Internal
     {
         public static readonly ExprValueTypeDetailsVisitor Instance = new ExprValueTypeDetailsVisitor();
 
-        private ExprValueTypeDetailsVisitor() { }
+        private ExprValueTypeDetailsVisitor()
+        {
+        }
 
         public ExprValueTypeDetails VisitAny(object? arg, bool? isNull)
         {
@@ -75,7 +77,7 @@ namespace SqExpress.SyntaxTreeOperations.Internal
 
         public ExprValueTypeDetails VisitByteArray(object? arg, bool? isNull, int? length, bool fix)
         {
-            ExprTypeByteArrayBase e = fix 
+            ExprTypeByteArrayBase e = fix
                 ? new ExprTypeFixSizeByteArray(length ?? throw new SqExpressException("A size has to be specified for a fixed size array"))
                 : new ExprTypeByteArray(length);
 

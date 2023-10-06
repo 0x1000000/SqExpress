@@ -6,7 +6,9 @@ namespace SqExpress.SyntaxTreeOperations.Internal
     {
         public static readonly ExprValueTypeIsNullVisitor Instance = new ExprValueTypeIsNullVisitor();
 
-        private ExprValueTypeIsNullVisitor() { }
+        private ExprValueTypeIsNullVisitor()
+        {
+        }
 
         public bool? VisitAny(object? arg, bool? isNull)
         {

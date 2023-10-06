@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using SqExpress.DataAccess;
+using SqExpress.DbMetadata;
 using SqExpress.StatementSyntax;
 #nullable enable
 namespace SqExpress.Test
@@ -72,6 +74,16 @@ namespace SqExpress.Test
         }
 
         public Task Statement(IStatement statement, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<IReadOnlyList<SqTable>> GetTables(CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        Task<IReadOnlyList<SqTable>> ISqDatabase.GetTables(CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }

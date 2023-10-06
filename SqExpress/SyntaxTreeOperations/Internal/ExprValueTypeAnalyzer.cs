@@ -26,7 +26,9 @@ namespace SqExpress.SyntaxTreeOperations.Internal
     {
         public static readonly ExprValueTypeAnalyzer<TRes, TCtx> Instance = new ExprValueTypeAnalyzer<TRes, TCtx>();
 
-        private ExprValueTypeAnalyzer() { }
+        private ExprValueTypeAnalyzer()
+        {
+        }
 
         public TRes VisitExprInt32Literal(ExprInt32Literal exprInt32Literal, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
         {
@@ -138,7 +140,7 @@ namespace SqExpress.SyntaxTreeOperations.Internal
 
         public TRes VisitExprStringConcat(ExprStringConcat exprStringConcat, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
         {
-            return ctx.ValueVisitor.VisitString(ctx.Ctx, null ,null, false);
+            return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
         }
 
         public TRes VisitExprBitwiseNot(ExprBitwiseNot exprBitwiseNot, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
@@ -207,6 +209,7 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             {
                 return tc.SqlType.Accept(this, ctx);
             }
+
             return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
         }
 

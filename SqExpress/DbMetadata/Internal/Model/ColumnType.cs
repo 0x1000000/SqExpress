@@ -21,7 +21,7 @@
     {
         protected ColumnType(bool isNullable)
         {
-            IsNullable = isNullable;
+            this.IsNullable = isNullable;
         }
 
         public bool IsNullable { get; }
@@ -62,8 +62,8 @@
 
         public ByteArrayColumnType(bool isNullable, int? size, bool isFixed) : base(isNullable)
         {
-            Size = size;
-            IsFixed = isFixed;
+            this.Size = size;
+            this.IsFixed = isFixed;
         }
     }
 
@@ -128,8 +128,8 @@
 
         public DecimalColumnType(bool isNullable, int precision, int scale) : base(isNullable)
         {
-            Precision = precision;
-            Scale = scale;
+            this.Precision = precision;
+            this.Scale = scale;
         }
     }
 
@@ -142,7 +142,7 @@
 
         public DateTimeColumnType(bool isNullable, bool isDate) : base(isNullable)
         {
-            IsDate = isDate;
+            this.IsDate = isDate;
         }
     }
 
@@ -171,10 +171,10 @@
 
         public StringColumnType(bool isNullable, int? size, bool isFixed, bool isUnicode, bool isText) : base(isNullable)
         {
-            Size = size;
-            IsFixed = isFixed;
-            IsUnicode = isUnicode;
-            IsText = isText;
+            this.Size = size;
+            this.IsFixed = isFixed;
+            this.IsUnicode = isUnicode;
+            this.IsText = isText;
         }
     }
 
