@@ -47,23 +47,23 @@ You can find a realistic usage of the library in this ASP.Net demo application -
 
 ### Working with Expressions
 
-18. [Syntax Tree](#syntax-tree) (Traversal and Modification)
-21. [Serialization to XML](#serialization-to-xml)
-22. [Serialization to JSON](#serialization-to-json)
-23. [Serialization to Plain List](#serialization-to-plain-list)
+19. [Syntax Tree](#syntax-tree) (Traversal and Modification)
+20. [Serialization to XML](#serialization-to-xml)
+21. [Serialization to JSON](#serialization-to-json)
+22. [Serialization to Plain List](#serialization-to-plain-list)
 
 ### Code-generation
 
-19. [Table Descriptors Scaffolding](#table-descriptors-scaffolding)
-20. [DTOs Scaffolding](#dtos-scaffolding)
-21. [Model Selection](#model-selection)
+23. [Table Descriptors Scaffolding](#table-descriptors-scaffolding)
+24. [DTOs Scaffolding](#dtos-scaffolding)
+25. [Model Selection](#model-selection)
 
 ### Usage
 
-25. [Using in ASP.Net](#using-in-aspnet)
-14. [PostgreSQL](#postgresql)
-15. [MySQL](#mysql)
-24. [Auto-Mapper](#auto-mapper)
+26. [Using in ASP.Net](#using-in-aspnet)
+27. [PostgreSQL](#postgresql)
+28. [MySQL](#mysql)
+29. [Auto-Mapper](#auto-mapper)
 
 # Get Started
 
