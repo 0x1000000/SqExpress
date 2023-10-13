@@ -1,6 +1,11 @@
-# 0.4.1.0
+# 1.0.0-beta
+
+### New Features
+- Retrieving of database tables metadata + comparison (works only for MS SQL)
+- **MERGE** expression builder
 
 ### Breaking Changes
+- Values Constructor in MYSQL now is implemented through **UNION ALL** 
 - .Net Framework is not supported anymore, however, .Net Standard 2.0 is still supported
 
 # 0.4.1.0

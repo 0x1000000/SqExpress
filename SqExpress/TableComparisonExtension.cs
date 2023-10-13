@@ -16,7 +16,7 @@ public static class TableComparisonExtension
 
         List<TableBase>? extraTables = null;
         List<TableBase>? missedTables = null;
-        List<(TableBase, TableBase, TableComparison)>? differentTables = null;
+        List<DifferentTables>? differentTables = null;
 
         var sameNameColumns = new HashSet<ExprTableFullName>();
 
@@ -28,8 +28,8 @@ public static class TableComparisonExtension
                 var tableComparison = thisTable.CompareWith(otherTable);
                 if (tableComparison != null)
                 {
-                    differentTables ??= new List<(TableBase, TableBase, TableComparison)>();
-                    differentTables.Add((thisTable, otherTable, tableComparison));
+                    differentTables ??= new List<DifferentTables>();
+                    differentTables.Add(new (thisTable, otherTable, tableComparison));
                 }
             }
             else
@@ -59,7 +59,7 @@ public static class TableComparisonExtension
         return new TableListComparison(
             missedTables == null ? Array.Empty<TableBase>() : missedTables,
             extraTables == null ? Array.Empty<TableBase>() : extraTables,
-            differentTables == null ? Array.Empty<(TableBase, TableBase, TableComparison)>() : differentTables);
+            differentTables == null ? Array.Empty<DifferentTables>() : differentTables);
     }
 
     public static TableComparison? CompareWith(this TableBase thisList, TableBase otherList)
@@ -68,7 +68,7 @@ public static class TableComparisonExtension
 
         List<TableColumn>? extraColumns = null;
         List<TableColumn>? missedColumns = null;
-        List<(TableColumn, TableColumn, TableColumnComparison)>? differentColumns = null;
+        List<DifferentColumns>? differentColumns = null;
 
         var sameNameColumns = new HashSet<ExprColumnName>();
 
@@ -80,8 +80,8 @@ public static class TableComparisonExtension
                 var tableColumnComparison = thisColumn.CompareWith(otherTableColumn);
                 if (tableColumnComparison != TableColumnComparison.Equal)
                 {
-                    differentColumns ??= new List<(TableColumn, TableColumn, TableColumnComparison)>();
-                    differentColumns.Add((thisColumn, otherTableColumn, tableColumnComparison));
+                    differentColumns ??= new List<DifferentColumns>();
+                    differentColumns.Add(new (thisColumn, otherTableColumn, tableColumnComparison));
                 }
             }
             else
@@ -113,7 +113,7 @@ public static class TableComparisonExtension
         return new TableComparison(
             missedColumns == null ? Array.Empty<TableColumn>() : missedColumns,
             extraColumns == null ? Array.Empty<TableColumn>() : extraColumns,
-            differentColumns == null ? Array.Empty<(TableColumn, TableColumn, TableColumnComparison)>() : differentColumns, indexComparison);
+            differentColumns == null ? Array.Empty<DifferentColumns>() : differentColumns, indexComparison);
     }
 
     private static IndexComparison? CompareWith(
@@ -237,18 +237,20 @@ public static class TableComparisonExtension
     }
 }
 
+public record struct DifferentTables(TableBase Table, TableBase OtherTable, TableComparison TableComparison);
+
 public class TableListComparison
 {
     public IReadOnlyList<TableBase> MissedTables { get; }
 
     public IReadOnlyList<TableBase> ExtraTables { get; }
 
-    public IReadOnlyList<(TableBase Table, TableBase OtherTable, TableComparison TableComparison)> DifferentTables { get; }
+    public IReadOnlyList<DifferentTables> DifferentTables { get; }
 
     public TableListComparison(
         IReadOnlyList<TableBase> missedTables,
         IReadOnlyList<TableBase> extraTables,
-        IReadOnlyList<(TableBase tableColumn, TableBase otherTable, TableComparison)> differentTables)
+        IReadOnlyList<DifferentTables> differentTables)
     {
         this.MissedTables = missedTables;
         this.ExtraTables = extraTables;
@@ -256,20 +258,22 @@ public class TableListComparison
     }
 }
 
+public record struct DifferentColumns(TableColumn Column, TableColumn OtherColumn, TableColumnComparison ColumnComparison);
+
 public class TableComparison
 {
     public IReadOnlyList<TableColumn> MissedColumns { get; }
 
     public IReadOnlyList<TableColumn> ExtraColumns { get; }
 
-    public IReadOnlyList<(TableColumn Column, TableColumn OtherColumn, TableColumnComparison ColumnComparison)> DifferentColumns { get; }
+    public IReadOnlyList<DifferentColumns> DifferentColumns { get; }
 
     public IndexComparison? IndexComparison { get; }
 
     internal TableComparison(
         IReadOnlyList<TableColumn> missedColumns,
         IReadOnlyList<TableColumn> extraColumns,
-        IReadOnlyList<(TableColumn, TableColumn, TableColumnComparison)> differentColumns,
+        IReadOnlyList<DifferentColumns> differentColumns,
         IndexComparison? indexComparison)
     {
         this.MissedColumns = missedColumns;

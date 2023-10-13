@@ -1,17 +1,15 @@
 # SqExpress
 ![Logo](https://github.com/0x1000000/SqExpress/blob/main/SqExpress/Icon.png)
 
-The library provides a generic sql syntax tree with export to MS t-SQL, PostgreSQL and MySQL text.
+The library provides a generic SQL syntax tree with export to MS T-SQL, PostgreSQL, and MySQL text. It also provides a set of builders and operators that will help you build complex SQL expressions.
 
-It also provides a set of builders and operators which will help you building complex Sql expressions.
+It does not use LINQ, and your C# code will be as close to real SQL as possible. This makes it ideal when you need full SQL flexibility to create efficient DB requests.
 
-It does not use LINQ and your C# code will be close to real SQL as much as possible, so it can be used when you need the full SQL flexibility to create efficient Db requests.
+SqExpress comes with a simple but efficient data access mechanism that wraps ADO.Net DbConnection and can be used with MS SQL Client, Npgsql, or MySQL Connector.
 
-It is delivered with a simple but efficient data access mechanism which warps ADO.Net DbConnection and can be used with MS SQL Client or Npgsql or MySQL Connector.
+You can use SqExpress together with the “Code First” concept when you declare SQL tables as C# classes with the possibility to generate recreation scripts for a target platform (MS SQL or PostgreSQL or MySQL).
 
-It can be used in conjunction with the “Code First” concept when you declare SQL tables as C# classes with possibility to generate recreation scripts for a target platform (MS SQL or PostgreSQL or MySQL)
-
-It can be used in conjunction with the “Database First” concept using an included code modification utility. The utility is also can be used to generate flexible DTO classes with all required database mappings.
+You can also use it in conjunction with the “Database First” concept using an included code modification utility. The utility can also be used to generate flexible DTO classes with all required database mappings.
 
 ## Articles
 1. ["Syntax Tree and Alternative to LINQ in Interaction with SQL Databases"](https://itnext.io/syntax-tree-and-alternative-to-linq-in-interaction-with-sql-databases-656b78fe00dc?source=friends_link&sk=f5f0587c08166d8824b96b48fe2cf33c) - explains the library principles;
@@ -45,6 +43,7 @@ You can find a realistic usage of the library in this ASP.Net demo application -
 15. [Merge](#merge)
 16. [Temporary Tables](#temporary-tables)
 17. [Database Data Export/Import](#database-data-export-import)
+18. [Getting and Comparing Database Table Metadata](#getting-and-comparing-database-table-metadata)
 
 ### Working with Expressions
 
@@ -1096,6 +1095,74 @@ static async Task InsertTableData(ISqDatabase database, TableBase table, JsonEle
     {
         await insertExpr.Exec(database);
     }
+}
+```
+## Getting and Comparing Database Table Metadata
+You can a list of dynamic table descriptors directly from a database using ```GetTables()``` method of ```ISqDatabase``` object. For example, this how you can read a list of all tables with all columns:
+
+```cs
+async Task ShowAllTablesWithColumns(ISqDatabase database)
+{
+    var actualTables = await database.GetTables();
+    foreach (var table in actualTables)
+    {
+        Console.WriteLine(table.FullName.TableName);
+        foreach (var tableColumn in table.Columns)
+        {
+            Console.WriteLine($"   -{tableColumn.ColumnName.Name}:{TSqlExporter.Default.ToSql(tableColumn.SqlType)}");
+        }
+    }
+}
+```
+
+You also can compare 2 lists of table to find any kind of differences:
+
+```cs
+async Task<bool> CheckDatabaseIsUpdated(ISqDatabase database, IReadOnlyList<TableBase> expectedTableList)
+{
+    var actualTables = await database.GetTables();
+
+    var comparison = expectedTableList.CompareWith(actualTables);
+
+    bool result = true;
+
+    if (comparison != null)
+    {
+        if (comparison.ExtraTables.Count > 0)
+        {
+            Console.WriteLine($"There are {comparison.ExtraTables.Count} extra tables");
+        }
+        if (comparison.MissedTables.Count > 0)
+        {
+            result = false;
+            Console.WriteLine($"There are {comparison.MissedTables.Count} missed tables");
+        }
+        if (comparison.DifferentTables.Count > 0)
+        {
+            result = false;
+            Console.WriteLine($"There are {comparison.DifferentTables.Count} different tables");
+
+            foreach (var differentTable in comparison.DifferentTables)
+            {
+                Console.WriteLine($"Table {differentTable.Table.FullName.TableName}");
+                foreach (var extra in differentTable.TableComparison.ExtraColumns)
+                {
+                    Console.WriteLine($"Extra column: {extra.ColumnName.Name}");
+                }
+                foreach (var missed in differentTable.TableComparison.MissedColumns)
+                {
+                    Console.WriteLine($"Extra column: {missed.ColumnName.Name}");
+                }
+                foreach (var differentColumns in differentTable.TableComparison.DifferentColumns)
+                {
+                    Console.WriteLine($"Different column: {differentColumns.Column.ColumnName.Name} - {differentColumns.ColumnComparison}");
+                }
+
+            }
+
+        }
+    }
+    return result;
 }
 ```
 ## Syntax Tree
