@@ -1,10 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
-using SqExpress.DataAccess;
 using SqExpress.IntTest.Context;
 using SqExpress.IntTest.Tables;
-using SqExpress.SqlExport;
 
 namespace SqExpress.IntTest.Scenarios;
 
@@ -21,8 +18,6 @@ public class ScGetTables : IScenario
         var tables = await context.Database.GetTables();
 
         var allTables = AllTables.BuildAllTableList(context.Dialect);
-
-        await CheckDatabaseIsUpdated(context.Database, allTables);
 
         var tableListComparison = allTables.CompareWith(tables);
         if (tableListComparison != null)
@@ -89,51 +84,4 @@ public class ScGetTables : IScenario
             }
         }
     }
-
-async Task<bool> CheckDatabaseIsUpdated(ISqDatabase database, IReadOnlyList<TableBase> expectedTableList)
-{
-    var actualTables = await database.GetTables();
-
-    var comparison = expectedTableList.CompareWith(actualTables);
-
-    bool result = true;
-
-    if (comparison != null)
-    {
-        if (comparison.ExtraTables.Count > 0)
-        {
-            Console.WriteLine($"There are {comparison.ExtraTables.Count} extra tables");
-        }
-        if (comparison.MissedTables.Count > 0)
-        {
-            result = false;
-            Console.WriteLine($"There are {comparison.MissedTables.Count} missed tables");
-        }
-        if (comparison.DifferentTables.Count > 0)
-        {
-            result = false;
-            Console.WriteLine($"There are {comparison.DifferentTables.Count} different tables");
-
-            foreach (var differentTable in comparison.DifferentTables)
-            {
-                Console.WriteLine($"Table {differentTable.Table.FullName.TableName}");
-                foreach (var extra in differentTable.TableComparison.ExtraColumns)
-                {
-                    Console.WriteLine($"Extra column: {extra.ColumnName.Name}");
-                }
-                foreach (var missed in differentTable.TableComparison.MissedColumns)
-                {
-                    Console.WriteLine($"Extra column: {missed.ColumnName.Name}");
-                }
-                foreach (var differentColumns in differentTable.TableComparison.DifferentColumns)
-                {
-                    Console.WriteLine($"Different column: {differentColumns.Column.ColumnName.Name} - {differentColumns.ColumnComparison}");
-                }
-
-            }
-
-        }
-    }
-    return result;
-}
 }
