@@ -1,37 +1,41 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using SqExpress.DataAccess;
 using SqExpress.DbMetadata.Internal.Model;
+using SqExpress.SqlExport;
+using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.DbMetadata.Internal.DbManagers
 {
-    internal class PgSqlDbManager : DbStrategyBase
+    internal class MySqlDbStrategy : DbStrategyBase
     {
         private readonly string _databaseName;
 
-        private PgSqlDbManager(ISqDatabase database, string databaseName) : base(database)
+        internal MySqlDbStrategy(ISqDatabase database, string databaseName) : base(database)
         {
             _databaseName = databaseName;
         }
 
         public static DbManager Create(string connectionString)
         {
-            throw new SqExpressException("Pg Sql is not yet supported");
-            //var connection = new NpgsqlConnection(connectionString);
+            throw new SqExpressException("MySql is not yet supported");
+
+            //var connection = new MySqlConnection(connectionString);
             //if (string.IsNullOrEmpty(connection.Database))
             //{
-            //    throw new SqExpressCodeGenException("PgSQL connection string has to contain \"database\" attribute");
+            //    throw new SqExpressCodeGenException("MySQL connection string has to contain \"database\" attribute");
             //}
             //try
             //{
-            //    var database = new SqDatabase<NpgsqlConnection>(connection, (conn, sql) =>
+            //    var database = new SqDatabase<MySqlConnection>(connection, (conn, sql) =>
             //    {
-            //        Console.WriteLine(sql);
-            //        return new NpgsqlCommand(sql, conn) { Transaction = null };
-            //    }, new PgSqlExporter(SqlBuilderOptions.Default));
+            //        //Console.WriteLine(sql);
+            //        return new MySqlCommand(sql, conn) { Transaction = null };
+            //    }, new MySqlExporter(SqlBuilderOptions.Default));
 
-            //    return new PgSqlDbManager(connection, database, connection.Database);
+            //    return new MySqlDbStrategy(connection, database, connection.Database);
             //}
             //catch
             //{
@@ -50,7 +54,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
             throw new NotImplementedException();
         }
 
-        public override string DefaultSchemaName => "public";
+        public override string DefaultSchemaName => "";
 
         public override DefaultValue? ParseDefaultValue(string? rawColumnDefaultValue)
         {

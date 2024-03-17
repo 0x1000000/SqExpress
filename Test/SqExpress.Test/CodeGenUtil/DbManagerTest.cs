@@ -11,7 +11,7 @@ namespace SqExpress.Test.CodeGenUtil
     [TestFixture]
     public class DbManagerTest : IDbStrategy
     {
-        private readonly IDbStrategy _msSqlDbStrategy = new MsSqlDbManager(null!, null!);
+        private readonly IDbStrategy _msSqlDbStrategy = new MsSqlDbStrategy(null!, null!);
 
         [Test]
         public async Task SelectTables_BasicTest()

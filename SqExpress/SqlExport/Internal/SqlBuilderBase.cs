@@ -994,7 +994,9 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
-        public bool VisitExprColumnName(ExprColumnName columnName, IExpr? parent)
+        public abstract bool VisitExprColumnName(ExprColumnName columnName, IExpr? parent);
+
+        protected bool VisitExprColumnNameCommon(ExprColumnName columnName)
         {
             this.AppendName(columnName.Name);
             return true;

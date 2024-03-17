@@ -28,8 +28,12 @@
             return new ExprTableFullName(null, new ExprTableName(this.Name));
         }
 
-        public string? SchemaName => null;
+        string? IExprTableFullName.SchemaName => null;
 
-        public string TableName => Name;
+        string? IExprTableFullName.LowerInvariantSchemaName => null;
+
+        string IExprTableFullName.TableName => Name;
+
+        string IExprTableFullName.LowerInvariantTableName => this.LowerInvariantName;
     }
 }

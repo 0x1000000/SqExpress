@@ -13,11 +13,11 @@ using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.DbMetadata.Internal.DbManagers
 {
-    internal class MsSqlDbManager : DbStrategyBase
+    internal class MsSqlDbStrategy : DbStrategyBase
     {
         private readonly string _databaseName;
 
-        public MsSqlDbManager(ISqDatabase database, string databaseName) : base(database)
+        internal MsSqlDbStrategy(ISqDatabase database, string databaseName) : base(database)
         {
             _databaseName = databaseName;
         }
@@ -28,7 +28,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
             {
                 var database = new SqDatabase<DbConnection>(connection, ConnectionFactory, new TSqlExporter(SqlBuilderOptions.Default));
 
-                return new DbManager(new MsSqlDbManager(database, connection.Database), connection, options);
+                return new DbManager(new MsSqlDbStrategy(database, connection.Database), connection, options);
             }
             catch
             {

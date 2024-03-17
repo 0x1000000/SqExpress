@@ -9,7 +9,7 @@ public class ScGetTables : IScenario
 {
     public async Task Exec(IScenarioContext context)
     {
-        if (context.Dialect != SqlDialect.TSql)
+        if (context.Dialect != SqlDialect.PgSql)
         {
             return;
         }

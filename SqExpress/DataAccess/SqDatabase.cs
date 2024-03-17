@@ -249,7 +249,7 @@ namespace SqExpress.DataAccess
         {
             this.CheckDisposed();
 
-            if (this._sqlExporter is not TSqlExporter)
+            if (!(this._sqlExporter is TSqlExporter || this._sqlExporter is PgSqlExporter))
             {
                 throw new SqExpressException("Only MS SQL is currently supported");
             }
@@ -259,8 +259,15 @@ namespace SqExpress.DataAccess
                 throw new SqExpressException("Connection should include a database name");
             }
 
+            IDbStrategy dbStrategy = this._sqlExporter switch
+            {
+                TSqlExporter => new MsSqlDbStrategy(this, this._connection.Database),
+                PgSqlExporter => new PgSqlDbStrategy(this, this._connection.Database),
+                MySqlExporter => new MySqlDbStrategy(this, this._connection.Database),
+                _ => throw new SqExpressException("Unknown sqlExporter")
+            };
 
-            var dbManager = new DbManager(new MsSqlDbManager(this, this._connection.Database), this._connection, new DbManagerOptions(""));
+            var dbManager = new DbManager(dbStrategy, this._connection, new DbManagerOptions(""));
 
             IReadOnlyList<TableModel> tableModels;
             try

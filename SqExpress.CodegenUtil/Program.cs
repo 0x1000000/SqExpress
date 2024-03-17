@@ -216,10 +216,10 @@ namespace SqExpress.CodeGenUtil
 
         private static DbManager CreateDbManager(GenTablesOptions options)
         {
+            DbConnection connection;
             switch (options.ConnectionType)
             {
                 case ConnectionType.MsSql:
-                    DbConnection connection;
                     try
                     {
                         connection = new SqlConnection(options.ConnectionString);
@@ -233,11 +233,24 @@ namespace SqExpress.CodeGenUtil
                     {
                         throw new SqExpressCodeGenException("MsSQL connection string has to contain \"database\" attribute");
                     }
-                    return MsSqlDbManager.Create(new DbManagerOptions(options.TableClassPrefix), connection);
+                    return MsSqlDbStrategy.Create(new DbManagerOptions(options.TableClassPrefix), connection);
                 case ConnectionType.MySql:
-                    return MySqlDbManager.Create(options.ConnectionString);
+                    return MySqlDbStrategy.Create(options.ConnectionString);
                 case ConnectionType.PgSql:
-                    return PgSqlDbManager.Create(options.ConnectionString);
+                    try
+                    {
+                        connection = new SqlConnection(options.ConnectionString);
+                    }
+                    catch (ArgumentException e)
+                    {
+                        throw new SqExpressCodeGenException($"PgSQL connection string has incorrect format \"{options.ConnectionString}\"", e);
+                    }
+
+                    if (string.IsNullOrEmpty(connection.Database))
+                    {
+                        throw new SqExpressCodeGenException("PgSQL connection string has to contain \"database\" attribute");
+                    }
+                    return PgSqlDbStrategy.Create(new DbManagerOptions(options.TableClassPrefix), connection);
                 default:
                     throw new SqExpressCodeGenException("Unknown connection type: " + options.ConnectionType);
             }

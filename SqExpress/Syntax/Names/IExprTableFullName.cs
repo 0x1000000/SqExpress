@@ -9,7 +9,17 @@
             get;
         }
 
+        string? LowerInvariantSchemaName
+        {
+            get;
+        }
+
         string TableName
+        {
+            get;
+        }
+
+        string LowerInvariantTableName
         {
             get;
         }

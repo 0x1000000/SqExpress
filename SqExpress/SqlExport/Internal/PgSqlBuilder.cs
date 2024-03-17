@@ -18,6 +18,8 @@ namespace SqExpress.SqlExport.Internal
 {
     internal class PgSqlBuilder : SqlBuilderBase
     {
+        private const string InformationSchemaLowerInvariant = "information_schema";
+
         public PgSqlBuilder(SqlBuilderOptions? options = null, StringBuilder? externalBuilder = null) : base(options, externalBuilder, new SqlAliasGenerator(), false)
         {
         }
@@ -495,15 +497,26 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public override bool VisitExprColumnName(ExprColumnName columnName, IExpr? parent)
+        {
+            if (parent is TableColumn tableColumn && tableColumn.Table.FullName.LowerInvariantSchemaName == InformationSchemaLowerInvariant)
+            {
+                this.AppendNameNoQuotas(columnName.Name, null);
+            }
+            else
+            {
+                this.VisitExprColumnNameCommon(columnName);
+            }
+            return true;
+        }
+
         public override bool VisitExprTableFullName(ExprTableFullName exprTableFullName, IExpr? parent)
         {
-            if (exprTableFullName.DbSchema != null &&
-                exprTableFullName.DbSchema.Schema.LowerInvariantName == "information_schema" &&
-                exprTableFullName.DbSchema.Database == null &&
-                IsSafeName(exprTableFullName.TableName.Name))
+            IExprTableFullName tableFullName = exprTableFullName;
+            if (tableFullName.LowerInvariantSchemaName == InformationSchemaLowerInvariant && IsSafeName(tableFullName.TableName))
             {
                 //Preventing quoting
-                this.Builder.Append(exprTableFullName.DbSchema.Schema.Name);
+                this.Builder.Append(exprTableFullName.DbSchema!.Schema.Name);
                 this.Builder.Append('.');
                 this.Builder.Append(exprTableFullName.TableName.Name);
                 return true;
@@ -535,12 +548,17 @@ namespace SqExpress.SqlExport.Internal
         public override void AppendName(string name, char? prefix = null)
         {
             this.Builder.Append('\"');
+            this.AppendNameNoQuotas(name, prefix);
+            this.Builder.Append('\"');
+        }
+
+        private void AppendNameNoQuotas(string name, char? prefix)
+        {
             if (prefix.HasValue)
             {
                 this.Builder.Append(prefix.Value);
             }
             SqlInjectionChecker.AppendStringEscapeDoubleQuote(this.Builder, name);
-            this.Builder.Append('\"');
         }
 
         protected override void AppendUnicodePrefix(string str) { }

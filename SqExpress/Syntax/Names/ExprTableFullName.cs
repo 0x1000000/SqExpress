@@ -22,9 +22,13 @@ namespace SqExpress.Syntax.Names
             return this;
         }
 
-        public string? SchemaName => this.DbSchema?.Schema.Name;
+        string? IExprTableFullName.SchemaName => this.DbSchema?.Schema.Name;
+
+        string? IExprTableFullName.LowerInvariantSchemaName => this.DbSchema?.Schema.LowerInvariantName;
 
         string IExprTableFullName.TableName => this.TableName.Name;
+
+        string IExprTableFullName.LowerInvariantTableName => this.TableName.LowerInvariantName;
 
         public bool Equals(ExprTableFullName? other)
         {

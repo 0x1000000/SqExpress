@@ -666,6 +666,9 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public override bool VisitExprColumnName(ExprColumnName columnName, IExpr? parent)
+            => this.VisitExprColumnNameCommon(columnName);
+
         public override bool VisitExprTableFullName(ExprTableFullName exprTableFullName, IExpr? parent) 
             => this.VisitExprTableFullNameCommon(exprTableFullName, parent);
 
