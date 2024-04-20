@@ -24,7 +24,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
 
         public abstract string DefaultSchemaName { get; }
 
-        public abstract DefaultValue? ParseDefaultValue(string? rawColumnDefaultValue);
+        public abstract DefaultValue? ParseDefaultValue(string? rawColumnDefaultValue, ColumnType columnType);
 
         public void Dispose()
         {

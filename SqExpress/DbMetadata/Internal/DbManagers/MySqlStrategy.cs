@@ -56,7 +56,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
 
         public override string DefaultSchemaName => "";
 
-        public override DefaultValue? ParseDefaultValue(string? rawColumnDefaultValue)
+        public override DefaultValue? ParseDefaultValue(string? rawColumnDefaultValue, ColumnType columnType)
         {
             throw new NotImplementedException();
         }

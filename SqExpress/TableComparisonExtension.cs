@@ -10,21 +10,23 @@ namespace SqExpress;
 
 public static class TableComparisonExtension
 {
-    public static TableListComparison? CompareWith(this IReadOnlyList<TableBase> thisList, IReadOnlyList<TableBase> otherList)
+    public static TableListComparison? CompareWith(this IReadOnlyList<TableBase> thisList, IReadOnlyList<TableBase> otherList, Func<IExprTableFullName, object>? tableNameKeyExtractor = null)
     {
-        var thisTables = thisList.ToDictionary(c => c.FullName.AsExprTableFullName(), c => c);
+        tableNameKeyExtractor ??= name => name.AsExprTableFullName();
+
+        var thisTables = thisList.ToDictionary(c => tableNameKeyExtractor(c.FullName), c => c);
 
         List<TableBase>? extraTables = null;
         List<TableBase>? missedTables = null;
         List<DifferentTables>? differentTables = null;
 
-        var sameNameColumns = new HashSet<ExprTableFullName>();
+        var sameNameColumns = new HashSet<object>();
 
         foreach (var otherTable in otherList)
         {
-            if (thisTables.TryGetValue(otherTable.FullName.AsExprTableFullName(), out var thisTable))
+            if (thisTables.TryGetValue(tableNameKeyExtractor(otherTable.FullName), out var thisTable))
             {
-                sameNameColumns.Add(otherTable.FullName.AsExprTableFullName());
+                sameNameColumns.Add(tableNameKeyExtractor(otherTable.FullName));
                 var tableComparison = thisTable.CompareWith(otherTable);
                 if (tableComparison != null)
                 {
@@ -44,7 +46,7 @@ public static class TableComparisonExtension
             missedTables ??= new();
             foreach (var thisTable in thisList)
             {
-                if (sameNameColumns.Contains(thisTable.FullName.AsExprTableFullName()))
+                if (sameNameColumns.Contains(tableNameKeyExtractor(thisTable.FullName)))
                 {
                     missedTables.Add(thisTable);
                 }

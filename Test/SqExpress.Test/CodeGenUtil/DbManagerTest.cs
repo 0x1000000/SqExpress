@@ -111,9 +111,9 @@ namespace SqExpress.Test.CodeGenUtil
 
         public string DefaultSchemaName => "dbo";
 
-        DefaultValue? IDbStrategy.ParseDefaultValue(string? rawColumnDefaultValue)
+        DefaultValue? IDbStrategy.ParseDefaultValue(string? rawColumnDefaultValue, ColumnType columnType)
         {
-            return this._msSqlDbStrategy.ParseDefaultValue(rawColumnDefaultValue);
+            return this._msSqlDbStrategy.ParseDefaultValue(rawColumnDefaultValue, columnType);
         }
     }
 }

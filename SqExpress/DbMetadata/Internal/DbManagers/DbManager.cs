@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
 using System.Threading.Tasks;
-using SqExpress;
 using SqExpress.DbMetadata.Internal.Model;
 using SqExpress.Utils;
 
@@ -59,34 +58,41 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
                     acc.Add(table, colList);
                 }
 
+                var columnRefs = fk.TryGetValue(rawColumn.DbName, out var fkList) 
+                    ? fkList 
+                    : null;
+
                 var colModel = BuildColumnModel(
                     rawColumn,
                     indexes.Pks.TryGetValue(table, out var pkCols) ? pkCols.Columns : null,
-                    fk.TryGetValue(rawColumn.DbName, out var fkList) ? fkList : null);
+                    columnRefs
+                );
 
                 colList.Add(colModel.DbName, colModel);
             }
 
             var sortedTables = SortTablesByForeignKeys(acc: acc);
 
-            var result = sortedTables.Select(t =>
-                    new TableModel(
-                        name: ToTableCrlName(tableRef: t),
-                        dbName: t,
-                        columns: acc[key: t]
-                            .Select(p => p.Value)
-                            .OrderBy(c => c.Pk?.Index ?? 10000)
-                            .ThenBy(c => c.OrdinalPosition)
-                            .ToList(),
-                        indexes: indexes.Indexes.TryGetValue(key: t, value: out var tIndexes)
-                            ? tIndexes
-                            : new List<IndexModel>(capacity: 0)))
+            var result = sortedTables.Select(
+                    t =>
+                        new TableModel(
+                            name: ToTableCrlName(tableRef: t),
+                            dbName: t,
+                            columns: acc[key: t]
+                                .Select(p => p.Value)
+                                .OrderBy(c => c.Pk?.Index ?? 10000)
+                                .ThenBy(c => c.OrdinalPosition)
+                                .ToList(),
+                            indexes: indexes.Indexes.TryGetValue(key: t, value: out var tIndexes)
+                                ? tIndexes
+                                : new List<IndexModel>(capacity: 0)
+                        )
+                )
                 .ToList();
 
             EnsureTableNamesAreUnique(result, Database.DefaultSchemaName);
 
             return result;
-
         }
 
         private ColumnModel BuildColumnModel(ColumnRawModel rawColumn, List<IndexColumnModel>? pkCols, List<ColumnRef>? fkList)
@@ -101,15 +107,18 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
                 pkInfo = new PkInfo(pkIndex.Value, pkCols[pkIndex.Value].IsDescending);
             }
 
+            var columnType = this.Database.GetColType(raw: rawColumn);
+
             return new ColumnModel(
                 name: clrName,
                 dbName: rawColumn.DbName,
                 ordinalPosition: rawColumn.OrdinalPosition,
-                columnType: Database.GetColType(raw: rawColumn),
+                columnType: columnType,
                 pk: pkInfo,
                 identity: rawColumn.Identity,
-                defaultValue: Database.ParseDefaultValue(rawColumn.DefaultValue),
-                fk: fkList);
+                defaultValue: this.Database.ParseDefaultValue(rawColumn.DefaultValue, columnType),
+                fk: fkList
+            );
         }
 
         private static string ToColCrlName(ColumnRef columnRef)
@@ -122,7 +131,8 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
             return _options.TableClassPrefix + StringHelper.DeSnake(tableRef.Name);
         }
 
-        private static IReadOnlyList<TableRef> SortTablesByForeignKeys(Dictionary<TableRef, Dictionary<ColumnRef, ColumnModel>> acc)
+        private static IReadOnlyList<TableRef> SortTablesByForeignKeys(
+            Dictionary<TableRef, Dictionary<ColumnRef, ColumnModel>> acc)
         {
             var tableGraph = new Dictionary<TableRef, int>();
             var maxValue = 0;
@@ -145,7 +155,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
                     .SelectMany(c => c.Fk!)
                     .Select(f => f.Table)
                     .Distinct()
-                    .Where(pt => !pt.Equals(table))//Self ref
+                    .Where(pt => !pt.Equals(table)) //Self ref
                     .ToList();
 
                 bool hasParents = false;
@@ -192,11 +202,13 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
             }
 
             var dic = result
-                .Select((table, origIndex) =>
-                {
-                    EnsureColumnNamesAreUnique(table);
-                    return (table, origIndex);
-                })
+                .Select(
+                    (table, origIndex) =>
+                    {
+                        EnsureColumnNamesAreUnique(table);
+                        return (table, origIndex);
+                    }
+                )
                 //C# class names is case-sensitive but windows file system is not, so there might be class overwriting.
                 .GroupBy(t => t.table.Name, StringComparer.InvariantCultureIgnoreCase)
                 .ToDictionary(t => t.Key, t => t.ToList(), StringComparer.InvariantCultureIgnoreCase);
@@ -218,6 +230,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
                             break;
                         }
                     }
+
                     if (duplicateIndex != null)
                     {
                         var duplicate = pair.Value[duplicateIndex.Value];
@@ -234,7 +247,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
 
                     newName = StringHelper.AddNumberUntilUnique(newName, "No", nn => !dic.ContainsKey(nn));
 
-                    duplicateIndex ??= 1;//Second
+                    duplicateIndex ??= 1; //Second
 
                     var duplicateRes = pair.Value[duplicateIndex.Value];
 

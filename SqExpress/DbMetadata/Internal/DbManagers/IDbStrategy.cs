@@ -17,7 +17,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
 
         string DefaultSchemaName { get; }
 
-        DefaultValue? ParseDefaultValue(string? rawColumnDefaultValue);
+        DefaultValue? ParseDefaultValue(string? rawColumnDefaultValue, ColumnType columnType);
     }
 
     internal readonly struct LoadIndexesResult

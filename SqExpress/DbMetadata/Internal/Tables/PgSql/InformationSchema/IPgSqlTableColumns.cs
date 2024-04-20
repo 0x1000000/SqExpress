@@ -1,6 +1,6 @@
 ﻿using SqExpress.Syntax.Select;
 
-namespace SqExpress.DbMetadata.Internal.Tables.PgSql;
+namespace SqExpress.DbMetadata.Internal.Tables.PgSql.InformationSchema;
 
 internal interface IPgSqlTableColumns : IExprTableSource
 {

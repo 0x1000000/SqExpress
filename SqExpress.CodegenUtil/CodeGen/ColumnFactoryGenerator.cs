@@ -25,7 +25,6 @@ namespace SqExpress.CodeGenUtil.CodeGen
     {
         public static readonly ColumnFactoryGenerator Instance = new ColumnFactoryGenerator();
 
-
         public string NameOfAddIndex => nameof(AddIndex);
         public string NameOfAddUniqueIndex => nameof(AddUniqueIndex);
         public string NameOfAddClusteredIndex => nameof(AddClusteredIndex);
@@ -242,7 +241,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
                         break;
                     case DefaultValueType.String:
                         var valueStringValue = defaultValue.RawValue ??
-                                               throw new SqExpressCodeGenException("Integer raw value cannot be null");
+                                               throw new SqExpressCodeGenException("String raw value cannot be null");
                         arg = LiteralExpr(valueStringValue);
                         break;
                     case DefaultValueType.GetUtcDate:
