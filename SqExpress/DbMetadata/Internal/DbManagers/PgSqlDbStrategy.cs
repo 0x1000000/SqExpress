@@ -7,8 +7,10 @@ using SqExpress.DataAccess;
 using SqExpress.DbMetadata.Internal.Model;
 using SqExpress.DbMetadata.Internal.Tables.PgSql.InformationSchema;
 using SqExpress.DbMetadata.Internal.Tables.PgSql.PgSchema;
+using SqExpress.QueryBuilders.Select;
 using SqExpress.SqlExport;
 using SqExpress.Syntax.Boolean;
+using SqExpress.Syntax.Select;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.DbMetadata.Internal.DbManagers
@@ -90,10 +92,11 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
 
         public override Task<LoadIndexesResult> LoadIndexes()
         {
-            var tIndex = new PgIndexWithAtt();
+            var tIndex = new PgIndexUnNest();
             var tClassC = new PgClass();
             var tClassI = new PgClass();
             var tNamespace = new PgNamespace();
+
 
             return Select(
                     tNamespace.NspName,
@@ -137,7 +140,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
                         var isDescending = options == 1 || options == 3;
                         var isUnique = tIndex.IndIsUnique.Read(r);
                         var isClustered = tIndex.IndIsClustered.Read(r);
-                        var isPk = tIndex.IndIsPrimary.Read(r) && isUnique;
+                        var isPk = tIndex.IndIsPrimary.Read(r);
 
                         if (isPk)
                         {
@@ -195,37 +198,44 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
 
         public override Task<Dictionary<ColumnRef, List<ColumnRef>>> LoadForeignKeys()
         {
-            var tTableConstraints = new PgSqlTableConstraints();
-            var tKeyColumnUsage = new PgSqlKeyColumnUsage();
-            var tConstraintColumnUsage = new PgSqlConstraintColumnUsage();
+            var tCon = new PgConstraintUnNest();
+
+            var tTbl = new PgClass();
+            var tSch = new PgNamespace();
+            var tCol = new PgAttribute();
+
+            var tFoTbl = new PgClass();
+            var tFoSch = new PgNamespace();
+            var tFoCol = new PgAttribute();
 
             return Select(
-                    tTableConstraints.TableSchema,
-                    tTableConstraints.ConstraintName,
-                    tTableConstraints.TableName,
-                    tKeyColumnUsage.ColumnName,
-                    tConstraintColumnUsage.TableSchema.As("foreign_table_schema"),
-                    tConstraintColumnUsage.TableName.As("foreign_table_name"),
-                    tConstraintColumnUsage.ColumnName.As("foreign_column_name")
+                    tSch.NspName.As("table_schema"),
+                    tTbl.RelName.As("table_name"),
+                    tCol.AttName.As("column_name"),
+                    tFoSch.NspName.As("foreign_table_schema"),
+                    tFoTbl.RelName.As("foreign_table_name"),
+                    tFoCol.AttName.As("foreign_column_name")
                 )
-                .From(tTableConstraints)
-                .InnerJoin(
-                    tKeyColumnUsage,
-                    on: tTableConstraints.ConstraintName == tKeyColumnUsage.ConstraintName &
-                        tTableConstraints.TableSchema == tKeyColumnUsage.TableSchema
-                )
-                .InnerJoin(tConstraintColumnUsage, on: tConstraintColumnUsage.ConstraintName == tTableConstraints.ConstraintName)
-                .Where(tTableConstraints.ConstraintType == "FOREIGN KEY")
-                .OrderBy(tKeyColumnUsage.OrdinalPosition)
+                .From(tCon)
+                .InnerJoin(tTbl, tTbl.Oid == tCon.ConRelId)
+                .InnerJoin(tSch, tSch.Oid == tTbl.RelNamespace)
+                .InnerJoin(tCol, tCol.AttRelId == tTbl.Oid & tCol.AttNum == tCon.ConKey)
+
+                .InnerJoin(tFoTbl, tFoTbl.Oid == tCon.ConFRelId)
+                .InnerJoin(tFoSch, tFoSch.Oid == tFoTbl.RelNamespace)
+                .InnerJoin(tFoCol, tFoCol.AttRelId == tFoTbl.Oid & tFoCol.AttNum == tCon.ConFKey)
+                .OrderBy(Asc(tCon.ConName), Asc(tCon.ConKeyIndex))
+
+                .Done()
                 .Query(
                     this.Database,
                     new Dictionary<ColumnRef, List<ColumnRef>>(),
                     (acc, r) =>
                     {
                         var columnName = new ColumnRef(
-                            schema: tTableConstraints.TableSchema.Read(r),
-                            tableName: tTableConstraints.TableName.Read(r),
-                            name: tKeyColumnUsage.ColumnName.Read(r)
+                            schema: r.GetString("table_schema"),
+                            tableName: r.GetString("table_name"),
+                            name: r.GetString("column_name")
                         );
 
                         var refColumnName = new ColumnRef(
@@ -250,11 +260,6 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
         public override ColumnType GetColType(ColumnRawModel raw)
         {
             var type = raw.TypeName.ToLowerInvariant();
-            if (type.StartsWith("timestamp"))
-            {
-                type = "timestamp";
-            }
-
             switch (type)
             {
                 case "bit":
@@ -284,7 +289,10 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
                 case "time":
                     return new Int64ColumnType(raw.Nullable);
                 case "timestamp":
+                case "timestamp without time zone":
                     return new DateTimeColumnType(raw.Nullable, false);
+                case "timestamp with time zone":
+                    return new DateTimeOffsetColumnType(raw.Nullable);
                 case "bytea":
                     return new ByteArrayColumnType(isNullable: raw.Nullable, size: CheckSize(raw.Size), isFixed: false);
                 case "text":
@@ -369,7 +377,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
             return Exists(SelectOne().From(tTables).Where(filter));
         }
 
-        private class PgIndexWithAtt : DerivedTableBase
+        private class PgIndexUnNest : DerivedTableBase
         {
             private readonly PgIndex _tIndex = new();
 
@@ -387,14 +395,14 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
 
             public Int32CustomColumn AttNum { get; }
 
-            public PgIndexWithAtt(Alias alias = default) : base(alias)
+            public PgIndexUnNest(Alias alias = default) : base(alias)
             {
-                this.IndRelId = this.CreateInt32Column(this._tIndex.IndRelId.ColumnName.Name);
-                this.IndExRelId = this.CreateInt32Column(this._tIndex.IndExRelId.ColumnName.Name);
-                this.IndOption = this.CreateInt32Column(this._tIndex.IndOption.ColumnName.Name);
-                this.IndIsUnique = this.CreateBooleanColumn(this._tIndex.IndIsUnique.ColumnName.Name);
-                this.IndIsPrimary = this.CreateBooleanColumn(this._tIndex.IndIsPrimary.ColumnName.Name);
-                this.IndIsClustered = this.CreateBooleanColumn(this._tIndex.IndIsClustered.ColumnName.Name);
+                this.IndRelId = this._tIndex.IndRelId.AddToDerivedTable(this);
+                this.IndExRelId = this._tIndex.IndExRelId.AddToDerivedTable(this);
+                this.IndOption = this._tIndex.IndOption.AddToDerivedTable(this);
+                this.IndIsPrimary = this._tIndex.IndIsPrimary.AddToDerivedTable(this);
+                this.IndIsUnique = this._tIndex.IndIsUnique.AddToDerivedTable(this);
+                this.IndIsClustered = this._tIndex.IndIsClustered.AddToDerivedTable(this);
                 this.AttNum = this.CreateInt32Column("attnum");
             }
 
@@ -407,14 +415,13 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
                         this._tIndex.IndIsPrimary,
                         this._tIndex.IndIsUnique,
                         this._tIndex.IndIsClustered,
-                        ScalarFunctionCustom(
-                                "pg_catalog",
+                        ScalarFunctionSys(
                                 "unnest",
                                 ScalarFunctionSys(
                                     "ARRAY",
                                     ValueQuery(
                                         Select(
-                                            ScalarFunctionCustom("pg_catalog", "generate_series", 1, this._tIndex.IndNkeysAtts)
+                                            ScalarFunctionSys("generate_series", 1, this._tIndex.IndNkeysAtts)
                                                 .As("n")
                                         )
                                     )
@@ -423,6 +430,65 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
                             .As(this.AttNum)
                     )
                     .From(this._tIndex)
+                    .Done();
+            }
+        }
+
+        private class PgConstraintUnNest : DerivedTableBase
+        {
+            private readonly PgConstraint _table = new PgConstraint();
+
+            public StringCustomColumn ConName { get; }
+
+            public Int32CustomColumn ConRelId { get; }
+
+            public Int32CustomColumn ConFRelId { get; }
+
+            public StringCustomColumn ConKey { get; }
+
+            public StringCustomColumn ConFKey { get; }
+
+            public Int32CustomColumn ConKeyIndex { get; }
+
+            public PgConstraintUnNest(Alias alias = default) : base(alias)
+            {
+                this.ConName = this._table.ConName.AddToDerivedTable(this);
+                this.ConRelId = this._table.ConRelId.AddToDerivedTable(this);
+                this.ConFRelId = this._table.ConFRelId.AddToDerivedTable(this);
+                this.ConKey = this.CreateStringColumn("con_key_i");
+                this.ConFKey = this.CreateStringColumn("con_f_key_i");
+                this.ConKeyIndex = this.CreateInt32Column("con_key_index");
+            }
+
+            protected override IExprSubQuery CreateQuery()
+            {
+                return Select(
+                        this._table.ConName,
+                        this._table.ConRelId,
+                        this._table.ConFRelId,
+                        ScalarFunctionSys("unnest", this._table.ConKey).As(this.ConKey),
+                        ScalarFunctionSys("unnest", this._table.ConFKey).As(this.ConFKey),
+                        ScalarFunctionSys(
+                                "unnest",
+                                ScalarFunctionSys(
+                                    "ARRAY",
+                                    ValueQuery(
+                                        Select(
+                                            ScalarFunctionSys(
+                                                    "generate_series",
+                                                    1,
+                                                    ScalarFunctionSys("array_length", this._table.ConKey, 1)
+                                                )
+                                                .As("n")
+                                        )
+                                    )
+                                )
+
+                            )
+                            .As(this.ConKeyIndex)
+                    )
+                    .From(this._table)
+                    .Where(this._table.ConType == "f")
                     .Done();
             }
         }
@@ -442,7 +508,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
 
             public DefaultValue? VisitByteColumnType(ByteColumnType byteColumnType, string defaultValueRaw)
             {
-                return Byte.TryParse(defaultValueRaw, out _) ? new DefaultValue(DefaultValueType.Integer, defaultValueRaw) : null;
+                return byte.TryParse(defaultValueRaw, out _) ? new DefaultValue(DefaultValueType.Integer, defaultValueRaw) : null;
             }
 
             public DefaultValue? VisitByteArrayColumnType(ByteArrayColumnType byteArrayColumnType, string defaultValueRaw)
@@ -452,35 +518,35 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
 
             public DefaultValue? VisitInt16ColumnType(Int16ColumnType int16ColumnType, string defaultValueRaw)
             {
-                return Int32.TryParse(defaultValueRaw, out _)
+                return int.TryParse(defaultValueRaw, out _)
                     ? new DefaultValue(DefaultValueType.Integer, defaultValueRaw)
                     : null;
             }
 
             public DefaultValue? VisitInt32ColumnType(Int32ColumnType int32ColumnType, string defaultValueRaw)
             {
-                return Int32.TryParse(defaultValueRaw, out _)
+                return int.TryParse(defaultValueRaw, out _)
                     ? new DefaultValue(DefaultValueType.Integer, defaultValueRaw)
                     : null;
             }
 
             public DefaultValue? VisitInt64ColumnType(Int64ColumnType int64ColumnType, string defaultValueRaw)
             {
-                return Int32.TryParse(defaultValueRaw, out _)
+                return int.TryParse(defaultValueRaw, out _)
                     ? new DefaultValue(DefaultValueType.Integer, defaultValueRaw)
                     : null;
             }
 
             public DefaultValue? VisitDoubleColumnType(DoubleColumnType doubleColumnType, string defaultValueRaw)
             {
-                return Int32.TryParse(defaultValueRaw, out _)
+                return int.TryParse(defaultValueRaw, out _)
                     ? new DefaultValue(DefaultValueType.Integer, defaultValueRaw)
                     : null;
             }
 
             public DefaultValue? VisitDecimalColumnType(DecimalColumnType decimalColumnType, string defaultValueRaw)
             {
-                return Int32.TryParse(defaultValueRaw, out _)
+                return int.TryParse(defaultValueRaw, out _)
                     ? new DefaultValue(DefaultValueType.Integer, defaultValueRaw)
                     : null;
             }

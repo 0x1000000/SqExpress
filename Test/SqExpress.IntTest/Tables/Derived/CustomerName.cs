@@ -1,4 +1,5 @@
-﻿using static SqExpress.SqQueryBuilder;
+﻿using SqExpress.IntTest.Context;
+using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.IntTest.Tables.Derived
 {
@@ -6,14 +7,17 @@ namespace SqExpress.IntTest.Tables.Derived
     {
         private readonly TableItCustomer _tCustomer = AllTables.GetItCustomer();
 
+        private readonly SqlDialect _dialect;
+
         public enum CustomerType : short
         {
             User = 1,
             Company = 2
         }
 
-        public CustomerName(Alias alias = default) : base(alias)
+        public CustomerName(SqlDialect dialect, Alias alias = default) : base(alias)
         {
+            this._dialect = dialect;
             this.CustomerId = this._tCustomer.CustomerId.AddToDerivedTable(this);
             this.CustomerTypeId = this.CreateInt16Column("CustomerTypeId");
             this.Name = this.CreateStringColumn("Name");
@@ -30,8 +34,8 @@ namespace SqExpress.IntTest.Tables.Derived
 
         protected override IExprSubQuery CreateQuery()
         {
-            var tUser = AllTables.GetItUser();
-            var tCompany = AllTables.GetItCompany();
+            var tUser = AllTables.GetItUser(this._dialect);
+            var tCompany = AllTables.GetItCompany(this._dialect);
 
             return Select(
                     this._tCustomer.CustomerId,

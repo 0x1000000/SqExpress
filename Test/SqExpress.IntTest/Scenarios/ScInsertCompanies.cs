@@ -17,7 +17,7 @@ namespace SqExpress.IntTest.Scenarios
     {
         public async Task Exec(IScenarioContext context)
         {
-            var company = AllTables.GetItCompany();
+            var company = AllTables.GetItCompany(context.Dialect);
 
             DateTime now = DateTime.UtcNow;
 
@@ -58,7 +58,7 @@ namespace SqExpress.IntTest.Scenarios
             context.WriteLine($"{inserted.Count} have been inserted into {nameof(TableItCustomer)}");
 
 
-            var tCustomerName = new CustomerName();
+            var tCustomerName = new CustomerName(context.Dialect);
 
             var users = await Select(CustomerNameData.GetColumns(tCustomerName))
                 .From(tCustomerName)

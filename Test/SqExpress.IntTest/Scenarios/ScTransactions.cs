@@ -23,7 +23,7 @@ namespace SqExpress.IntTest.Scenarios
             ISqDatabase database = this._newConnection ? context.CreteConnection() : context.Database;
 
             var guid = Guid.Parse("58AD8253-4F8F-4C84-B930-4F58A8F25912");
-            var tCompany = AllTables.GetItCompany();
+            var tCompany = AllTables.GetItCompany(context.Dialect);
             var data = new[] { new CompanyInitData(id: 0, name: "TestCompany", externalId: guid) };
 
             var exprInsert = InsertDataInto(tCompany, data)

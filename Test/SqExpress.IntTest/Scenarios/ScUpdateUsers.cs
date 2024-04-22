@@ -10,7 +10,7 @@ namespace SqExpress.IntTest.Scenarios
     {
         public async Task Exec(IScenarioContext context)
         {
-            var tUser = AllTables.GetItUser();
+            var tUser = AllTables.GetItUser(context.Dialect);
             var tCustomer = AllTables.GetItCustomer();
 
             var maxVersion = (int?) await Select(Max(tUser.Version))

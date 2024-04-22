@@ -10,8 +10,8 @@ namespace SqExpress.IntTest.Scenarios
         public async Task Exec(IScenarioContext context)
         {
             var tblCustomer = AllTables.GetItCustomer();
-            var tblUser = AllTables.GetItUser();
-            var tblCompany = AllTables.GetItCompany();
+            var tblUser = AllTables.GetItUser(context.Dialect);
+            var tblCompany = AllTables.GetItCompany(context.Dialect);
 
             var result = await SqQueryBuilder.Select(
                     Customer.GetColumnsWithPrefix(tblCustomer, "cst")

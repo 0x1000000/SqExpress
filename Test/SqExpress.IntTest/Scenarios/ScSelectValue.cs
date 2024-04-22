@@ -12,8 +12,8 @@ namespace SqExpress.IntTest.Scenarios
     {
         public async Task Exec(IScenarioContext context)
         {
-            var tUser = AllTables.GetItUser();
-            var tUserSub = AllTables.GetItUser();
+            var tUser = AllTables.GetItUser(context.Dialect);
+            var tUserSub = AllTables.GetItUser(context.Dialect);
 
             var userId = (int?)await SelectTop(1, tUser.UserId)
                 .From(tUser)

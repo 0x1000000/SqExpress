@@ -27,7 +27,7 @@ namespace SqExpress.Test.QueryBuilder
                            "ON [A1].[UserId]=[A0].[UserId]";
 
             Assert.AreEqual(expected, actual);
-        }        
+        }          
         
         [Test]
         public void Test_AllNamed()
@@ -112,6 +112,20 @@ namespace SqExpress.Test.QueryBuilder
             Assert.AreSame(original, modified);
         }
 
+        [Test]
+        public void TestWrongOrder()
+        {
+            var subQuery = new WrongOrderDerivedTable();
+
+            var actual = subQuery.ToSql();
+
+            Console.WriteLine(actual);
+
+            var expected = "(SELECT [A0].[LastName],[A0].[FirstName] FROM [dbo].[user] [A1])[A0]";
+
+            Assert.AreEqual(expected, actual);
+        }
+
         private class SubQuery : DerivedTableBase
         {
             public Int32CustomColumn UserId { get; }
@@ -194,6 +208,27 @@ namespace SqExpress.Test.QueryBuilder
                 return Select(user.UserId, Literal(17))
                     .From(user)
                     .Done();
+            }
+        }
+
+
+        private class WrongOrderDerivedTable : DerivedTableBase
+        {
+           private User _table = Tables.User();
+
+           public StringCustomColumn LastName { get; }
+
+           public StringCustomColumn FirstName { get; }
+
+            public WrongOrderDerivedTable(Alias alias = default) : base(alias)
+           {
+               this.FirstName = this._table.FirstName.AddToDerivedTable(this);
+               this.LastName = this._table.LastName.AddToDerivedTable(this);
+           }
+
+            protected override IExprSubQuery CreateQuery()
+            {
+                return Select(this.LastName, this.FirstName).From(this._table).Done();
             }
         }
     }

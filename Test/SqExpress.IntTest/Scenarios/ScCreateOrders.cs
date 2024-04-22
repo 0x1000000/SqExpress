@@ -14,7 +14,7 @@ namespace SqExpress.IntTest.Scenarios
         {
             var tOrder = AllTables.GetItOrder();
             var tOrderSub2 = AllTables.GetItOrder();
-            var vwCustomer = new CustomerName();
+            var vwCustomer = new CustomerName(context.Dialect);
 
             var numbers = Values(Enumerable.Range(1, 10).Select(Literal).ToList()).AsColumns("Num");
 

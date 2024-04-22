@@ -3,60 +3,58 @@ using SqExpress.IntTest.Context;
 using SqExpress.IntTest.Tables;
 using static SqExpress.SqQueryBuilder;
 
-namespace SqExpress.IntTest.Scenarios
+namespace SqExpress.IntTest.Scenarios;
+
+public class ScDeleteCustomersByTopUser : IScenario
 {
-    public class ScDeleteCustomersByTopUser : IScenario
+    public async Task Exec(IScenarioContext context)
     {
-        public async Task Exec(IScenarioContext context)
+        var tCustomer = AllTables.GetItCustomer();
+        var tUser = AllTables.GetItUser(context.Dialect);
+        var topUsers = new TopFirstNameUsers(context.Dialect, 5);
+
+        await Delete(tCustomer)
+            .From(tCustomer)
+            .InnerJoin(topUsers, @on: topUsers.UserId == tCustomer.UserId)
+            .All()
+            .Exec(context.Database);
+
+        context.WriteLine("Deleted:");
+
+        var list = await Select(tUser.FirstName, tUser.LastName)
+            .From(tUser)
+            .Where(!Exists(SelectOne().From(tCustomer).Where(tCustomer.UserId == tUser.UserId)))
+            .OrderBy(tUser.FirstName)
+            .QueryList(context.Database, r => (FirstName: tUser.FirstName.Read(r), LastName: tUser.LastName.Read(r)));
+
+        foreach (var name in list)
         {
-            var tCustomer = AllTables.GetItCustomer();
-            var tUser = AllTables.GetItUser();
-            var topUsers = new TopFirstNameUsers(5);
+            context.WriteLine($"{name.FirstName} {name.LastName}");
+        }
+    }
 
-            await Delete(tCustomer)
-                .From(tCustomer)
-                .InnerJoin(topUsers, @on: topUsers.UserId == tCustomer.UserId)
-                .All()
-                .Exec(context.Database);
+    private class TopFirstNameUsers : DerivedTableBase
+    {
+        private readonly TableItUser _tUser;
 
-            context.WriteLine("Deleted:");
+        private readonly int _top;
 
-            var list = await Select(tUser.FirstName, tUser.LastName)
-                .From(tUser)
-                .Where(!Exists(SelectOne().From(tCustomer).Where(tCustomer.UserId == tUser.UserId)))
-                .OrderBy(tUser.FirstName)
-                .QueryList(context.Database, r=> (FirstName: tUser.FirstName.Read(r), LastName: tUser.LastName.Read(r)));
-
-            foreach (var name in list)
-            {
-                context.WriteLine($"{name.FirstName} {name.LastName}");
-            }
+        public TopFirstNameUsers(SqlDialect dialect, int top, Alias alias = default) : base(alias)
+        {
+            this._top = top;
+            this._tUser = AllTables.GetItUser(dialect);
+            this.UserId = this._tUser.UserId.AddToDerivedTable(this);
         }
 
-        private class TopFirstNameUsers : DerivedTableBase
+        public Int32CustomColumn UserId { get; }
+
+        protected override IExprSubQuery CreateQuery()
         {
-            private readonly TableItUser _tUser;
-
-            private readonly int _top;
-
-            public TopFirstNameUsers(int top, Alias alias = default) : base(alias)
-            {
-                this._top = top;
-                this._tUser = AllTables.GetItUser();
-                this.UserId = this._tUser.UserId.AddToDerivedTable(this);
-            }
-
-            public Int32CustomColumn UserId { get; }
-
-            protected override IExprSubQuery CreateQuery()
-            {
-                return Select(this._tUser.UserId)
-                    .From(this._tUser)
-                    .OrderBy(this._tUser.FirstName)
-                    .OffsetFetch(0, this._top)
-                    .Done();
-            }
+            return Select(this._tUser.UserId)
+                .From(this._tUser)
+                .OrderBy(this._tUser.FirstName)
+                .OffsetFetch(0, this._top)
+                .Done();
         }
-
     }
 }

@@ -1232,11 +1232,12 @@ namespace SqExpress.SqlExport.Internal
                     throw new SqExpressException("Number of declared columns does not match to number of selected columns in the derived table sub query");
                 }
 
+                var derivedTableColumns = new HashSet<string>(exprDerivedTableQuery.Columns.Select(i => i.Name), StringComparer.InvariantCultureIgnoreCase);
+
                 bool allMatch = true;
-                for (int i = 0; i < selectedColumns.Count; i++)
+                foreach (var colName in selectedColumns)
                 {
-                    if (!string.Equals(selectedColumns[i],
-                        ((IExprNamedSelecting) exprDerivedTableQuery.Columns[i]).OutputName))
+                    if (colName == null || !derivedTableColumns.Remove(colName))
                     {
                         allMatch = false;
                         break;

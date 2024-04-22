@@ -1,4 +1,5 @@
 using SqExpress;
+using SqExpress.IntTest.Context;
 using SqExpress.IntTest.Tables.Models;
 using SqExpress.Syntax.Type;
 
@@ -6,17 +7,21 @@ namespace SqExpress.IntTest.Tables
 {
     public class TableItUser : TableBase
     {
-        public TableItUser(): this(alias: SqExpress.Alias.Auto)
+        public TableItUser() : this(SqlDialect.TSql)
         {
         }
 
-        public TableItUser(Alias alias): base(schema: "dbo", name: "ItUser", alias: alias)
+        public TableItUser(SqlDialect dialect) : this(dialect, alias: SqExpress.Alias.Auto)
+        {
+        }
+
+        public TableItUser(SqlDialect sqlDialect, Alias alias): base(schema: "dbo", name: "ItUser", alias: alias)
         {
             this.UserId = this.CreateInt32Column("UserId", ColumnMeta.PrimaryKey().Identity());
             this.ExternalId = this.CreateGuidColumn("ExternalId", null);
-            this.FirstName = this.CreateStringColumn(name: "FirstName", size: 255, isUnicode: false, isText: false, columnMeta: null);
-            this.LastName = this.CreateStringColumn(name: "LastName", size: 255, isUnicode: false, isText: false, columnMeta: null);
-            this.Email = this.CreateStringColumn(name: "Email", size: 255, isUnicode: false, isText: false, columnMeta: null);
+            this.FirstName = this.CreateStringColumn(name: "FirstName", size: 255, Helpers.IsUnicode(false, sqlDialect), isText: false, columnMeta: null);
+            this.LastName = this.CreateStringColumn(name: "LastName", size: 255, Helpers.IsUnicode(false, sqlDialect), isText: false, columnMeta: null);
+            this.Email = this.CreateStringColumn(name: "Email", size: 255, Helpers.IsUnicode(false, sqlDialect), isText: false, columnMeta: null);
             this.RegDate = this.CreateDateTimeColumn("RegDate", false, null);
             this.Version = this.CreateInt32Column("Version", ColumnMeta.DefaultValue(0));
             this.Created = this.CreateDateTimeColumn("Created", false, ColumnMeta.DefaultValue(SqQueryBuilder.GetUtcDate()));

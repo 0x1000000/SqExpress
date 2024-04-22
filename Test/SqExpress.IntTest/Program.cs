@@ -24,7 +24,7 @@ namespace SqExpress.IntTest
             try
             {
                 var scenario = new ScCreateTables()
-                        /*.Then(new ScInsertUserData())
+                        .Then(new ScInsertUserData())
                        .Then(new ScSqlInjections())
                        .Then(new ScLike())
                        .Then(new ScDeleteCustomersByTopUser())
@@ -50,8 +50,8 @@ namespace SqExpress.IntTest
                        .Then(new ScCte())
                        .Then(new ScCteCross())
                        .Then(new ScTreeClosure())
-                       .Then(new ScBitwise())*/
-                        .Then(new ScGetTables())
+                       .Then(new ScBitwise())
+                       .Then(new ScGetTables())
                     ;
 
                 await ExecScenarioAll(

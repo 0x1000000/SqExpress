@@ -11,7 +11,7 @@ namespace SqExpress.IntTest.Scenarios
     {
         public async Task Exec(IScenarioContext context)
         {
-            var tUser = AllTables.GetItUser();
+            var tUser = AllTables.GetItUser(context.Dialect);
 
             var top2Users = await SelectTop(2, UserEmail.GetColumns(tUser))
                 .From(tUser)

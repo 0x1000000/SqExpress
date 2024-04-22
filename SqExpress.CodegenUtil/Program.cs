@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using CommandLine;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Npgsql;
 using SqExpress.CodeGenUtil.CodeGen;
 using SqExpress.CodeGenUtil.Logger;
 using SqExpress.DbMetadata.Internal.DbManagers;
@@ -239,7 +240,7 @@ namespace SqExpress.CodeGenUtil
                 case ConnectionType.PgSql:
                     try
                     {
-                        connection = new SqlConnection(options.ConnectionString);
+                        connection = new NpgsqlConnection(options.ConnectionString);
                     }
                     catch (ArgumentException e)
                     {

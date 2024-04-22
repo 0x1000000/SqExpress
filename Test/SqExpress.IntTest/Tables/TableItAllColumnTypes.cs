@@ -1,6 +1,7 @@
 using SqExpress;
 using SqExpress.IntTest.Context;
 using SqExpress.Syntax.Type;
+using static SqExpress.IntTest.Tables.Helpers;
 
 namespace SqExpress.IntTest.Tables
 {
@@ -34,19 +35,24 @@ namespace SqExpress.IntTest.Tables
             this.ColNullableDateTime = this.CreateNullableDateTimeColumn("ColNullableDateTime", false, null);
             this.ColGuid = this.CreateGuidColumn("ColGuid", null);
             this.ColNullableGuid = this.CreateNullableGuidColumn("ColNullableGuid", null);
-            this.ColStringUnicode = this.CreateStringColumn(name: "ColStringUnicode", size: null, isUnicode: true, isText: false, columnMeta: null);
-            this.ColNullableStringUnicode = this.CreateNullableStringColumn(name: "ColNullableStringUnicode", size: null, isUnicode: true, isText: false, columnMeta: null);
-            this.ColStringMax = this.CreateStringColumn(name: "ColStringMax", size: null, isUnicode: false, isText: false, columnMeta: null);
-            this.ColNullableStringMax = this.CreateNullableStringColumn(name: "ColNullableStringMax", size: null, isUnicode: false, isText: false, columnMeta: null);
-            this.ColString5 = this.CreateStringColumn(name: "ColString5", size: 5, isUnicode: false, isText: false, columnMeta: null);
-            this.ColByteArraySmall = this.CreateByteArrayColumn("ColByteArraySmall", 255, null);
+            this.ColStringUnicode = this.CreateStringColumn(name: "ColStringUnicode", size: null, IsUnicode(true, sqlDialect), isText: false, columnMeta: null);
+            this.ColNullableStringUnicode = this.CreateNullableStringColumn(name: "ColNullableStringUnicode", size: null, IsUnicode(true, sqlDialect), isText: false, columnMeta: null);
+            this.ColStringMax = this.CreateStringColumn(name: "ColStringMax", size: null, IsUnicode(false, sqlDialect), isText: false, columnMeta: null);
+            this.ColNullableStringMax = this.CreateNullableStringColumn(name: "ColNullableStringMax", size: null, IsUnicode(false, sqlDialect), isText: false, columnMeta: null);
+            this.ColString5 = this.CreateStringColumn(name: "ColString5", size: 5, IsUnicode(false, sqlDialect), isText: false, columnMeta: null);
+            this.ColByteArraySmall = this.CreateByteArrayColumn("ColByteArraySmall", ArrayLimit(255, sqlDialect), null);
             this.ColByteArrayBig = this.CreateByteArrayColumn("ColByteArrayBig", null, null);
-            this.ColNullableByteArraySmall = this.CreateNullableByteArrayColumn("ColNullableByteArraySmall", 255, null);
+            this.ColNullableByteArraySmall = this.CreateNullableByteArrayColumn("ColNullableByteArraySmall", ArrayLimit(255, sqlDialect), null);
             this.ColNullableByteArrayBig = this.CreateNullableByteArrayColumn("ColNullableByteArrayBig", null, null);
-            this.ColFixedSizeString = this.CreateFixedSizeStringColumn(name: "ColFixedSizeString", size: 3, isUnicode: false, columnMeta: null);
-            this.ColNullableFixedSizeString = this.CreateNullableFixedSizeStringColumn(name: "ColNullableFixedSizeString", size: 3, isUnicode: true, columnMeta: null);
-            this.ColFixedSizeByteArray = this.CreateFixedSizeByteArrayColumn("ColFixedSizeByteArray", 2, null);
-            this.ColNullableFixedSizeByteArray = this.CreateNullableFixedSizeByteArrayColumn("ColNullableFixedSizeByteArray", 2, null);
+            this.ColFixedSizeString = this.CreateFixedSizeStringColumn(name: "ColFixedSizeString", size: 3, IsUnicode(false, sqlDialect), columnMeta: null);
+            this.ColNullableFixedSizeString = this.CreateNullableFixedSizeStringColumn(name: "ColNullableFixedSizeString", size: 3, IsUnicode(true, sqlDialect), columnMeta: null);
+
+            if (sqlDialect != SqlDialect.PgSql)
+            {
+                this.ColFixedSizeByteArray = this.CreateFixedSizeByteArrayColumn("ColFixedSizeByteArray", 2, null);
+                this.ColNullableFixedSizeByteArray = this.CreateNullableFixedSizeByteArrayColumn("ColNullableFixedSizeByteArray", 2, null);
+            }
+
             this.ColXml = this.CreateXmlColumn("ColXml", null);
             this.ColNullableXml = this.CreateNullableXmlColumn("ColNullableXml", null);
             if (sqlDialect != SqlDialect.MySql)
@@ -144,11 +150,9 @@ namespace SqExpress.IntTest.Tables
         [SqModel("AllTypes")]
         public NullableStringTableColumn ColNullableFixedSizeString { get; }
 
-        [SqModel("AllTypes")]
-        public ByteArrayTableColumn ColFixedSizeByteArray { get; }
+        public ByteArrayTableColumn? ColFixedSizeByteArray { get; }
 
-        [SqModel("AllTypes")]
-        public NullableByteArrayTableColumn ColNullableFixedSizeByteArray { get; }
+        public NullableByteArrayTableColumn? ColNullableFixedSizeByteArray { get; }
 
         [SqModel("AllTypes")]
         public StringTableColumn ColXml { get; }

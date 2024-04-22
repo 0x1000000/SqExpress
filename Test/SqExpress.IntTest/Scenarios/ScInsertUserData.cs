@@ -18,7 +18,7 @@ namespace SqExpress.IntTest.Scenarios
             var data = this.ReadUserData();
 
             var utcNow = DateTime.UtcNow;
-            var userTable = AllTables.GetItUser();
+            var userTable = AllTables.GetItUser(context.Dialect);
 
             var ids = await InsertDataInto(userTable, data)
                 .MapData(s => s
@@ -51,7 +51,7 @@ namespace SqExpress.IntTest.Scenarios
 
         private static async Task InsertCustomers(IScenarioContext context)
         {
-            var userTable = AllTables.GetItUser();
+            var userTable = AllTables.GetItUser(context.Dialect);
             var customerTable = AllTables.GetItCustomer();
 
             await InsertInto(customerTable, customerTable.UserId)

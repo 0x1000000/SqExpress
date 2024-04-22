@@ -12,7 +12,7 @@ public class ScMergeExpr : IScenario
 {
     public async Task Exec(IScenarioContext context)
     {
-        var tUser = AllTables.GetItUser();
+        var tUser = AllTables.GetItUser(context.Dialect);
 
         var userNames = await SqModelSelectBuilder
             .Select(UserName.GetReader())

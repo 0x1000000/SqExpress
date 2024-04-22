@@ -18,12 +18,12 @@ internal class PgIndex : TableBase
 
     public PgIndex(Alias alias = default) : base(null, "pg_index", alias)
     {
-        IndRelId = CreateInt32Column("indrelid");
-        IndExRelId = CreateInt32Column("indexrelid");
-        IndIsPrimary = CreateBooleanColumn("indisprimary");
-        IndIsUnique = CreateBooleanColumn("indisunique");
-        IndIsClustered = CreateBooleanColumn("indisclustered");
-        IndNkeysAtts = CreateInt32Column("indnkeyatts");
-        IndOption = CreateInt32Column("indoption");
+        this.IndRelId = this.CreateInt32Column("indrelid");
+        this.IndExRelId = this.CreateInt32Column("indexrelid");
+        this.IndIsPrimary = this.CreateBooleanColumn("indisprimary");
+        this.IndIsUnique = this.CreateBooleanColumn("indisunique");
+        this.IndIsClustered = this.CreateBooleanColumn("indisclustered");
+        this.IndNkeysAtts = this.CreateInt32Column("indnkeyatts");
+        this.IndOption = this.CreateInt32Column("indoption");
     }
 }

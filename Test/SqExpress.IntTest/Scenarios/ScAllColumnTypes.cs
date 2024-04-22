@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Data;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using AutoMapper;
 using AutoMapper.Data;
@@ -46,7 +49,9 @@ namespace SqExpress.IntTest.Scenarios
                 {
                     map
                         .ForMember(nameof(table.ColByte), c => c.Ignore())
-                        .ForMember(nameof(table.ColNullableByte), c => c.Ignore());
+                        .ForMember(nameof(table.ColNullableByte), c => c.Ignore())
+                        .ForMember(nameof(table.ColNullableFixedSizeByteArray), c => c.Ignore())
+                        .ForMember(nameof(table.ColFixedSizeByteArray), c => c.Ignore());
                 }
                 if (context.Dialect == SqlDialect.MySql)
                 {
@@ -70,8 +75,8 @@ namespace SqExpress.IntTest.Scenarios
                     allColumnTypesDto.ColByteArraySmall = table.ColByteArraySmall.Read(r);
                     allColumnTypesDto.ColNullableByteArrayBig = table.ColNullableByteArrayBig.Read(r);
                     allColumnTypesDto.ColNullableByteArraySmall = table.ColNullableByteArraySmall.Read(r);
-                    allColumnTypesDto.ColFixedSizeByteArray = table.ColFixedSizeByteArray.Read(r);
-                    allColumnTypesDto.ColNullableFixedSizeByteArray = table.ColNullableFixedSizeByteArray.Read(r);
+                    allColumnTypesDto.ColFixedSizeByteArray = table.ColFixedSizeByteArray?.Read(r) ?? Array.Empty<byte>();
+                    allColumnTypesDto.ColNullableFixedSizeByteArray = table.ColNullableFixedSizeByteArray?.Read(r);
                     if (!ReferenceEquals(table.ColDateTimeOffset, null))
                     {
                         allColumnTypesDto.ColDateTimeOffset = table.ColDateTimeOffset.Read(r);
@@ -107,11 +112,24 @@ namespace SqExpress.IntTest.Scenarios
                     var props = typeof(AllColumnTypesDto).GetProperties();
                     foreach (var propertyInfo in props)
                     {
-                        context.WriteLine($"{propertyInfo.Name}: {propertyInfo.GetValue(testData[i])} - {propertyInfo.GetValue(result[i])}");
+                        context.WriteLine($"{propertyInfo.Name}: {PrintObjectValue(propertyInfo.GetValue(testData[i]))} - {PrintObjectValue(propertyInfo.GetValue(result[i]))}");
                     }
 
                     throw new Exception("Input and output are not identical!");
                 }
+            }
+
+            static string PrintObjectValue(object? obj)
+            {
+                if (obj == null)
+                {
+                    return "NULL";
+                }
+                if (obj is IEnumerable list)
+                {
+                    return $"[{string.Join(',', list.OfType<object>().Select(PrintObjectValue).Take(10))}]";
+                }
+                return obj.ToString() ?? "NULL";
             }
 
             if (context.Dialect == SqlDialect.TSql)
@@ -129,7 +147,8 @@ namespace SqExpress.IntTest.Scenarios
                     .MapData(AllTypes.GetMapping)
                     .AlsoInsert(m=>m
                         .Set(m.Target.ColByte!, 0)
-                        .Set(m.Target.ColDateTimeOffset!, new DateTimeOffset(new DateTime(2022, 07, 10, 18, 10, 45), TimeSpan.FromHours(3))))
+                        .Set(m.Target.ColDateTimeOffset!, new DateTimeOffset(new DateTime(2022, 07, 10, 18, 10, 45), TimeSpan.FromHours(3)))
+                        .Set(m.Target.ColFixedSizeByteArray!, new byte[]{255, 0}))
                     .Exec(context.Database);
             }
 
@@ -163,6 +182,16 @@ namespace SqExpress.IntTest.Scenarios
                 recordSetterNext = recordSetterNext.Set(s.Target.ColNullableDateTimeOffset, s.Source.ColNullableDateTimeOffset);
             }
 
+            if (!ReferenceEquals(s.Target.ColFixedSizeByteArray, null))
+            {
+                recordSetterNext = recordSetterNext.Set(s.Target.ColFixedSizeByteArray, s.Source.ColFixedSizeByteArray);
+            }
+
+            if (!ReferenceEquals(s.Target.ColNullableFixedSizeByteArray, null))
+            {
+                recordSetterNext = recordSetterNext.Set(s.Target.ColNullableFixedSizeByteArray, s.Source.ColNullableFixedSizeByteArray);
+            }
+         
             recordSetterNext = recordSetterNext
                 .Set(s.Target.ColInt16, s.Source.ColInt16)
                 .Set(s.Target.ColNullableInt16, s.Source.ColNullableInt16)
@@ -192,8 +221,6 @@ namespace SqExpress.IntTest.Scenarios
 
                 .Set(s.Target.ColFixedSizeString, s.Source.ColFixedSizeString)
                 .Set(s.Target.ColNullableFixedSizeString, s.Source.ColNullableFixedSizeString)
-                .Set(s.Target.ColFixedSizeByteArray, s.Source.ColFixedSizeByteArray)
-                .Set(s.Target.ColNullableFixedSizeByteArray, s.Source.ColNullableFixedSizeByteArray)
 
                 .Set(s.Target.ColXml, s.Source.ColXml)
                 .Set(s.Target.ColNullableXml, s.Source.ColNullableXml)
@@ -251,10 +278,10 @@ namespace SqExpress.IntTest.Scenarios
                     ColNullableByteArraySmall = GenerateTestArray(17, 255),
                     ColNullableByteArrayBig = GenerateTestArray(17, 65535*2),
 
-                    ColFixedSizeByteArray = new byte[]{255, 0},
+                    ColFixedSizeByteArray = dialect == SqlDialect.PgSql ? Array.Empty<byte>() : new byte[]{255, 0},
                     ColFixedSizeString = "123",
 
-                    ColNullableFixedSizeByteArray = new byte[]{0,255},
+                    ColNullableFixedSizeByteArray = dialect == SqlDialect.PgSql ? null : new byte[]{255, 0},
                     ColNullableFixedSizeString = "321",
 
                     ColXml = "<root><Item2 /></root>",
@@ -297,7 +324,7 @@ namespace SqExpress.IntTest.Scenarios
                     ColNullableByteArrayBig = null,
 
 
-                    ColFixedSizeByteArray = new byte[]{128, 128},
+                    ColFixedSizeByteArray = dialect == SqlDialect.PgSql ? Array.Empty<byte>(): new byte[]{128, 128},
                     ColFixedSizeString = "abc",
 
                     ColNullableFixedSizeByteArray = null,

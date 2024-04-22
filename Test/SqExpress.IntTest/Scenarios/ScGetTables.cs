@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using System.Threading.Tasks;
 using SqExpress.IntTest.Context;
 using SqExpress.IntTest.Tables;
@@ -15,11 +14,10 @@ public class ScGetTables : IScenario
             return;
         }
 
-        var tables = await context.Database.GetTables();
+        var actualTables = await context.Database.GetTables();
+        var declaredTables = AllTables.BuildAllTableList(context.Dialect);
 
-        var allTables = AllTables.BuildAllTableList(context.Dialect);
-
-        var tableListComparison = allTables.CompareWith(tables, t => t.TableName);
+        var tableListComparison = declaredTables.CompareWith(actualTables, t => t.TableName);
         if (tableListComparison != null)
         {
             PrintComparison(context.WriteLine, tableListComparison);
