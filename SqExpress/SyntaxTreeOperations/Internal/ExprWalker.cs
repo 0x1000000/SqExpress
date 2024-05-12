@@ -1359,6 +1359,13 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             this.EndVisit(expr, argOut.Context);
             return walkResult != WalkResult.Stop;
         }
+        public bool VisitExprUnsafeQuery(ExprUnsafeQuery expr, WalkerContext<TCtx> arg)
+        {
+            var walkResult = this.Visit(expr, "UnsafeQuery", arg, out var argOut);
+            this.VisitPlainProperty("RawQuery",expr.RawQuery, argOut.Context);
+            this.EndVisit(expr, argOut.Context);
+            return walkResult != WalkResult.Stop;
+        }
         public bool VisitExprUnsafeValue(ExprUnsafeValue expr, WalkerContext<TCtx> arg)
         {
             var walkResult = this.Visit(expr, "UnsafeValue", arg, out var argOut);

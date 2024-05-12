@@ -236,7 +236,20 @@ namespace SqExpress.CodeGenUtil
                     }
                     return MsSqlDbStrategy.Create(new DbManagerOptions(options.TableClassPrefix), connection);
                 case ConnectionType.MySql:
-                    return MySqlDbStrategy.Create(options.ConnectionString);
+                    try
+                    {
+                        connection = new SqlConnection(options.ConnectionString);
+                    }
+                    catch (ArgumentException e)
+                    {
+                        throw new SqExpressCodeGenException($"MySQL connection string has incorrect format \"{options.ConnectionString}\"", e);
+                    }
+
+                    if (string.IsNullOrEmpty(connection.Database))
+                    {
+                        throw new SqExpressCodeGenException("MySQL connection string has to contain \"database\" attribute");
+                    }
+                    return MySqlDbStrategy.Create(new DbManagerOptions(options.TableClassPrefix), connection);
                 case ConnectionType.PgSql:
                     try
                     {

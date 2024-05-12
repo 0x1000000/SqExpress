@@ -35,20 +35,20 @@ internal class PgSqlColumns : TableBase, IPgSqlTableColumns
     public PgSqlColumns(Alias alias = default)
         : base("INFORMATION_SCHEMA", "COLUMNS", alias)
     {
-        TableCatalog = CreateStringColumn("TABLE_CATALOG", null);
-        TableSchema = CreateStringColumn("TABLE_SCHEMA", null);
-        TableName = CreateStringColumn("TABLE_NAME", null);
-        ColumnName = CreateStringColumn("COLUMN_NAME", null);
-        OrdinalPosition = CreateInt32Column("ORDINAL_POSITION");
-        ColumnDefault = CreateNullableStringColumn("COLUMN_DEFAULT", null);
-        IsNullable = CreateStringColumn("IS_NULLABLE", null);
-        IsIdentity = CreateStringColumn("IS_IDENTITY", null);
-        DataType = CreateNullableStringColumn("DATA_TYPE", null);
-        CharacterMaximumLength = CreateNullableInt32Column("CHARACTER_MAXIMUM_LENGTH");
-        CharacterOctetLength = CreateNullableInt32Column("CHARACTER_OCTET_LENGTH");
-        NumericPrecision = CreateNullableByteColumn("NUMERIC_PRECISION");
-        NumericScale = CreateNullableInt32Column("NUMERIC_SCALE");
-        DatetimePrecision = CreateNullableInt16Column("DATETIME_PRECISION");
-        CharacterSetName = CreateNullableStringColumn("CHARACTER_SET_NAME", null);
+        this.TableCatalog = this.CreateStringColumn("TABLE_CATALOG", null);
+        this.TableSchema = this.CreateStringColumn("TABLE_SCHEMA", null);
+        this.TableName = this.CreateStringColumn("TABLE_NAME", null);
+        this.ColumnName = this.CreateStringColumn("COLUMN_NAME", null);
+        this.OrdinalPosition = this.CreateInt32Column("ORDINAL_POSITION");
+        this.ColumnDefault = this.CreateNullableStringColumn("COLUMN_DEFAULT", null);
+        this.IsNullable = this.CreateStringColumn("IS_NULLABLE", null);
+        this.IsIdentity = this.CreateStringColumn("IS_IDENTITY", null);
+        this.DataType = this.CreateNullableStringColumn("DATA_TYPE", null);
+        this.CharacterMaximumLength = this.CreateNullableInt32Column("CHARACTER_MAXIMUM_LENGTH");
+        this.CharacterOctetLength = this.CreateNullableInt32Column("CHARACTER_OCTET_LENGTH");
+        this.NumericPrecision = this.CreateNullableByteColumn("NUMERIC_PRECISION");
+        this.NumericScale = this.CreateNullableInt32Column("NUMERIC_SCALE");
+        this.DatetimePrecision = this.CreateNullableInt16Column("DATETIME_PRECISION");
+        this.CharacterSetName = this.CreateNullableStringColumn("CHARACTER_SET_NAME", null);
     }
 }

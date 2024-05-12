@@ -38,16 +38,3 @@ public static class AllTables
     public static TableItOrder GetItOrder(Alias alias) => new TableItOrder(alias);
     public static TableItOrder GetItOrder() => new TableItOrder(Alias.Auto);
 }
-
-public static class Helpers
-{
-    public static bool IsUnicode(bool value, SqlDialect dialect)
-    {
-        return dialect == SqlDialect.PgSql || value;
-    }
-
-    public static int? ArrayLimit(int? value, SqlDialect dialect)
-    {
-        return dialect == SqlDialect.PgSql ? null : value;
-    }
-}

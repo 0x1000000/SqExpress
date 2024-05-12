@@ -1817,6 +1817,16 @@ namespace SqExpress.SyntaxTreeOperations.Internal
                     throw new SqExpressException("Incorrect enumerator visitor state");
             }
         }
+        public bool VisitExprUnsafeQuery(ExprUnsafeQuery expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
         public bool VisitExprUnsafeValue(ExprUnsafeValue expr, object? arg)
         {
             switch (this.Peek().State)

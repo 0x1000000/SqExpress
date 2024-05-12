@@ -568,7 +568,7 @@ internal class IndexMetaEqualityComparer : IEqualityComparer<IndexMeta?>
         }
     }
 
-    private bool ColumnEquals(IndexMetaColumn x, IndexMetaColumn y)
+    private static bool ColumnEquals(IndexMetaColumn x, IndexMetaColumn y)
     {
         if (ReferenceEquals(x, y)) return true;
         if (ReferenceEquals(x, null)) return false;
@@ -579,7 +579,7 @@ internal class IndexMetaEqualityComparer : IEqualityComparer<IndexMeta?>
         return x.Descending == y.Descending;
     }
 
-    private int ColumnGetHashCode(IndexMetaColumn obj)
+    private static int ColumnGetHashCode(IndexMetaColumn obj)
     {
         unchecked
         {

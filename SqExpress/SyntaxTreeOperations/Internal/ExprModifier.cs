@@ -1130,6 +1130,10 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         {
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprUnsafeQuery(ExprUnsafeQuery exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprUnsafeValue(ExprUnsafeValue exprIn, Func<IExpr, IExpr?> modifier)
         {
             return modifier.Invoke(exprIn);

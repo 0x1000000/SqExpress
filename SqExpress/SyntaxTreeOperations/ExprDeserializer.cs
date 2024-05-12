@@ -207,6 +207,7 @@ namespace SqExpress.SyntaxTreeOperations
                 case "TypeString": return new ExprTypeString(size: ReadNullableInt32(rootElement, reader, "Size"), isUnicode: ReadBoolean(rootElement, reader, "IsUnicode"), isText: ReadBoolean(rootElement, reader, "IsText"));
                 case "TypeXml": return ExprTypeXml.Instance;
                 case "UnboundedFrameBorder": return new ExprUnboundedFrameBorder(frameBorderDirection: ReadFrameBorderDirection(rootElement, reader, "FrameBorderDirection"));
+                case "UnsafeQuery": return new ExprUnsafeQuery(rawQuery: ReadString(rootElement, reader, "RawQuery"));
                 case "UnsafeValue": return new ExprUnsafeValue(unsafeValue: ReadString(rootElement, reader, "UnsafeValue"));
                 case "Update": return new ExprUpdate(target: GetSubNode<TNode, ExprTable>(rootElement, reader, "Target"), setClause: GetSubNodeList<TNode, ExprColumnSetClause>(rootElement, reader, "SetClause"), source: GetNullableSubNode<TNode, IExprTableSource>(rootElement, reader, "Source"), filter: GetNullableSubNode<TNode, ExprBoolean>(rootElement, reader, "Filter"));
                 case "ValueFrameBorder": return new ExprValueFrameBorder(value: GetSubNode<TNode, ExprValue>(rootElement, reader, "Value"), frameBorderDirection: ReadFrameBorderDirection(rootElement, reader, "FrameBorderDirection"));

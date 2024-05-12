@@ -26,7 +26,14 @@ namespace SqExpress.IntTest.Tables
             this.Version = this.CreateInt32Column("Version", ColumnMeta.DefaultValue(0));
             this.Created = this.CreateDateTimeColumn("Created", false, ColumnMeta.DefaultValue(SqQueryBuilder.GetUtcDate()));
             this.Modified = this.CreateDateTimeColumn("Modified", false, ColumnMeta.DefaultValue(SqQueryBuilder.GetUtcDate()));
-            this.AddUniqueClusteredIndex(this.ExternalId);
+            if (sqlDialect == SqlDialect.MySql)
+            {
+                this.AddUniqueIndex(this.ExternalId);
+            }
+            else
+            {
+                this.AddUniqueClusteredIndex(this.ExternalId);
+            }
             this.AddIndex(this.FirstName);
             this.AddIndex(IndexMetaColumn.Desc(this.LastName));
         }

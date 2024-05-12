@@ -6,13 +6,13 @@ internal class PgSqlConstraintColumnUsage : TableBase, IPgSqlTableColumns
 {
     public PgSqlConstraintColumnUsage(Alias alias = default) : base("INFORMATION_SCHEMA", "CONSTRAINT_COLUMN_USAGE", alias)
     {
-        TableCatalog = CreateStringColumn("TABLE_CATALOG", null);
-        TableSchema = CreateStringColumn("TABLE_SCHEMA", null);
-        TableName = CreateStringColumn("TABLE_NAME", null);
-        ColumnName = CreateStringColumn("COLUMN_NAME", null);
-        ConstraintCatalog = CreateStringColumn("CONSTRAINT_CATALOG", null);
-        ConstraintSchema = CreateStringColumn("CONSTRAINT_SCHEMA", null);
-        ConstraintName = CreateStringColumn("CONSTRAINT_NAME", null);
+        this.TableCatalog = this.CreateStringColumn("TABLE_CATALOG", null);
+        this.TableSchema = this.CreateStringColumn("TABLE_SCHEMA", null);
+        this.TableName = this.CreateStringColumn("TABLE_NAME", null);
+        this.ColumnName = this.CreateStringColumn("COLUMN_NAME", null);
+        this.ConstraintCatalog = this.CreateStringColumn("CONSTRAINT_CATALOG", null);
+        this.ConstraintSchema = this.CreateStringColumn("CONSTRAINT_SCHEMA", null);
+        this.ConstraintName = this.CreateStringColumn("CONSTRAINT_NAME", null);
     }
 
     public StringTableColumn TableCatalog { get; }

@@ -8,6 +8,10 @@ namespace SqExpress.DbMetadata;
 
 public sealed class SqTable : TableBase
 {
+    internal SqTable(string database, string schema, string name, Alias alias = default) : base(database, schema, name, alias)
+    {
+    }
+
     internal SqTable(string? schema, string name, Alias alias = default) : base(schema, name, alias)
     {
     }

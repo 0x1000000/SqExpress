@@ -13,10 +13,10 @@
         public PgSqlTables(Alias alias = default)
             : base("INFORMATION_SCHEMA", "TABLES", alias)
         {
-            TableCatalog = CreateStringColumn("TABLE_CATALOG", null, true);
-            TableSchema = CreateStringColumn("TABLE_SCHEMA", null, true);
-            TableName = CreateStringColumn("TABLE_NAME", null, true);
-            TableType = CreateStringColumn("TABLE_TYPE", null, true);
+            this.TableCatalog = this.CreateStringColumn("TABLE_CATALOG", null, true);
+            this.TableSchema = this.CreateStringColumn("TABLE_SCHEMA", null, true);
+            this.TableName = this.CreateStringColumn("TABLE_NAME", null, true);
+            this.TableType = this.CreateStringColumn("TABLE_TYPE", null, true);
         }
     }
 }

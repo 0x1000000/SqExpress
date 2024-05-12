@@ -72,6 +72,8 @@ namespace SqExpress.Syntax
 
         TRes VisitExprOffsetFetch(ExprOffsetFetch exprOffsetFetch, TArg arg);
 
+        TRes VisitExprUnsafeQuery(ExprUnsafeQuery exprUnsafeQuery, TArg arg);
+
         //Select Output
         TRes VisitExprOutputColumnInserted(ExprOutputColumnInserted exprOutputColumnInserted, TArg arg);
 

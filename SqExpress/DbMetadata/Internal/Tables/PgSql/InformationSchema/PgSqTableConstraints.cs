@@ -25,18 +25,17 @@ internal class PgSqlTableConstraints : TableBase
     public PgSqlTableConstraints(Alias alias = default)
         : base("INFORMATION_SCHEMA", "TABLE_CONSTRAINTS", alias)
     {
+        this.ConstraintCatalog = this.CreateStringColumn("CONSTRAINT_CATALOG", 128, true);
+        this.ConstraintSchema = this.CreateStringColumn("CONSTRAINT_SCHEMA", 128, true);
+        this.ConstraintName = this.CreateStringColumn("CONSTRAINT_NAME", 128, true);
 
-        ConstraintCatalog = CreateStringColumn("CONSTRAINT_CATALOG", 128, true);
-        ConstraintSchema = CreateStringColumn("CONSTRAINT_SCHEMA", 128, true);
-        ConstraintName = CreateStringColumn("CONSTRAINT_NAME", 128, true);
+        this.TableCatalog = this.CreateStringColumn("TABLE_CATALOG", null, true);
+        this.TableSchema = this.CreateStringColumn("TABLE_SCHEMA", null, true);
+        this.TableName = this.CreateStringColumn("TABLE_NAME", null, true);
+        this.TableType = this.CreateStringColumn("TABLE_TYPE", null, true);
 
-        TableCatalog = CreateStringColumn("TABLE_CATALOG", null, true);
-        TableSchema = CreateStringColumn("TABLE_SCHEMA", null, true);
-        TableName = CreateStringColumn("TABLE_NAME", null, true);
-        TableType = CreateStringColumn("TABLE_TYPE", null, true);
-
-        ConstraintType = CreateStringColumn("CONSTRAINT_TYPE", 11);
-        IsDeferrable = CreateStringColumn("IS_DEFERRABLE", 2);
-        InitiallyDeferred = CreateStringColumn("INITIALLY_DEFERRED", 2);
+        this.ConstraintType = this.CreateStringColumn("CONSTRAINT_TYPE", 11);
+        this.IsDeferrable = this.CreateStringColumn("IS_DEFERRABLE", 2);
+        this.InitiallyDeferred = this.CreateStringColumn("INITIALLY_DEFERRED", 2);
     }
 }

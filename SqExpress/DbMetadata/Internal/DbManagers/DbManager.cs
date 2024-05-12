@@ -43,9 +43,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
 
         public async Task<IReadOnlyList<TableModel>> SelectTables()
         {
-            var columnsRaw = await Database.LoadColumns();
-            var indexes = await Database.LoadIndexes();
-            var fk = await Database.LoadForeignKeys();
+            var (columnsRaw, indexes, fk) = await Database.LoadRawModels();
 
             var acc = new Dictionary<TableRef, Dictionary<ColumnRef, ColumnModel>>();
 

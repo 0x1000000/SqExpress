@@ -718,6 +718,9 @@ namespace SqExpress
         public static ExprUnboundedFrameBorder WithFrameBorderDirection(this ExprUnboundedFrameBorder original, FrameBorderDirection newFrameBorderDirection) 
             => new ExprUnboundedFrameBorder(frameBorderDirection: newFrameBorderDirection);
 
+        public static ExprUnsafeQuery WithRawQuery(this ExprUnsafeQuery original, String newRawQuery) 
+            => new ExprUnsafeQuery(rawQuery: newRawQuery);
+
         public static ExprUnsafeValue WithUnsafeValue(this ExprUnsafeValue original, String newUnsafeValue) 
             => new ExprUnsafeValue(unsafeValue: newUnsafeValue);
 

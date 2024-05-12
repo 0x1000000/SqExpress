@@ -249,11 +249,6 @@ namespace SqExpress.DataAccess
         {
             this.CheckDisposed();
 
-            if (!(this._sqlExporter is TSqlExporter || this._sqlExporter is PgSqlExporter))
-            {
-                throw new SqExpressException("Only MS SQL is currently supported");
-            }
-
             if (string.IsNullOrEmpty(this._connection.Database))
             {
                 throw new SqExpressException("Connection should include a database name");

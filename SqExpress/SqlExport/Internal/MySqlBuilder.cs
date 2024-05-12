@@ -731,38 +731,40 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprTypeString(ExprTypeString exprTypeString, IExpr? parent)
         {
-            if (exprTypeString.IsText || (exprTypeString.Size ?? 0) > 255)
+            if (exprTypeString.IsText)
             {
-                this.Builder.Append("text");
+                if (exprTypeString.Size.HasValue)
+                {
+                    if (exprTypeString.Size <= 255)
+                    {
+                        this.Builder.Append("tinytext");
+                    } 
+                    else if (exprTypeString.Size <= 65535)
+                    {
+                        this.Builder.Append("text");
+                    }
+                    else if (exprTypeString.Size <= 16777215)
+                    {
+                        this.Builder.Append("mediumtext");
+                    }
+                    else
+                    {
+                        this.Builder.Append("longtext");
+                    }
+                }
+                else
+                {
+                    this.Builder.Append("text");
+                }
             }
             else
             {
+                int max = exprTypeString.IsUnicode ? 21844 : 65535;
                 this.Builder.Append("varchar");
-            }
+                this.Builder.Append('(');
+                this.Builder.Append(exprTypeString.Size ?? max);
+                this.Builder.Append(')');
 
-            if (exprTypeString.Size.HasValue)
-            {
-                if (!exprTypeString.IsText)
-                {
-                    this.Builder.Append('(');
-                    this.Builder.Append(exprTypeString.Size.Value);
-                    this.Builder.Append(')');
-                }
-                else
-                {
-                    throw new SqExpressException("text type cannot have a length");
-                }
-            }
-            else
-            {
-                if (!exprTypeString.IsText)
-                {
-                    this.Builder.Append("(255)");
-                }
-                else
-                {
-                    this.Builder.Append("(65535)");
-                }
             }
 
             if (exprTypeString.IsUnicode)

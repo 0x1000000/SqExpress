@@ -59,21 +59,28 @@ namespace SqExpress.Test.CodeGenUtil
         {
         }
 
-        Task<List<ColumnRawModel>> IDbStrategy.LoadColumns()
+
+        async Task<DbRawModels> IDbStrategy.LoadRawModels()
+        {
+            return new DbRawModels(await this.LoadColumns(), await this.LoadIndexes(), await this.LoadForeignKeys());
+        }
+
+
+        private Task<List<ColumnRawModel>> LoadColumns()
         {
             List<ColumnRawModel> columns = new List<ColumnRawModel>
             {
-                new ColumnRawModel(new ColumnRef("dbo","TableZ", "Id"), 1, true, false, "int", "((0))", null, null, null),
-                new ColumnRawModel(new ColumnRef("dbo","TableZ", "ValueA"), 2, false, false, "nvarchar", "(N'')", 255, null, null),
-                new ColumnRawModel(new ColumnRef("dbo","TableZ", "Value_A"), 3, false, true, "decimal", null, null, 2, 6),
-                new ColumnRawModel(new ColumnRef("dbo","TableA", "Id"), 4, true, false, "int", "((0))", null, null, null),
-                new ColumnRawModel(new ColumnRef("dbo","TableA", "Value"), 5, false, false, "datetime", "(getutcdate())", null, null, null)
+                new ColumnRawModel(new ColumnRef("dbo","TableZ", "Id"), 1, true, false, "int", "((0))", null, null, null, null),
+                new ColumnRawModel(new ColumnRef("dbo","TableZ", "ValueA"), 2, false, false, "nvarchar", "(N'')", 255, null, null, null),
+                new ColumnRawModel(new ColumnRef("dbo","TableZ", "Value_A"), 3, false, true, "decimal", null, null, 2, 6, null),
+                new ColumnRawModel(new ColumnRef("dbo","TableA", "Id"), 4, true, false, "int", "((0))", null, null, null, null),
+                new ColumnRawModel(new ColumnRef("dbo","TableA", "Value"), 5, false, false, "datetime", "(getutcdate())", null, null, null, null)
             };
 
             return Task.FromResult(columns);
         }
 
-        Task<LoadIndexesResult> IDbStrategy.LoadIndexes()
+        private Task<LoadIndexesResult> LoadIndexes()
         {
             Dictionary<TableRef, PrimaryKeyModel> pks = new Dictionary<TableRef, PrimaryKeyModel>();
             Dictionary<TableRef, List<IndexModel>> inds = new Dictionary<TableRef, List<IndexModel>>();
@@ -95,7 +102,7 @@ namespace SqExpress.Test.CodeGenUtil
             return Task.FromResult(result);
         }
 
-        Task<Dictionary<ColumnRef, List<ColumnRef>>> IDbStrategy.LoadForeignKeys()
+        private Task<Dictionary<ColumnRef, List<ColumnRef>>> LoadForeignKeys()
         {
             Dictionary<ColumnRef, List<ColumnRef>> result = new Dictionary<ColumnRef, List<ColumnRef>>();
 

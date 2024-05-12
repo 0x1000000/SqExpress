@@ -1,7 +1,7 @@
 using SqExpress;
 using SqExpress.IntTest.Context;
 using SqExpress.Syntax.Type;
-using static SqExpress.IntTest.Tables.Helpers;
+using static SqExpress.IntTest.Helpers;
 
 namespace SqExpress.IntTest.Tables
 {
@@ -35,10 +35,12 @@ namespace SqExpress.IntTest.Tables
             this.ColNullableDateTime = this.CreateNullableDateTimeColumn("ColNullableDateTime", false, null);
             this.ColGuid = this.CreateGuidColumn("ColGuid", null);
             this.ColNullableGuid = this.CreateNullableGuidColumn("ColNullableGuid", null);
-            this.ColStringUnicode = this.CreateStringColumn(name: "ColStringUnicode", size: null, IsUnicode(true, sqlDialect), isText: false, columnMeta: null);
-            this.ColNullableStringUnicode = this.CreateNullableStringColumn(name: "ColNullableStringUnicode", size: null, IsUnicode(true, sqlDialect), isText: false, columnMeta: null);
-            this.ColStringMax = this.CreateStringColumn(name: "ColStringMax", size: null, IsUnicode(false, sqlDialect), isText: false, columnMeta: null);
-            this.ColNullableStringMax = this.CreateNullableStringColumn(name: "ColNullableStringMax", size: null, IsUnicode(false, sqlDialect), isText: false, columnMeta: null);
+
+            this.ColStringUnicode = this.CreateStringColumn(name: "ColStringUnicode", size: GetMaxSizeNull(sqlDialect), IsUnicode(true, sqlDialect), isText: false, columnMeta: null);
+            this.ColNullableStringUnicode = this.CreateNullableStringColumn(name: "ColNullableStringUnicode", size: GetMaxSizeNull(sqlDialect), IsUnicode(true, sqlDialect), isText: false, columnMeta: null);
+
+            this.ColStringMax = this.CreateStringColumn(name: "ColStringMax", size: GetMaxSizeNull(sqlDialect), IsUnicode(false, sqlDialect), isText: false, columnMeta: null);
+            this.ColNullableStringMax = this.CreateNullableStringColumn(name: "ColNullableStringMax", size: GetMaxSizeNull(sqlDialect), IsUnicode(false, sqlDialect), isText: false, columnMeta: null);
             this.ColString5 = this.CreateStringColumn(name: "ColString5", size: 5, IsUnicode(false, sqlDialect), isText: false, columnMeta: null);
             this.ColByteArraySmall = this.CreateByteArrayColumn("ColByteArraySmall", ArrayLimit(255, sqlDialect), null);
             this.ColByteArrayBig = this.CreateByteArrayColumn("ColByteArrayBig", null, null);
@@ -53,13 +55,22 @@ namespace SqExpress.IntTest.Tables
                 this.ColNullableFixedSizeByteArray = this.CreateNullableFixedSizeByteArrayColumn("ColNullableFixedSizeByteArray", 2, null);
             }
 
-            this.ColXml = this.CreateXmlColumn("ColXml", null);
-            this.ColNullableXml = this.CreateNullableXmlColumn("ColNullableXml", null);
             if (sqlDialect != SqlDialect.MySql)
             {
+                this.ColXml = this.CreateXmlColumn("ColXml", null);
+                this.ColNullableXml = this.CreateNullableXmlColumn("ColNullableXml", null);
                 this.ColDateTimeOffset = this.CreateDateTimeOffsetColumn("ColDateTimeOffset");
                 this.ColNullableDateTimeOffset = this.CreateNullableDateTimeOffsetColumn("ColNullableDateTimeOffset");
             }
+            else
+            {
+                this.ColXml = this.CreateStringColumn("ColXml", null, isUnicode: true, isText: true);
+                this.ColNullableXml = this.CreateNullableStringColumn("ColNullableXml", null, isUnicode: true, isText: true);
+            }
+
+            //There is a limit on row size (64k) that includes all columns in mysql
+            static int? GetMaxSizeNull(SqlDialect dialect) => dialect == SqlDialect.MySql ? 1000 : null;
+
         }
 
         [SqModel("AllTypes")]

@@ -708,6 +708,12 @@ namespace SqExpress.SqlExport.Internal
 
         public abstract bool VisitExprOffsetFetch(ExprOffsetFetch exprOffsetFetch, IExpr? parent);
 
+        public bool VisitExprUnsafeQuery(ExprUnsafeQuery exprUnsafeQuery, IExpr? parent)
+        {
+            this.Builder.Append(exprUnsafeQuery.RawQuery);
+            return true;
+        }
+
         protected bool VisitExprOffsetFetchCommon(ExprOffsetFetch exprOffsetFetch, IExpr? parent)
         {
             this.Builder.Append(" OFFSET ");

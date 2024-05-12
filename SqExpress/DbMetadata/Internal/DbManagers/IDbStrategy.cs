@@ -7,11 +7,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
 {
     internal interface IDbStrategy : IDisposable
     {
-        Task<List<ColumnRawModel>> LoadColumns();
-
-        Task<LoadIndexesResult> LoadIndexes();
-
-        Task<Dictionary<ColumnRef, List<ColumnRef>>> LoadForeignKeys();
+        Task<DbRawModels> LoadRawModels();
 
         ColumnType GetColType(ColumnRawModel raw);
 
@@ -19,6 +15,11 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
 
         DefaultValue? ParseDefaultValue(string? rawColumnDefaultValue, ColumnType columnType);
     }
+
+    internal record struct DbRawModels(
+        List<ColumnRawModel> Columns,
+        LoadIndexesResult Indexes,
+        Dictionary<ColumnRef, List<ColumnRef>> ForeignKeys);
 
     internal readonly struct LoadIndexesResult
     {

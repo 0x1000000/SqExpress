@@ -14,11 +14,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
             Database = database;
         }
 
-        public abstract Task<List<ColumnRawModel>> LoadColumns();
-
-        public abstract Task<LoadIndexesResult> LoadIndexes();
-
-        public abstract Task<Dictionary<ColumnRef, List<ColumnRef>>> LoadForeignKeys();
+        public abstract Task<DbRawModels> LoadRawModels();
 
         public abstract ColumnType GetColType(ColumnRawModel raw);
 
