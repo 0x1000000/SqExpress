@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using SqExpress.CodeGenUtil;
 using SqExpress.DbMetadata.Internal.DbManagers;
+using SqExpress.DbMetadata.Internal.DbManagers.MsSql;
 using SqExpress.DbMetadata.Internal.Model;
 
 namespace SqExpress.Test.CodeGenUtil

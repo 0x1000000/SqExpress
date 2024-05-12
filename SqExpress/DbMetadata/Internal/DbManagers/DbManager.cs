@@ -18,20 +18,20 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
 
         public DbManager(IDbStrategy database, DbConnection connection, DbManagerOptions options)
         {
-            Database = database;
-            _connection = connection;
-            _options = options;
+            this.Database = database;
+            this._connection = connection;
+            this._options = options;
         }
 
         public async Task<string?> TryOpenConnection()
         {
             try
             {
-                await _connection.OpenAsync();
+                await this._connection.OpenAsync();
 #if NETSTANDARD
-                _connection.Close();
+                this._connection.Close();
 #else
-                await _connection.CloseAsync();
+                await this._connection.CloseAsync();
 #endif
                 return null;
             }
@@ -43,7 +43,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
 
         public async Task<IReadOnlyList<TableModel>> SelectTables()
         {
-            var (columnsRaw, indexes, fk) = await Database.LoadRawModels();
+            var (columnsRaw, indexes, fk) = await this.Database.LoadRawModels();
 
             var acc = new Dictionary<TableRef, Dictionary<ColumnRef, ColumnModel>>();
 
@@ -60,7 +60,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
                     ? fkList 
                     : null;
 
-                var colModel = BuildColumnModel(
+                var colModel = this.BuildColumnModel(
                     rawColumn,
                     indexes.Pks.TryGetValue(table, out var pkCols) ? pkCols.Columns : null,
                     columnRefs
@@ -74,7 +74,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
             var result = sortedTables.Select(
                     t =>
                         new TableModel(
-                            name: ToTableCrlName(tableRef: t),
+                            name: this.ToTableCrlName(tableRef: t),
                             dbName: t,
                             columns: acc[key: t]
                                 .Select(p => p.Value)
@@ -88,7 +88,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
                 )
                 .ToList();
 
-            EnsureTableNamesAreUnique(result, Database.DefaultSchemaName);
+            this.EnsureTableNamesAreUnique(result, this.Database.DefaultSchemaName);
 
             return result;
         }
@@ -126,7 +126,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
 
         private string ToTableCrlName(TableRef tableRef)
         {
-            return _options.TableClassPrefix + StringHelper.DeSnake(tableRef.Name);
+            return this._options.TableClassPrefix + StringHelper.DeSnake(tableRef.Name);
         }
 
         private static IReadOnlyList<TableRef> SortTablesByForeignKeys(
@@ -235,12 +235,12 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
 
                         var tableName = duplicate.table.Name;
 
-                        if (!string.IsNullOrEmpty(_options.TableClassPrefix))
+                        if (!string.IsNullOrEmpty(this._options.TableClassPrefix))
                         {
-                            tableName = tableName.Substring(_options.TableClassPrefix.Length);
+                            tableName = tableName.Substring(this._options.TableClassPrefix.Length);
                         }
 
-                        newName = _options.TableClassPrefix + StringHelper.DeSnake(duplicate.table.DbName.Schema) + tableName;
+                        newName = this._options.TableClassPrefix + StringHelper.DeSnake(duplicate.table.DbName.Schema) + tableName;
                     }
 
                     newName = StringHelper.AddNumberUntilUnique(newName, "No", nn => !dic.ContainsKey(nn));
@@ -290,11 +290,11 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
         {
             try
             {
-                Database.Dispose();
+                this.Database.Dispose();
             }
             finally
             {
-                _connection.Dispose();
+                this._connection.Dispose();
             }
         }
     }

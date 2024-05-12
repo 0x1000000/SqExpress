@@ -23,7 +23,7 @@
             this.ArrayIndex = CreateNullableInt32Column(nameof(ArrayIndex));
             this.IsTypeTag = CreateBooleanColumn(nameof(IsTypeTag));
             this.Tag = CreateStringColumn(nameof(Tag), 255);
-            this.Value = CreateNullableStringColumn(nameof(Value), null);
+            this.Value = CreateNullableStringColumn(nameof(Value), null, isText: true, isUnicode: true);
         }
 
         public readonly Int32TableColumn FavoriteFilterId;

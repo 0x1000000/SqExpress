@@ -20,8 +20,8 @@
 
   <ItemGroup>
     <PackageReference Include="AutoMapper.Data" Version="5.0.0" />
-    <PackageReference Include="MySqlConnector" Version="1.2.1" />
-    <PackageReference Include="Npgsql" Version="4.1.5" />
+    <PackageReference Include="MySqlConnector" Version="2.3.7" />
+    <PackageReference Include="Npgsql" Version="8.0.3" />
     <PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
   </ItemGroup>
 

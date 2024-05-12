@@ -7,10 +7,14 @@ using System.Linq;
 using System.Threading.Tasks;
 using CommandLine;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using MySqlConnector;
 using Npgsql;
 using SqExpress.CodeGenUtil.CodeGen;
 using SqExpress.CodeGenUtil.Logger;
 using SqExpress.DbMetadata.Internal.DbManagers;
+using SqExpress.DbMetadata.Internal.DbManagers.MsSql;
+using SqExpress.DbMetadata.Internal.DbManagers.MySql;
+using SqExpress.DbMetadata.Internal.DbManagers.PgSql;
 using SqExpress.DbMetadata.Internal.Model;
 
 namespace SqExpress.CodeGenUtil
@@ -238,7 +242,7 @@ namespace SqExpress.CodeGenUtil
                 case ConnectionType.MySql:
                     try
                     {
-                        connection = new SqlConnection(options.ConnectionString);
+                        connection = new MySqlConnection(options.ConnectionString);
                     }
                     catch (ArgumentException e)
                     {
@@ -269,7 +273,6 @@ namespace SqExpress.CodeGenUtil
                     throw new SqExpressCodeGenException("Unknown connection type: " + options.ConnectionType);
             }
         }
-
 
         private static string EnsureDirectory(string directory, ILogger logger, string dirAlias, bool create)
         {

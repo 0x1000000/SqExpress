@@ -394,7 +394,7 @@ namespace SqExpress.GetStarted
             var numbers = Values(3, 1, 1, 7, 3, 7, 3, 7, 7, 8).AsColumns(num);
             var numbersSubQuery = TableAlias();
 
-            var mostFrequentNum = (int)await
+            var mostFrequentNum = (int?)await
                 SelectTop(1, numbersSubQuery.Column(num))
                     .From(
                         Select(numbers.Column(num), CountOne().As(sum))

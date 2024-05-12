@@ -1,11 +1,12 @@
-﻿namespace SqExpress.DbMetadata.Internal.DbManagers;
-
-internal class DbManagerOptions
+﻿namespace SqExpress.DbMetadata.Internal.DbManagers
 {
-    public string TableClassPrefix { get; }
-
-    public DbManagerOptions(string tableClassPrefix)
+    internal class DbManagerOptions
     {
-        TableClassPrefix = tableClassPrefix;
+        public string TableClassPrefix { get; }
+
+        public DbManagerOptions(string tableClassPrefix)
+        {
+            TableClassPrefix = tableClassPrefix;
+        }
     }
 }
