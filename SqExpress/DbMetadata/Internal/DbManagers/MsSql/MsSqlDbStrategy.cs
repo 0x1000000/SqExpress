@@ -104,13 +104,13 @@ namespace SqExpress.DbMetadata.Internal.DbManagers.MsSql
                 case "varchar":
                     return new StringColumnType(isNullable: raw.Nullable, size: CheckSize(raw.Size), isFixed: false, isUnicode: false, isText: false);
                 case "text":
-                    return new StringColumnType(isNullable: raw.Nullable, size: CheckSize(raw.Size), isFixed: false, isUnicode: false, isText: true);
+                    return new StringColumnType(isNullable: raw.Nullable, size: null, isFixed: false, isUnicode: false, isText: true);
                 case "nchar":
                     return new StringColumnType(isNullable: raw.Nullable, size: CheckSize(raw.Size), isFixed: true, isUnicode: true, isText: false);
                 case "nvarchar":
                     return new StringColumnType(isNullable: raw.Nullable, size: CheckSize(raw.Size), isFixed: false, isUnicode: true, isText: false);
                 case "ntext":
-                    return new StringColumnType(isNullable: raw.Nullable, size: CheckSize(raw.Size), isFixed: false, isUnicode: true, isText: true);
+                    return new StringColumnType(isNullable: raw.Nullable, size: null, isFixed: false, isUnicode: true, isText: true);
                 case "binary":
                     return new ByteArrayColumnType(isNullable: raw.Nullable, size: CheckSize(raw.Size), isFixed: true);
                 case "varbinary":

@@ -45,18 +45,22 @@ You can find a realistic usage of the library in this ASP.Net demo application -
 17. [Database Data Export/Import](#database-data-export-import)
 18. [Getting and Comparing Database Table Metadata](#getting-and-comparing-database-table-metadata)
 
+### Database Table Metadata
+
+19. [Retrieving Database Table Metadata](#retrieving-database-table-metadata)
+
 ### Working with Expressions
 
-19. [Syntax Tree](#syntax-tree) (Traversal and Modification)
-20. [Serialization to XML](#serialization-to-xml)
-21. [Serialization to JSON](#serialization-to-json)
-22. [Serialization to Plain List](#serialization-to-plain-list)
+20. [Syntax Tree](#syntax-tree) (Traversal and Modification)
+21. [Serialization to XML](#serialization-to-xml)
+22. [Serialization to JSON](#serialization-to-json)
+23. [Serialization to Plain List](#serialization-to-plain-list)
 
 ### Code-generation
 
-23. [Table Descriptors Scaffolding](#table-descriptors-scaffolding)
-24. [DTOs Scaffolding](#dtos-scaffolding)
-25. [Model Selection](#model-selection)
+24. [Table Descriptors Scaffolding](#table-descriptors-scaffolding)
+25. [DTOs Scaffolding](#dtos-scaffolding)
+26. [Model Selection](#model-selection)
 
 ### Usage
 
@@ -1495,6 +1499,79 @@ await Select(tableUser.FirstName, tableUser.LastName)
             Console.WriteLine($"{tableUser.FirstName.Read(r)} {tableUser.LastName.Read(r)}");
         });
 ```
+
+## Retrieving Database Table Metadata
+
+The **SqExpreesDatabase** class includes a method called **GetTables()** that retrieves all table descriptors from a database defined in the connection string:
+
+```cs
+ISqDatabase database = ...;
+
+var allTables = await database.GetTables();
+
+foreach (var table in allTables)
+{
+    Console.WriteLine($"{table.FullName.TableName}");
+    foreach (var column in table.Columns)
+    {
+        Console.WriteLine(
+            $"   *{column.ColumnName.Name} {column.SqlType.ToSql(TSqlExporter.Default)}");
+    }
+}
+
+```
+Result:
+```
+User
+   *UserId int
+   *FirstName [nvarchar](255)
+   *LastName [nvarchar](255)
+   *Version int
+   *ModifiedAt datetime
+Customer
+   *CustomerId int
+   *UserId int
+   *CompanyId int
+
+etc...
+```
+
+*Note: The list of tables is sorted in such a way that dependent tables appear last. Therefore, if the list is reversed, tables can be safely deleted:*
+
+```cs
+var allTables = await database.GetTables();
+
+foreach (var table in allTables.Reverse())
+{
+    await database.Statement(table.Script.Drop());
+}
+```
+
+The list of tables can be compared with each other:
+
+```cs
+var declaredTables = AllTables.BuildAllTableList(SqlDialect.TSql);
+var actualTables = await database.GetTables();
+
+var comparison = declaredTables.CompareWith(actualTables);
+
+if (comparison != null)
+{
+    if (comparison.ExtraTables.Count > 0)
+    {
+        Console.WriteLine($"There are {comparison.ExtraTables.Count} extra tables");
+    }
+    if (comparison.MissedTables.Count > 0)
+    {
+        Console.WriteLine($"There are {comparison.MissedTables.Count} missed tables");
+    }
+    if (comparison.DifferentTables.Count > 0)
+    {
+        Console.WriteLine($"There are {comparison.MissedTables.Count} different tables");
+    }
+}
+```
+
 ## Table Descriptors Scaffolding
 **SqExpress** comes with the code-gen utility (it is located in the nuget package cache). It can read metadata form a database and create table descriptor classes in your code. It requires .Net Core 3.1+
 

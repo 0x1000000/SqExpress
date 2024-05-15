@@ -26,7 +26,16 @@ namespace SqExpress.Utils
 
             var keys = ExtractKeys(merge, derivedTableValues.Alias.Alias);
 
-            var exprInsertIntoTmp = TempTableData.FromDerivedTableValuesInsert(derivedTableValues, keys.SourceKeys, out var tempTable, name: tempTableName, alias: Alias.From(derivedTableValues.Alias.Alias));
+            IReadOnlyDictionary<ExprColumnName, TableColumn>? hints = ExtractHints(merge, derivedTableValues);
+
+            var exprInsertIntoTmp = TempTableData.FromDerivedTableValuesInsert(
+                derivedTableValues: derivedTableValues,
+                keys: keys.SourceKeys,
+                tempTable: out var tempTable,
+                name: tempTableName,
+                alias: Alias.From(derivedTableValues.Alias.Alias),
+                hints: hints
+            );
 
             acc.AddRange(exprInsertIntoTmp.Expressions);
 
@@ -53,6 +62,50 @@ namespace SqExpress.Utils
 
             acc.Add(new ExprStatement(tempTable.Script.Drop()));
             return new ExprList(acc);
+        }
+
+        private static IReadOnlyDictionary<ExprColumnName, TableColumn>? ExtractHints(
+            ExprMerge merge,
+            ExprDerivedTableValues derivedTableValues)
+        {
+            Dictionary<ExprColumnName, TableColumn>? result = null; 
+
+            if (merge.WhenMatched is ExprMergeMatchedUpdate mu)
+            {
+                foreach (var exprColumnSetClause in mu.Set)
+                {
+                    if (exprColumnSetClause.Column is TableColumn targetColumn && exprColumnSetClause.Value is ExprColumn col && derivedTableValues.Columns.Contains(col.ColumnName))
+                    {
+                        result ??= new();
+                        result[col] = targetColumn;
+                    }
+                }
+            }
+
+            if (merge.WhenNotMatchedByTarget is ExprExprMergeNotMatchedInsert i)
+            {
+                for (var index = 0; index < i.Columns.Count; index++)
+                {
+                    var exprColumnName = i.Columns[index];
+                    var assigning = i.Values[index];
+
+                    if (assigning is ExprColumn col && derivedTableValues.Columns.Contains(col.ColumnName))
+                    {
+                        if (merge.TargetTable is TableBase tb)
+                        {
+                            var targetColumn = tb.Columns.FirstOrDefault(x => x.ColumnName.Equals(exprColumnName));
+                            if (!ReferenceEquals(targetColumn, null))
+                            {
+                                result ??= new();
+                                result[col] = targetColumn;
+                            }
+                        }
+                    }
+
+                }
+            }
+
+            return result;
         }
 
         private static ExtractKeysResult ExtractKeys(ExprMerge merge, IExprAlias sourceAlias)

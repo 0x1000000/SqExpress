@@ -9,6 +9,7 @@ using Npgsql;
 using SqExpress.DataAccess;
 using SqExpress.IntTest.Context;
 using SqExpress.IntTest.Scenarios;
+using SqExpress.IntTest.Tables;
 using SqExpress.SqlExport;
 
 namespace SqExpress.IntTest

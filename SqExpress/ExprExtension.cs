@@ -7,6 +7,7 @@ using SqExpress.DataAccess;
 using SqExpress.QueryBuilders;
 using SqExpress.QueryBuilders.Select;
 using SqExpress.QueryBuilders.Update;
+using SqExpress.SqlExport;
 using SqExpress.Syntax;
 using SqExpress.Syntax.Select;
 using SqExpress.SyntaxTreeOperations;
@@ -109,6 +110,15 @@ namespace SqExpress
 
         public static Task Exec(this IUpdateDataBuilderFinal builder, ISqDatabase database, CancellationToken cancellationToken = default)
             => database.Exec(builder.Done(), cancellationToken);
+
+        public static string ToSql(this IExpr expr, ISqlExporter exporter) 
+            => exporter.ToSql(expr);
+
+        public static string ToSql(this IExprExecFinal expr, ISqlExporter exporter)
+            => expr.Done().ToSql(exporter);
+
+        public static string ToSql(this IExprQueryFinal expr, ISqlExporter exporter)
+            => expr.Done().ToSql(exporter);
 
         public static SyntaxTreeActions SyntaxTree(this IExpr expr)
         {

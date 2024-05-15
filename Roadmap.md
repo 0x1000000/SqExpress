@@ -31,13 +31,15 @@
 ## 0.3.1
 - [x] genmodels - model mode [immutable, mutable, record] as a parameter 
 
-## After 0.4
+## 0.4
 - [x] CTE
+
+## After 1.0
+- [x] gentables - support MYSQL and PostgreSql
 
 ## After 0.4.0
 - [ ] Table Value Functions
 - [ ] "Create If Not Exists"
 - [ ] Stored Procedures Call
-- [ ] gentables - support MYSQL and PostgreSql
 - [ ] gentables - table filters
 - [ ] genmodels - list of "using"s as a parameter

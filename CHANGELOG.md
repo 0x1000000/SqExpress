@@ -1,7 +1,7 @@
 # 1.0.0-beta
 
 ### New Features
-- Retrieving of database tables metadata + comparison (works only for MS SQL)
+- Retrieving of database tables metadata + comparison
 - **MERGE** expression builder
 
 ### Breaking Changes

@@ -32,9 +32,9 @@ namespace SqExpress.Utils
         {
         }
 
-        public static ExprList FromDerivedTableValuesInsert(ExprDerivedTableValues derivedTableValues, IReadOnlyList<ExprColumnName>? keys, out TempTableBase tempTable, Alias alias = default, string? name = null)
+        public static ExprList FromDerivedTableValuesInsert(ExprDerivedTableValues derivedTableValues, IReadOnlyList<ExprColumnName>? keys, out TempTableBase tempTable, Alias alias = default, string? name = null, IReadOnlyDictionary<ExprColumnName, TableColumn>? hints = null)
         {
-            tempTable = FromDerivedTableValues(derivedTableValues, keys, alias, name);
+            tempTable = FromDerivedTableValues(derivedTableValues, keys, alias, name, hints);
 
             var insertData = derivedTableValues.Values.Items.SelectToReadOnlyList(r => new ExprInsertValueRow(r.Items));
 
@@ -43,47 +43,78 @@ namespace SqExpress.Utils
             return new ExprList(new IExprExec[] {new ExprStatement(tempTable.Script.Create()), insert});
         }
 
-        public static TempTableData FromDerivedTableValues(ExprDerivedTableValues derivedTableValues, IReadOnlyList<ExprColumnName>? keys, Alias alias = default, string? name = null)
+        public static TempTableData FromDerivedTableValues(ExprDerivedTableValues derivedTableValues, IReadOnlyList<ExprColumnName>? keys, Alias alias = default, string? name = null, IReadOnlyDictionary<ExprColumnName, TableColumn>? hints = null)
         {
             var result = new TempTableData(string.IsNullOrEmpty(name) || name == null ? GenerateName() : name, alias);
 
             derivedTableValues.Columns.AssertNotEmpty("Columns list cannot be empty");
             derivedTableValues.Values.Items.AssertNotEmpty("Rows list cannot be empty");
 
-            TableColumn?[] tableColumns = new TableColumn?[derivedTableValues.Columns.Count];
-
-            for (var rowIndex = 0; rowIndex < derivedTableValues.Values.Items.Count; rowIndex++)
+            var tableColumns = new TableColumn?[derivedTableValues.Columns.Count];
+            HashSet<ExprColumnName>? hintedColumns = null; 
+            if (hints != null)
             {
-                var lastRow = rowIndex + 1 == derivedTableValues.Values.Items.Count;
-                var row = derivedTableValues.Values.Items[rowIndex];
-                if (row.Items.Count != derivedTableValues.Columns.Count)
+                for (var index = 0; index < derivedTableValues.Columns.Count; index++)
                 {
-                    throw new SqExpressException("Number of values in a row does not match number of columns");
-                }
-
-                for (var valueIndex = 0; valueIndex < row.Items.Count; valueIndex++)
-                {
-                    var value = row.Items[valueIndex];
-                    var previousColumn = tableColumns[valueIndex];
-                    var currentColumnName = derivedTableValues.Columns[valueIndex];
-                    var res = value.Accept(ExprValueTypeAnalyzer<TableColumn?, TempTableBuilderCtx>.Instance,
-                        new ExprValueTypeAnalyzerCtx<TableColumn?, TempTableBuilderCtx>(
-                            new TempTableBuilderCtx(
-                                currentColumnName,
-                                previousColumn,
-                                CheckIsPk(currentColumnName)),
-                            result));
-
-                    tableColumns[valueIndex] = res;
-                    if (lastRow)
+                    var derivedTableColumnName = derivedTableValues.Columns[index];
+                    if (derivedTableColumnName != null && hints.TryGetValue(derivedTableColumnName, out var targetColumn))
                     {
-                        if (ReferenceEquals(res, null))
+                        tableColumns[index] = targetColumn
+                            .WithColumnName(derivedTableColumnName)
+                            .WithTable(result)
+                            .WithColumnMeta(null);
+                        hintedColumns ??= new HashSet<ExprColumnName>();
+                        hintedColumns.Add(derivedTableColumnName);
+                    }
+                }
+            }
+
+            if (hintedColumns == null || hintedColumns.Count < tableColumns.Length)
+            {
+                for (var rowIndex = 0; rowIndex < derivedTableValues.Values.Items.Count; rowIndex++)
+                {
+                    var lastRow = rowIndex + 1 == derivedTableValues.Values.Items.Count;
+                    var row = derivedTableValues.Values.Items[rowIndex];
+                    if (row.Items.Count != derivedTableValues.Columns.Count)
+                    {
+                        throw new SqExpressException("Number of values in a row does not match number of columns");
+                    }
+
+                    for (var valueIndex = 0; valueIndex < row.Items.Count; valueIndex++)
+                    {
+                        var currentColumnName = derivedTableValues.Columns[valueIndex];
+
+                        if (hintedColumns != null && hintedColumns.Contains(currentColumnName))
                         {
-                            throw new SqExpressException($"Could not evaluate column type at {valueIndex}");
+                            break;
+                        }
+
+                        var value = row.Items[valueIndex];
+                        var previousColumn = tableColumns[valueIndex];
+                        var res = value.Accept(
+                            ExprValueTypeAnalyzer<TableColumn?, TempTableBuilderCtx>.Instance,
+                            new ExprValueTypeAnalyzerCtx<TableColumn?, TempTableBuilderCtx>(
+                                new TempTableBuilderCtx(
+                                    currentColumnName,
+                                    previousColumn,
+                                    CheckIsPk(currentColumnName)
+                                ),
+                                result
+                            )
+                        );
+
+                        tableColumns[valueIndex] = res;
+                        if (lastRow)
+                        {
+                            if (ReferenceEquals(res, null))
+                            {
+                                throw new SqExpressException($"Could not evaluate column type at {valueIndex}");
+                            }
                         }
                     }
                 }
             }
+
             result.AddColumns(tableColumns!);
 
             return result;

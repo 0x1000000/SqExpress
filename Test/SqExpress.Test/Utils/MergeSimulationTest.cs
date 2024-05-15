@@ -34,7 +34,9 @@ namespace SqExpress.Test.Utils
 
             var actualSlq = mergeExpr.ToMySql();
 
-            Assert.AreEqual("CREATE TEMPORARY TABLE `tmpMergeDataSource`(`UserId` int,`FirstName` varchar(3) character set utf8,`LastName` varchar(3) character set utf8,CONSTRAINT PRIMARY KEY (`UserId`));INSERT INTO `tmpMergeDataSource`(`UserId`,`FirstName`,`LastName`) VALUES (1,'FN1','LN1'),(2,'FN2','LN2');UPDATE `user` `A0` JOIN `tmpMergeDataSource` `A1` ON `A0`.`UserId`=`A1`.`UserId` SET `A0`.`FirstName`=`A1`.`FirstName`,`A0`.`LastName`=`A1`.`LastName`,`A0`.`Version`=`A0`.`Version`+1;INSERT INTO `user`(`UserId`,`FirstName`,`LastName`) SELECT `A1`.`UserId`,`A1`.`FirstName`,`A1`.`LastName` FROM `tmpMergeDataSource` `A1` WHERE NOT EXISTS(SELECT 1 FROM `user` `A0` WHERE `A0`.`UserId`=`A1`.`UserId`) AND `A1`.`UserId`!=2;UPDATE `user` `A0` SET `A0`.`Version`=`A0`.`Version`+2 WHERE NOT EXISTS(SELECT 1 FROM `tmpMergeDataSource` `A1` WHERE `A0`.`UserId`=`A1`.`UserId`) AND `A0`.`Version`!=0;DROP TABLE `tmpMergeDataSource`;", actualSlq);
+            var expected = "CREATE TEMPORARY TABLE `tmpMergeDataSource`(`UserId` int NOT NULL,`FirstName` varchar(255) NOT NULL,`LastName` varchar(255) NOT NULL);INSERT INTO `tmpMergeDataSource`(`UserId`,`FirstName`,`LastName`) VALUES (1,'FN1','LN1'),(2,'FN2','LN2');UPDATE `user` `A0` JOIN `tmpMergeDataSource` `A1` ON `A0`.`UserId`=`A1`.`UserId` SET `A0`.`FirstName`=`A1`.`FirstName`,`A0`.`LastName`=`A1`.`LastName`,`A0`.`Version`=`A0`.`Version`+1;INSERT INTO `user`(`UserId`,`FirstName`,`LastName`) SELECT `A1`.`UserId`,`A1`.`FirstName`,`A1`.`LastName` FROM `tmpMergeDataSource` `A1` WHERE NOT EXISTS(SELECT 1 FROM `user` `A0` WHERE `A0`.`UserId`=`A1`.`UserId`) AND `A1`.`UserId`!=2;UPDATE `user` `A0` SET `A0`.`Version`=`A0`.`Version`+2 WHERE NOT EXISTS(SELECT 1 FROM `tmpMergeDataSource` `A1` WHERE `A0`.`UserId`=`A1`.`UserId`) AND `A0`.`Version`!=0;DROP TABLE `tmpMergeDataSource`;";
+
+            Assert.AreEqual(expected, actualSlq);
         }
     }
 }

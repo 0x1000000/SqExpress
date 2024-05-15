@@ -30,7 +30,19 @@ namespace SqExpress
 
         public new BooleanTableColumn WithSource(IExprColumnSource? source) => new BooleanTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
+        public new BooleanTableColumn WithColumnName(ExprColumnName columnName) => new BooleanTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+        public new BooleanTableColumn WithTable(ExprTable table) => new BooleanTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+        public new BooleanTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new BooleanTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
 
         public override string ReadAsString(ISqDataRecordReader recordReader) 
             => this.ReadNullable(recordReader)?.ToString() 
@@ -63,7 +75,19 @@ namespace SqExpress
 
         public new NullableBooleanTableColumn WithSource(IExprColumnSource? source) => new NullableBooleanTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
+        public new NullableBooleanTableColumn WithColumnName(ExprColumnName columnName) => new NullableBooleanTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+        public new NullableBooleanTableColumn WithTable(ExprTable table) => new NullableBooleanTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+        public new NullableBooleanTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableBooleanTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
 
         public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString();
 
@@ -100,7 +124,19 @@ namespace SqExpress
 
         public new ByteTableColumn WithSource(IExprColumnSource? source) => new ByteTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
+        public new ByteTableColumn WithColumnName(ExprColumnName columnName) => new ByteTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+        public new ByteTableColumn WithTable(ExprTable table) => new ByteTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+        public new ByteTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new ByteTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
 
         public override string ReadAsString(ISqDataRecordReader recordReader)
             => this.ReadNullable(recordReader)?.ToString()
@@ -133,7 +169,19 @@ namespace SqExpress
 
         public new NullableByteTableColumn WithSource(IExprColumnSource? source) => new NullableByteTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
+        public new NullableByteTableColumn WithColumnName(ExprColumnName columnName) => new NullableByteTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+        public new NullableByteTableColumn WithTable(ExprTable table) => new NullableByteTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+        public new NullableByteTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableByteTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
 
         public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString();
 
@@ -178,6 +226,18 @@ namespace SqExpress
         public Stream? ReadNullableStream(ISqDataRecordReader recordReader) => recordReader.GetNullableStream(this.ColumnName.Name);
 
         public new ByteTableColumn WithSource(IExprColumnSource? source) => new ByteTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
+
+        public new ByteTableColumn WithColumnName(ExprColumnName columnName) => new ByteTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+        public new ByteTableColumn WithTable(ExprTable table) => new ByteTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+        public new ByteTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new ByteTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
+        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
 
@@ -229,6 +289,18 @@ namespace SqExpress
 
         public new ByteTableColumn WithSource(IExprColumnSource? source) => new ByteTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
+        public new ByteTableColumn WithColumnName(ExprColumnName columnName) => new ByteTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+        public new ByteTableColumn WithTable(ExprTable table) => new ByteTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+        public new ByteTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new ByteTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
+        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
+
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
 
         public override string? ReadAsString(ISqDataRecordReader recordReader)
@@ -278,7 +350,19 @@ namespace SqExpress
 
         public new Int16TableColumn WithSource(IExprColumnSource? source) => new Int16TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
+        public new Int16TableColumn WithColumnName(ExprColumnName columnName) => new Int16TableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+        public new Int16TableColumn WithTable(ExprTable table) => new Int16TableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+        public new Int16TableColumn WithColumnMeta(ColumnMeta? columnMeta) => new Int16TableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
 
         public override string ReadAsString(ISqDataRecordReader recordReader)
             => this.ReadNullable(recordReader)?.ToString()
@@ -311,7 +395,19 @@ namespace SqExpress
 
         public new NullableInt16TableColumn WithSource(IExprColumnSource? source) => new NullableInt16TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
+        public new NullableInt16TableColumn WithColumnName(ExprColumnName columnName) => new NullableInt16TableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+        public new NullableInt16TableColumn WithTable(ExprTable table) => new NullableInt16TableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+        public new NullableInt16TableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableInt16TableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
 
         public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString();
 
@@ -348,7 +444,19 @@ namespace SqExpress
 
         public new Int32TableColumn WithSource(IExprColumnSource? source) => new Int32TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
+        public new Int32TableColumn WithColumnName(ExprColumnName columnName) => new Int32TableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+        public new Int32TableColumn WithTable(ExprTable table) => new Int32TableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+        public new Int32TableColumn WithColumnMeta(ColumnMeta? columnMeta) => new Int32TableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
 
         public override string ReadAsString(ISqDataRecordReader recordReader)
             => this.ReadNullable(recordReader)?.ToString()
@@ -381,7 +489,19 @@ namespace SqExpress
 
         public new NullableInt32TableColumn WithSource(IExprColumnSource? source) => new NullableInt32TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
+        public new NullableInt32TableColumn WithColumnName(ExprColumnName columnName) => new NullableInt32TableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+        public new NullableInt32TableColumn WithTable(ExprTable table) => new NullableInt32TableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+        public new NullableInt32TableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableInt32TableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
 
         public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString();
 
@@ -418,7 +538,19 @@ namespace SqExpress
 
         public new Int64TableColumn WithSource(IExprColumnSource? source) => new Int64TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
+        public new Int64TableColumn WithColumnName(ExprColumnName columnName) => new Int64TableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+        public new Int64TableColumn WithTable(ExprTable table) => new Int64TableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+        public new Int64TableColumn WithColumnMeta(ColumnMeta? columnMeta) => new Int64TableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
 
         public override string ReadAsString(ISqDataRecordReader recordReader)
             => this.ReadNullable(recordReader)?.ToString()
@@ -451,7 +583,19 @@ namespace SqExpress
 
         public new NullableInt64TableColumn WithSource(IExprColumnSource? source) => new NullableInt64TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
+        public new NullableInt64TableColumn WithColumnName(ExprColumnName columnName) => new NullableInt64TableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+        public new NullableInt64TableColumn WithTable(ExprTable table) => new NullableInt64TableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+        public new NullableInt64TableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableInt64TableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
 
         public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString();
 
@@ -491,9 +635,21 @@ namespace SqExpress
         public decimal? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
             => !recordReader.IsDBNull(ordinal) ? recordReader.GetDecimal(ordinal) : null;
 
-        public new DecimalTableColumn WithSource(IExprColumnSource? source) => new DecimalTableColumn(source, this.ColumnName, this.Table,this.PrecisionScale, this.ColumnMeta);
+        public new DecimalTableColumn WithSource(IExprColumnSource? source) => new DecimalTableColumn(source, this.ColumnName, this.Table, this.PrecisionScale, this.ColumnMeta);
+
+        public new DecimalTableColumn WithColumnName(ExprColumnName columnName) => new DecimalTableColumn(this.Source, columnName, this.Table, this.PrecisionScale, this.ColumnMeta);
+
+        public new DecimalTableColumn WithTable(ExprTable table) => new DecimalTableColumn(this.Source, this.ColumnName, table, this.PrecisionScale, this.ColumnMeta);
+
+        public new DecimalTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new DecimalTableColumn(this.Source, this.ColumnName, this.Table, this.PrecisionScale, columnMeta);
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
 
         public override string ReadAsString(ISqDataRecordReader recordReader)
             => this.ReadNullable(recordReader)?.ToString("F", CultureInfo.InvariantCulture)
@@ -529,9 +685,21 @@ namespace SqExpress
         public decimal? Read(ISqDataRecordReader recordReader, int ordinal)
             => !recordReader.IsDBNull(ordinal) ? recordReader.GetDecimal(ordinal) : null;
 
-        public new NullableDecimalTableColumn WithSource(IExprColumnSource? source) => new NullableDecimalTableColumn(source, this.ColumnName, this.Table, this.PrecisionScale ,this.ColumnMeta);
+        public new NullableDecimalTableColumn WithSource(IExprColumnSource? source) => new NullableDecimalTableColumn(source, this.ColumnName, this.Table, this.PrecisionScale, this.ColumnMeta);
+
+        public new NullableDecimalTableColumn WithColumnName(ExprColumnName columnName) => new NullableDecimalTableColumn(this.Source, columnName, this.Table, this.PrecisionScale, this.ColumnMeta);
+
+        public new NullableDecimalTableColumn WithTable(ExprTable table) => new NullableDecimalTableColumn(this.Source, this.ColumnName, table, this.PrecisionScale, this.ColumnMeta);
+
+        public new NullableDecimalTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableDecimalTableColumn(this.Source, this.ColumnName, this.Table, this.PrecisionScale, columnMeta);
 
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
 
         public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString("F", CultureInfo.InvariantCulture);
 
@@ -567,7 +735,19 @@ namespace SqExpress
 
         public new DoubleTableColumn WithSource(IExprColumnSource? source) => new DoubleTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
+        public new DoubleTableColumn WithColumnName(ExprColumnName columnName) => new DoubleTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+        public new DoubleTableColumn WithTable(ExprTable table) => new DoubleTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+        public new DoubleTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new DoubleTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
 
         public override string ReadAsString(ISqDataRecordReader recordReader)
             => this.ReadNullable(recordReader)?.ToString("F", CultureInfo.InvariantCulture)
@@ -600,7 +780,19 @@ namespace SqExpress
 
         public new NullableDoubleTableColumn WithSource(IExprColumnSource? source) => new NullableDoubleTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
+        public new NullableDoubleTableColumn WithColumnName(ExprColumnName columnName) => new NullableDoubleTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+        public new NullableDoubleTableColumn WithTable(ExprTable table) => new NullableDoubleTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+        public new NullableDoubleTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableDoubleTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
 
         public override string? ReadAsString(ISqDataRecordReader recordReader)
             => this.Read(recordReader)?.ToString("F", CultureInfo.InvariantCulture);
@@ -643,7 +835,19 @@ namespace SqExpress
 
         public new DateTimeTableColumn WithSource(IExprColumnSource? source) => new DateTimeTableColumn(source, this.ColumnName, this.Table, this.IsDate, this.ColumnMeta);
 
+        public new DateTimeTableColumn WithColumnName(ExprColumnName columnName) => new DateTimeTableColumn(this.Source, columnName, this.Table, this.IsDate, this.ColumnMeta);
+
+        public new DateTimeTableColumn WithTable(ExprTable table) => new DateTimeTableColumn(this.Source, this.ColumnName, table, this.IsDate, this.ColumnMeta);
+
+        public new DateTimeTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new DateTimeTableColumn(this.Source, this.ColumnName, this.Table, this.IsDate, columnMeta);
+
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
 
         public override string ReadAsString(ISqDataRecordReader recordReader)
         {
@@ -688,7 +892,19 @@ namespace SqExpress
 
         public new NullableDateTimeTableColumn WithSource(IExprColumnSource? source) => new NullableDateTimeTableColumn(source, this.ColumnName, this.Table, this.IsDate, this.ColumnMeta);
 
+        public new NullableDateTimeTableColumn WithColumnName(ExprColumnName columnName) => new NullableDateTimeTableColumn(this.Source, columnName, this.Table, this.IsDate, this.ColumnMeta);
+
+        public new NullableDateTimeTableColumn WithTable(ExprTable table) => new NullableDateTimeTableColumn(this.Source, this.ColumnName, table, this.IsDate, this.ColumnMeta);
+
+        public new NullableDateTimeTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableDateTimeTableColumn(this.Source, this.ColumnName, this.Table, this.IsDate, columnMeta);
+
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
 
         public override string? ReadAsString(ISqDataRecordReader recordReader)
         {
@@ -729,7 +945,19 @@ namespace SqExpress
 
         public new GuidTableColumn WithSource(IExprColumnSource? source) => new GuidTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
+        public new GuidTableColumn WithColumnName(ExprColumnName columnName) => new GuidTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+        public new GuidTableColumn WithTable(ExprTable table) => new GuidTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+        public new GuidTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new GuidTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
 
         public override string ReadAsString(ISqDataRecordReader recordReader)
             => this.ReadNullable(recordReader)?.ToString("D")
@@ -762,7 +990,19 @@ namespace SqExpress
 
         public new NullableGuidTableColumn WithSource(IExprColumnSource? source) => new NullableGuidTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
+        public new NullableGuidTableColumn WithColumnName(ExprColumnName columnName) => new NullableGuidTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+        public new NullableGuidTableColumn WithTable(ExprTable table) => new NullableGuidTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+        public new NullableGuidTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableGuidTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
 
         public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString("D");
 
@@ -804,7 +1044,19 @@ namespace SqExpress
 
         public new StringTableColumn WithSource(IExprColumnSource? source) => new StringTableColumn(source, this.ColumnName, this.Table, this.SqlType, this.ColumnMeta);
 
+        public new StringTableColumn WithColumnName(ExprColumnName columnName) => new StringTableColumn(this.Source, columnName, this.Table, this.SqlType, this.ColumnMeta);
+
+        public new StringTableColumn WithTable(ExprTable table) => new StringTableColumn(this.Source, this.ColumnName, table, this.SqlType, this.ColumnMeta);
+
+        public new StringTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new StringTableColumn(this.Source, this.ColumnName, this.Table, this.SqlType, columnMeta);
+
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
 
         public override string ReadAsString(ISqDataRecordReader recordReader)
             => this.ReadNullable(recordReader)
@@ -849,7 +1101,19 @@ namespace SqExpress
 
         public new NullableStringTableColumn WithSource(IExprColumnSource? source) => new NullableStringTableColumn(source, this.ColumnName, this.Table, this.SqlType, this.ColumnMeta);
 
+        public new NullableStringTableColumn WithColumnName(ExprColumnName columnName) => new NullableStringTableColumn(this.Source, columnName, this.Table, this.SqlType, this.ColumnMeta);
+
+        public new NullableStringTableColumn WithTable(ExprTable table) => new NullableStringTableColumn(this.Source, this.ColumnName, table, this.SqlType, this.ColumnMeta);
+
+        public new NullableStringTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableStringTableColumn(this.Source, this.ColumnName, this.Table, this.SqlType, columnMeta);
+
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
 
         public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader);
 
@@ -886,7 +1150,19 @@ namespace SqExpress
 
         public new DateTimeOffsetTableColumn WithSource(IExprColumnSource? source) => new DateTimeOffsetTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
+        public new DateTimeOffsetTableColumn WithColumnName(ExprColumnName columnName) => new DateTimeOffsetTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+        public new DateTimeOffsetTableColumn WithTable(ExprTable table) => new DateTimeOffsetTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+        public new DateTimeOffsetTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new DateTimeOffsetTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
 
         public override string ReadAsString(ISqDataRecordReader recordReader)
         {
@@ -928,7 +1204,19 @@ namespace SqExpress
 
         public new NullableDateTimeOffsetTableColumn WithSource(IExprColumnSource? source) => new NullableDateTimeOffsetTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
+        public new NullableDateTimeOffsetTableColumn WithColumnName(ExprColumnName columnName) => new NullableDateTimeOffsetTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+        public new NullableDateTimeOffsetTableColumn WithTable(ExprTable table) => new NullableDateTimeOffsetTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+        public new NullableDateTimeOffsetTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableDateTimeOffsetTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
         protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
 
         public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString("O");
 

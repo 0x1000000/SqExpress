@@ -5,21 +5,14 @@ namespace SqExpress.Test
 {
     public static class Ext
     {
-        public static string ToSql(this IExpr expr)
-        {
-            return TSqlExporter.Default.ToSql(expr);
-        }
+        public static string ToSql(this IExpr expr) => expr.ToSql(TSqlExporter.Default);
 
         public static string ToPgSql(this IExpr expr)
         {
-            return new PgSqlExporter(SqlBuilderOptions.Default.WithSchemaMap(new[] {new SchemaMap("dbo", "public")}))
-                .ToSql(expr);
+            var pgSqlExporter = new PgSqlExporter(SqlBuilderOptions.Default.WithSchemaMap(new []{new SchemaMap("dbo", "public")}));
+            return expr.ToSql(pgSqlExporter);
         }
 
-        public static string ToMySql(this IExpr expr)
-        {
-            return new MySqlExporter(SqlBuilderOptions.Default)
-                .ToSql(expr);
-        }
+        public static string ToMySql(this IExpr expr) => expr.ToSql(MySqlExporter.Default);
     }
 }
