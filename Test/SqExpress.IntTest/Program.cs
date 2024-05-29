@@ -52,6 +52,7 @@ namespace SqExpress.IntTest
                        .Then(new ScCteCross())
                        .Then(new ScTreeClosure())
                        .Then(new ScBitwise())
+                       .Then(new ScJsonTableFunction())
                        .Then(new ScGetTables())
                     ;
 

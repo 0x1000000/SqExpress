@@ -12,7 +12,7 @@
   <ItemGroup>
     <PackageReference Include="MySqlConnector" Version="2.3.7" />
     <PackageReference Include="Npgsql" Version="8.0.3" />
-    <PackageReference Include="SqExpress" Version="1.0.0-beta" />
+    <PackageReference Include="SqExpress" Version="1.0.0-beta2" />
     <PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
   </ItemGroup>
 </Project>

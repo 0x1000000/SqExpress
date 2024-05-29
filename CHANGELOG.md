@@ -3,6 +3,7 @@
 ### New Features
 - Retrieving of database tables metadata + comparison
 - **MERGE** expression builder
+- Table Value Functions
 
 ### Breaking Changes
 - Values Constructor in MYSQL now is implemented through **UNION ALL** 

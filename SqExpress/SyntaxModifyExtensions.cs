@@ -151,6 +151,12 @@ namespace SqExpress
         public static ExprAliasedSelecting WithAlias(this ExprAliasedSelecting original, ExprColumnAlias newAlias) 
             => new ExprAliasedSelecting(value: original.Value, alias: newAlias);
 
+        public static ExprAliasedTableFunction WithFunction(this ExprAliasedTableFunction original, ExprTableFunction newFunction) 
+            => new ExprAliasedTableFunction(function: newFunction, alias: original.Alias);
+
+        public static ExprAliasedTableFunction WithAlias(this ExprAliasedTableFunction original, ExprTableAlias newAlias) 
+            => new ExprAliasedTableFunction(function: original.Function, alias: newAlias);
+
         public static ExprAllColumns WithSource(this ExprAllColumns original, IExprColumnSource? newSource) 
             => new ExprAllColumns(source: newSource);
 
@@ -475,6 +481,15 @@ namespace SqExpress
         public static ExprJoinedTable WithJoinType(this ExprJoinedTable original, ExprJoinedTable.ExprJoinType newJoinType) 
             => new ExprJoinedTable(left: original.Left, right: original.Right, searchCondition: original.SearchCondition, joinType: newJoinType);
 
+        public static ExprLateralCrossedTable WithLeft(this ExprLateralCrossedTable original, IExprTableSource newLeft) 
+            => new ExprLateralCrossedTable(left: newLeft, right: original.Right, outer: original.Outer);
+
+        public static ExprLateralCrossedTable WithRight(this ExprLateralCrossedTable original, IExprTableSource newRight) 
+            => new ExprLateralCrossedTable(left: original.Left, right: newRight, outer: original.Outer);
+
+        public static ExprLateralCrossedTable WithOuter(this ExprLateralCrossedTable original, Boolean newOuter) 
+            => new ExprLateralCrossedTable(left: original.Left, right: original.Right, outer: newOuter);
+
         public static ExprLike WithTest(this ExprLike original, ExprValue newTest) 
             => new ExprLike(test: newTest, pattern: original.Pattern);
 
@@ -679,6 +694,15 @@ namespace SqExpress
         public static ExprTableFullName WithTableName(this ExprTableFullName original, ExprTableName newTableName) 
             => new ExprTableFullName(dbSchema: original.DbSchema, tableName: newTableName);
 
+        public static ExprTableFunction WithSchema(this ExprTableFunction original, ExprDbSchema? newSchema) 
+            => new ExprTableFunction(schema: newSchema, name: original.Name, arguments: original.Arguments);
+
+        public static ExprTableFunction WithName(this ExprTableFunction original, ExprFunctionName newName) 
+            => new ExprTableFunction(schema: original.Schema, name: newName, arguments: original.Arguments);
+
+        public static ExprTableFunction WithArguments(this ExprTableFunction original, IReadOnlyList<ExprValue>? newArguments) 
+            => new ExprTableFunction(schema: original.Schema, name: original.Name, arguments: newArguments);
+
         public static ExprTableName WithName(this ExprTableName original, String newName) 
             => new ExprTableName(name: newName);
 
@@ -717,9 +741,6 @@ namespace SqExpress
 
         public static ExprUnboundedFrameBorder WithFrameBorderDirection(this ExprUnboundedFrameBorder original, FrameBorderDirection newFrameBorderDirection) 
             => new ExprUnboundedFrameBorder(frameBorderDirection: newFrameBorderDirection);
-
-        public static ExprUnsafeQuery WithRawQuery(this ExprUnsafeQuery original, String newRawQuery) 
-            => new ExprUnsafeQuery(rawQuery: newRawQuery);
 
         public static ExprUnsafeValue WithUnsafeValue(this ExprUnsafeValue original, String newUnsafeValue) 
             => new ExprUnsafeValue(unsafeValue: newUnsafeValue);

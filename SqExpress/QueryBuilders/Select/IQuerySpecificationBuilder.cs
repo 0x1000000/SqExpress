@@ -23,6 +23,10 @@ namespace SqExpress.QueryBuilders.Select
 
         IQuerySpecificationBuilderJoin CrossJoin(IExprTableSource join);
 
+        IQuerySpecificationBuilderJoin CrossApply(IExprTableSource join);
+
+        IQuerySpecificationBuilderJoin OuterApply(IExprTableSource join);
+
         IQuerySpecificationBuilderFiltered Where(ExprBoolean? where);
     }
 

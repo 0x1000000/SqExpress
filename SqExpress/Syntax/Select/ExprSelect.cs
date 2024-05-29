@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace SqExpress.Syntax.Select
 {
@@ -19,26 +18,5 @@ namespace SqExpress.Syntax.Select
             => visitor.VisitExprSelect(this, arg);
 
         public IReadOnlyList<string?> GetOutputColumnNames() => this.SelectQuery.GetOutputColumnNames();
-    }
-
-
-    public class ExprUnsafeQuery : IExprSubQuery, IExprQuery
-    {
-        public ExprUnsafeQuery(string rawQuery)
-        {
-            this.RawQuery = rawQuery;
-        }
-
-        public string RawQuery { get; }
-
-        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
-        {
-            return visitor.VisitExprUnsafeQuery(this, arg);
-        }
-
-        public IReadOnlyList<string?> GetOutputColumnNames()
-        {
-            return Array.Empty<string?>();
-        }
     }
 }

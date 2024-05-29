@@ -87,6 +87,7 @@ namespace SqExpress.SyntaxTreeOperations
                 case "AliasedColumn": return new ExprAliasedColumn(column: GetSubNode<TNode, ExprColumn>(rootElement, reader, "Column"), alias: GetNullableSubNode<TNode, ExprColumnAlias>(rootElement, reader, "Alias"));
                 case "AliasedColumnName": return new ExprAliasedColumnName(column: GetSubNode<TNode, ExprColumnName>(rootElement, reader, "Column"), alias: GetNullableSubNode<TNode, ExprColumnAlias>(rootElement, reader, "Alias"));
                 case "AliasedSelecting": return new ExprAliasedSelecting(value: GetSubNode<TNode, IExprSelecting>(rootElement, reader, "Value"), alias: GetSubNode<TNode, ExprColumnAlias>(rootElement, reader, "Alias"));
+                case "AliasedTableFunction": return new ExprAliasedTableFunction(function: GetSubNode<TNode, ExprTableFunction>(rootElement, reader, "Function"), alias: GetSubNode<TNode, ExprTableAlias>(rootElement, reader, "Alias"));
                 case "AllColumns": return new ExprAllColumns(source: GetNullableSubNode<TNode, IExprColumnSource>(rootElement, reader, "Source"));
                 case "AnalyticFunction": return new ExprAnalyticFunction(name: GetSubNode<TNode, ExprFunctionName>(rootElement, reader, "Name"), arguments: GetNullableSubNodeList<TNode, ExprValue>(rootElement, reader, "Arguments"), over: GetSubNode<TNode, ExprOver>(rootElement, reader, "Over"));
                 case "BitwiseAnd": return new ExprBitwiseAnd(left: GetSubNode<TNode, ExprValue>(rootElement, reader, "Left"), right: GetSubNode<TNode, ExprValue>(rootElement, reader, "Right"));
@@ -155,6 +156,7 @@ namespace SqExpress.SyntaxTreeOperations
                 case "Int64Literal": return new ExprInt64Literal(value: ReadNullableInt64(rootElement, reader, "Value"));
                 case "IsNull": return new ExprIsNull(test: GetSubNode<TNode, ExprValue>(rootElement, reader, "Test"), not: ReadBoolean(rootElement, reader, "Not"));
                 case "JoinedTable": return new ExprJoinedTable(left: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Left"), right: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Right"), searchCondition: GetSubNode<TNode, ExprBoolean>(rootElement, reader, "SearchCondition"), joinType: ReadExprJoinType(rootElement, reader, "JoinType"));
+                case "LateralCrossedTable": return new ExprLateralCrossedTable(left: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Left"), right: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Right"), outer: ReadBoolean(rootElement, reader, "Outer"));
                 case "Like": return new ExprLike(test: GetSubNode<TNode, ExprValue>(rootElement, reader, "Test"), pattern: GetSubNode<TNode, ExprStringLiteral>(rootElement, reader, "Pattern"));
                 case "List": return new ExprList(expressions: GetSubNodeList<TNode, IExprExec>(rootElement, reader, "Expressions"));
                 case "Merge": return new ExprMerge(targetTable: GetSubNode<TNode, ExprTable>(rootElement, reader, "TargetTable"), source: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Source"), on: GetSubNode<TNode, ExprBoolean>(rootElement, reader, "On"), whenMatched: GetNullableSubNode<TNode, IExprMergeMatched>(rootElement, reader, "WhenMatched"), whenNotMatchedByTarget: GetNullableSubNode<TNode, IExprMergeNotMatched>(rootElement, reader, "WhenNotMatchedByTarget"), whenNotMatchedBySource: GetNullableSubNode<TNode, IExprMergeMatched>(rootElement, reader, "WhenNotMatchedBySource"));
@@ -188,6 +190,7 @@ namespace SqExpress.SyntaxTreeOperations
                 case "Table": return new ExprTable(fullName: GetSubNode<TNode, IExprTableFullName>(rootElement, reader, "FullName"), alias: GetNullableSubNode<TNode, ExprTableAlias>(rootElement, reader, "Alias"));
                 case "TableAlias": return new ExprTableAlias(alias: GetSubNode<TNode, IExprAlias>(rootElement, reader, "Alias"));
                 case "TableFullName": return new ExprTableFullName(dbSchema: GetNullableSubNode<TNode, ExprDbSchema>(rootElement, reader, "DbSchema"), tableName: GetSubNode<TNode, ExprTableName>(rootElement, reader, "TableName"));
+                case "TableFunction": return new ExprTableFunction(schema: GetNullableSubNode<TNode, ExprDbSchema>(rootElement, reader, "Schema"), name: GetSubNode<TNode, ExprFunctionName>(rootElement, reader, "Name"), arguments: GetNullableSubNodeList<TNode, ExprValue>(rootElement, reader, "Arguments"));
                 case "TableName": return new ExprTableName(name: ReadString(rootElement, reader, "Name"));
                 case "TableValueConstructor": return new ExprTableValueConstructor(items: GetSubNodeList<TNode, ExprValueRow>(rootElement, reader, "Items"));
                 case "TempTableName": return new ExprTempTableName(name: ReadString(rootElement, reader, "Name"));
@@ -207,7 +210,6 @@ namespace SqExpress.SyntaxTreeOperations
                 case "TypeString": return new ExprTypeString(size: ReadNullableInt32(rootElement, reader, "Size"), isUnicode: ReadBoolean(rootElement, reader, "IsUnicode"), isText: ReadBoolean(rootElement, reader, "IsText"));
                 case "TypeXml": return ExprTypeXml.Instance;
                 case "UnboundedFrameBorder": return new ExprUnboundedFrameBorder(frameBorderDirection: ReadFrameBorderDirection(rootElement, reader, "FrameBorderDirection"));
-                case "UnsafeQuery": return new ExprUnsafeQuery(rawQuery: ReadString(rootElement, reader, "RawQuery"));
                 case "UnsafeValue": return new ExprUnsafeValue(unsafeValue: ReadString(rootElement, reader, "UnsafeValue"));
                 case "Update": return new ExprUpdate(target: GetSubNode<TNode, ExprTable>(rootElement, reader, "Target"), setClause: GetSubNodeList<TNode, ExprColumnSetClause>(rootElement, reader, "SetClause"), source: GetNullableSubNode<TNode, IExprTableSource>(rootElement, reader, "Source"), filter: GetNullableSubNode<TNode, ExprBoolean>(rootElement, reader, "Filter"));
                 case "ValueFrameBorder": return new ExprValueFrameBorder(value: GetSubNode<TNode, ExprValue>(rootElement, reader, "Value"), frameBorderDirection: ReadFrameBorderDirection(rootElement, reader, "FrameBorderDirection"));

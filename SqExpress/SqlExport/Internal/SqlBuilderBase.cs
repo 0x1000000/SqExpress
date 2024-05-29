@@ -593,6 +593,8 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public abstract bool VisitExprLateralCrossedTable(ExprLateralCrossedTable exprCrossedTable, IExpr? parent);
+
         public bool VisitExprQueryExpression(ExprQueryExpression exprQueryExpression, IExpr? parent)
         {
             this.AddCteSlot(parent);
@@ -708,12 +710,6 @@ namespace SqExpress.SqlExport.Internal
 
         public abstract bool VisitExprOffsetFetch(ExprOffsetFetch exprOffsetFetch, IExpr? parent);
 
-        public bool VisitExprUnsafeQuery(ExprUnsafeQuery exprUnsafeQuery, IExpr? parent)
-        {
-            this.Builder.Append(exprUnsafeQuery.RawQuery);
-            return true;
-        }
-
         protected bool VisitExprOffsetFetchCommon(ExprOffsetFetch exprOffsetFetch, IExpr? parent)
         {
             this.Builder.Append(" OFFSET ");
@@ -810,6 +806,42 @@ namespace SqExpress.SqlExport.Internal
                 this.Builder.Append(')');
             }
             
+            return true;
+        }
+
+
+        public bool VisitExprTableFunction(ExprTableFunction exprTableFunction, IExpr? arg)
+        {
+            if (exprTableFunction.Schema != null)
+            {
+                if (exprTableFunction.Schema.Accept(this, exprTableFunction))
+                {
+                    this.Builder.Append('.');
+                }
+            }
+
+            exprTableFunction.Name.Accept(this, exprTableFunction);
+
+            if (exprTableFunction.Arguments != null)
+            {
+                this.AssertNotEmptyList(exprTableFunction.Arguments, "Argument list cannot be empty");
+                this.AcceptListComaSeparatedPar('(', exprTableFunction.Arguments, ')', exprTableFunction);
+            }
+            else
+            {
+                this.Builder.Append('(');
+                this.Builder.Append(')');
+            }
+
+            return true;
+        }
+
+        public bool VisitExprAliasedTableFunction(ExprAliasedTableFunction exprTableFunction, IExpr? arg)
+        {
+            exprTableFunction.Function.Accept(this, exprTableFunction);
+            this.Builder.Append(' ');
+            exprTableFunction.Alias.Accept(this, exprTableFunction);
+
             return true;
         }
 

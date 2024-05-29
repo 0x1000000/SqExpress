@@ -102,6 +102,14 @@ namespace SqExpress.SqlExport.Internal
             top.Accept(this, parent);
         }
 
+        public override bool VisitExprLateralCrossedTable(ExprLateralCrossedTable exprCrossedTable, IExpr? parent)
+        {
+            exprCrossedTable.Left.Accept(this, exprCrossedTable);
+            this.Builder.Append(exprCrossedTable.Outer ? " LEFT JOIN LATERAL" : " CROSS JOIN LATERAL ");
+            exprCrossedTable.Right.Accept(this, exprCrossedTable);
+            return true;
+        }
+
         protected override bool ForceParenthesesForQueryExpressionPart(IExprSubQuery subQuery)
         {
             return subQuery switch

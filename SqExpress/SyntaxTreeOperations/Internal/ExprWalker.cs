@@ -243,6 +243,17 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             this.EndVisit(expr, argOut.Context);
             return res && walkResult != WalkResult.Stop;
         }
+        public bool VisitExprAliasedTableFunction(ExprAliasedTableFunction expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "AliasedTableFunction", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("Function",expr.Function, argOut) && this.Accept("Alias",expr.Alias, argOut);
+            }
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
         public bool VisitExprAllColumns(ExprAllColumns expr, WalkerContext<TCtx> arg)
         {
             var res = true;
@@ -875,6 +886,18 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             this.EndVisit(expr, argOut.Context);
             return res && walkResult != WalkResult.Stop;
         }
+        public bool VisitExprLateralCrossedTable(ExprLateralCrossedTable expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "LateralCrossedTable", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("Left",expr.Left, argOut) && this.Accept("Right",expr.Right, argOut);
+            }
+            this.VisitPlainProperty("Outer",expr.Outer, argOut.Context);
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
         public bool VisitExprLike(ExprLike expr, WalkerContext<TCtx> arg)
         {
             var res = true;
@@ -1228,6 +1251,17 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             this.EndVisit(expr, argOut.Context);
             return res && walkResult != WalkResult.Stop;
         }
+        public bool VisitExprTableFunction(ExprTableFunction expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "TableFunction", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("Schema",expr.Schema, argOut) && this.Accept("Name",expr.Name, argOut) && this.Accept("Arguments",expr.Arguments, argOut);
+            }
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
         public bool VisitExprTableName(ExprTableName expr, WalkerContext<TCtx> arg)
         {
             var walkResult = this.Visit(expr, "TableName", arg, out var argOut);
@@ -1356,13 +1390,6 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         {
             var walkResult = this.Visit(expr, "UnboundedFrameBorder", arg, out var argOut);
             this.VisitPlainProperty("FrameBorderDirection",expr.FrameBorderDirection, argOut.Context);
-            this.EndVisit(expr, argOut.Context);
-            return walkResult != WalkResult.Stop;
-        }
-        public bool VisitExprUnsafeQuery(ExprUnsafeQuery expr, WalkerContext<TCtx> arg)
-        {
-            var walkResult = this.Visit(expr, "UnsafeQuery", arg, out var argOut);
-            this.VisitPlainProperty("RawQuery",expr.RawQuery, argOut.Context);
             this.EndVisit(expr, argOut.Context);
             return walkResult != WalkResult.Stop;
         }

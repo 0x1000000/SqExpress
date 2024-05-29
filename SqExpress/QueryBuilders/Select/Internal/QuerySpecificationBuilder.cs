@@ -64,6 +64,18 @@ namespace SqExpress.QueryBuilders.Select.Internal
             return this;
         }
 
+        public IQuerySpecificationBuilderJoin CrossApply(IExprTableSource join)
+        {
+            this._from = new ExprLateralCrossedTable(this._from.AssertFatalNotNull(nameof(this._from)), join, false);
+            return this;
+        }
+
+        public IQuerySpecificationBuilderJoin OuterApply(IExprTableSource join)
+        {
+            this._from = new ExprLateralCrossedTable(this._from.AssertFatalNotNull(nameof(this._from)), join, true);
+            return this;
+        }
+
         public IQuerySpecificationBuilderFiltered Where(ExprBoolean? where)
         {
             this._where.AssertFatalNull(nameof(this._where));

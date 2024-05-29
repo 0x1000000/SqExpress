@@ -12,6 +12,11 @@ public static class TableComparisonExtension
 {
     public static TableListComparison? CompareWith(this IReadOnlyList<TableBase> thisList, IReadOnlyList<TableBase> otherList, Func<IExprTableFullName, object>? tableNameKeyExtractor = null)
     {
+        if (otherList.Count < 1)
+        {
+            return thisList.Count < 1 ? null : new TableListComparison(thisList, Array.Empty<TableBase>(), Array.Empty<DifferentTables>());
+        }
+
         tableNameKeyExtractor ??= name => name.AsExprTableFullName();
 
         var thisTables = thisList.ToDictionary(c => tableNameKeyExtractor(c.FullName), c => c);

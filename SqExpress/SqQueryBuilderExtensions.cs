@@ -6,6 +6,7 @@ using SqExpress.QueryBuilders.Select;
 using SqExpress.StatementSyntax;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Boolean.Predicate;
+using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Select.SelectItems;
@@ -36,6 +37,9 @@ namespace SqExpress
         public static ExprDerivedTableValues As(this ExprTableValueConstructor valueConstructor, Alias alias, params ExprColumnName[] columns)
             => new ExprDerivedTableValues(valueConstructor, new ExprTableAlias(alias.BuildAliasExpression() ?? throw new SqExpressException("Derived Table Values has to have not empty alias")), columns);
 
+        public static ExprAliasedTableFunction As(this ExprTableFunction tableFunction, ExprTableAlias alias)
+            => new ExprAliasedTableFunction(tableFunction, alias);
+
         public static ExprDerivedTableValues AsColumns(this ExprTableValueConstructor valueConstructor, params ExprColumnName[] columns)
             => new ExprDerivedTableValues(valueConstructor, new ExprTableAlias(Alias.Auto.BuildAliasExpression() ?? throw new SqExpressException("Derived Table Values has to have not empty alias")), columns);
 
@@ -48,6 +52,9 @@ namespace SqExpress
         public static ExprColumn Column(this ExprTable table, ExprColumnName columnName)
             => table.Alias != null ? table.Alias.Column(columnName) : new ExprColumn(table.FullName, columnName);
 
+        public static ExprColumn Column(this ExprAliasedTableFunction table, ExprColumnName columnName)
+            => table.Alias.Column(columnName);
+
         public static ExprAllColumns AllColumns(this IExprColumnSource columnSource)
             => new ExprAllColumns(columnSource);
 
@@ -56,6 +63,9 @@ namespace SqExpress
 
         public static ExprAllColumns AllColumns(this ExprTable table)
             => table.Alias != null ? table.Alias.AllColumns() : new ExprAllColumns(table.FullName);
+
+        public static ExprAllColumns AllColumns(this ExprAliasedTableFunction table)
+            => table.Alias.AllColumns();
 
         public static ExprInValues In(this ExprColumn column, ExprValue value, params ExprValue[] rest)
             => new ExprInValues(column, Helpers.Combine(value, rest));

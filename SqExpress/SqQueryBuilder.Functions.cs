@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
 using SqExpress.Syntax.Names;
@@ -42,6 +43,24 @@ namespace SqExpress
 
         public static ExprScalarFunction ScalarFunctionDbCustom(string databaseName, string schemaName, string name, ExprValue argument1, params ExprValue[] rest)
             =>new ExprScalarFunction(new ExprDbSchema(new ExprDatabaseName(databaseName), new ExprSchemaName(schemaName)), new ExprFunctionName(false, name), Helpers.Combine(argument1, rest));
+
+        public static ExprTableFunction TableFunctionSys(string name, IReadOnlyList<ExprValue>? arguments = null)
+            =>new ExprTableFunction(null, new ExprFunctionName(true, name), arguments);
+
+        public static ExprTableFunction TableFunctionSys(string name, ExprValue argument1, params ExprValue[] rest)
+            =>new ExprTableFunction(null, new ExprFunctionName(true, name), Helpers.Combine(argument1, rest));
+
+        public static ExprTableFunction TableFunctionCustom(string schemaName, string name, IReadOnlyList<ExprValue>? arguments = null)
+            =>new ExprTableFunction(new ExprDbSchema(null, new ExprSchemaName(schemaName)), new ExprFunctionName(false, name), arguments);
+
+        public static ExprTableFunction TableFunctionCustom(string schemaName, string name, ExprValue argument1, params ExprValue[] rest)
+            =>new ExprTableFunction(new ExprDbSchema(null, new ExprSchemaName(schemaName)), new ExprFunctionName(false, name), Helpers.Combine(argument1, rest));
+
+        public static ExprTableFunction TableFunctionDbCustom(string databaseName, string schemaName, string name, IReadOnlyList<ExprValue>? arguments = null)
+            =>new ExprTableFunction(new ExprDbSchema(new ExprDatabaseName(databaseName), new ExprSchemaName(schemaName)), new ExprFunctionName(false, name), arguments);
+
+        public static ExprTableFunction TableFunctionDbCustom(string databaseName, string schemaName, string name, ExprValue argument1, params ExprValue[] rest)
+            =>new ExprTableFunction(new ExprDbSchema(new ExprDatabaseName(databaseName), new ExprSchemaName(schemaName)), new ExprFunctionName(false, name), Helpers.Combine(argument1, rest));
 
         //Known agg and analytic functions
 

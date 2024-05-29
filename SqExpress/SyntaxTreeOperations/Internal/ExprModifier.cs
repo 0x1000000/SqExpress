@@ -209,6 +209,16 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprAliasedTableFunction(ExprAliasedTableFunction exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newFunction = this.AcceptItem(exprIn.Function, modifier);
+            var newAlias = this.AcceptItem(exprIn.Alias, modifier);
+            if(!ReferenceEquals(exprIn.Function, newFunction) || !ReferenceEquals(exprIn.Alias, newAlias))
+            {
+                exprIn = new ExprAliasedTableFunction(function: newFunction, alias: newAlias);
+            }
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprAllColumns(ExprAllColumns exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newSource = this.AcceptNullableItem(exprIn.Source, modifier);
@@ -734,6 +744,16 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprLateralCrossedTable(ExprLateralCrossedTable exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newLeft = this.AcceptItem(exprIn.Left, modifier);
+            var newRight = this.AcceptItem(exprIn.Right, modifier);
+            if(!ReferenceEquals(exprIn.Left, newLeft) || !ReferenceEquals(exprIn.Right, newRight))
+            {
+                exprIn = new ExprLateralCrossedTable(left: newLeft, right: newRight, outer: exprIn.Outer);
+            }
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprLike(ExprLike exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newTest = this.AcceptItem(exprIn.Test, modifier);
@@ -1049,6 +1069,17 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprTableFunction(ExprTableFunction exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newSchema = this.AcceptNullableItem(exprIn.Schema, modifier);
+            var newName = this.AcceptItem(exprIn.Name, modifier);
+            var newArguments = this.AcceptNullCollection(exprIn.Arguments, modifier);
+            if(!ReferenceEquals(exprIn.Schema, newSchema) || !ReferenceEquals(exprIn.Name, newName) || !ReferenceEquals(exprIn.Arguments, newArguments))
+            {
+                exprIn = new ExprTableFunction(schema: newSchema, name: newName, arguments: newArguments);
+            }
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprTableName(ExprTableName exprIn, Func<IExpr, IExpr?> modifier)
         {
             return modifier.Invoke(exprIn);
@@ -1127,10 +1158,6 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             return modifier.Invoke(exprIn);
         }
         public IExpr? VisitExprUnboundedFrameBorder(ExprUnboundedFrameBorder exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-        public IExpr? VisitExprUnsafeQuery(ExprUnsafeQuery exprIn, Func<IExpr, IExpr?> modifier)
         {
             return modifier.Invoke(exprIn);
         }

@@ -58,6 +58,8 @@ namespace SqExpress.Syntax
 
         TRes VisitExprCrossedTable(ExprCrossedTable exprCrossedTable, TArg arg);
 
+        TRes VisitExprLateralCrossedTable(ExprLateralCrossedTable exprCrossedTable, TArg arg);
+
         TRes VisitExprQueryExpression(ExprQueryExpression exprQueryExpression, TArg arg);
 
         TRes VisitExprSelect(ExprSelect exprSelect, TArg arg);
@@ -71,8 +73,6 @@ namespace SqExpress.Syntax
         TRes VisitExprOrderByItem(ExprOrderByItem exprOrderByItem, TArg arg);
 
         TRes VisitExprOffsetFetch(ExprOffsetFetch exprOffsetFetch, TArg arg);
-
-        TRes VisitExprUnsafeQuery(ExprUnsafeQuery exprUnsafeQuery, TArg arg);
 
         //Select Output
         TRes VisitExprOutputColumnInserted(ExprOutputColumnInserted exprOutputColumnInserted, TArg arg);
@@ -144,6 +144,10 @@ namespace SqExpress.Syntax
         TRes VisitExprDerivedTableValues(ExprDerivedTableValues derivedTableValues, TArg arg);
 
         TRes VisitExprCteQuery(ExprCteQuery exprCte, TArg arg);
+
+        TRes VisitExprTableFunction(ExprTableFunction exprTableFunction, TArg arg);
+
+        TRes VisitExprAliasedTableFunction(ExprAliasedTableFunction exprTableFunction, TArg arg);
 
         TRes VisitExprColumnSetClause(ExprColumnSetClause columnSetClause, TArg arg);
 

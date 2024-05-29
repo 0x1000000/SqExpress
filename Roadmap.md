@@ -36,9 +36,9 @@
 
 ## After 1.0
 - [x] gentables - support MYSQL and PostgreSql
+- [x] Table Value Functions
 
-## After 0.4.0
-- [ ] Table Value Functions
+## After 1.0
 - [ ] "Create If Not Exists"
 - [ ] Stored Procedures Call
 - [ ] gentables - table filters

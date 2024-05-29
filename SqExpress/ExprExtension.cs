@@ -8,6 +8,7 @@ using SqExpress.QueryBuilders;
 using SqExpress.QueryBuilders.Select;
 using SqExpress.QueryBuilders.Update;
 using SqExpress.SqlExport;
+using SqExpress.StatementSyntax;
 using SqExpress.Syntax;
 using SqExpress.Syntax.Select;
 using SqExpress.SyntaxTreeOperations;
@@ -119,6 +120,9 @@ namespace SqExpress
 
         public static string ToSql(this IExprQueryFinal expr, ISqlExporter exporter)
             => expr.Done().ToSql(exporter);
+
+        public static string ToSql(this IStatement expr, ISqlExporter exporter)
+            => exporter.ToSql(expr);
 
         public static SyntaxTreeActions SyntaxTree(this IExpr expr)
         {
