@@ -1,6 +1,10 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using NUnit.Framework;
+using SqExpress.Syntax.Boolean;
+using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Names;
+using SqExpress.Syntax.Value;
 
 namespace SqExpress.Test.Syntax.Boolean
 {
@@ -28,13 +32,27 @@ namespace SqExpress.Test.Syntax.Boolean
             Assert.AreEqual("[C1]!=[C2]", (c1!=c2).ToSql());
         }
 
+        [Test]
+        public void TestNull()
+        {
+            var p1 = SqQueryBuilder.Literal(1) == 2;
+            ExprBoolean? p2 = null;
+
+            Assert.AreEqual(p1, p1 & p2);
+            Assert.AreEqual(p1, p2 & p1);
+
+            Assert.AreEqual(p1, p1 | p2);
+            Assert.AreEqual(p1, p2 | p1);
+
+            Assert.IsNull(p2 & p2);
+            Assert.IsNull(p2 | p2);
+        }
+
 
         [Test]
         public void NotTest_Predicate()
         {
             var c1 = new ExprColumn(null, new ExprColumnName("C1"));
-
-            var a = (!(c1 == 7)).ToSql();
 
             Assert.AreEqual("NOT [C1]=7", (!(c1 == 7)).ToSql());
             Assert.AreEqual("NOT [C1]=7 AND NOT [C1]=3", (!(c1 == 7) & !(c1==3)).ToSql());
