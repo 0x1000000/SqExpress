@@ -62,6 +62,22 @@ namespace SqExpress
         public static ExprTableFunction TableFunctionDbCustom(string databaseName, string schemaName, string name, ExprValue argument1, params ExprValue[] rest)
             =>new ExprTableFunction(new ExprDbSchema(new ExprDatabaseName(databaseName), new ExprSchemaName(schemaName)), new ExprFunctionName(false, name), Helpers.Combine(argument1, rest));
 
+        public static ExprAggregateOverFunction Over(this ExprAggregateFunction function)
+            => new ExprAggregateOverFunction(function, new ExprOver(null, null, null));
+
+        public static ExprAggregateOverFunction OverOrderBy(this ExprAggregateFunction function, ExprOrderByItem item, params ExprOrderByItem[] rest) 
+            => new ExprAggregateOverFunction(function, new ExprOver(null, new ExprOrderBy(Helpers.Combine(item, rest)), null));
+
+        public static ExprAggregateOverFunction OverOrderBy(this ExprAggregateFunction function, ExprOrderBy orderBy)
+            => new ExprAggregateOverFunction(function, new ExprOver(null, orderBy, null));
+
+        public static AggregateOverFunctionOrderByBuilder OverPartitionBy(this ExprAggregateFunction function, ExprValue item, params ExprValue[] rest)
+            => new AggregateOverFunctionOrderByBuilder(function, Helpers.Combine(item, rest));
+
+        public static AggregateOverFunctionOrderByBuilder OverPartitionBy(this ExprAggregateFunction function, IReadOnlyList<ExprValue> partition)
+            => new AggregateOverFunctionOrderByBuilder(function, partition);
+
+
         //Known agg and analytic functions
 
         public static ExprAggregateFunction CountOne() => AggregateFunction("COUNT", false, Literal(1));
@@ -157,6 +173,28 @@ namespace SqExpress
 
             public AnalyticFunctionOverOrderByBuilder OverPartitionBy(ExprValue item, params ExprValue[] rest) 
                 => new AnalyticFunctionOverOrderByBuilder(this._name, this._arguments, Helpers.Combine(item, rest));
+        }
+
+        public readonly struct AggregateOverFunctionOrderByBuilder
+        {
+            private readonly ExprAggregateFunction _function;
+
+            private readonly IReadOnlyList<ExprValue> _partitions;
+
+            public AggregateOverFunctionOrderByBuilder(ExprAggregateFunction function, IReadOnlyList<ExprValue> partitions)
+            {
+                this._function = function;
+                this._partitions = partitions;
+            }
+
+            public ExprAggregateOverFunction OrderBy(ExprOrderByItem item, params ExprOrderByItem[] rest) =>
+                new ExprAggregateOverFunction(this._function, new ExprOver(this._partitions, new ExprOrderBy(Helpers.Combine(item, rest)), null));
+
+            public ExprAggregateOverFunction OrderBy(ExprOrderBy order) =>
+                new ExprAggregateOverFunction(this._function, new ExprOver(this._partitions, order, null));
+
+            public ExprAggregateOverFunction NoOrderBy() =>
+                new ExprAggregateOverFunction(this._function, new ExprOver(this._partitions, null, null));
         }
 
         public readonly struct AnalyticFunctionOverOrderByBuilder

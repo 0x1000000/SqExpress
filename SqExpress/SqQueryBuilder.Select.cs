@@ -163,6 +163,8 @@ namespace SqExpress
 
         public static implicit operator SelectingProxy(ExprAggregateFunction value) => new SelectingProxy(value);
 
+        public static implicit operator SelectingProxy(ExprAggregateOverFunction value) => new SelectingProxy(value);
+
         public static implicit operator SelectingProxy(ExprAliasedColumn value) => new SelectingProxy(value);
 
         public static implicit operator SelectingProxy(ExprAliasedSelecting value) => new SelectingProxy(value);

@@ -783,6 +783,14 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public bool VisitExprAggregateOverFunction(ExprAggregateOverFunction exprAggregateFunction, IExpr? arg)
+        {
+            exprAggregateFunction.Function.Accept(this, exprAggregateFunction);
+            exprAggregateFunction.Over.Accept(this, exprAggregateFunction);
+
+            return true;
+        }
+
         public bool VisitExprScalarFunction(ExprScalarFunction exprScalarFunction, IExpr? parent)
         {
             if (exprScalarFunction.Schema != null)

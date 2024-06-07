@@ -196,6 +196,17 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             this.EndVisit(expr, argOut.Context);
             return res && walkResult != WalkResult.Stop;
         }
+        public bool VisitExprAggregateOverFunction(ExprAggregateOverFunction expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "AggregateOverFunction", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("Function",expr.Function, argOut) && this.Accept("Over",expr.Over, argOut);
+            }
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
         public bool VisitExprAlias(ExprAlias expr, WalkerContext<TCtx> arg)
         {
             var walkResult = this.Visit(expr, "Alias", arg, out var argOut);

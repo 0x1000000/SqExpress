@@ -19,9 +19,16 @@ namespace SqExpress.Test.QueryBuilder
 
             Assert.AreEqual("SELECT MIN([UserId]) FROM [dbo].[user]", Select(Min(userTable.UserId)).From(userTable).Done().ToSql());
             Assert.AreEqual("SELECT MIN(DISTINCT [UserId]) FROM [dbo].[user]", Select(MinDistinct(userTable.UserId)).From(userTable).Done().ToSql());
+            Assert.AreEqual("SELECT MIN(DISTINCT [UserId]) FROM [dbo].[user]", Select(MinDistinct(userTable.UserId)).From(userTable).Done().ToSql());
+            Assert.AreEqual("SELECT MIN(DISTINCT [UserId])OVER(ORDER BY [Version]) FROM [dbo].[user]", Select(MinDistinct(userTable.UserId).OverOrderBy(userTable.Version)).From(userTable).Done().ToSql());
+            Assert.AreEqual("SELECT MIN(DISTINCT [UserId])OVER(PARTITION BY [Version] ORDER BY [Version]) FROM [dbo].[user]", Select(MinDistinct(userTable.UserId).OverPartitionBy(userTable.Version).OrderBy(userTable.Version)).From(userTable).Done().ToSql());
+            Assert.AreEqual("SELECT MIN(DISTINCT [UserId])OVER(PARTITION BY [Version]) FROM [dbo].[user]", Select(MinDistinct(userTable.UserId).OverPartitionBy(userTable.Version).NoOrderBy()).From(userTable).Done().ToSql());
+
+
 
             Assert.AreEqual("SELECT MAX([UserId]) FROM [dbo].[user]", Select(Max(userTable.UserId)).From(userTable).Done().ToSql());
             Assert.AreEqual("SELECT MAX(DISTINCT [UserId]) FROM [dbo].[user]", Select(MaxDistinct(userTable.UserId)).From(userTable).Done().ToSql());
+            Assert.AreEqual("SELECT MAX(DISTINCT [UserId])OVER() FROM [dbo].[user]", Select(MaxDistinct(userTable.UserId).Over()).From(userTable).Done().ToSql());
 
             Assert.AreEqual("SELECT SUM([UserId]) FROM [dbo].[user]", Select(Sum(userTable.UserId)).From(userTable).Done().ToSql());
             Assert.AreEqual("SELECT SUM(DISTINCT [UserId]) FROM [dbo].[user]", Select(SumDistinct(userTable.UserId)).From(userTable).Done().ToSql());

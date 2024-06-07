@@ -291,6 +291,20 @@ namespace SqExpress.SyntaxTreeOperations.Internal
                     throw new SqExpressException("Incorrect enumerator visitor state");
             }
         }
+        public bool VisitExprAggregateOverFunction(ExprAggregateOverFunction expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.Function);
+                case 2:
+                    return this.SetCurrent(expr.Over);
+                case 3:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
         public bool VisitExprAlias(ExprAlias expr, object? arg)
         {
             switch (this.Peek().State)

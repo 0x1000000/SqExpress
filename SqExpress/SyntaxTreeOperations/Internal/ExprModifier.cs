@@ -171,6 +171,16 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprAggregateOverFunction(ExprAggregateOverFunction exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newFunction = this.AcceptItem(exprIn.Function, modifier);
+            var newOver = this.AcceptItem(exprIn.Over, modifier);
+            if(!ReferenceEquals(exprIn.Function, newFunction) || !ReferenceEquals(exprIn.Over, newOver))
+            {
+                exprIn = new ExprAggregateOverFunction(function: newFunction, over: newOver);
+            }
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprAlias(ExprAlias exprIn, Func<IExpr, IExpr?> modifier)
         {
             return modifier.Invoke(exprIn);

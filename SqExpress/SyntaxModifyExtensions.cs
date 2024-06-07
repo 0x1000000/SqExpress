@@ -127,6 +127,12 @@ namespace SqExpress
         public static ExprAggregateFunction WithIsDistinct(this ExprAggregateFunction original, Boolean newIsDistinct) 
             => new ExprAggregateFunction(name: original.Name, expression: original.Expression, isDistinct: newIsDistinct);
 
+        public static ExprAggregateOverFunction WithFunction(this ExprAggregateOverFunction original, ExprAggregateFunction newFunction) 
+            => new ExprAggregateOverFunction(function: newFunction, over: original.Over);
+
+        public static ExprAggregateOverFunction WithOver(this ExprAggregateOverFunction original, ExprOver newOver) 
+            => new ExprAggregateOverFunction(function: original.Function, over: newOver);
+
         public static ExprAlias WithName(this ExprAlias original, String newName) 
             => new ExprAlias(name: newName);
 

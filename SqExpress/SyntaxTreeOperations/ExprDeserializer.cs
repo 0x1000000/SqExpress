@@ -82,6 +82,7 @@ namespace SqExpress.SyntaxTreeOperations
             {
                 //CodeGenStart
                 case "AggregateFunction": return new ExprAggregateFunction(name: GetSubNode<TNode, ExprFunctionName>(rootElement, reader, "Name"), expression: GetSubNode<TNode, ExprValue>(rootElement, reader, "Expression"), isDistinct: ReadBoolean(rootElement, reader, "IsDistinct"));
+                case "AggregateOverFunction": return new ExprAggregateOverFunction(function: GetSubNode<TNode, ExprAggregateFunction>(rootElement, reader, "Function"), over: GetSubNode<TNode, ExprOver>(rootElement, reader, "Over"));
                 case "Alias": return new ExprAlias(name: ReadString(rootElement, reader, "Name"));
                 case "AliasGuid": return new ExprAliasGuid(id: ReadGuid(rootElement, reader, "Id"));
                 case "AliasedColumn": return new ExprAliasedColumn(column: GetSubNode<TNode, ExprColumn>(rootElement, reader, "Column"), alias: GetNullableSubNode<TNode, ExprColumnAlias>(rootElement, reader, "Alias"));

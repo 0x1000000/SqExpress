@@ -88,6 +88,8 @@ namespace SqExpress.Syntax
         //Functions
         TRes VisitExprAggregateFunction(ExprAggregateFunction exprAggregateFunction, TArg arg);
 
+        TRes VisitExprAggregateOverFunction(ExprAggregateOverFunction exprAggregateFunction, TArg arg);
+
         TRes VisitExprAnalyticFunction(ExprAnalyticFunction exprAnalyticFunction, TArg arg);
 
         TRes VisitExprOver(ExprOver exprOver, TArg arg);
