@@ -62,8 +62,8 @@ namespace SqExpress
         public static ExprTableFunction TableFunctionDbCustom(string databaseName, string schemaName, string name, ExprValue argument1, params ExprValue[] rest)
             =>new ExprTableFunction(new ExprDbSchema(new ExprDatabaseName(databaseName), new ExprSchemaName(schemaName)), new ExprFunctionName(false, name), Helpers.Combine(argument1, rest));
 
-        public static ExprAggregateOverFunction Over(this ExprAggregateFunction function)
-            => new ExprAggregateOverFunction(function, new ExprOver(null, null, null));
+        public static ExprAggregateOverFunction Over(this ExprAggregateFunction function, IReadOnlyList<ExprValue>? partitions = null, ExprOrderBy? order = null)
+            => new ExprAggregateOverFunction(function, new ExprOver(partitions, order, null));
 
         public static ExprAggregateOverFunction OverOrderBy(this ExprAggregateFunction function, ExprOrderByItem item, params ExprOrderByItem[] rest) 
             => new ExprAggregateOverFunction(function, new ExprOver(null, new ExprOrderBy(Helpers.Combine(item, rest)), null));
@@ -84,7 +84,9 @@ namespace SqExpress
         public static ExprAggregateFunction Count(ExprValue expression) => AggregateFunction("COUNT", false, expression);
         public static ExprAggregateFunction CountDistinct(ExprValue expression) => AggregateFunction("COUNT", true, expression);
 
+        [Obsolete($"Use {nameof(Count)}().{nameof(Over)}() instead.")]
         public static ExprAnalyticFunction CountOver(ExprValue expression,params ExprValue[] partitions) => AnalyticFunction("COUNT", new []{ expression }, new ExprOver(partitions.Length == 0 ? null : partitions, null, null));
+        [Obsolete($"Use {nameof(CountOne)}().{nameof(Over)}() instead.")]
         public static ExprAnalyticFunction CountOneOver(params ExprValue[] partitions) => AnalyticFunction("COUNT", new []{ Literal(1) }, new ExprOver(partitions.Length == 0 ? null : partitions, null, null));
 
         public static ExprAggregateFunction Min(ExprValue expression)         => AggregateFunction("MIN", false, expression);

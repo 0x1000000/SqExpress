@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿#if NET
+using System.Linq;
 using NUnit.Framework;
 using SqExpress.CodeGenUtil.CodeGen;
 
@@ -147,3 +148,4 @@ namespace SqExpress.Test.CodeGenUtil
         }
     }
 }
+#endif

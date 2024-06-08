@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using SqExpress.DataAccess.Internal;
@@ -18,6 +19,9 @@ using SqExpress.StatementSyntax;
 namespace SqExpress.DataAccess
 {
     public interface ISqDatabase : IDisposable
+#if !NETSTANDARD
+        , IAsyncDisposable
+#endif
     {
         ISqTransaction BeginTransaction();
 
@@ -31,6 +35,16 @@ namespace SqExpress.DataAccess
 
         Task<TAgg> Query<TAgg>(IExprQuery query, TAgg seed, Func<TAgg, ISqDataRecordReader, Task<TAgg>> aggregator, CancellationToken cancellationToken = default);
 
+#if !NETSTANDARD
+        ValueTask<(ISqTransaction transaction, bool isNewTransaction)> BeginTransactionOrUseExistingAsync();
+
+        ValueTask<(ISqTransaction transaction, bool isNewTransaction)> BeginTransactionOrUseExistingAsync(IsolationLevel isolationLevel);
+
+        ValueTask<ISqTransaction> BeginTransactionAsync(IsolationLevel isolationLevel);
+
+        IAsyncEnumerable<ISqDataRecordReader> Query(IExprQuery query, CancellationToken cancellationToken = default);
+#endif
+
         Task<object?> QueryScalar(IExprQuery query, CancellationToken cancellationToken = default);
 
         Task Exec(IExprExec statement, CancellationToken cancellationToken = default);
@@ -41,10 +55,19 @@ namespace SqExpress.DataAccess
     }
 
     public interface ISqTransaction : IDisposable
+#if !NETSTANDARD
+        , IAsyncDisposable
+#endif
     {
         void Commit();
 
         void Rollback();
+
+#if !NETSTANDARD
+        ValueTask CommitAsync();
+
+        ValueTask RollbackAsync();
+#endif
     }
 
     public class SqDatabase<TConnection> : ISqDatabase where TConnection : DbConnection
@@ -57,7 +80,7 @@ namespace SqExpress.DataAccess
 
         private readonly ISqlExporter _sqlExporter;
 
-        private readonly object _tranSync = new object();
+        private readonly SemaphoreSlim _tranSyncSemaphore = new SemaphoreSlim(1, 1);
 
         private readonly bool _disposeConnection;
 
@@ -78,28 +101,58 @@ namespace SqExpress.DataAccess
             this._wasClosed = this._connection.State == ConnectionState.Closed;
         }
 
-        public ISqTransaction BeginTransaction() => this.BeginTransaction(IsolationLevel.Unspecified);
+        public ISqTransaction BeginTransaction()
+            => this.BeginTransaction(IsolationLevel.Unspecified);
 
         public ISqTransaction BeginTransactionOrUseExisting(out bool isNewTransaction)
-            => BeginTransactionOrUseExisting(IsolationLevel.Unspecified, out isNewTransaction);
+            => this.BeginTransactionOrUseExisting(IsolationLevel.Unspecified, out isNewTransaction);
 
         public ISqTransaction BeginTransaction(IsolationLevel isolationLevel)
         {
             this.CheckDisposed();
-            lock (this._tranSync)
+            this._tranSyncSemaphore.Wait();
+            try
             {
                 if (this._currentTransaction != null)
                 {
                     throw new SqExpressException("There is an already running transaction associated with this connection");
                 }
+
                 this._currentTransaction = new SqTransaction(this, isolationLevel);
                 return this._currentTransaction;
             }
+            finally
+            {
+                this._tranSyncSemaphore.Release();
+            }
         }
+
+#if !NETSTANDARD
+        public async ValueTask<ISqTransaction> BeginTransactionAsync(IsolationLevel isolationLevel)
+        {
+            this.CheckDisposed();
+            await this._tranSyncSemaphore.WaitAsync();
+            try
+            {
+                if (this._currentTransaction != null)
+                {
+                    throw new SqExpressException("There is an already running transaction associated with this connection");
+                }
+
+                this._currentTransaction = new SqTransaction(this, isolationLevel);
+                return this._currentTransaction;
+            }
+            finally
+            {
+                this._tranSyncSemaphore.Release();
+            }
+        }
+#endif
 
         public ISqTransaction BeginTransactionOrUseExisting(IsolationLevel isolationLevel, out bool isNewTransaction)
         {
-            lock (this._tranSync)
+            this._tranSyncSemaphore.Wait();
+            try
             {
                 if (this._currentTransaction != null)
                 {
@@ -107,9 +160,37 @@ namespace SqExpress.DataAccess
                     return new SqTransactionProxy(this);
                 }
                 isNewTransaction = true;
-                return this.BeginTransaction(isolationLevel);
+                this._currentTransaction = new SqTransaction(this, isolationLevel);
+                return this._currentTransaction;
+            }
+            finally
+            {
+                this._tranSyncSemaphore.Release();
             }
         }
+#if !NETSTANDARD
+        public ValueTask<(ISqTransaction transaction, bool isNewTransaction)> BeginTransactionOrUseExistingAsync()
+            => this.BeginTransactionOrUseExistingAsync(IsolationLevel.Unspecified);
+
+        public async ValueTask<(ISqTransaction transaction, bool isNewTransaction)> BeginTransactionOrUseExistingAsync(IsolationLevel isolationLevel)
+        {
+            await this._tranSyncSemaphore.WaitAsync();
+            try
+            {
+                if (this._currentTransaction != null)
+                    return (new SqTransactionProxy(this), false);
+                else
+                {
+                    this._currentTransaction = new SqTransaction(this, isolationLevel);
+                    return (this._currentTransaction, true);
+                }
+            }
+            finally
+            {
+                this._tranSyncSemaphore.Release();
+            }
+        }
+#endif
 
         public async Task<object?> QueryScalar(IExprQuery query, CancellationToken cancellationToken = default)
         {
@@ -150,12 +231,11 @@ namespace SqExpress.DataAccess
                 throw new SqDatabaseCommandException(sql, e.Message, e);
             }
 
-            cancellationToken.ThrowIfCancellationRequested();
-
             if (reader != null)
             {
                 using (reader)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     var proxy = new DbReaderProxy(reader);
                     while (await reader.ReadAsync(cancellationToken))
                     {
@@ -187,19 +267,12 @@ namespace SqExpress.DataAccess
                 throw new SqDatabaseCommandException(sql, e.Message, e);
             }
 
-            if (cancellationToken.IsCancellationRequested)
-            {
-                if (reader != null)
-                {
-                    reader.Dispose();
-                }
-                cancellationToken.ThrowIfCancellationRequested();
-            }
-
             if (reader != null)
             {
                 using (reader)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     var proxy = new DbReaderProxy(reader);
                     while (await reader.ReadAsync(cancellationToken))
                     {
@@ -211,6 +284,39 @@ namespace SqExpress.DataAccess
             }
             return result;
         }
+
+#if !NETSTANDARD
+        public async IAsyncEnumerable<ISqDataRecordReader> Query(IExprQuery query, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            this.CheckDisposed();
+            var sql = this._sqlExporter.ToSql(query);
+
+            var command = await this.CreateCommand(sql, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            DbDataReader? reader;
+            try
+            {
+                reader = await command.ExecuteReaderAsync(cancellationToken);
+            }
+            catch (Exception e)
+            {
+                throw new SqDatabaseCommandException(sql, e.Message, e);
+            }
+
+            await using (reader)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var proxy = new DbReaderProxy(reader);
+                while (await reader.ReadAsync(cancellationToken))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    yield return proxy;
+                }
+            }
+        }
+#endif
 
         public async Task Exec(IExprExec statement, CancellationToken cancellationToken = default)
         {
@@ -290,13 +396,19 @@ namespace SqExpress.DataAccess
 
             try
             {
-                lock (this._tranSync)
+                //lock (this._tranSync)
+                this._tranSyncSemaphore.Wait();
+                try
                 {
                     if (this._currentTransaction != null)
                     {
                         this._currentTransaction.DbTransaction?.Dispose();
                         this._currentTransaction = null;
                     }
+                }
+                finally
+                {
+                    this._tranSyncSemaphore.Release();
                 }
             }
             finally
@@ -315,11 +427,55 @@ namespace SqExpress.DataAccess
             }
         }
 
+#if !NETSTANDARD
+        public async ValueTask DisposeAsync()
+        {
+            if (Interlocked.Increment(ref this._isDisposed) != 1)
+            {
+                return;
+            }
+
+            try
+            {
+                await this._tranSyncSemaphore.WaitAsync();
+                try
+                {
+                    if (this._currentTransaction != null)
+                    {
+                        if (this._currentTransaction.DbTransaction != null)
+                        {
+                            await this._currentTransaction.DbTransaction.DisposeAsync();
+                        }
+                        this._currentTransaction = null;
+                    }
+                }
+                finally
+                {
+                    this._tranSyncSemaphore.Release();
+                }
+            }
+            finally
+            {
+                if (!this._disposeConnection)
+                {
+                    if (this._wasClosed && this._connection.State == ConnectionState.Open)
+                    {
+                        await this._connection.CloseAsync();
+                    }
+                }
+                else
+                {
+                    await this._connection.DisposeAsync();
+                }
+            }
+        }
+#endif
+
         private void CheckDisposed()
         {
             if (this._isDisposed > 0)
             {
-                throw new ObjectDisposedException(GetType().Name);
+                throw new ObjectDisposedException(this.GetType().Name);
             }
         }
 
@@ -328,7 +484,8 @@ namespace SqExpress.DataAccess
             var connection = await this.GetOpenedConnection(cancellationToken);
             var command = this._commandFactory.Invoke(connection, sql);
 
-            lock (this._tranSync)
+            await this._tranSyncSemaphore.WaitAsync(cancellationToken);
+            try
             {
                 if (command.Transaction != null && this._currentTransaction != null)
                 {
@@ -337,8 +494,16 @@ namespace SqExpress.DataAccess
 
                 if (this._currentTransaction != null)
                 {
+#if NETSTANDARD
                     command.Transaction = this._currentTransaction.StartTransactionIfNecessary();
+#else
+                    command.Transaction = await this._currentTransaction.StartTransactionIfNecessaryAsync();
+#endif
                 }
+            }
+            finally
+            {
+                this._tranSyncSemaphore.Release();
             }
 
             return command;
@@ -355,7 +520,8 @@ namespace SqExpress.DataAccess
 
         private void ReleaseTransaction()
         {
-            lock (this._tranSync)
+            this._tranSyncSemaphore.Wait();
+            try
             {
                 if (this._currentTransaction == null)
                 {
@@ -364,7 +530,34 @@ namespace SqExpress.DataAccess
                 this._currentTransaction.DbTransaction?.Dispose();
                 this._currentTransaction = null;
             }
+            finally
+            {
+                this._tranSyncSemaphore.Release();
+            }
         }
+#if !NETSTANDARD
+        private async ValueTask ReleaseTransactionAsync()
+        {
+            await this._tranSyncSemaphore.WaitAsync();
+            try
+            {
+                if (this._currentTransaction == null)
+                {
+                    throw new SqExpressException("Could not find any running transaction associated with this connection");
+                }
+
+                if (this._currentTransaction.DbTransaction != null)
+                {
+                    await this._currentTransaction.DbTransaction.DisposeAsync();
+                }
+                this._currentTransaction = null;
+            }
+            finally
+            {
+                this._tranSyncSemaphore.Release();
+            }
+        }
+#endif
 
         private class SqTransaction : ISqTransaction
         {
@@ -380,11 +573,13 @@ namespace SqExpress.DataAccess
                 this._isolationLevel = isolationLevel;
             }
 
+#if NETSTANDARD
             public DbTransaction StartTransactionIfNecessary()
             {
                 //This method is thread safe since it is called under lock
                 return this.DbTransaction ??= this._host._connection.BeginTransaction(this._isolationLevel);
             }
+#endif
 
             public void Commit()
             {
@@ -408,6 +603,37 @@ namespace SqExpress.DataAccess
             {
                 this._host.ReleaseTransaction();
             }
+
+#if !NETSTANDARD
+            public async ValueTask<DbTransaction> StartTransactionIfNecessaryAsync()
+            {
+                //This method is thread safe since it is called under lock
+                return this.DbTransaction ??= await this._host._connection.BeginTransactionAsync(this._isolationLevel);
+            }
+
+            public async ValueTask CommitAsync()
+            {
+                if (this.DbTransaction == null)
+                {
+                    throw new SqExpressException("Could not commit not started transaction");
+                }
+                await this.DbTransaction.CommitAsync();
+            }
+
+            public async ValueTask RollbackAsync()
+            {
+                if (this.DbTransaction == null)
+                {
+                    throw new SqExpressException("Could not rollback not started transaction");
+                }
+                await this.DbTransaction.RollbackAsync();
+            }
+
+            public async ValueTask DisposeAsync()
+            {
+                await this._host.ReleaseTransactionAsync();
+            }
+#endif
         }
 
         private class SqTransactionProxy : ISqTransaction
@@ -419,27 +645,37 @@ namespace SqExpress.DataAccess
                 this._host = host;
             }
 
-            public void Dispose()
+            public void Dispose() => this.ThrowIfDisposed();
+
+            public void Commit() => this.ThrowIfDisposed();
+
+            public void Rollback() => this.ThrowIfDisposed();
+
+#if !NETSTANDARD
+            public ValueTask CommitAsync()
+            {
+                this.ThrowIfDisposed();
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask RollbackAsync()
+            {
+                this.ThrowIfDisposed();
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                this.ThrowIfDisposed();
+                return ValueTask.CompletedTask;
+            }
+#endif
+
+            private void ThrowIfDisposed()
             {
                 if (this._host._currentTransaction == null)
                 {
                     throw new SqExpressException("Could not dispose already disposed transaction");
-                }
-            }
-
-            public void Commit()
-            {
-                if (this._host._currentTransaction == null)
-                {
-                    throw new SqExpressException("Could not commit already disposed transaction");
-                }
-            }
-
-            public void Rollback()
-            {
-                if (this._host._currentTransaction == null)
-                {
-                    throw new SqExpressException("Could not rollback already disposed transaction");
                 }
             }
         }

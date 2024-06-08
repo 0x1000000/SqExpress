@@ -113,4 +113,24 @@ public static class Helpers
 
         return true;
     }
+
+    public static async IAsyncEnumerable<T> Select<T, TS>(this IAsyncEnumerable<TS> source, Func<TS, T> mapper)
+    {
+        await foreach (var item in source)
+        {
+            yield return mapper(item);
+        }
+    }
+
+    public static async Task<List<T>> ToList<T>(this IAsyncEnumerable<T> source)
+    {
+        var result = new List<T>();
+
+        await foreach (var item in source)
+        {
+            result.Add(item);
+        }
+
+        return result;
+    }
 }

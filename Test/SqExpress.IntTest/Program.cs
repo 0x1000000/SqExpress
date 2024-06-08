@@ -44,6 +44,8 @@ namespace SqExpress.IntTest
                        .Then(new ScAnalyticFunctionsOrders())
                        .Then(new ScTransactions(false))
                        .Then(new ScTransactions(true))
+                       .Then(new ScTransactionsAsync(false))
+                       .Then(new ScTransactionsAsync(true))
                        .Then(new ScMerge())
                        .Then(new ScMergeExpr())
                        .Then(new ScModelSelector())
@@ -125,7 +127,7 @@ namespace SqExpress.IntTest
         private static async Task ExecMsSql(IScenario scenario, string connectionString)
         {
             var sqlExporter = TSqlExporter.Default;
-            using var database = GetMsSqlDatabase(connectionString, sqlExporter);
+            await using var database = GetMsSqlDatabase(connectionString, sqlExporter);
 
             await scenario.Exec(
                 new ScenarioContext(
@@ -142,7 +144,7 @@ namespace SqExpress.IntTest
             var sqlExporter =
                 new PgSqlExporter(SqlBuilderOptions.Default.WithSchemaMap(new[] { new SchemaMap("dbo", "public") }));
 
-            using var database = GetPgSqlDatabase(connectionString, sqlExporter);
+            await using var database = GetPgSqlDatabase(connectionString, sqlExporter);
             await scenario.Exec(
                 new ScenarioContext(
                     database,
@@ -157,7 +159,7 @@ namespace SqExpress.IntTest
         {
             var sqlExporter = MySqlExporter.Default;
 
-            using var database = GetMySqlDatabase(connectionString, sqlExporter);
+            await using var database = GetMySqlDatabase(connectionString, sqlExporter);
 
             await scenario.Exec(
                 new ScenarioContext(

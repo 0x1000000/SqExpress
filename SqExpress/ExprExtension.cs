@@ -34,6 +34,14 @@ namespace SqExpress
             => database.Query(query.Done(), handler, cancellationToken: cancellationToken);
 
         //Async handler
+#if !NETSTANDARD
+        public static IAsyncEnumerable<ISqDataRecordReader> Query(this IExprQuery query, ISqDatabase database, CancellationToken cancellationToken = default)
+            => database.Query(query, cancellationToken);
+
+        public static IAsyncEnumerable<ISqDataRecordReader> Query(this IExprQueryFinal query, ISqDatabase database, CancellationToken cancellationToken = default)
+            => database.Query(query.Done(), cancellationToken);
+#endif
+
         public static Task<TAgg> Query<TAgg>(this IExprQuery query, ISqDatabase database, TAgg seed, Func<TAgg,ISqDataRecordReader, Task<TAgg>> aggregator, CancellationToken cancellationToken = default) 
             => database.Query(query, seed, aggregator, cancellationToken);
 
@@ -83,7 +91,7 @@ namespace SqExpress
             var selectQuery = (ExprQuerySpecification)query.SelectQuery;
 
             query = query.WithSelectQuery(
-                selectQuery.WithSelectList(selectQuery.SelectList.Combine(SqQueryBuilder.CountOneOver().As(countColumn))));
+                selectQuery.WithSelectList(selectQuery.SelectList.Combine(SqQueryBuilder.CountOne().Over().As(countColumn))));
 
             var res = await query.Query(database,
                 new KeyValuePair<List<T>, int?>(new List<T>(), null),
@@ -217,7 +225,7 @@ namespace SqExpress
                 var walkerVisitor = new ExprXmlWriter();
                 WalkThrough(walkerVisitor, xmlWriter);
             }
-#if NETCOREAPP
+#if !NETSTANDARD
             public void ExportToJson(System.Text.Json.Utf8JsonWriter jsonWriter)
             {
                 var walkerVisitor = new ExprJsonWriter();

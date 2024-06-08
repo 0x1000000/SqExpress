@@ -1,4 +1,5 @@
-﻿using System;
+﻿#if NET
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
@@ -138,3 +139,4 @@ namespace Org{
 ";
     }
 }
+#endif

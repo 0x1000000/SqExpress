@@ -1,4 +1,5 @@
-﻿using NUnit.Framework;
+﻿#if NET
+using NUnit.Framework;
 using SqExpress.CodeGenUtil;
 
 namespace SqExpress.Test.CodeGenUtil
@@ -32,4 +33,4 @@ namespace SqExpress.Test.CodeGenUtil
         }
     }
 }
-
+#endif

@@ -211,7 +211,7 @@ namespace SqExpress.Test.Syntax
                             "ON [A1].[UserNewId]=[A0].[UserNewId]", e.ToSql());
         }
 
-#if NETCOREAPP
+#if NET
         [Test]
         public void TestExportImportJson()
         {

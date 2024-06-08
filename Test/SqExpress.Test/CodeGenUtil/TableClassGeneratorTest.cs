@@ -1,4 +1,5 @@
-﻿using System;
+﻿#if NET
+using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.IO;
@@ -85,3 +86,4 @@ namespace SqExpress.Test.CodeGenUtil
         }
     }
 }
+#endif

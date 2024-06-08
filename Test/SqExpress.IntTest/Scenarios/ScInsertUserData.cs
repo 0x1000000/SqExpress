@@ -66,7 +66,7 @@ namespace SqExpress.IntTest.Scenarios
 
             var clCount = CustomColumnFactory.Int64("Count");
 
-            var res = await SelectDistinct(customerTable.CustomerId, userTable.UserId, Cast(CountOneOver(), SqlType.Int64).As(clCount))
+            var res = await SelectDistinct(customerTable.CustomerId, userTable.UserId, Cast(CountOne().Over(), SqlType.Int64).As(clCount))
                 .From(customerTable)
                 .InnerJoin(userTable, @on: customerTable.UserId == userTable.UserId)
                 .OrderBy(userTable.UserId)

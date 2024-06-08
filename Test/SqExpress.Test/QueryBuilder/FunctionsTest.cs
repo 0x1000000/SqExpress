@@ -15,7 +15,7 @@ namespace SqExpress.Test.QueryBuilder
             Assert.AreEqual("SELECT COUNT(1) FROM [dbo].[user]", Select(CountOne()).From(userTable).Done().ToSql());
             Assert.AreEqual("SELECT COUNT([UserId]) FROM [dbo].[user]", Select(Count(userTable.UserId)).From(userTable).Done().ToSql());
             Assert.AreEqual("SELECT COUNT(DISTINCT [UserId]) FROM [dbo].[user]", Select(CountDistinct(userTable.UserId)).From(userTable).Done().ToSql());
-            Assert.AreEqual("SELECT COUNT([UserId])OVER() FROM [dbo].[user]", Select(CountOver(userTable.UserId)).From(userTable).Done().ToSql());
+            Assert.AreEqual("SELECT COUNT([UserId])OVER() FROM [dbo].[user]", Select(Count(userTable.UserId).Over()).From(userTable).Done().ToSql());
 
             Assert.AreEqual("SELECT MIN([UserId]) FROM [dbo].[user]", Select(Min(userTable.UserId)).From(userTable).Done().ToSql());
             Assert.AreEqual("SELECT MIN(DISTINCT [UserId]) FROM [dbo].[user]", Select(MinDistinct(userTable.UserId)).From(userTable).Done().ToSql());

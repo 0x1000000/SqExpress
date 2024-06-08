@@ -30,7 +30,9 @@ namespace SqExpress.IntTest.Scenarios
                     .Set(s.Target.Created, now)
                     .Set(s.Target.Version, 1))
                 .Output(company.CompanyId)
-                .QueryList(context.Database, r=> company.CompanyId.Read(r));
+                .Query(context.Database)
+                .Select(company.CompanyId.Read)
+                .ToList();
 
             var insertedDuplicates = await InsertDataInto(company, this.ReadCompanyData().Take(2))
                 .MapData(s => s

@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿#if NET
+using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -125,3 +126,4 @@ namespace SqExpress.Test.CodeGenUtil
         }
     }
 }
+#endif

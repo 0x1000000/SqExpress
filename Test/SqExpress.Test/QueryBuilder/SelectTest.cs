@@ -377,7 +377,7 @@ namespace SqExpress.Test.QueryBuilder
             Assert.AreEqual("SELECT \"A0\".\"UserId\" FROM \"public\".\"user\" \"A0\" JOIN \"public\".\"user\" \"A1\" ON \"A1\".\"UserId\"=\"A0\".\"UserId\" LIMIT 7", actual);
 
             //Except
-            expr = Select(u.UserId, CountOneOver()).From(u).Except(SelectTop(7, u2.UserId, CountOneOver()).From(u2)).Done();
+            expr = Select(u.UserId, CountOne().Over()).From(u).Except(SelectTop(7, u2.UserId, CountOne().Over()).From(u2)).Done();
             actual = expr.ToSql();
             Assert.AreEqual("SELECT [A0].[UserId],COUNT(1)OVER() FROM [dbo].[user] [A0] EXCEPT SELECT TOP 7 [A1].[UserId],COUNT(1)OVER() FROM [dbo].[user] [A1]", actual);
             actual = expr.ToPgSql();

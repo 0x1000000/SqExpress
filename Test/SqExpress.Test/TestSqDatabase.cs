@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using SqExpress.DataAccess;
 using SqExpress.DbMetadata;
 using SqExpress.StatementSyntax;
-#nullable enable
+
 namespace SqExpress.Test
 {
     public class TestSqDatabase : ISqDatabase
@@ -20,6 +20,11 @@ namespace SqExpress.Test
         public void Dispose()
         {
             
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            return ValueTask.CompletedTask;
         }
 
         public ISqTransaction BeginTransaction()
@@ -59,6 +64,21 @@ namespace SqExpress.Test
         }
 
         public Task<TAgg> Query<TAgg>(IExprQuery query, TAgg seed, Func<TAgg, ISqDataRecordReader, Task<TAgg>> aggregator, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public ValueTask<(ISqTransaction transaction, bool isNewTransaction)> BeginTransactionOrUseExistingAsync(IsolationLevel isolationLevel)
+        {
+            throw new NotImplementedException();
+        }
+
+        public ValueTask<ISqTransaction> BeginTransactionAsync(IsolationLevel isolationLevel)
+        {
+            throw new NotImplementedException();
+        }
+
+        public IAsyncEnumerable<ISqDataRecordReader> Query(IExprQuery query, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
