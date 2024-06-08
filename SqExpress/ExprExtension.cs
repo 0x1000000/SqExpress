@@ -132,16 +132,16 @@ namespace SqExpress
         public static string ToSql(this IStatement expr, ISqlExporter exporter)
             => exporter.ToSql(expr);
 
-        public static SyntaxTreeActions SyntaxTree(this IExpr expr)
+        public static SyntaxTreeActions<TExpr> SyntaxTree<TExpr>(this TExpr expr) where TExpr : IExpr
         {
-            return new SyntaxTreeActions(expr);
+            return new SyntaxTreeActions<TExpr>(expr);
         }
 
-        public readonly struct SyntaxTreeActions
+        public readonly struct SyntaxTreeActions<TExpr> where TExpr : IExpr
         {
-            private readonly IExpr _expr;
+            private readonly TExpr _expr;
 
-            internal SyntaxTreeActions(IExpr expr)
+            internal SyntaxTreeActions(TExpr expr)
             {
                 this._expr = expr;
             }
@@ -180,12 +180,12 @@ namespace SqExpress
                 return ExprWalkerPull.GetEnumerable(this._expr, true);
             }
 
-            public TExpr? FirstOrDefault<TExpr>(Predicate<TExpr>? filter = null) where TExpr : class, IExpr
+            public TExprNode? FirstOrDefault<TExprNode>(Predicate<TExprNode>? filter = null) where TExprNode : class, IExpr
             {
-                TExpr? result = null;
+                TExprNode? result = null;
                 this._expr.Accept(new ExprWalker<object?>(new DefaultWalkerVisitor<object?>((e, c) =>
                 {
-                    if (e is TExpr te && (filter == null || filter.Invoke(te)))
+                    if (e is TExprNode te && (filter == null || filter.Invoke(te)))
                     {
                         result = te;
                         return VisitorResult<object?>.Stop(c);
@@ -200,17 +200,45 @@ namespace SqExpress
                 return this._expr.Accept(new ExprModifier(), modifier);
             }
 
-            public IExpr? Modify<TExpr>(Func<TExpr, IExpr?> modifier) where TExpr: IExpr
+            public IExpr? Modify<TExprNode>(Func<TExprNode, IExpr?> modifier) where TExprNode: IExpr
             {
                 return this._expr.Accept(new ExprModifier(),
                     e =>
                     {
-                        if (e is TExpr te)
+                        if (e is TExprNode te)
                         {
                             return modifier(te);
                         }
                         return e;
                     });
+            }
+
+            public TExpr ModifyDescendants(Func<IExpr, IExpr?> modifier)
+            {
+                var thisExpr = this._expr;
+                return (TExpr)thisExpr.Accept(new ExprModifier(),
+                    e =>
+                    {
+                        if (!ReferenceEquals(e, thisExpr))
+                        {
+                            return modifier(e);
+                        }
+                        return e;
+                    })!;
+            }
+
+            public TExpr ModifyDescendants<TExprNode>(Func<TExprNode, IExpr?> modifier) where TExprNode : IExpr
+            {
+                var thisExpr = this._expr;
+                return (TExpr)thisExpr.Accept(new ExprModifier(),
+                    e =>
+                    {
+                        if (!ReferenceEquals(e, thisExpr) && e is TExprNode te)
+                        {
+                            return modifier(te);
+                        }
+                        return e;
+                    })!;
             }
 
             public IReadOnlyList<T> ExportToPlainList<T>(PlainItemFactory<T> plainItemFactory) where T : IPlainItem

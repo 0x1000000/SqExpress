@@ -212,7 +212,7 @@ namespace SqExpress.Test.QueryBuilder
 
             var expr = Select(cte.Num).From(cte).Done();
 
-            var updated = expr.SyntaxTree().Modify<ExprCte>(e => e.Name == nameof(SimpleRecursiveCte) ? e.WithName("Modified") : e)!;
+            var updated = expr.SyntaxTree().ModifyDescendants<ExprCte>(e => e.Name == nameof(SimpleRecursiveCte) ? e.WithName("Modified") : e);
 
             var expected =
                 "WITH [Modified] AS(SELECT 1 [Num] UNION ALL SELECT [A1].[Num]+1 FROM [Modified] [A1] WHERE [A1].[Num]<10),[RefSimpleRecursiveCte] AS(SELECT [A2].[Num]*10 [Num] FROM [Modified] [A2] WHERE [A2].[Num]<10)SELECT [A0].[Num] FROM [RefSimpleRecursiveCte] [A0]";

@@ -188,7 +188,7 @@ namespace SqExpress.Test.Syntax
                             "WHERE [A0].[UserId] IN(1)", e.ToSql());
 
             e = e.SyntaxTree()
-                .Modify(subE =>
+                .ModifyDescendants(subE =>
                     {
                         if (subE is ExprIn)
                         {
@@ -203,7 +203,7 @@ namespace SqExpress.Test.Syntax
                             return new ExprColumnName("UserNewId");
                         }
                         return subE;
-                    })!;
+                    });
 
             //After
             Assert.AreEqual("SELECT [A0].[UserNewId],[A0].[FirstName],[A1].[CustomerId] " +

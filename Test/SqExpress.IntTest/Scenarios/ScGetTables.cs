@@ -13,7 +13,6 @@ public class ScGetTables : IScenario
         var actualTables = await context.Database.GetTables();
         var declaredTables = AllTables.BuildAllTableList(context.Dialect);
 
-
         var tableListComparison = declaredTables.CompareWith(actualTables, t => t.TableName.ToLower());
         if (tableListComparison != null)
         {

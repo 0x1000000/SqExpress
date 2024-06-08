@@ -4,10 +4,16 @@
 - Retrieving of database tables metadata + comparison
 - **MERGE** expression builder
 - Table Value Functions
+- All aggregate functions now can be used with **OVER(...)**
+- SqDatabase can query IAsyncEnumerable
+- SqDatabase supports async version for all I/O operation (for .Net 6)
+- **expr.SyntaxTree().ModifyDescendants(modifier)** new method that returns object of the same type.
 
 ### Breaking Changes
 - Values Constructor in MYSQL now is implemented through **UNION ALL** 
 - .Net Framework is not supported anymore, however, .Net Standard 2.0 is still supported
+- SyntaxTreeActions structure now has a generic parameter
+- .Net less than 6 now use .Net Standard 2.0 which does not have some functions
 
 # 0.4.1.0
 ### New Features
