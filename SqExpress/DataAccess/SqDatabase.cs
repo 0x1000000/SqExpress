@@ -494,18 +494,18 @@ namespace SqExpress.DataAccess
 
         private async Task<DbCommand> CreateCommand(string sql, CancellationToken cancellationToken)
         {
+            DbCommand command;
             await this._tranSyncSemaphore.WaitAsync(cancellationToken);
-
-            //Opening the connection is also thread safe
-            if (this._wasClosed && this._connection.State == ConnectionState.Closed)
-            {
-                await this._connection.OpenAsync(cancellationToken);
-            }
-
-            var command = this._commandFactory.Invoke(this._connection, sql);
-
             try
             {
+                //Opening the connection is also thread safe
+                if (this._wasClosed && this._connection.State == ConnectionState.Closed)
+                {
+                    await this._connection.OpenAsync(cancellationToken);
+                }
+
+                command = this._commandFactory.Invoke(this._connection, sql);
+
                 if (command.Transaction != null && this._currentTransaction != null)
                 {
                     throw new SqDatabaseCommandException(sql, "Command factory provided a command with already set transaction", null);
