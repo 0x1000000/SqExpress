@@ -40,6 +40,8 @@ namespace SqExpress.DataAccess
 
         ValueTask<(ISqTransaction transaction, bool isNewTransaction)> BeginTransactionOrUseExistingAsync(IsolationLevel isolationLevel);
 
+        ValueTask<ISqTransaction> BeginTransactionAsync();
+
         ValueTask<ISqTransaction> BeginTransactionAsync(IsolationLevel isolationLevel);
 
         IAsyncEnumerable<ISqDataRecordReader> Query(IExprQuery query, CancellationToken cancellationToken = default);
@@ -128,6 +130,9 @@ namespace SqExpress.DataAccess
         }
 
 #if !NETSTANDARD
+        public ValueTask<ISqTransaction> BeginTransactionAsync()
+            => this.BeginTransactionAsync(IsolationLevel.Unspecified);
+
         public async ValueTask<ISqTransaction> BeginTransactionAsync(IsolationLevel isolationLevel)
         {
             this.CheckDisposed();
@@ -178,12 +183,11 @@ namespace SqExpress.DataAccess
             try
             {
                 if (this._currentTransaction != null)
-                    return (new SqTransactionProxy(this), false);
-                else
                 {
-                    this._currentTransaction = new SqTransaction(this, isolationLevel);
-                    return (this._currentTransaction, true);
+                    return (new SqTransactionProxy(this), false);
                 }
+                this._currentTransaction = new SqTransaction(this, isolationLevel);
+                return (this._currentTransaction, true);
             }
             finally
             {
@@ -231,9 +235,14 @@ namespace SqExpress.DataAccess
                 throw new SqDatabaseCommandException(sql, e.Message, e);
             }
 
+#if !NETSTANDARD
+            {
+                await using (reader)
+#else
             if (reader != null)
             {
                 using (reader)
+#endif
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     var proxy = new DbReaderProxy(reader);
@@ -267,9 +276,14 @@ namespace SqExpress.DataAccess
                 throw new SqDatabaseCommandException(sql, e.Message, e);
             }
 
+#if !NETSTANDARD
+            {
+                await using (reader)
+#else
             if (reader != null)
             {
                 using (reader)
+#endif
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
@@ -396,7 +410,6 @@ namespace SqExpress.DataAccess
 
             try
             {
-                //lock (this._tranSync)
                 this._tranSyncSemaphore.Wait();
                 try
                 {
@@ -481,10 +494,16 @@ namespace SqExpress.DataAccess
 
         private async Task<DbCommand> CreateCommand(string sql, CancellationToken cancellationToken)
         {
-            var connection = await this.GetOpenedConnection(cancellationToken);
-            var command = this._commandFactory.Invoke(connection, sql);
-
             await this._tranSyncSemaphore.WaitAsync(cancellationToken);
+
+            //Opening the connection is also thread safe
+            if (this._wasClosed && this._connection.State == ConnectionState.Closed)
+            {
+                await this._connection.OpenAsync(cancellationToken);
+            }
+
+            var command = this._commandFactory.Invoke(this._connection, sql);
+
             try
             {
                 if (command.Transaction != null && this._currentTransaction != null)
@@ -507,15 +526,6 @@ namespace SqExpress.DataAccess
             }
 
             return command;
-        }
-
-        private async Task<TConnection> GetOpenedConnection(CancellationToken cancellationToken)
-        {
-            if (this._wasClosed && this._connection.State == ConnectionState.Closed)
-            {
-                await this._connection.OpenAsync(cancellationToken);
-            }
-            return this._connection;
         }
 
         private void ReleaseTransaction()
@@ -577,7 +587,17 @@ namespace SqExpress.DataAccess
             public DbTransaction StartTransactionIfNecessary()
             {
                 //This method is thread safe since it is called under lock
-                return this.DbTransaction ??= this._host._connection.BeginTransaction(this._isolationLevel);
+                if (this.DbTransaction == null)
+                {
+                    if (this._host._connection.State != ConnectionState.Open)
+                    {
+                        throw new SqExpressException("Connection should be opened");
+                    }
+
+                    this.DbTransaction = this._host._connection.BeginTransaction(this._isolationLevel);
+                }
+                return this.DbTransaction;
+
             }
 #endif
 
@@ -608,7 +628,16 @@ namespace SqExpress.DataAccess
             public async ValueTask<DbTransaction> StartTransactionIfNecessaryAsync()
             {
                 //This method is thread safe since it is called under lock
-                return this.DbTransaction ??= await this._host._connection.BeginTransactionAsync(this._isolationLevel);
+                if (this.DbTransaction == null)
+                {
+                    if (this._host._connection.State != ConnectionState.Open)
+                    {
+                        throw new SqExpressException("Connection should be opened");
+                    }
+
+                    this.DbTransaction = await this._host._connection.BeginTransactionAsync(this._isolationLevel);
+                }
+                return this.DbTransaction;
             }
 
             public async ValueTask CommitAsync()

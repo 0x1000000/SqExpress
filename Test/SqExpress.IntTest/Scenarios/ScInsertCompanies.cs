@@ -44,7 +44,11 @@ namespace SqExpress.IntTest.Scenarios
                     .Set(s.Target.Version, 1))
                 .CheckExistenceBy(company.ExternalId)
                 .Output(company.CompanyId)
-                .QueryList(context.Database, r => company.CompanyId.Read(r));
+                .QueryList(context.Database, r =>
+                    {
+                        return company.CompanyId.Read(r);
+                    }
+                );
 
             if (insertedDuplicates.Count > 0)
             {

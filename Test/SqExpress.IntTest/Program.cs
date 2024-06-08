@@ -46,6 +46,7 @@ namespace SqExpress.IntTest
                        .Then(new ScTransactions(true))
                        .Then(new ScTransactionsAsync(false))
                        .Then(new ScTransactionsAsync(true))
+                       .Then(new ScTransactionsDeadlock())
                        .Then(new ScMerge())
                        .Then(new ScMergeExpr())
                        .Then(new ScModelSelector())

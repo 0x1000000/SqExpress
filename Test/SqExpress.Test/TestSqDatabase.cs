@@ -68,7 +68,17 @@ namespace SqExpress.Test
             throw new NotImplementedException();
         }
 
+        public ValueTask<(ISqTransaction transaction, bool isNewTransaction)> BeginTransactionOrUseExistingAsync()
+        {
+            throw new NotImplementedException();
+        }
+
         public ValueTask<(ISqTransaction transaction, bool isNewTransaction)> BeginTransactionOrUseExistingAsync(IsolationLevel isolationLevel)
+        {
+            throw new NotImplementedException();
+        }
+
+        public ValueTask<ISqTransaction> BeginTransactionAsync()
         {
             throw new NotImplementedException();
         }
@@ -94,11 +104,6 @@ namespace SqExpress.Test
         }
 
         public Task Statement(IStatement statement, CancellationToken cancellationToken = default)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<IReadOnlyList<SqTable>> GetTables(CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
