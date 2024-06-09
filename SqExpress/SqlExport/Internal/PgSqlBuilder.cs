@@ -1,11 +1,14 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using SqExpress.SqlExport.Statement.Internal;
 using SqExpress.StatementSyntax;
 using SqExpress.Syntax;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Expressions;
+using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
@@ -503,6 +506,96 @@ namespace SqExpress.SqlExport.Internal
             this.Builder.Append('\'');
 
             return true;
+        }
+
+        public override bool VisitExprDateDiff(ExprDateDiff exprDateDiff, IExpr? arg)
+        {
+            ExprValue result;
+
+            if (exprDateDiff.DatePart == DateDiffDatePart.Year)
+            {
+                result = DatePart("YEAR", exprDateDiff.EndDate) - DatePart("YEAR", exprDateDiff.StartDate);
+
+            }
+            else if (exprDateDiff.DatePart == DateDiffDatePart.Month)
+            {
+                var year = DatePart("YEAR", exprDateDiff.EndDate) - DatePart("YEAR", exprDateDiff.StartDate);
+                var month = DatePart("MONTH", exprDateDiff.EndDate) - DatePart("MONTH", exprDateDiff.StartDate);
+
+                result = year * 12 + month;
+            }
+            else
+            {
+                string? truncInterval;
+                string? partInterval;
+
+                int? divider = null;
+                int? factor = null;
+                switch (exprDateDiff.DatePart)
+                {
+                    case DateDiffDatePart.Day:
+                        truncInterval = partInterval = "DAY";
+                        break;
+                    case DateDiffDatePart.Hour:
+                        truncInterval = "HOUR";
+                        partInterval = "EPOCH";
+                        divider = 60 * 60;
+                        break;
+                    case DateDiffDatePart.Minute:
+                        truncInterval = "MINUTE";
+                        partInterval = "EPOCH";
+                        divider = 60;
+                        break;
+                    case DateDiffDatePart.Second:
+                        truncInterval = "SECOND";
+                        partInterval = "EPOCH";
+                        break;
+                    case DateDiffDatePart.Millisecond:
+                        truncInterval = "MILLISECOND";
+                        partInterval = "EPOCH";
+                        factor = 1000;
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+
+                var diff = Diff(truncInterval, exprDateDiff.StartDate, exprDateDiff.EndDate);
+
+                result = DatePart(partInterval, diff);
+
+                if (divider != null)
+                {
+                    result /= divider.Value;
+                }
+
+                if (factor != null)
+                {
+                    result *= factor.Value;
+                }
+            }
+
+            result = SqQueryBuilder.Cast(result, SqQueryBuilder.SqlType.Int32);
+            result.Accept(this, exprDateDiff);
+
+            return true;
+
+            static ExprValue Diff(string interval, ExprValue start, ExprValue end)
+                => DateTrunc(interval, end) - DateTrunc(interval, start);
+
+            static ExprValue DateTrunc(string interval, ExprValue value)
+                => SqQueryBuilder.ScalarFunctionSys("DATE_TRUNC", interval, EnsureLiteral(value));
+
+            static ExprValue DatePart(string interval, ExprValue value)
+                => SqQueryBuilder.ScalarFunctionSys("DATE_PART", interval, EnsureLiteral(value));
+
+            static ExprValue EnsureLiteral(ExprValue value)
+            {
+                if (value is ExprLiteral)
+                {
+                    value = SqQueryBuilder.Cast(value, SqQueryBuilder.SqlType.DateTime());
+                }
+                return value;
+            }
         }
 
         public override bool VisitExprColumnName(ExprColumnName columnName, IExpr? parent)

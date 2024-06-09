@@ -768,6 +768,20 @@ namespace SqExpress.SyntaxTreeOperations.Internal
                     throw new SqExpressException("Incorrect enumerator visitor state");
             }
         }
+        public bool VisitExprDateDiff(ExprDateDiff expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.StartDate);
+                case 2:
+                    return this.SetCurrent(expr.EndDate);
+                case 3:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
         public bool VisitExprDateTimeLiteral(ExprDateTimeLiteral expr, object? arg)
         {
             switch (this.Peek().State)

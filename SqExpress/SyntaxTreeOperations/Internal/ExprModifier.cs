@@ -485,6 +485,16 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprDateDiff(ExprDateDiff exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newStartDate = this.AcceptItem(exprIn.StartDate, modifier);
+            var newEndDate = this.AcceptItem(exprIn.EndDate, modifier);
+            if(!ReferenceEquals(exprIn.StartDate, newStartDate) || !ReferenceEquals(exprIn.EndDate, newEndDate))
+            {
+                exprIn = new ExprDateDiff(startDate: newStartDate, endDate: newEndDate, datePart: exprIn.DatePart);
+            }
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprDateTimeLiteral(ExprDateTimeLiteral exprIn, Func<IExpr, IExpr?> modifier)
         {
             return modifier.Invoke(exprIn);

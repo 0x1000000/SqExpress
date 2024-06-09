@@ -158,6 +158,9 @@ namespace SqExpress
         public static ExprDateAdd DateAdd(DateAddDatePart datePart, int number, ExprValue date) 
             => new ExprDateAdd(datePart, number, date);
 
+        public static ExprDateDiff DateDiff(DateDiffDatePart datePart, ExprValue startDate, ExprValue endDate)
+            => new ExprDateDiff(datePart, startDate, endDate);
+
         public readonly struct AnalyticFunctionOverPartitionsBuilder
         {
             private readonly string _name;
@@ -308,7 +311,5 @@ namespace SqExpress
             public static FrameBorder Following(ExprValue value)
                 => new FrameBorder(new ExprValueFrameBorder(value, FrameBorderDirection.Following));
         }
-
-
     }
 }

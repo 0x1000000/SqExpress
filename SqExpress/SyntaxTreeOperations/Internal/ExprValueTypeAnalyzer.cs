@@ -203,6 +203,11 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             return ctx.ValueVisitor.VisitDateTime(ctx.Ctx, null);
         }
 
+        public TRes VisitExprDateDiff(ExprDateDiff exprDateDiff, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitInt32(ctx.Ctx, null);
+        }
+
         public TRes VisitExprColumn(ExprColumn exprColumn, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
         {
             if (exprColumn is TableColumn tc)

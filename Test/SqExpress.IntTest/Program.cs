@@ -57,6 +57,7 @@ namespace SqExpress.IntTest
                        .Then(new ScBitwise())
                        .Then(new ScJsonTableFunction())
                        .Then(new ScGetTables())
+                       .Then(new ScDateDiff())
                     ;
 
                 await ExecScenarioAll(

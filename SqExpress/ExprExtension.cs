@@ -132,6 +132,9 @@ namespace SqExpress
         public static string ToSql(this IStatement expr, ISqlExporter exporter)
             => exporter.ToSql(expr);
 
+        public static Task Exec(this IStatement expr, ISqDatabase database, CancellationToken cancellationToken = default)
+            => database.Statement(expr, cancellationToken);
+
         public static SyntaxTreeActions<TExpr> SyntaxTree<TExpr>(this TExpr expr) where TExpr : IExpr
         {
             return new SyntaxTreeActions<TExpr>(expr);

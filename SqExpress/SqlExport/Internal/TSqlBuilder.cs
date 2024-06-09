@@ -674,6 +674,31 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public override bool VisitExprDateDiff(ExprDateDiff exprDateDiff, IExpr? arg)
+        {
+            this.Builder.Append("DATEDIFF(");
+
+            var datePart = exprDateDiff.DatePart switch
+            {
+                DateDiffDatePart.Year => "YEAR",
+                DateDiffDatePart.Month => "MONTH",
+                DateDiffDatePart.Day => "DAY",
+                DateDiffDatePart.Hour => "HOUR",
+                DateDiffDatePart.Minute => "MINUTE",
+                DateDiffDatePart.Second => "SECOND",
+                DateDiffDatePart.Millisecond => "MILLISECOND",
+                _ => throw new ArgumentOutOfRangeException()
+            };
+            this.Builder.Append(datePart);
+            this.Builder.Append(',');
+            exprDateDiff.StartDate.Accept(this, exprDateDiff);
+            this.Builder.Append(',');
+            exprDateDiff.EndDate.Accept(this, exprDateDiff);
+            this.Builder.Append(')');
+
+            return true;
+        }
+
         public override bool VisitExprColumnName(ExprColumnName columnName, IExpr? parent)
             => this.VisitExprColumnNameCommon(columnName);
 

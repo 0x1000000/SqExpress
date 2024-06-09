@@ -98,6 +98,11 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             this._visitor.VisitPlainProperty(name, value.ToString(), ctx);
         }
 
+        void VisitPlainProperty(string name, DateDiffDatePart value, TCtx ctx)
+        {
+            this._visitor.VisitPlainProperty(name, value.ToString(), ctx);
+        }
+
         void VisitPlainProperty(string name, FrameBorderDirection value, TCtx ctx)
         {
             this._visitor.VisitPlainProperty(name, value.ToString(), ctx);
@@ -567,6 +572,18 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             this.VisitPlainProperty("DatePart",expr.DatePart, argOut.Context);
             this.VisitPlainProperty("Number",expr.Number, argOut.Context);
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
+        public bool VisitExprDateDiff(ExprDateDiff expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "DateDiff", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("StartDate",expr.StartDate, argOut) && this.Accept("EndDate",expr.EndDate, argOut);
+            }
+            this.VisitPlainProperty("DatePart",expr.DatePart, argOut.Context);
             this.EndVisit(expr, argOut.Context);
             return res && walkResult != WalkResult.Stop;
         }

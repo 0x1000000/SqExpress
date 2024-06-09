@@ -1001,6 +1001,8 @@ namespace SqExpress.SqlExport.Internal
 
         public abstract bool VisitExprDateAdd(ExprDateAdd exprDateAdd, IExpr? arg);
 
+        public abstract bool VisitExprDateDiff(ExprDateDiff exprDateDiff, IExpr? arg);
+
         //Meta
 
         public bool VisitExprColumn(ExprColumn exprColumn, IExpr? parent)

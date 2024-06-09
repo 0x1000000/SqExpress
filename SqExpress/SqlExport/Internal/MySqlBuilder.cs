@@ -189,6 +189,80 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public override bool VisitExprDateDiff(ExprDateDiff exprDateDiff, IExpr? arg)
+        {
+            ExprValue result;
+
+            if (exprDateDiff.DatePart == DateDiffDatePart.Year)
+            {
+                result = SqQueryBuilder.ScalarFunctionSys("YEAR", exprDateDiff.EndDate) -
+                         SqQueryBuilder.ScalarFunctionSys("YEAR", exprDateDiff.StartDate);
+            } 
+            else if (exprDateDiff.DatePart == DateDiffDatePart.Month)
+            {
+                var y = SqQueryBuilder.ScalarFunctionSys("YEAR", exprDateDiff.EndDate) -
+                        SqQueryBuilder.ScalarFunctionSys("YEAR", exprDateDiff.StartDate);
+
+                var m = SqQueryBuilder.ScalarFunctionSys("MONTH", exprDateDiff.EndDate) -
+                        SqQueryBuilder.ScalarFunctionSys("MONTH", exprDateDiff.StartDate);
+
+                result = y * 12 + m;
+            } else if (exprDateDiff.DatePart == DateDiffDatePart.Day)
+            {
+                result = SqQueryBuilder.ScalarFunctionSys("DATEDIFF", exprDateDiff.EndDate, exprDateDiff.StartDate);
+            }
+            else
+            {
+                var interval = exprDateDiff.DatePart switch
+                {
+                    DateDiffDatePart.Hour => "HOUR",
+                    DateDiffDatePart.Minute => "MINUTE",
+                    DateDiffDatePart.Second => "SECOND",
+                    DateDiffDatePart.Millisecond => "MILLISECOND",
+                    _ => throw new ArgumentOutOfRangeException()
+                };
+
+                result = TimeStampDiff(
+                    interval,
+                    Tran(exprDateDiff.DatePart, exprDateDiff.StartDate),
+                    Tran(exprDateDiff.DatePart, exprDateDiff.EndDate)
+                );
+            }
+
+            result.Accept(this, exprDateDiff);
+
+            return true;
+
+            static ExprValue TimeStampDiff(string interval, ExprValue start, ExprValue end) 
+                => SqQueryBuilder.ScalarFunctionSys("TIMESTAMPDIFF", SqQueryBuilder.UnsafeValue(interval), start, end);
+
+            static ExprValue Tran(DateDiffDatePart diff, ExprValue value)
+            {
+                if (diff == DateDiffDatePart.Millisecond)
+                {
+                    return value;
+                }
+
+                if (diff == DateDiffDatePart.Second)
+                {
+                    return SqQueryBuilder.ScalarFunctionSys("DATE_FORMAT", value, "%Y-%m-%d %H:%i:%s");
+                }
+
+                if (diff == DateDiffDatePart.Minute)
+                {
+                    return SqQueryBuilder.ScalarFunctionSys("DATE_FORMAT", value, "%Y-%m-%d %H:%i:00");
+                }
+
+                if (diff == DateDiffDatePart.Hour)
+                {
+                    return SqQueryBuilder.ScalarFunctionSys("DATE_FORMAT", value, "%Y-%m-%d %H:00:00");
+                }
+
+                return SqQueryBuilder.ScalarFunctionSys("DATE", value);
+
+            }
+        }
+
         public override bool VisitExprColumnName(ExprColumnName columnName, IExpr? parent)
             => this.VisitExprColumnNameCommon(columnName);
 

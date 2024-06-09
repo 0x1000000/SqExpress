@@ -4,6 +4,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using SqExpress.DataAccess;
+using SqExpress.QueryBuilders;
 
 namespace SqExpress.IntTest;
 
@@ -132,5 +133,12 @@ public static class Helpers
         }
 
         return result;
+    }
+
+    public static IExprQuery Tap(this IExprQueryFinal final, Action<IExprQuery> handler)
+    {
+        var r = final.Done();
+        handler(r);
+        return r;
     }
 }

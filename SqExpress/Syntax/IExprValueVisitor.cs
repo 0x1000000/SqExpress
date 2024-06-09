@@ -82,6 +82,8 @@ namespace SqExpress.Syntax
 
         TRes VisitExprDateAdd(ExprDateAdd exprDateAdd, TArg arg);
 
+        TRes VisitExprDateDiff(ExprDateDiff exprDateDiff, TArg arg);
+
         //Meta
         TRes VisitExprColumn(ExprColumn exprColumn, TArg arg);
 

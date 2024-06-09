@@ -319,6 +319,15 @@ namespace SqExpress
         public static ExprDateAdd WithNumber(this ExprDateAdd original, Int32 newNumber) 
             => new ExprDateAdd(date: original.Date, datePart: original.DatePart, number: newNumber);
 
+        public static ExprDateDiff WithStartDate(this ExprDateDiff original, ExprValue newStartDate) 
+            => new ExprDateDiff(startDate: newStartDate, endDate: original.EndDate, datePart: original.DatePart);
+
+        public static ExprDateDiff WithEndDate(this ExprDateDiff original, ExprValue newEndDate) 
+            => new ExprDateDiff(startDate: original.StartDate, endDate: newEndDate, datePart: original.DatePart);
+
+        public static ExprDateDiff WithDatePart(this ExprDateDiff original, DateDiffDatePart newDatePart) 
+            => new ExprDateDiff(startDate: original.StartDate, endDate: original.EndDate, datePart: newDatePart);
+
         public static ExprDateTimeLiteral WithValue(this ExprDateTimeLiteral original, DateTime? newValue) 
             => new ExprDateTimeLiteral(value: newValue);
 

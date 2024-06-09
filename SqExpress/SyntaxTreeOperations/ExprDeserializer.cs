@@ -121,6 +121,7 @@ namespace SqExpress.SyntaxTreeOperations
                 case "CurrentRowFrameBorder": return ExprCurrentRowFrameBorder.Instance;
                 case "DatabaseName": return new ExprDatabaseName(name: ReadString(rootElement, reader, "Name"));
                 case "DateAdd": return new ExprDateAdd(date: GetSubNode<TNode, ExprValue>(rootElement, reader, "Date"), datePart: ReadDateAddDatePart(rootElement, reader, "DatePart"), number: ReadInt32(rootElement, reader, "Number"));
+                case "DateDiff": return new ExprDateDiff(startDate: GetSubNode<TNode, ExprValue>(rootElement, reader, "StartDate"), endDate: GetSubNode<TNode, ExprValue>(rootElement, reader, "EndDate"), datePart: ReadDateDiffDatePart(rootElement, reader, "DatePart"));
                 case "DateTimeLiteral": return new ExprDateTimeLiteral(value: ReadNullableDateTime(rootElement, reader, "Value"));
                 case "DateTimeOffsetLiteral": return new ExprDateTimeOffsetLiteral(value: ReadNullableDateTimeOffset(rootElement, reader, "Value"));
                 case "DbSchema": return new ExprDbSchema(database: GetNullableSubNode<TNode, ExprDatabaseName>(rootElement, reader, "Database"), schema: GetSubNode<TNode, ExprSchemaName>(rootElement, reader, "Schema"));
@@ -482,6 +483,22 @@ namespace SqExpress.SyntaxTreeOperations
             }
 
             if (!Enum.TryParse(str, false, out DateAddDatePart result))
+            {
+                throw new SqExpressException($"Could not recognize \"{str}\" as \"{nameof(DateAddDatePart)}\"");
+            }
+
+            return result;
+        }
+
+        private static DateDiffDatePart ReadDateDiffDatePart<TNode>(TNode rootElement, IExprReader<TNode> reader, string name)
+        {
+            var str = ReadNullableString(rootElement, reader, name);
+            if (str == null)
+            {
+                throw new SqExpressException($"Property \"{name}\" is mandatory");
+            }
+
+            if (!Enum.TryParse(str, false, out DateDiffDatePart result))
             {
                 throw new SqExpressException($"Could not recognize \"{str}\" as \"{nameof(DateAddDatePart)}\"");
             }
