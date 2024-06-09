@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using SqExpress.IntTest.Context;
 using SqExpress.IntTest.Tables;
+using SqExpress.Syntax.Names;
 
 namespace SqExpress.IntTest.Scenarios;
 
@@ -22,6 +23,32 @@ public class ScGetTables : IScenario
             {
                 throw new Exception("Different tables");
             }
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("Hierarchy:");
+
+        var hierarchy = actualTables.BuildHierarchy();
+        foreach (var actualTable in actualTables.Where(t => !t.GetParentTables().Any()))
+        {
+            Print(actualTable.FullName.AsExprTableFullName(), "");
+        }
+
+        void Print(ExprTableFullName table, string prefix)
+        {
+            if (hierarchy.TryGetValue(table, out var children))
+            {
+                context.WriteLine($"{prefix} - {table.TableName.Name} is referenced by:");
+                foreach (var child in children)
+                {
+                    Print(child, prefix +"  ");
+                }
+            }
+            else
+            {
+                context.WriteLine($"{prefix} - {table.TableName.Name}");
+            }
+
         }
     }
 

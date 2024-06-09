@@ -81,12 +81,12 @@ namespace SqExpress.IntTest.Scenarios
                 .QueryList(context.Database, r => CustomerNameData.Read(r, tCustomerName));
 
             context.WriteLine(null);
-            context.WriteLine("Top 5 Users users: ");
+            context.WriteLine("Top 5 users: ");
             context.WriteLine(null);
 
             foreach (var valueTuple in users)
             {
-                Console.WriteLine(valueTuple);
+                Console.WriteLine($"Id: {valueTuple.Id},  Name: {valueTuple.Name}");
             }
             context.WriteLine(null);
             context.WriteLine("Top 5 Users companies: ");
@@ -95,6 +95,7 @@ namespace SqExpress.IntTest.Scenarios
             foreach (var valueTuple in companies)
             {
                 Console.WriteLine(valueTuple);
+                Console.WriteLine($"Id: {valueTuple.Id},  Name: {valueTuple.Name}");
             }
         }
 

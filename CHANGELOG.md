@@ -10,6 +10,7 @@
 - ```expr.SyntaxTree().ModifyDescendants(modifier)``` new method that returns object of the same type.
 - arguments of **OR** and **AND** operators now can be nullable _(for .Net 6)_
 - **DateDiff** function + polyfills for Postgresql and MySql
+- ```GetParentTables()``` for TableBase()
 
 ### Breaking Changes
 - Values Constructor in MYSQL now is implemented through **UNION ALL** 

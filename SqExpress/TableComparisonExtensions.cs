@@ -8,7 +8,7 @@ using SqExpress.Syntax.Type;
 
 namespace SqExpress;
 
-public static class TableComparisonExtension
+public static class TableComparisonExtensions
 {
     public static TableListComparison? CompareWith(this IReadOnlyList<TableBase> thisList, IReadOnlyList<TableBase> otherList, Func<IExprTableFullName, object>? tableNameKeyExtractor = null)
     {
