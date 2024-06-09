@@ -1,7 +1,7 @@
 # SqExpress
 ![Logo](https://github.com/0x1000000/SqExpress/blob/main/SqExpress/Icon.png)
 
-The library provides a generic SQL syntax tree with export to MS T-SQL, PostgreSQL, and MySQL text. It also provides a set of builders and operators that will help you build complex SQL expressions.
+The library provides a generic SQL syntax tree with export to MS T-SQL, PostgreSQL, and MySQL text. It includes polyfills to compensate for features lacking in certain databases, such as the "MERGE" command. It also provides a set of builders and operators that will help you build complex SQL expressions.
 
 It does not use LINQ, and your C# code will be as close to real SQL as possible. This makes it ideal when you need full SQL flexibility to create efficient DB requests.
 
