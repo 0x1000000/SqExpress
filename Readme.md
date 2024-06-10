@@ -88,7 +88,7 @@ Now let's get rid of the necessity in writing __"SqQueryBuilder."__:
 ```cs
 using static SqExpress.SqQueryBuilder;
 ...
-    var query = Select("Hello World!").Done();
+    var query = /*SqQueryBuilder.*/Select("Hello World!").Done();
 
     Console.WriteLine(TSqlExporter.Default.ToSql(query));
 
@@ -190,7 +190,7 @@ var data = new[]
     new {FirstName = "Maye", LastName = "Maloy"},
 };
 
-await InsertDataInto(tUser, data)
+await /*SqQueryBuilder.*/InsertDataInto(tUser, data)
     .MapData(s => s
         .Set(s.Target.FirstName, s.Source.FirstName)
         .Set(s.Target.LastName, s.Source.LastName))
@@ -214,7 +214,7 @@ FROM
 ## Selecting data
 and select it:
 ```cs
-var selectResult = await Select(tUser.UserId, tUser.FirstName, tUser.LastName)
+var selectResult = await /*SqQueryBuilder.*/Select(tUser.UserId, tUser.FirstName, tUser.LastName)
     .From(tUser)
     .OrderBy(tUser.FirstName, tUser.LastName)
     .QueryList(database,
@@ -242,7 +242,7 @@ ORDER BY [A0].[FirstName],[A0].[LastName]
 ## Updating data
 Now let's fix the typo:
 ```cs
-await Update(tUser)
+await /*SqQueryBuilder.*/Update(tUser)
     .Set(tUser.LastName, "Malloy")
     .Set(tUser.Version, tUser.Version+1)
     .Set(tUser.ModifiedAt, GetUtcDate())
@@ -250,7 +250,7 @@ await Update(tUser)
     .Exec(database);
 
 //Writing to console without storing data in memory
-await Select(tUser.Columns)
+await /*SqQueryBuilder.*/Select(tUser.Columns)
     .From(tUser)
     .Query(database, record=>
     {
@@ -282,7 +282,7 @@ WHERE [A0].[LastName]='Maloy'```
 ## Deleting data
 Unfortunately, regardless the fact the typo is fixed, we have to say "Good Bye" to May*:
 ```cs
-await Delete(tUser)
+await /*SqQueryBuilder.*/Delete(tUser)
     .Where(tUser.FirstName.Like("May%"))
     .Output(tUser.UserId)
     .Query(database, (record)=>
@@ -390,7 +390,7 @@ var tCompany = new TableCompany();
 
 Console.WriteLine("Companies:");
 
-await InsertDataInto(tCompany, new[] {"Microsoft", "Google"})
+await /*SqQueryBuilder.*/InsertDataInto(tCompany, new[] {"Microsoft", "Google"})
     .MapData(s => s.Set(s.Target.CompanyName, s.Source))
     .AlsoInsert(s => s
         .Set(s.Target.Version, 1)
@@ -409,7 +409,7 @@ var tCustomer = new TableCustomer();
 var tSubCustomer = new TableCustomer();
 
 //Users
-await InsertInto(tCustomer, tCustomer.UserId)
+await /*SqQueryBuilder.*/InsertInto(tCustomer, tCustomer.UserId)
     .From(
         Select(tUser.UserId)
             .From(tUser)
@@ -449,6 +449,7 @@ WHERE NOT EXISTS(
     WHERE [A1].[CompanyId]=[A0].[CompanyId]
 )
 ```
+_Note: SqExpress actively uses operator overloads. Therefore, operators >, >=, <, <=, ==, &, |, !, /, +, -, *, and % are overloaded when applied to SqExpress syntax nodes, resulting in new syntax nodes._
 # Data Selection
 
 ## Joining Tables
@@ -461,16 +462,16 @@ var tCustomer = new TableCustomer();
 var cType = CustomColumnFactory.Int16("Type");
 var cName = CustomColumnFactory.String("Name");
 
-var customers = await Select(
+var customers = await /*SqQueryBuilder.*/Select(
         tCustomer.CustomerId,
-        Case()
+        /*SqQueryBuilder.*/Case()
             .When(IsNotNull(tUser.UserId))
             .Then(Cast(Literal(1), SqlType.Int16))
             .When(IsNotNull(tCompany.CompanyId))
             .Then(Cast(Literal(2), SqlType.Int16))
             .Else(Null)
             .As(cType),
-        Case()
+        /*SqQueryBuilder.*/Case()
             .When(IsNotNull(tUser.UserId))
             .Then(tUser.FirstName + " " + tUser.LastName)
             .When(IsNotNull(tCompany.CompanyId))
@@ -562,16 +563,16 @@ public class DerivedTableCustomer : DerivedTableBase
         var tCompany = new TableCompany();
         var tCustomer = new TableCustomer();
 
-        return Select(
+        return /*SqQueryBuilder.*/Select(
                 tCustomer.CustomerId.As(this.CustomerId),
-                Case()
+                /*SqQueryBuilder.*/Case()
                     .When(IsNotNull(tUser.UserId))
                     .Then(Cast(Literal(1), SqlType.Int16))
                     .When(IsNotNull(tCompany.CompanyId))
                     .Then(Cast(Literal(2), SqlType.Int16))
                     .Else(Null)
                     .As(this.Type),
-                Case()
+                /*SqQueryBuilder.*/Case()
                     .When(IsNotNull(tUser.UserId))
                     .Then(tUser.FirstName + " " + tUser.LastName)
                     .When(IsNotNull(tCompany.CompanyId))
@@ -590,7 +591,7 @@ and this is how it can be reused:
 ```cs
 var tCustomer = new DerivedTableCustomer("CUST");
 
-var customers = await Select(tCustomer.Columns)
+var customers = await /*SqQueryBuilder.*/Select(tCustomer.Columns)
     .From(tCustomer)
     .Where(tCustomer.Type == 2 | tCustomer.Name.Like("%Free%"))
     .OrderBy(Desc(tCustomer.Name))
@@ -656,14 +657,14 @@ var numbers = Values(3, 1, 1, 7, 3, 7, 3, 7, 7, 8).AsColumns(num);
 var numbersSubQuery = TableAlias();
 
 var mostFrequentNum = (int) await
-    SelectTop(1, numbersSubQuery.Column(num))
+    /*SqQueryBuilder.*/SelectTop(1, numbersSubQuery.Column(num))
         .From(
-            Select(numbers.Column(num), CountOne().As(sum))
+            /*SqQueryBuilder.*/Select(numbers.Column(num), CountOne().As(sum))
                 .From(numbers)
                 .GroupBy(numbers.Column(num))
                 .As(numbersSubQuery)
         )
-        .OrderBy(Desc(numbersSubQuery.Column(sum)))
+        .OrderBy(/*SqQueryBuilder.*/Desc(numbersSubQuery.Column(sum)))
         .QueryScalar(database);
 
 Console.WriteLine("The most frequent number: "  + mostFrequentNum);
@@ -711,7 +712,7 @@ class CteTreeClosure : CteBase
 
         var previous = new CteTreeClosure();
 
-        return Select(initial.Id, initial.ParentId, Literal(1).As(this.Depth))
+        return /*SqQueryBuilder.*/Select(initial.Id, initial.ParentId, /*SqQueryBuilder.*/Literal(1).As(this.Depth))
             .From(initial)
             .UnionAll(Select(
                     previous.Id,
@@ -724,7 +725,7 @@ class CteTreeClosure : CteBase
 }
 ...
 
-var result = await Select(treeClosure.Id, treeClosure.ParentId, treeClosure.Depth)
+var result = await /*SqQueryBuilder.*/Select(treeClosure.Id, treeClosure.ParentId, treeClosure.Depth)
     .From(treeClosure)
     .QueryList(context.Database,
         r => (
@@ -776,19 +777,19 @@ var cLast = CustomColumnFactory.String("Last");
 
 var user = new TableUser();
 
-await Select(
+await /*SqQueryBuilder.*/Select(
         (user.FirstName + " " + user.LastName)
         .As(cUserName),
-        RowNumber()
+        /*SqQueryBuilder.*/RowNumber()
             /*.OverPartitionBy(some fields)*/
             .OverOrderBy(user.FirstName)
             .As(cNum),
-        FirstValue(user.FirstName + " " + user.LastName)
+        /*SqQueryBuilder.*/FirstValue(user.FirstName + " " + user.LastName)
             /*.OverPartitionBy(some fields)*/
             .OverOrderBy(user.FirstName)
             .FrameClauseEmpty()
             .As(cFirst),
-        LastValue(user.FirstName + " " + user.LastName)
+        /*SqQueryBuilder.*/LastValue(user.FirstName + " " + user.LastName)
             /*.OverPartitionBy(some fields)*/
             .OverOrderBy(user.FirstName)
             .FrameClause(
@@ -824,8 +825,8 @@ The library supports all the SET operators:
 ```cs
 //If you need to repeat one query several times 
 // you can store it in a variable
-var select1 = Select(1);
-var select2 = Select(2);
+var select1 = /*SqQueryBuilder.*/Select(1);
+var select2 = /*SqQueryBuilder.*/Select(2);
 
 var result = await select1
     .Union(select2)
@@ -874,7 +875,7 @@ var inserted = CustomColumnFactory.NullableInt32("Inserted");
 var deleted = CustomColumnFactory.NullableInt32("Deleted");
 
 var tableUser = new TableUser();
-await MergeDataInto(tableUser, data)
+await /*SqQueryBuilder.*/MergeDataInto(tableUser, data)
     .MapDataKeys(s => s
         .Set(s.Target.FirstName, s.Source.FirstName))
     .MapData(s => s
@@ -973,18 +974,18 @@ var tableCompany = new TableCompany();
 await database.Statement(tmp.Script.Create());
 
 //Users
-await InsertInto(tmp, tmp.Name)
+await /*SqQueryBuilder.*/InsertInto(tmp, tmp.Name)
     .From(Select(tableUser.FirstName + " "+ tableUser.LastName)
     .From(tableUser))
     .Exec(database);
 
 //Companies
-await InsertInto(tmp, tmp.Name)
+await /*SqQueryBuilder.*/InsertInto(tmp, tmp.Name)
     .From(Select(tableCompany.CompanyName)
     .From(tableCompany))
     .Exec(database);
 
-await Select(tmp.Columns)
+await /*SqQueryBuilder.*/Select(tmp.Columns)
     .From(tmp)
     .OrderBy(tmp.Name)
     .Query(database,
@@ -1039,7 +1040,7 @@ static async Task ReadTableDataIntoJson(Utf8JsonWriter writer, ISqDatabase datab
 
     writer.WriteEndArray();
 
-    await Select(table.Columns)
+    await /*SqQueryBuilder.*/Select(table.Columns)
         .From(table)
         .Query(database,
             r =>
@@ -1094,7 +1095,7 @@ static async Task InsertTableData(ISqDatabase database, TableBase table, JsonEle
                         .FromString(c.ValueKind == JsonValueKind.Null ? null : c.GetString()))
                 .ToList());
 
-    var insertExpr = IdentityInsertInto(table, table.Columns).Values(rowsEnumerable);
+    var insertExpr = /*SqQueryBuilder.*/IdentityInsertInto(table, table.Columns).Values(rowsEnumerable);
     if (!insertExpr.Insert.Source.IsEmpty)
     {
         await insertExpr.Exec(database);
@@ -1177,7 +1178,7 @@ ExprBoolean filter = CustomColumnFactory.Int16("Type") == 2 /*Company*/;
 
 var tableCustomer = new TableCustomer();
 
-var baseSelect = Select(tableCustomer.CustomerId)
+var baseSelect = /*SqQueryBuilder.*/Select(tableCustomer.CustomerId)
     .From(tableCustomer)
     .Where(filter)
     .Done();
@@ -1444,7 +1445,7 @@ var filter2Items =
     filter2.SyntaxTree().ExportToPlainList((i, id, index, b, s, value) =>
     FilterPlainItem.Create(filterIds[1], i, id, index, b, s, value));
 
-await InsertDataInto(tableFavoriteFilterItem, filter1Items.Concat(filter2Items))
+await /*SqQueryBuilder.*/InsertDataInto(tableFavoriteFilterItem, filter1Items.Concat(filter2Items))
     .MapData(s => s
         .Set(s.Target.FavoriteFilterId, s.Source.FavoriteFilterId)
         .Set(s.Target.Id, s.Source.Id)
@@ -1457,7 +1458,7 @@ await InsertDataInto(tableFavoriteFilterItem, filter1Items.Concat(filter2Items))
     .Exec(database);
 
 //Restoring
-var restoredFilterItems = await Select(tableFavoriteFilterItem.Columns)
+var restoredFilterItems = await /*SqQueryBuilder.*/Select(tableFavoriteFilterItem.Columns)
     .From(tableFavoriteFilterItem)
     .Where(tableFavoriteFilterItem.FavoriteFilterId.In(filterIds))
     .QueryList(
@@ -1480,7 +1481,7 @@ var restoredFilter2 = (ExprBoolean)ExprDeserializer
         fi.FavoriteFilterId == filterIds[1]));
 
 Console.WriteLine("Filter 1");
-await Select(tableUser.FirstName, tableUser.LastName)
+await /*SqQueryBuilder.*/Select(tableUser.FirstName, tableUser.LastName)
     .From(tableUser)
     .Where(restoredFilter1)
     .Query(database,
@@ -1490,7 +1491,7 @@ await Select(tableUser.FirstName, tableUser.LastName)
         });
 
 Console.WriteLine("Filter 2");
-await Select(tableUser.FirstName, tableUser.LastName)
+await /*SqQueryBuilder.*/Select(tableUser.FirstName, tableUser.LastName)
     .From(tableUser)
     .Where(restoredFilter2)
     .Query(database,
