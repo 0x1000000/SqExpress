@@ -1,5 +1,4 @@
-# 1.0.0-beta
-
+# 1.0.0
 ### New Features
 - Retrieving of database tables metadata + comparison
 - **MERGE** expression builder
