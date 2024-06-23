@@ -11,6 +11,9 @@ You can use SqExpress together with the “Code First” concept when you declar
 
 You can also use it in conjunction with the “Database First” concept using an included code modification utility. The utility can also be used to generate flexible DTO classes with all required database mappings.
 
+## Video Tutorial
+[Basics of SqExpress](https://www.youtube.com/watch?v=Zd-fCb8NimA)
+
 ## Articles
 1. ["Syntax Tree and Alternative to LINQ in Interaction with SQL Databases"](https://itnext.io/syntax-tree-and-alternative-to-linq-in-interaction-with-sql-databases-656b78fe00dc?source=friends_link&sk=f5f0587c08166d8824b96b48fe2cf33c) - explains the library principles;
 2. ["Filtering by Dynamic Attributes"](https://itnext.io/filtering-by-dynamic-attributes-90ada3504361?source=friends_link&sk=35e273a9f499e6b62bacbac75873a7d2) - shows how to create dynamic queries using the library.
