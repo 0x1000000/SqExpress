@@ -512,7 +512,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers.PgSql
 
             public DefaultValue? VisitBooleanColumnType(BooleanColumnType booleanColumnType, string defaultValueRaw)
             {
-                return null;
+                return bool.TryParse(defaultValueRaw, out _)? new DefaultValue(DefaultValueType.Bool, defaultValueRaw) : null; 
             }
 
             public DefaultValue? VisitByteColumnType(ByteColumnType byteColumnType, string defaultValueRaw)

@@ -4,6 +4,10 @@
     {
         ExprTableFullName AsExprTableFullName();
 
+        IExprTableFullName WithTableName(string tableName);
+
+        IExprTableFullName WithSchemaName(string? schemaName);
+
         string? SchemaName
         {
             get;

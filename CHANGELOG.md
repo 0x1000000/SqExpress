@@ -1,3 +1,9 @@
+# 1.1.0
+### New Features
+- Dynamic table metadata creation/modification with ```SqTable``` class
+### Bugfix
+- It adds conversion from **float** to **double** when reading from column with **real** type.
+- **varbinary** column explicit length now limited with 8000. Leave the length unspecified to get **max** length 
 # 1.0.0
 ### New Features
 - Retrieving of database tables metadata + comparison

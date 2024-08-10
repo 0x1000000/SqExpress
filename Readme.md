@@ -1174,6 +1174,32 @@ async Task<bool> CheckDatabaseIsUpdated(ISqDatabase database, IReadOnlyList<Tabl
     return result;
 }
 ```
+
+You cane also create new table dynamic descriptors and modify existing ones:
+```cs
+var tbl = SqTable.Create(
+    "schema",
+    "table",
+    b => b
+        .AppendInt32Column("Id", ColumnMeta.PrimaryKey().Identity())
+        .AppendStringColumn("Value", 255, true)
+        .AppendBooleanColumn("IsActive", ColumnMeta.DefaultValue(false)),
+    i => i
+        .AppendIndex(i.Asc("Id"), i.Desc("Value"))
+        .AppendIndex(i.Asc("Value"))
+);
+
+tbl = tbl.With(
+    tbl.FullName.WithSchemaName("schema2").WithTableName("table2"),
+    (cols, app) => app
+        .AppendColumns(cols.Where(c => c.ColumnName.Name != "IsActive"))
+        .AppendDateTimeOffsetColumn("modifyDate"),
+    (indexes, app) => app
+        .AppendIndexes(indexes.Where(i=>i.Columns.Count > 1))
+        .AddUniqueIndex(app.Desc("modifyDate"))
+);
+```
+
 ## Syntax Tree
 You can go through an existing syntax tree object and modify if it is required:
 ```cs

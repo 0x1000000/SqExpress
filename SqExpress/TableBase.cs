@@ -273,7 +273,7 @@ namespace SqExpress
         protected void AddIndex(string name, params IndexMetaColumn[] columns) => this._indexes.Add(new IndexMeta(AssertIndexColumnsNotEmpty(columns), name, false, false));
         
         protected void AddUniqueIndex(params IndexMetaColumn[] columns) => this._indexes.Add(new IndexMeta(AssertIndexColumnsNotEmpty(columns), null, true, false));
-        protected void AddUniqueIndex(string name, params IndexMetaColumn[] columns) => this._indexes.Add(new IndexMeta(columns, name, true, false));
+        protected void AddUniqueIndex(string name, params IndexMetaColumn[] columns) => this._indexes.Add(new IndexMeta(AssertIndexColumnsNotEmpty(columns), name, true, false));
         
         protected void AddClusteredIndex(params IndexMetaColumn[] columns) => this._indexes.Add(new IndexMeta(AssertIndexColumnsNotEmpty(columns), null, false, true));
         protected void AddClusteredIndex(string name, params IndexMetaColumn[] columns) => this._indexes.Add(new IndexMeta(AssertIndexColumnsNotEmpty(columns), name, false, true));

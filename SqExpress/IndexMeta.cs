@@ -19,6 +19,23 @@ namespace SqExpress
         public bool Unique { get; }
         
         public bool Clustered { get; }
+
+        public IndexMeta With(
+            string? name,
+            IReadOnlyList<IndexMetaColumn>? columns = null,
+            bool? unique = null,
+            bool? clustered = null)
+        {
+            return new IndexMeta(columns ?? this.Columns, name, unique ?? this.Unique, clustered ?? this.Clustered);
+        }
+
+        public IndexMeta With(
+            IReadOnlyList<IndexMetaColumn>? columns = null,
+            bool? unique = null,
+            bool? clustered = null)
+        {
+            return new IndexMeta(columns ?? this.Columns, this.Name, unique ?? this.Unique, clustered ?? this.Clustered);
+        }
     }
 
     public class IndexMetaColumn

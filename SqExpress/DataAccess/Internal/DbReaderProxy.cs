@@ -197,6 +197,10 @@ namespace SqExpress.DataAccess.Internal
                 this.ThrowNull(name);
             }
 
+            if (this._dataReader.GetFieldType(ordinal) == typeof(float))
+            {
+                return Convert.ToDouble(this._dataReader.GetFloat(ordinal));
+            }
             return this._dataReader.GetDouble(ordinal);
         }
 
@@ -208,6 +212,10 @@ namespace SqExpress.DataAccess.Internal
                 return null;
             }
 
+            if (this._dataReader.GetFieldType(ordinal) == typeof(float))
+            {
+                return Convert.ToDouble(this._dataReader.GetFloat(ordinal));
+            }
             return this._dataReader.GetDouble(ordinal);
         }
 

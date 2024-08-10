@@ -298,6 +298,19 @@ namespace SqExpress.DbMetadata.Internal.DbManagers.MySql
                 return new DefaultValue(DefaultValueType.Integer, rawColumnDefaultValue);
             }
 
+            if (columnType is BooleanColumnType)
+            {
+                if (rawColumnDefaultValue == "b'0'")
+                {
+                    return new DefaultValue(DefaultValueType.Bool, "0");
+                }
+
+                if (rawColumnDefaultValue == "b'1'")
+                {
+                    return new DefaultValue(DefaultValueType.Bool, "1");
+                }
+            }
+
             return new DefaultValue(DefaultValueType.Raw, rawColumnDefaultValue);
         }
 

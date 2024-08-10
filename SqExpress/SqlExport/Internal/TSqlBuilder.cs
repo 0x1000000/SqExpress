@@ -463,7 +463,7 @@ namespace SqExpress.SqlExport.Internal
         public override bool VisitExprTypeByteArray(ExprTypeByteArray exprTypeByte, IExpr? arg)
         {
             this.Builder.Append("varbinary(");
-            if (exprTypeByte.Size.HasValue)
+            if (exprTypeByte.Size.HasValue && exprTypeByte.Size.Value <= 8000)
             {
                 this.Builder.Append(exprTypeByte.Size.Value.ToString());
                 this.Builder.Append(')');

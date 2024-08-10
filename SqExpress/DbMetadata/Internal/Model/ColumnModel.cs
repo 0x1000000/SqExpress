@@ -66,6 +66,7 @@ namespace SqExpress.DbMetadata.Internal.Model
         Raw,
         Null,
         Integer,
+        Bool,
         String,
         GetUtcDate
     }

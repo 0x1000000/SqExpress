@@ -22,6 +22,13 @@ namespace SqExpress.Syntax.Names
             return this;
         }
 
+        IExprTableFullName IExprTableFullName.WithTableName(string tableName) => new ExprTableFullName(this.DbSchema, new ExprTableName(tableName));
+
+        IExprTableFullName IExprTableFullName.WithSchemaName(string? schemaName) => new ExprTableFullName(
+            schemaName == null ? null : new ExprDbSchema(this.DbSchema?.Database, new ExprSchemaName(schemaName)),
+            this.TableName
+        );
+
         string? IExprTableFullName.SchemaName => this.DbSchema?.Schema.Name;
 
         string? IExprTableFullName.LowerInvariantSchemaName => this.DbSchema?.Schema.LowerInvariantName;

@@ -36,11 +36,12 @@ namespace SqExpress.Test.Export
             Assert.AreEqual(@"xz''''xz", AppendStringEscape(@"xz''xz"));
             Assert.AreEqual(@"xz''''xz''''", AppendStringEscape(@"xz''xz''"));
             Assert.AreEqual(@"''''xz''''xz''''", AppendStringEscape(@"''xz''xz''"));
+            Assert.AreEqual(@"'') or (''1''=''1--", AppendStringEscape(@"') or ('1'='1--"));
         }
 
         private static string AppendStringEscape(string original)
         {
-            var sql = SqQueryBuilder.Literal(original).ToSql();
+            var sql = SqQueryBuilder.Literal(original).ToMySql();
             return sql.Substring(1, sql.Length-2);
         }
 

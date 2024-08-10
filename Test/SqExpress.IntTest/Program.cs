@@ -58,6 +58,7 @@ namespace SqExpress.IntTest
                        .Then(new ScJsonTableFunction())
                        .Then(new ScGetTables())
                        .Then(new ScDateDiff())
+                       .Then(new ScCreateDynamicTable())
                     ;
 
                 await ExecScenarioAll(

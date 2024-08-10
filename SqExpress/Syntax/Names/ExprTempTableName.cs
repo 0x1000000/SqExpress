@@ -28,6 +28,13 @@
             return new ExprTableFullName(null, new ExprTableName(this.Name));
         }
 
+        IExprTableFullName IExprTableFullName.WithTableName(string tableName) => new ExprTempTableName(tableName);
+
+        IExprTableFullName IExprTableFullName.WithSchemaName(string? schemaName) => new ExprTableFullName(
+            schemaName == null ? null : new ExprDbSchema(null, new ExprSchemaName(schemaName)),
+            new ExprTableName(this.Name)
+        );
+
         string? IExprTableFullName.SchemaName => null;
 
         string? IExprTableFullName.LowerInvariantSchemaName => null;
