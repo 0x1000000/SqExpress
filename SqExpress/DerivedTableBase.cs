@@ -203,5 +203,12 @@ namespace SqExpress
             this._columns.Add(result);
             return result;
         }
+
+        protected NullableStringCustomColumn CreateNullableStringColumn(string name)
+        {
+            var result = new NullableStringCustomColumn(name, this.Alias);
+            this._columns.Add(result);
+            return result;
+        }
     }
 }
