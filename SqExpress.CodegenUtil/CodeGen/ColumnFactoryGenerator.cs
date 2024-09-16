@@ -249,6 +249,22 @@ namespace SqExpress.CodeGenUtil.CodeGen
                             .MemberAccess(nameof(SqQueryBuilder.GetUtcDate))
                             .Invoke();
                         break;
+                    case DefaultValueType.Bool:
+                        valueRawValue = defaultValue.RawValue ??
+                                        throw new SqExpressCodeGenException("Bool raw value cannot be null");
+                        if (bool.TryParse(valueRawValue, out var boolLit))
+                        {
+                            arg = LiteralExpr(boolLit);
+                        }
+                        else if (valueRawValue == "0" || valueRawValue == "1")
+                        {
+                            arg = LiteralExpr(valueRawValue == "1");
+                        }
+                        else
+                        {
+                            throw new SqExpressCodeGenException("Bool literal has invalid format: " + valueRawValue);
+                        }
+                        break;
                     default:
                         throw new SqExpressCodeGenException("Unknown default value type: " + defaultValue.Type);
                 }

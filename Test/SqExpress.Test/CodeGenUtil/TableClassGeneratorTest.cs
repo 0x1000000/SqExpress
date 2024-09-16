@@ -81,7 +81,7 @@ namespace SqExpress.Test.CodeGenUtil
             Assert.AreEqual(table1ExpectedSql, TSqlExporter.Default.ToSql(table1.Script.Create()));
 
             string table2ExpectedSql =
-                "CREATE TABLE [dbo].[TableA]([Id] int NOT NULL  IDENTITY (1, 1) DEFAULT (0),[Value] datetime NOT NULL DEFAULT (GETUTCDATE()),CONSTRAINT [PK_dbo_TableA] PRIMARY KEY ([Id]),CONSTRAINT [FK_dbo__TableA_to_dbo__TableZ] FOREIGN KEY ([Id]) REFERENCES [dbo].[TableZ]([Id]),INDEX [IX_dbo_TableA_Value_DESC] UNIQUE([Value] DESC));";
+                "CREATE TABLE [dbo].[TableA]([Id] int NOT NULL  IDENTITY (1, 1) DEFAULT (0),[Value] datetime NOT NULL DEFAULT (GETUTCDATE()),[IsActive] bit NOT NULL DEFAULT (1),CONSTRAINT [PK_dbo_TableA] PRIMARY KEY ([Id]),CONSTRAINT [FK_dbo__TableA_to_dbo__TableZ] FOREIGN KEY ([Id]) REFERENCES [dbo].[TableZ]([Id]),INDEX [IX_dbo_TableA_Value_DESC] UNIQUE([Value] DESC));";
             Assert.AreEqual(table2ExpectedSql, TSqlExporter.Default.ToSql(table2.Script.Create()));
         }
     }

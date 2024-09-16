@@ -51,10 +51,14 @@ namespace SqExpress.Test.CodeGenUtil
 
             var tableA = tables[1];
             Assert.AreEqual("TabTableA", tableA.Name);
-            Assert.AreEqual(2, tableA.Columns.Count);
+            Assert.AreEqual(3, tableA.Columns.Count);
 
             var tableAColumnId = tableA.Columns[0];
             Assert.AreEqual("Id", tableAColumnId.Name);
+
+            var tableAIsActive = tableA.Columns[2];
+            Assert.AreEqual("IsActive", tableAIsActive.Name);
+            Assert.AreEqual("1", tableAIsActive.DefaultValue?.RawValue);
         }
 
         public void Dispose()
@@ -76,7 +80,8 @@ namespace SqExpress.Test.CodeGenUtil
                 new ColumnRawModel(new ColumnRef("dbo","TableZ", "ValueA"), 2, false, false, "nvarchar", "(N'')", 255, null, null, null),
                 new ColumnRawModel(new ColumnRef("dbo","TableZ", "Value_A"), 3, false, true, "decimal", null, null, 2, 6, null),
                 new ColumnRawModel(new ColumnRef("dbo","TableA", "Id"), 4, true, false, "int", "((0))", null, null, null, null),
-                new ColumnRawModel(new ColumnRef("dbo","TableA", "Value"), 5, false, false, "datetime", "(getutcdate())", null, null, null, null)
+                new ColumnRawModel(new ColumnRef("dbo","TableA", "Value"), 5, false, false, "datetime", "(getutcdate())", null, null, null, null),
+                new ColumnRawModel(new ColumnRef("dbo","TableA", "IsActive"), 6, false, false, "bit", "((1))", null, null, null, null)
             };
 
             return Task.FromResult(columns);
