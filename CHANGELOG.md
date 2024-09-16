@@ -1,3 +1,8 @@
+# 1.1.1
+### Bugfix
+- Missed **CreateNullableStringColumn** in **DerivedTableBase**.
+- Table descriptor generation **Unknown default value type: Bool** _(When a boolean column has a default value)_.
+
 # 1.1.0
 ### New Features
 - Dynamic table metadata creation/modification with ```SqTable``` class
