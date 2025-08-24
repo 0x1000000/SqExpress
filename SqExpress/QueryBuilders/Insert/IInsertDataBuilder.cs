@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using SqExpress.QueryBuilders.RecordSetter;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Names;
@@ -46,6 +47,8 @@ namespace SqExpress.QueryBuilders.Insert
     public interface IInsertDataBuilderFinal : IExprExecFinal
     {
         public new ExprInsert Done();
+
+        public DataTable ToDataTable();
     }
 
     public interface IInsertDataBuilderFinalOutput : IExprQueryFinal

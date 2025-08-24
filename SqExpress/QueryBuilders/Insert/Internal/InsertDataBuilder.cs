@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using SqExpress.QueryBuilders.RecordSetter;
 using SqExpress.QueryBuilders.RecordSetter.Internal;
@@ -14,6 +15,8 @@ namespace SqExpress.QueryBuilders.Insert.Internal
 {
     public class InsertDataBuilder<TTable, TItem> : IInsertDataBuilder<TTable, TItem> where TTable : ExprTable
     {
+        private const string InputDataShouldNotBeEmpty = "Input data should not be empty";
+
         readonly TTable _target;
 
         private readonly IEnumerable<TItem> _data;
@@ -52,15 +55,14 @@ namespace SqExpress.QueryBuilders.Insert.Internal
 
             var useDerivedTable = this._targetInsertSelectMapping != null || checkExistence;
 
-            var mapping =  this._dataMapping.AssertFatalNotNull(nameof(this._dataMapping));
+            var mapping = this._dataMapping.AssertFatalNotNull(nameof(this._dataMapping));
 
             int? capacity = this._data.TryToCheckLength(out var c) ? c : (int?)null;
 
             if (capacity != null && capacity.Value < 1)
             {
-                throw new SqExpressException("Input data should not be empty");
+                throw new SqExpressException(InputDataShouldNotBeEmpty);
             }
-
 
             List<ExprValueRow>? recordsS = null;
             List<ExprInsertValueRow>? recordsI = null;
@@ -84,7 +86,7 @@ namespace SqExpress.QueryBuilders.Insert.Internal
                 dataMapSetter.NextItem(item, columns?.Count);
                 mapping(dataMapSetter);
 
-                columns ??= dataMapSetter.Columns;
+                columns ??= dataMapSetter.Columns.SelectToReadOnlyList(x => x.ColumnName);
 
                 dataMapSetter.EnsureRecordLength();
 
@@ -95,7 +97,7 @@ namespace SqExpress.QueryBuilders.Insert.Internal
             if ( (recordsS?.Count ?? 0 + recordsI?.Count ?? 0) < 1 || columns == null)
             {
                 //In case of empty IEnumerable
-                throw new SqExpressException("Input data should not be empty");
+                throw new SqExpressException(InputDataShouldNotBeEmpty);
             }
 
             IExprInsertSource insertSource;
@@ -179,6 +181,66 @@ namespace SqExpress.QueryBuilders.Insert.Internal
             }
 
             return new ExprInsert(this._target.FullName, columns, insertSource);
+        }
+
+        public DataTable ToDataTable()
+        {
+            var mapping = this._dataMapping.AssertFatalNotNull(nameof(this._dataMapping));
+
+            int? capacity = this._data.TryToCheckLength(out var c) ? c : null;
+
+            if (capacity != null && capacity.Value < 1)
+            {
+                throw new SqExpressException(InputDataShouldNotBeEmpty);
+            }
+
+            DataMapSetter<TTable, TItem>? dataMapSetter = null;
+            IReadOnlyList<ExprColumn>? columns = null;
+
+            DataTable? result = null;
+
+            foreach (var item in this._data)
+            {
+                dataMapSetter ??= new DataMapSetter<TTable, TItem>(this._target, item);
+
+                dataMapSetter.NextItem(item, columns?.Count);
+                mapping(dataMapSetter);
+                dataMapSetter.EnsureRecordLength();
+
+                var record = dataMapSetter.Record.AssertFatalNotNull(nameof(dataMapSetter.Record));
+
+                if (columns == null)
+                {
+                    result = new DataTable(this._target.FullName.TableName);
+                    columns = dataMapSetter.Columns;
+                    for (var index = 0; index < columns.Count; index++)
+                    {
+                        var targetColumn = columns[index];
+                        var targetTableColumn = targetColumn as TableColumn;
+                        if (targetTableColumn is null && this._target is TableBase tableBase)
+                        {
+                            targetTableColumn =
+                                tableBase.Columns.FirstOrDefault(x => x.ColumnName.Equals(targetColumn.ColumnName));
+                        }
+
+                        if (targetTableColumn is null)
+                        {
+                            record[index].Accept()
+                        }
+                    }
+                }
+
+
+                recordsS?.Add(new ExprValueRow(dataMapSetter.Record.AssertFatalNotNull(nameof(dataMapSetter.Record))));
+                recordsI?.Add(new ExprInsertValueRow(dataMapSetter.Record.AssertFatalNotNull(nameof(dataMapSetter.Record))));
+            }
+
+            if ( (recordsS?.Count ?? 0 + recordsI?.Count ?? 0) < 1 || columns == null)
+            {
+                //In case of empty IEnumerable
+                throw new SqExpressException(InputDataShouldNotBeEmpty);
+            }
+
         }
 
         ExprIdentityInsert IIdentityInsertDataBuilderFinal.Done()
