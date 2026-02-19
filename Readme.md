@@ -1,4 +1,4 @@
-# SqExpress
+﻿# SqExpress
 ![Logo](https://github.com/0x1000000/SqExpress/blob/main/SqExpress/Icon.png)
 
 The library provides a generic SQL syntax tree with export to MS T-SQL, PostgreSQL, and MySQL text. It includes polyfills to compensate for features lacking in certain databases, such as the "MERGE" command. It also provides a set of builders and operators that will help you build complex SQL expressions.
@@ -7,9 +7,9 @@ It does not use LINQ, and your C# code will be as close to real SQL as possible.
 
 SqExpress comes with a simple but efficient data access mechanism that wraps ADO.Net DbConnection and can be used with MS SQL Client, Npgsql, or MySQL Connector.
 
-You can use SqExpress together with the “Code First” concept when you declare SQL tables as C# classes with the possibility to generate recreation scripts for a target platform (MS SQL or PostgreSQL or MySQL).
+You can use SqExpress together with the "Code First" concept when you declare SQL tables as C# classes with the possibility to generate recreation scripts for a target platform (MS SQL or PostgreSQL or MySQL).
 
-You can also use it in conjunction with the “Database First” concept using an included code modification utility. The utility can also be used to generate flexible DTO classes with all required database mappings.
+You can also use it in conjunction with the "Database First" concept using an included code modification utility. The utility can also be used to generate flexible DTO classes with all required database mappings.
 
 ## Video Tutorial
 1. [Basics of SqExpress](https://www.youtube.com/watch?v=Zd-fCb8NimA)
@@ -21,7 +21,7 @@ You can also use it in conjunction with the “Database First” concept using a
 
 ## Demo Application
 
-You can find a realistic usage of the library in this ASP.Net demo application - [SqGoods](https://github.com/0x1000000/SqGoods)
+You can find a realistic usage of the library in this ASP.NET demo application - [SqGoods](https://github.com/0x1000000/SqGoods)
 
 # Content
 1. [Get Started](#get-started)
@@ -38,7 +38,7 @@ You can find a realistic usage of the library in this ASP.Net demo application -
 9. [Joining Tables](#joining-tables)
 10. [Aliasing](#aliasing)
 11. [Derived Tables](#derived-tables)
-12. [Subquries](#subquries)
+12. [Subqueries](#subqueries)
 13. [CTE](#cte)
 14. [Analytic And Window Functions](#analytic-and-window-functions)
 15. [Set Operators](#set-operators)
@@ -69,10 +69,10 @@ You can find a realistic usage of the library in this ASP.Net demo application -
 
 ### Usage
 
-28. [Using in ASP.Net](#using-in-aspnet)
+28. [Using in ASP.NET](#using-in-aspnet)
 29. [PostgreSQL](#postgresql)
 30. [MySQL](#mysql)
-31. [Auto-Mapper](#auto-mapper)
+31. [AutoMapper](#automapper)
 
 # Get Started
 
@@ -262,7 +262,7 @@ CREATE TABLE [dbo].[User]
 );
 ```
 ## Inserting Data
-Now it is the time to insert some date in the table:
+Now it is time to insert some data into the table:
 ```cs
 ...
 var data = new[]
@@ -384,7 +384,7 @@ WHERE [A0].[FirstName] LIKE 'May%'
 Removed user id: 3
 ```
 ## More Tables and foreign keys
-To crete more complex queries we need more than one table. Let's add a couple more:
+To create more complex queries we need more than one table. Let's add a couple more:
 
 *dbo.Company*
 ```cs
@@ -726,7 +726,7 @@ OFFSET 1 ROW FETCH NEXT 2 ROW ONLY
 Id: 4, Name: Google, Type: 2
 Id: 2, Name: Allina Freeborne, Type: 1
 ```
-## Subquries
+## Subqueries
 It is not necessary to create a new class when you need a subquery - it can be directly described in an original expression. It is enough just to predefine the aliases for columns and tables:
 ```cs
 var num = CustomColumnFactory.Int32("3");
@@ -1324,7 +1324,7 @@ await baseSelect!
             Console.WriteLine($"Id: {tableCustomer.CustomerId.Read(r)}");
         });
 ```
-For simpler scenarios you can just use “With…” functions:
+For simpler scenarios, you can use `With...` functions:
 ```cs
 var tUser = new TableUser();
 
@@ -1611,7 +1611,7 @@ await /*SqQueryBuilder.*/Select(tableUser.FirstName, tableUser.LastName)
 
 ## Retrieving Database Table Metadata
 
-The **SqExpreesDatabase** class includes a method called **GetTables()** that retrieves all table descriptors from a database defined in the connection string:
+The **ISqDatabase** interface includes a method called **GetTables()** that retrieves all table descriptors from a database defined in the connection string:
 
 ```cs
 ISqDatabase database = ...;
@@ -1919,14 +1919,14 @@ foreach (var name in page.Items)
 
 ```
 
-## Using in ASP.Net
-There is a demo ASP.Net project which is supposed to show how [SqExpress](https://github.com/0x1000000/SqGoods/tree/main) can be used in a real web app.
+## Using in ASP.NET
+There is a demo ASP.NET project that shows how [SqExpress](https://github.com/0x1000000/SqGoods/tree/main) can be used in a real web app.
 
 The ideas:
-1.	Each API request uses only one sql connection which is stored in [a connection storage](https://github.com/0x1000000/SqGoods/blob/main/SqGoods.DomainLogic/DataAccess/MsSqlConnectionStorage.cs);
+1.	Each API request uses only one SQL connection which is stored in [a connection storage](https://github.com/0x1000000/SqGoods/blob/main/SqGoods.DomainLogic/DataAccess/MsSqlConnectionStorage.cs);
 2.	The connection storage [can create an instance of SqDatabase](https://github.com/0x1000000/SqGoods/blob/main/SqGoods.DomainLogic/DataAccess/MsSqlConnectionStorage.cs#L18);
-3.	The connection storage and SqDatabase [have “Scoped” lifecycle](https://github.com/0x1000000/SqGoods/blob/main/SqGoods.DomainLogic/DomainLogicRegistration.cs#L17);
-4.	SqDatabase is used in [entity repositories which are responsible for “Domain Logic”](https://github.com/0x1000000/SqGoods/blob/main/SqGoods.DomainLogic/Repositories/SgCategoryRepository.cs).
+3.	The connection storage and SqDatabase [have "Scoped" lifecycle](https://github.com/0x1000000/SqGoods/blob/main/SqGoods.DomainLogic/DomainLogicRegistration.cs#L17);
+4.	SqDatabase is used in [entity repositories that are responsible for "Domain Logic"](https://github.com/0x1000000/SqGoods/blob/main/SqGoods.DomainLogic/Repositories/SgCategoryRepository.cs).
 ## PostgreSQL
 You can run all the scenarios using Postgres SQL (of course the actual sql will be different):
 ```Cs
@@ -1953,7 +1953,7 @@ using (var connection = new NpgsqlConnection(connectionString))
 ```
 *Note: You need to add **Npgsql** package to your project.*
 ## MySQL
-You also can run all the scenarios using My SQL:
+You can also run all the scenarios using MySQL:
 ```Cs
 DbCommand MySqlCommandFactory(MySqlConnection connection, string sqlText)
 {
@@ -1977,8 +1977,8 @@ using (var connection = new MySqlConnection(connectionString))
 ```
 *Note: You need to add **MySql.Data** or **MySqlConnector** package to your project.*
 
-## Auto-Mapper
-Since the DAL works on top the ADO you can use Auto-Mapper (if you like it):
+## AutoMapper
+Since the DAL works on top of ADO.NET, you can use AutoMapper (if you like it):
 ```cs
 var mapper = new Mapper(new MapperConfiguration(cfg =>
 {
@@ -1998,3 +1998,4 @@ var result = await Select(table.Columns)
     .QueryList(context.Database, r => mapper.Map<IDataRecord, AllColumnTypesDto>(r));
 ```
 [(taken from "Test/SqExpress.IntTest/Scenarios/ScAllColumnTypes.cs")](https://github.com/0x1000000/SqExpress/blob/main/Test/SqExpress.IntTest/Scenarios/ScAllColumnTypes.cs#L26)
+
