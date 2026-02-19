@@ -25,53 +25,54 @@ You can find a realistic usage of the library in this ASP.Net demo application -
 
 # Content
 1. [Get Started](#get-started)
+2. [When to Use SqExpress (and When Not)](#when-to-use-sqexpress-and-when-not)
 
 ### Basics
 
-2. [Recreating Table](#recreating-table)
-3. [Inserting Data](#inserting-data)
-4. [Selecting Data](#selecting-data)
-5. [Updating Data](#updating-data)
-6. [Deleting Data](#deleting-data)
-7. [More Tables and foreign keys](#more-tables-and-foreign-keys)
-8. [Joining Tables](#joining-tables)
-9. [Aliasing](#aliasing)
-10. [Derived Tables](#derived-tables)
-11. [Subquries](#subquries)
-12. [CTE](#cte)
-13. [Analytic And Window Functions](#analytic-and-window-functions)
-14. [Set Operators](#set-operators)
+3. [Recreating Table](#recreating-table)
+4. [Inserting Data](#inserting-data)
+5. [Selecting Data](#selecting-data)
+6. [Updating Data](#updating-data)
+7. [Deleting Data](#deleting-data)
+8. [More Tables and foreign keys](#more-tables-and-foreign-keys)
+9. [Joining Tables](#joining-tables)
+10. [Aliasing](#aliasing)
+11. [Derived Tables](#derived-tables)
+12. [Subquries](#subquries)
+13. [CTE](#cte)
+14. [Analytic And Window Functions](#analytic-and-window-functions)
+15. [Set Operators](#set-operators)
 
 ### Advanced Data Modification
 
-15. [Merge](#merge)
-16. [Temporary Tables](#temporary-tables)
-17. [Database Data Export/Import](#database-data-export-import)
-18. [Getting and Comparing Database Table Metadata](#getting-and-comparing-database-table-metadata)
+16. [Merge](#merge)
+17. [Temporary Tables](#temporary-tables)
+18. [Database Data Export/Import](#database-data-export-import)
+19. [Getting and Comparing Database Table Metadata](#getting-and-comparing-database-table-metadata)
 
 ### Database Table Metadata
 
-19. [Retrieving Database Table Metadata](#retrieving-database-table-metadata)
+20. [Retrieving Database Table Metadata](#retrieving-database-table-metadata)
 
 ### Working with Expressions
 
-20. [Syntax Tree](#syntax-tree) (Traversal and Modification)
-21. [Serialization to XML](#serialization-to-xml)
-22. [Serialization to JSON](#serialization-to-json)
-23. [Serialization to Plain List](#serialization-to-plain-list)
+21. [Syntax Tree](#syntax-tree) (Traversal and Modification)
+22. [Serialization to XML](#serialization-to-xml)
+23. [Serialization to JSON](#serialization-to-json)
+24. [Serialization to Plain List](#serialization-to-plain-list)
 
 ### Code-generation
 
-24. [Table Descriptors Scaffolding](#table-descriptors-scaffolding)
-25. [DTOs Scaffolding](#dtos-scaffolding)
-26. [Model Selection](#model-selection)
+25. [Table Descriptors Scaffolding](#table-descriptors-scaffolding)
+26. [DTOs Scaffolding](#dtos-scaffolding)
+27. [Model Selection](#model-selection)
 
 ### Usage
 
-26. [Using in ASP.Net](#using-in-aspnet)
-27. [PostgreSQL](#postgresql)
-28. [MySQL](#mysql)
-29. [Auto-Mapper](#auto-mapper)
+28. [Using in ASP.Net](#using-in-aspnet)
+29. [PostgreSQL](#postgresql)
+30. [MySQL](#mysql)
+31. [Auto-Mapper](#auto-mapper)
 
 # Get Started
 
@@ -101,6 +102,83 @@ The result will be:
 ```
 SELECT 'Hello World!'
 ```
+## When to Use SqExpress (and When Not)
+
+If your project is SQL-heavy, SqExpress is usually the strongest choice.
+
+Use SqExpress when:
+- SQL is core to your business logic, not just persistence plumbing.
+- You need complex queries (CTE, window functions, set operations, MERGE-style workflows).
+- You want code to stay close to SQL while still getting strong typing and IntelliSense.
+- You want table descriptors, metadata comparison, and code generation in one workflow.
+- You need one query model that can export to MS SQL, PostgreSQL, and MySQL.
+
+SqExpress shines the most in two areas:
+1. **Reports and analytics**: dynamic SQL generation with access to native SQL features (analytic/window functions, CTEs, set operators, db-specific functions).
+2. **Mass updates/upserts**: large set-based data modification with `MERGE` semantics, including cross-dialect polyfills where native `MERGE` is unavailable.
+
+### SqExpress vs Entity Framework (EF Core)
+
+Choose **SqExpress** when:
+- You treat the database as a relational engine and optimize for set-based queries.
+- You care more about precise SQL shape than ORM abstractions.
+- You want full control over joins, projections, and query patterns.
+- Your bottlenecks are in query quality and SQL execution plans.
+- You need reporting queries that rely on native analytic/window functions and db-specific SQL features.
+- You need large set-based write workflows (upsert/sync) and dynamic SQL composition as first-class capabilities.
+- You need more flexibility than EF Core batch APIs for complex set-based writes (`UpdateData`, `MergeDataInto`, custom mappings, sync/upsert flows).
+
+Choose **EF Core** when:
+- You model your domain mainly as object graphs and treat the database primarily as persistence storage.
+- Your app is mostly CRUD with rich domain graph tracking.
+- You want unit-of-work/change tracking as the primary model.
+- Your set-based writes are relatively simple and are well covered by `ExecuteUpdate` / `ExecuteDelete`.
+
+### SqExpress vs SqlKata
+
+Choose **SqExpress** when:
+- You want a strongly typed SQL model (tables/columns as C# types), not mostly string-based query composition.
+- You need expression tree traversal/modification and deeper SQL tooling.
+- You want long-term maintainability in large SQL codebases.
+- You need robust dynamic query scenarios and `MERGE`-oriented update pipelines.
+
+Choose **SqlKata** when:
+- You prefer a lightweight fluent builder with minimal upfront structure.
+
+### SqExpress vs Dapper
+
+Choose **SqExpress** when:
+- You want SQL power without maintaining large amounts of raw SQL strings.
+- You want compile-time help for schema-level refactoring.
+- You want higher-level SQL composition, metadata tooling, and codegen.
+- You need expressive set-based update/upsert logic and reusable dynamic query builders.
+
+Choose **Dapper** when:
+- You prefer manual SQL strings and the thinnest possible data access layer.
+
+### SqExpress vs linq2db
+
+Choose **SqExpress** when:
+- Your team thinks in SQL first and prefers SQL-like C# over LINQ translation.
+- You want explicit SQL control and predictable output for every query.
+- You need to build/transform dynamic SQL expression trees and run large set-based data modifications.
+
+Choose **linq2db** when:
+- Your team prefers LINQ as the primary way of writing queries.
+
+### When Not to Use SqExpress
+
+SqExpress is not the best default if:
+- Your project is mostly simple CRUD and low SQL complexity.
+- Your team is not comfortable owning SQL design decisions.
+- You primarily want full ORM behavior (tracked entities, relationship graph lifecycle, etc.).
+- You treat the database mainly as an object store, rather than a relational engine for set-based facts and queries.
+
+### Rule of Thumb
+
+If SQL is strategic in your system, SqExpress gives you the most leverage.  
+If SQL is incidental, a higher-level ORM can be simpler.
+
 ## (Re)Creating Table 
 Ok, let's try to select some data from a real table, but first we need to describe the table:
 
