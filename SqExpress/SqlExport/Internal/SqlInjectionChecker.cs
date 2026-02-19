@@ -5,7 +5,9 @@ namespace SqExpress.SqlExport.Internal
 {
     internal static class SqlInjectionChecker
     {
-        private static readonly Regex tSqlFunctionName = new Regex(@"([a-zA-Z][\w_]+|[@][a-zA-Z][\w_]*|[@][@][a-zA-Z][\w_]*)");
+        private static readonly Regex tSqlFunctionName = new Regex(
+            @"\A([a-zA-Z][\w_]*|@[a-zA-Z][\w_]*|@@[a-zA-Z][\w_]*)\z",
+            RegexOptions.CultureInvariant);
 
         public static void AppendStringEscapeClosingSquare(StringBuilder builder, string original) 
             => AppendStringEscape(builder, original, ']');
