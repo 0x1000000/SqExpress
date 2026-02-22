@@ -32,6 +32,10 @@ namespace SqExpress.IntTest.Scenarios
 
             var mapper = new Mapper(new MapperConfiguration(cfg =>
             {
+                // .NET 8 adds LINQ generic math extension methods that break AutoMapper's method-mapping scan.
+                // We do not map methods in this scenario, only IDataRecord fields/properties.
+                cfg.ShouldMapMethod = _ => false;
+
                 cfg.AddDataReaderMapping();
                 var map = cfg.CreateMap<IDataRecord, AllColumnTypesDto>();
 

@@ -1,5 +1,7 @@
-﻿using System;
+using System;
+#if NETSTANDARD
 using System.Runtime.Serialization;
+#endif
 
 namespace SqExpress
 {
@@ -9,9 +11,11 @@ namespace SqExpress
         {
         }
 
+#if NETSTANDARD
         protected SqExpressException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
+#endif
 
         public SqExpressException(string message) : base(message)
         {

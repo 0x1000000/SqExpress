@@ -46,11 +46,6 @@ namespace SqExpress.SqlTranspiler
 
         private SqExpressTranspileResult TranspileSelect(SelectStatement selectStatement, SqExpressSqlTranspilerOptions options)
         {
-            if (selectStatement.WithCtesAndXmlNamespaces != null)
-            {
-                throw new SqExpressSqlTranspilerException("WITH CTE/XMLNAMESPACES is not supported yet.");
-            }
-
             if (selectStatement.QueryExpression is not QuerySpecification specification)
             {
                 throw new SqExpressSqlTranspilerException("Only SELECT query specifications are supported (UNION/EXCEPT/INTERSECT are not supported yet).");
@@ -71,13 +66,36 @@ namespace SqExpress.SqlTranspiler
                 throw new SqExpressSqlTranspilerException("SELECT INTO is not supported yet.");
             }
 
-            var context = new TranspileContext();
+            var context = new TranspileContext(options);
+            context.RegisterCtes(selectStatement.WithCtesAndXmlNamespaces);
+
+            if (specification.FromClause != null)
+            {
+                if (specification.FromClause.TableReferences.Count != 1)
+                {
+                    throw new SqExpressSqlTranspilerException("Only one root FROM table-reference is supported.");
+                }
+
+                this.PreRegisterTableReferences(specification.FromClause.TableReferences[0], context);
+            }
+
             var queryExpression = this.BuildSelectExpression(specification, specification.OrderByClause, context);
             var doneExpression = InvokeMember(queryExpression, "Done");
 
+            var queryAst = this.BuildQueryAst(doneExpression, context, options);
+            var declarationsAst = this.BuildDeclarationsAst(context, options);
+
+            return new SqExpressTranspileResult(
+                statementKind: "SELECT",
+                queryAst: queryAst,
+                declarationsAst: declarationsAst);
+        }
+
+        private CompilationUnitSyntax BuildQueryAst(ExpressionSyntax doneExpression, TranspileContext context, SqExpressSqlTranspilerOptions options)
+        {
             var queryVariableName = NormalizeIdentifier(options.QueryVariableName, "query");
             var bodyStatements = new List<RoslynStatementSyntax>();
-            bodyStatements.AddRange(context.TableDeclarations);
+            bodyStatements.AddRange(context.SourceDeclarations);
             bodyStatements.Add(
                 LocalDeclarationStatement(
                     VariableDeclaration(IdentifierName("var"))
@@ -94,34 +112,233 @@ namespace SqExpress.SqlTranspiler
                 .AddModifiers(Token(SyntaxKind.PublicKeyword), Token(SyntaxKind.StaticKeyword))
                 .AddMembers(methodDeclaration);
 
-            var compilationUnit = CompilationUnit()
+            return CompilationUnit()
                 .AddUsings(
                     UsingDirective(ParseName("SqExpress")),
                     UsingDirective(ParseName("SqExpress.Syntax.Select")),
+                    UsingDirective(ParseName(options.EffectiveDeclarationsNamespaceName)),
                     UsingDirective(ParseName("SqExpress.SqQueryBuilder")).WithStaticKeyword(Token(SyntaxKind.StaticKeyword)))
                 .AddMembers(
                     NamespaceDeclaration(ParseName(options.NamespaceName))
                         .AddMembers(classDeclaration))
                 .NormalizeWhitespace();
+        }
 
-            return new SqExpressTranspileResult(
-                statementKind: "SELECT",
-                ast: compilationUnit,
-                cSharpCode: compilationUnit.ToFullString());
+        private CompilationUnitSyntax BuildDeclarationsAst(TranspileContext context, SqExpressSqlTranspilerOptions options)
+        {
+            var members = context.Descriptors
+                .Select(this.BuildDescriptorClass)
+                .ToArray();
+
+            return CompilationUnit()
+                .AddUsings(
+                    UsingDirective(ParseName("System")),
+                    UsingDirective(ParseName("SqExpress")),
+                    UsingDirective(ParseName("SqExpress.Syntax.Select")))
+                .AddMembers(
+                    NamespaceDeclaration(ParseName(options.EffectiveDeclarationsNamespaceName))
+                        .AddMembers(members))
+                .NormalizeWhitespace();
+        }
+
+        private ClassDeclarationSyntax BuildDescriptorClass(TableDescriptor descriptor)
+        {
+            return descriptor.Kind switch
+            {
+                DescriptorKind.Table => this.BuildTableDescriptorClass(descriptor),
+                DescriptorKind.Cte => this.BuildCteDescriptorClass(descriptor),
+                DescriptorKind.SubQuery => this.BuildSubQueryDescriptorClass(descriptor),
+                _ => throw new SqExpressSqlTranspilerException($"Unsupported descriptor kind: {descriptor.Kind}")
+            };
+        }
+
+        private ClassDeclarationSyntax BuildTableDescriptorClass(TableDescriptor descriptor)
+        {
+            var constructorStatements = descriptor.Columns
+                .Select(column =>
+                    (RoslynStatementSyntax)ExpressionStatement(
+                        AssignmentExpression(
+                            SyntaxKind.SimpleAssignmentExpression,
+                            MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, ThisExpression(), IdentifierName(column.PropertyName)),
+                            this.BuildCreateColumnExpression(column, tableDescriptor: true))))
+                .ToArray();
+
+            var baseArguments = new List<ArgumentSyntax>();
+            if (descriptor.DatabaseName != null)
+            {
+                if (descriptor.SchemaName == null)
+                {
+                    throw new SqExpressSqlTranspilerException("Database-qualified table without schema is not supported.");
+                }
+
+                baseArguments.Add(Argument(StringLiteral(descriptor.DatabaseName)));
+                baseArguments.Add(Argument(StringLiteral(descriptor.SchemaName)));
+                baseArguments.Add(Argument(StringLiteral(descriptor.ObjectName)));
+                baseArguments.Add(Argument(IdentifierName("alias")));
+            }
+            else
+            {
+                baseArguments.Add(Argument(descriptor.SchemaName != null ? StringLiteral(descriptor.SchemaName) : LiteralExpression(SyntaxKind.NullLiteralExpression)));
+                baseArguments.Add(Argument(StringLiteral(descriptor.ObjectName)));
+                baseArguments.Add(Argument(IdentifierName("alias")));
+            }
+
+            var constructor = ConstructorDeclaration(descriptor.ClassName)
+                .AddModifiers(Token(SyntaxKind.PublicKeyword))
+                .WithParameterList(
+                    ParameterList(
+                        SingletonSeparatedList(
+                            Parameter(Identifier("alias"))
+                                .WithType(IdentifierName("Alias"))
+                                .WithDefault(EqualsValueClause(LiteralExpression(SyntaxKind.DefaultLiteralExpression))))))
+                .WithInitializer(
+                    ConstructorInitializer(
+                        SyntaxKind.BaseConstructorInitializer,
+                        ArgumentList(SeparatedList(baseArguments))))
+                .WithBody(Block(constructorStatements));
+
+            var properties = descriptor.Columns
+                .Select(column => this.BuildDescriptorProperty(column, tableDescriptor: true))
+                .ToArray();
+
+            return ClassDeclaration(descriptor.ClassName)
+                .AddModifiers(Token(SyntaxKind.PublicKeyword), Token(SyntaxKind.SealedKeyword))
+                .WithBaseList(BaseList(SingletonSeparatedList<BaseTypeSyntax>(SimpleBaseType(IdentifierName("TableBase")))))
+                .AddMembers(properties)
+                .AddMembers(constructor);
+        }
+
+        private ClassDeclarationSyntax BuildCteDescriptorClass(TableDescriptor descriptor)
+        {
+            var constructorStatements = descriptor.Columns
+                .Select(column =>
+                    (RoslynStatementSyntax)ExpressionStatement(
+                        AssignmentExpression(
+                            SyntaxKind.SimpleAssignmentExpression,
+                            MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, ThisExpression(), IdentifierName(column.PropertyName)),
+                            this.BuildCreateColumnExpression(column, tableDescriptor: false))))
+                .ToArray();
+
+            var constructor = ConstructorDeclaration(descriptor.ClassName)
+                .AddModifiers(Token(SyntaxKind.PublicKeyword))
+                .WithParameterList(
+                    ParameterList(
+                        SingletonSeparatedList(
+                            Parameter(Identifier("alias"))
+                                .WithType(IdentifierName("Alias"))
+                                .WithDefault(EqualsValueClause(LiteralExpression(SyntaxKind.DefaultLiteralExpression))))))
+                .WithInitializer(
+                    ConstructorInitializer(
+                        SyntaxKind.BaseConstructorInitializer,
+                        ArgumentList(
+                            SeparatedList(new[]
+                            {
+                                Argument(StringLiteral(descriptor.ObjectName)),
+                                Argument(IdentifierName("alias"))
+                            }))))
+                .WithBody(Block(constructorStatements));
+
+            var createQueryMethod = MethodDeclaration(IdentifierName("IExprSubQuery"), Identifier("CreateQuery"))
+                .AddModifiers(Token(SyntaxKind.PublicKeyword), Token(SyntaxKind.OverrideKeyword))
+                .WithExpressionBody(
+                    ArrowExpressionClause(
+                        ThrowExpression(
+                            ObjectCreationExpression(IdentifierName("NotImplementedException"))
+                                .WithArgumentList(
+                                    ArgumentList(
+                                        SingletonSeparatedList(
+                                            Argument(StringLiteral("CTE query transpilation is not implemented yet."))))))))
+                .WithSemicolonToken(Token(SyntaxKind.SemicolonToken));
+
+            var properties = descriptor.Columns
+                .Select(column => this.BuildDescriptorProperty(column, tableDescriptor: false))
+                .ToArray();
+
+            return ClassDeclaration(descriptor.ClassName)
+                .AddModifiers(Token(SyntaxKind.PublicKeyword), Token(SyntaxKind.SealedKeyword))
+                .WithBaseList(BaseList(SingletonSeparatedList<BaseTypeSyntax>(SimpleBaseType(IdentifierName("CteBase")))))
+                .AddMembers(properties)
+                .AddMembers(constructor)
+                .AddMembers(createQueryMethod);
+        }
+
+        private ClassDeclarationSyntax BuildSubQueryDescriptorClass(TableDescriptor descriptor)
+        {
+            var constructorStatements = descriptor.Columns
+                .Select(column =>
+                    (RoslynStatementSyntax)ExpressionStatement(
+                        AssignmentExpression(
+                            SyntaxKind.SimpleAssignmentExpression,
+                            MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, ThisExpression(), IdentifierName(column.PropertyName)),
+                            this.BuildCreateColumnExpression(column, tableDescriptor: false))))
+                .ToArray();
+
+            var constructor = ConstructorDeclaration(descriptor.ClassName)
+                .AddModifiers(Token(SyntaxKind.PublicKeyword))
+                .WithParameterList(
+                    ParameterList(
+                        SingletonSeparatedList(
+                            Parameter(Identifier("alias"))
+                                .WithType(IdentifierName("Alias")))))
+                .WithInitializer(
+                    ConstructorInitializer(
+                        SyntaxKind.BaseConstructorInitializer,
+                        ArgumentList(SingletonSeparatedList(Argument(IdentifierName("alias"))))))
+                .WithBody(Block(constructorStatements));
+
+            var createQueryMethod = MethodDeclaration(IdentifierName("IExprSubQuery"), Identifier("CreateQuery"))
+                .AddModifiers(Token(SyntaxKind.ProtectedKeyword), Token(SyntaxKind.OverrideKeyword))
+                .WithExpressionBody(
+                    ArrowExpressionClause(
+                        ThrowExpression(
+                            ObjectCreationExpression(IdentifierName("NotImplementedException"))
+                                .WithArgumentList(
+                                    ArgumentList(
+                                        SingletonSeparatedList(
+                                            Argument(StringLiteral("Sub query transpilation is not implemented yet."))))))))
+                .WithSemicolonToken(Token(SyntaxKind.SemicolonToken));
+
+            var properties = descriptor.Columns
+                .Select(column => this.BuildDescriptorProperty(column, tableDescriptor: false))
+                .ToArray();
+
+            return ClassDeclaration(descriptor.ClassName)
+                .AddModifiers(Token(SyntaxKind.PublicKeyword), Token(SyntaxKind.SealedKeyword))
+                .WithBaseList(BaseList(SingletonSeparatedList<BaseTypeSyntax>(SimpleBaseType(IdentifierName("DerivedTableBase")))))
+                .AddMembers(properties)
+                .AddMembers(constructor)
+                .AddMembers(createQueryMethod);
+        }
+
+        private PropertyDeclarationSyntax BuildDescriptorProperty(TableDescriptorColumn column, bool tableDescriptor)
+        {
+            var typeName = tableDescriptor
+                ? column.Kind == DescriptorColumnKind.NVarChar ? "StringTableColumn" : "Int32TableColumn"
+                : column.Kind == DescriptorColumnKind.NVarChar ? "StringCustomColumn" : "Int32CustomColumn";
+
+            return PropertyDeclaration(IdentifierName(typeName), Identifier(column.PropertyName))
+                .AddModifiers(Token(SyntaxKind.PublicKeyword))
+                .WithAccessorList(
+                    AccessorList(
+                        SingletonList(
+                            AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
+                                .WithSemicolonToken(Token(SyntaxKind.SemicolonToken)))));
+        }
+
+        private ExpressionSyntax BuildCreateColumnExpression(TableDescriptorColumn column, bool tableDescriptor)
+        {
+            if (column.Kind == DescriptorColumnKind.NVarChar)
+            {
+                return tableDescriptor
+                    ? InvokeMember(ThisExpression(), "CreateStringColumn", StringLiteral(column.SqlName), LiteralExpression(SyntaxKind.NullLiteralExpression), LiteralExpression(SyntaxKind.TrueLiteralExpression))
+                    : InvokeMember(ThisExpression(), "CreateStringColumn", StringLiteral(column.SqlName));
+            }
+
+            return InvokeMember(ThisExpression(), "CreateInt32Column", StringLiteral(column.SqlName));
         }
 
         private ExpressionSyntax BuildSelectExpression(QuerySpecification specification, OrderByClause? orderByClause, TranspileContext context)
         {
-            if (specification.FromClause != null)
-            {
-                if (specification.FromClause.TableReferences.Count != 1)
-                {
-                    throw new SqExpressSqlTranspilerException("Only one root FROM table-reference is supported.");
-                }
-
-                this.PreRegisterTableReferences(specification.FromClause.TableReferences[0], context);
-            }
-
             var selectArguments = specification.SelectElements.Select(item => this.BuildSelectElement(item, context)).ToList();
             if (selectArguments.Count == 0)
             {
@@ -178,7 +395,13 @@ namespace SqExpress.SqlTranspiler
         {
             if (tableReference is NamedTableReference named)
             {
-                context.GetOrAddNamedTable(named);
+                context.GetOrAddNamedSource(named);
+                return;
+            }
+
+            if (tableReference is QueryDerivedTable derivedTable)
+            {
+                context.GetOrAddDerivedSource(derivedTable);
                 return;
             }
 
@@ -227,12 +450,12 @@ namespace SqExpress.SqlTranspiler
                 }
 
                 var sourceName = star.Qualifier.Identifiers[star.Qualifier.Identifiers.Count - 1].Value;
-                if (!context.TryResolveTableVariable(sourceName, out var variableName))
+                if (!context.TryResolveSource(sourceName, out var source))
                 {
                     throw new SqExpressSqlTranspilerException($"Could not resolve SELECT * qualifier '{sourceName}'.");
                 }
 
-                return InvokeMember(IdentifierName(variableName), "AllColumns");
+                return InvokeMember(IdentifierName(source.VariableName), "AllColumns");
             }
 
             throw new SqExpressSqlTranspilerException($"Unsupported select element: {selectElement.GetType().Name}.");
@@ -247,8 +470,19 @@ namespace SqExpress.SqlTranspiler
                     throw new SqExpressSqlTranspilerException("Unexpected standalone table reference in joined table tree.");
                 }
 
-                var tableVariable = context.GetOrAddNamedTable(namedTable);
-                return InvokeMember(current, "From", IdentifierName(tableVariable));
+                var source = context.GetOrAddNamedSource(namedTable);
+                return InvokeMember(current, "From", IdentifierName(source.VariableName));
+            }
+
+            if (tableReference is QueryDerivedTable derivedTable)
+            {
+                if (!isRoot)
+                {
+                    throw new SqExpressSqlTranspilerException("Unexpected standalone table reference in joined table tree.");
+                }
+
+                var source = context.GetOrAddDerivedSource(derivedTable);
+                return InvokeMember(current, "From", IdentifierName(source.VariableName));
             }
 
             if (tableReference is JoinParenthesisTableReference joinParenthesis)
@@ -259,7 +493,7 @@ namespace SqExpress.SqlTranspiler
             if (tableReference is QualifiedJoin qualifiedJoin)
             {
                 var withLeft = this.ApplyTableReference(current, qualifiedJoin.FirstTableReference, context, isRoot);
-                var rightTableVariable = this.ResolveJoinedTableVariable(qualifiedJoin.SecondTableReference, context);
+                var rightSource = this.ResolveJoinedSource(qualifiedJoin.SecondTableReference, context);
                 var onExpression = this.BuildBooleanExpression(qualifiedJoin.SearchCondition, context);
 
                 string joinMethod = qualifiedJoin.QualifiedJoinType switch
@@ -271,17 +505,17 @@ namespace SqExpress.SqlTranspiler
                     _ => throw new SqExpressSqlTranspilerException($"Unsupported qualified join type: {qualifiedJoin.QualifiedJoinType}.")
                 };
 
-                return InvokeMember(withLeft, joinMethod, IdentifierName(rightTableVariable), onExpression);
+                return InvokeMember(withLeft, joinMethod, IdentifierName(rightSource.VariableName), onExpression);
             }
 
             if (tableReference is UnqualifiedJoin unqualifiedJoin)
             {
                 var withLeft = this.ApplyTableReference(current, unqualifiedJoin.FirstTableReference, context, isRoot);
-                var rightTableVariable = this.ResolveJoinedTableVariable(unqualifiedJoin.SecondTableReference, context);
+                var rightSource = this.ResolveJoinedSource(unqualifiedJoin.SecondTableReference, context);
 
                 return unqualifiedJoin.UnqualifiedJoinType switch
                 {
-                    UnqualifiedJoinType.CrossJoin => InvokeMember(withLeft, "CrossJoin", IdentifierName(rightTableVariable)),
+                    UnqualifiedJoinType.CrossJoin => InvokeMember(withLeft, "CrossJoin", IdentifierName(rightSource.VariableName)),
                     _ => throw new SqExpressSqlTranspilerException($"Unsupported unqualified join type: {unqualifiedJoin.UnqualifiedJoinType}.")
                 };
             }
@@ -289,19 +523,24 @@ namespace SqExpress.SqlTranspiler
             throw new SqExpressSqlTranspilerException($"Unsupported table reference: {tableReference.GetType().Name}.");
         }
 
-        private string ResolveJoinedTableVariable(TableReference tableReference, TranspileContext context)
+        private TableSource ResolveJoinedSource(TableReference tableReference, TranspileContext context)
         {
             if (tableReference is NamedTableReference namedTable)
             {
-                return context.GetOrAddNamedTable(namedTable);
+                return context.GetOrAddNamedSource(namedTable);
+            }
+
+            if (tableReference is QueryDerivedTable derivedTable)
+            {
+                return context.GetOrAddDerivedSource(derivedTable);
             }
 
             if (tableReference is JoinParenthesisTableReference parenthesized)
             {
-                return this.ResolveJoinedTableVariable(parenthesized.Join, context);
+                return this.ResolveJoinedSource(parenthesized.Join, context);
             }
 
-            throw new SqExpressSqlTranspilerException("Only named table references are supported on the right side of JOIN.");
+            throw new SqExpressSqlTranspilerException("Only named tables and derived subqueries are supported on the right side of JOIN.");
         }
 
         private ExpressionSyntax BuildBooleanExpression(BooleanExpression expression, TranspileContext context)
@@ -335,6 +574,16 @@ namespace SqExpress.SqlTranspiler
 
             if (expression is BooleanComparisonExpression comparison)
             {
+                if (IsStringLiteral(comparison.FirstExpression) && comparison.SecondExpression is ColumnReferenceExpression rightStringColumn)
+                {
+                    context.MarkColumnAsString(rightStringColumn);
+                }
+
+                if (IsStringLiteral(comparison.SecondExpression) && comparison.FirstExpression is ColumnReferenceExpression leftStringColumn)
+                {
+                    context.MarkColumnAsString(leftStringColumn);
+                }
+
                 var kind = MapComparisonKind(comparison.ComparisonType);
                 return BinaryExpression(
                     kind,
@@ -365,6 +614,11 @@ namespace SqExpress.SqlTranspiler
                     throw new SqExpressSqlTranspilerException("IN predicate is supported only for column references.");
                 }
 
+                if (inPredicate.Values.Any(IsStringLiteral))
+                {
+                    context.MarkColumnAsString(inColumn);
+                }
+
                 var column = this.BuildColumnExpression(inColumn, context);
                 var values = inPredicate.Values.Select(item => this.BuildScalarExpression(item, context)).ToList();
                 var inCall = InvokeMember(column, "In", values);
@@ -383,6 +637,11 @@ namespace SqExpress.SqlTranspiler
                     throw new SqExpressSqlTranspilerException("LIKE is supported only with string literal pattern.");
                 }
 
+                if (like.FirstExpression is ColumnReferenceExpression likeColumn)
+                {
+                    context.MarkColumnAsString(likeColumn);
+                }
+
                 var test = this.BuildScalarExpression(like.FirstExpression, context);
                 var likeCall = Invoke("Like", test, StringLiteral(stringPattern.Value));
                 if (like.NotDefined)
@@ -399,6 +658,12 @@ namespace SqExpress.SqlTranspiler
                     && between.TernaryExpressionType != BooleanTernaryExpressionType.NotBetween)
                 {
                     throw new SqExpressSqlTranspilerException($"Unsupported boolean ternary expression: {between.TernaryExpressionType}.");
+                }
+
+                if ((IsStringLiteral(between.SecondExpression) || IsStringLiteral(between.ThirdExpression))
+                    && between.FirstExpression is ColumnReferenceExpression betweenColumn)
+                {
+                    context.MarkColumnAsString(betweenColumn);
                 }
 
                 var test = this.BuildScalarExpression(between.FirstExpression, context);
@@ -586,18 +851,19 @@ namespace SqExpress.SqlTranspiler
             }
 
             var columnName = identifiers[identifiers.Count - 1].Value;
-            if (identifiers.Count == 1)
+            if (string.IsNullOrWhiteSpace(columnName))
             {
-                return Invoke("Column", StringLiteral(columnName));
+                throw new SqExpressSqlTranspilerException("Column name cannot be empty.");
             }
 
-            for (int i = identifiers.Count - 2; i >= 0; i--)
+            var registeredColumn = context.RegisterColumnReference(columnReference, DescriptorColumnKind.Int32);
+            if (registeredColumn != null)
             {
-                var sourceName = identifiers[i].Value;
-                if (context.TryResolveTableVariable(sourceName, out var tableVariableName))
-                {
-                    return InvokeMember(IdentifierName(tableVariableName), "Column", StringLiteral(columnName));
-                }
+                var resolvedColumn = registeredColumn.Value;
+                return MemberAccessExpression(
+                    SyntaxKind.SimpleMemberAccessExpression,
+                    IdentifierName(resolvedColumn.Source.VariableName),
+                    IdentifierName(resolvedColumn.Column.PropertyName));
             }
 
             return Invoke("Column", StringLiteral(columnName));
@@ -649,6 +915,9 @@ namespace SqExpress.SqlTranspiler
 
         private static bool IsStar(ScalarExpression expression)
             => expression is ColumnReferenceExpression column && column.ColumnType == ColumnType.Wildcard;
+
+        private static bool IsStringLiteral(ScalarExpression expression)
+            => expression is StringLiteral;
 
         private static TSqlScript ParseScript(string sql)
         {
@@ -710,6 +979,44 @@ namespace SqExpress.SqlTranspiler
             }
 
             return null;
+        }
+
+        private static IReadOnlyList<string> ExtractProjectedColumns(QueryExpression queryExpression)
+        {
+            if (queryExpression is not QuerySpecification specification)
+            {
+                return Array.Empty<string>();
+            }
+
+            var result = new List<string>();
+            var exprIndex = 0;
+
+            foreach (var selectElement in specification.SelectElements)
+            {
+                if (selectElement is not SelectScalarExpression scalar)
+                {
+                    continue;
+                }
+
+                var alias = TryGetSelectAlias(scalar.ColumnName);
+                if (string.IsNullOrWhiteSpace(alias) && scalar.Expression is ColumnReferenceExpression colRef)
+                {
+                    var ids = colRef.MultiPartIdentifier?.Identifiers;
+                    alias = ids != null && ids.Count > 0
+                        ? ids[ids.Count - 1].Value
+                        : null;
+                }
+
+                if (string.IsNullOrWhiteSpace(alias))
+                {
+                    exprIndex++;
+                    alias = "Expr" + exprIndex.ToString(CultureInfo.InvariantCulture);
+                }
+
+                result.Add(alias!);
+            }
+
+            return result;
         }
 
         private static ExpressionSyntax ParenthesizeIfNeeded(ExpressionSyntax expression)
@@ -801,91 +1108,277 @@ namespace SqExpress.SqlTranspiler
             return cleaned;
         }
 
+        private static string NormalizeTypeIdentifier(string name, string fallback)
+        {
+            var normalized = NormalizeIdentifier(name, fallback);
+            if (string.IsNullOrEmpty(normalized))
+            {
+                return fallback;
+            }
+
+            return char.ToUpperInvariant(normalized[0]) + normalized.Substring(1);
+        }
+
         private sealed class TranspileContext
         {
-            private readonly List<LocalDeclarationStatementSyntax> _tableDeclarations = new();
-            private readonly Dictionary<string, string> _tableAliasMap = new(StringComparer.OrdinalIgnoreCase);
-            private readonly Dictionary<string, string?> _tableNameMap = new(StringComparer.OrdinalIgnoreCase);
+            private readonly List<TableDescriptor> _descriptors = new();
+            private readonly List<TableSource> _sources = new();
+            private readonly List<LocalDeclarationStatementSyntax> _sourceDeclarations = new();
+            private readonly Dictionary<NamedTableReference, TableSource> _namedSourceMap = new(ReferenceEqualityComparer<NamedTableReference>.Instance);
+            private readonly Dictionary<QueryDerivedTable, TableSource> _derivedSourceMap = new(ReferenceEqualityComparer<QueryDerivedTable>.Instance);
+            private readonly Dictionary<string, TableSource> _sourceByAlias = new(StringComparer.OrdinalIgnoreCase);
+            private readonly Dictionary<string, TableSource?> _sourceByObjectName = new(StringComparer.OrdinalIgnoreCase);
+            private readonly Dictionary<string, TableDescriptor> _cteDescriptors = new(StringComparer.OrdinalIgnoreCase);
             private readonly HashSet<string> _variableNames = new(StringComparer.OrdinalIgnoreCase);
-            private readonly Dictionary<NamedTableReference, string> _tableReferenceMap = new(ReferenceEqualityComparer<NamedTableReference>.Instance);
+            private readonly HashSet<string> _classNames = new(StringComparer.OrdinalIgnoreCase);
 
-            public IReadOnlyList<LocalDeclarationStatementSyntax> TableDeclarations => this._tableDeclarations;
-
-            public string GetOrAddNamedTable(NamedTableReference table)
+            public TranspileContext(SqExpressSqlTranspilerOptions options)
             {
-                if (this._tableReferenceMap.TryGetValue(table, out var byReference))
+            }
+
+            public IReadOnlyList<TableDescriptor> Descriptors => this._descriptors;
+
+            public IReadOnlyList<LocalDeclarationStatementSyntax> SourceDeclarations => this._sourceDeclarations;
+
+            public void RegisterCtes(WithCtesAndXmlNamespaces? withClause)
+            {
+                if (withClause == null)
                 {
-                    return byReference;
+                    return;
                 }
 
-                if (table.SchemaObject == null)
+                foreach (var cte in withClause.CommonTableExpressions)
+                {
+                    var cteName = cte.ExpressionName?.Value;
+                    if (string.IsNullOrWhiteSpace(cteName))
+                    {
+                        continue;
+                    }
+
+                    if (this._cteDescriptors.ContainsKey(cteName!))
+                    {
+                        continue;
+                    }
+
+                    var descriptor = new TableDescriptor(
+                        className: this.CreateClassName(cteName + "Cte", "GeneratedCte"),
+                        kind: DescriptorKind.Cte,
+                        objectName: cteName!,
+                        schemaName: null,
+                        databaseName: null);
+
+                    var columns = cte.Columns.Count > 0
+                        ? cte.Columns.Select(i => i.Value).Where(i => !string.IsNullOrWhiteSpace(i)).ToList()
+                        : ExtractProjectedColumns(cte.QueryExpression).ToList();
+
+                    foreach (var column in columns)
+                    {
+                        descriptor.GetOrAddColumn(column, DescriptorColumnKind.Int32);
+                    }
+
+                    this._cteDescriptors[cteName!] = descriptor;
+                    this._descriptors.Add(descriptor);
+                }
+            }
+
+            public TableSource GetOrAddNamedSource(NamedTableReference tableReference)
+            {
+                if (this._namedSourceMap.TryGetValue(tableReference, out var existing))
+                {
+                    return existing;
+                }
+
+                if (tableReference.SchemaObject == null)
                 {
                     throw new SqExpressSqlTranspilerException("Only schema object table references are supported.");
                 }
 
-                if (table.SchemaObject.ServerIdentifier != null)
+                if (tableReference.SchemaObject.ServerIdentifier != null)
                 {
                     throw new SqExpressSqlTranspilerException("Server-qualified table names are not supported.");
                 }
 
-                var tableName = table.SchemaObject.BaseIdentifier?.Value;
-                if (string.IsNullOrWhiteSpace(tableName))
+                var objectName = tableReference.SchemaObject.BaseIdentifier?.Value;
+                if (string.IsNullOrWhiteSpace(objectName))
                 {
                     throw new SqExpressSqlTranspilerException("Table name is missing.");
                 }
-                var tableNameNotNull = tableName!;
 
-                var alias = table.Alias?.Value;
-                if (!string.IsNullOrWhiteSpace(alias))
+                var alias = tableReference.Alias?.Value;
+                TableDescriptor descriptor;
+
+                if (tableReference.SchemaObject.DatabaseIdentifier == null
+                    && tableReference.SchemaObject.SchemaIdentifier == null
+                    && this._cteDescriptors.TryGetValue(objectName!, out var cteDescriptor))
                 {
-                    var aliasKey = alias!;
-                    if (this._tableAliasMap.TryGetValue(aliasKey, out var existingByAlias))
+                    descriptor = cteDescriptor;
+                }
+                else
+                {
+                    descriptor = new TableDescriptor(
+                        className: this.CreateClassName((alias ?? objectName) + "Table", "GeneratedTable"),
+                        kind: DescriptorKind.Table,
+                        objectName: objectName!,
+                        schemaName: tableReference.SchemaObject.SchemaIdentifier?.Value,
+                        databaseName: tableReference.SchemaObject.DatabaseIdentifier?.Value);
+
+                    this._descriptors.Add(descriptor);
+                }
+
+                var source = this.RegisterSource(descriptor, alias ?? objectName!, alias, objectName!);
+                this._namedSourceMap[tableReference] = source;
+                return source;
+            }
+
+            public TableSource GetOrAddDerivedSource(QueryDerivedTable queryDerivedTable)
+            {
+                if (this._derivedSourceMap.TryGetValue(queryDerivedTable, out var existing))
+                {
+                    return existing;
+                }
+
+                var alias = queryDerivedTable.Alias?.Value;
+                if (string.IsNullOrWhiteSpace(alias))
+                {
+                    throw new SqExpressSqlTranspilerException("Derived table alias cannot be empty.");
+                }
+
+                var descriptor = new TableDescriptor(
+                    className: this.CreateClassName(alias + "SubQuery", "GeneratedSubQuery"),
+                    kind: DescriptorKind.SubQuery,
+                    objectName: alias!,
+                    schemaName: null,
+                    databaseName: null);
+
+                foreach (var column in ExtractProjectedColumns(queryDerivedTable.QueryExpression))
+                {
+                    descriptor.GetOrAddColumn(column, DescriptorColumnKind.Int32);
+                }
+
+                this._descriptors.Add(descriptor);
+
+                var source = this.RegisterSource(descriptor, alias!, alias, alias!);
+                this._derivedSourceMap[queryDerivedTable] = source;
+                return source;
+            }
+
+            public bool TryResolveSource(string sourceName, out TableSource source)
+            {
+                if (this._sourceByAlias.TryGetValue(sourceName, out var aliasSource) && aliasSource != null)
+                {
+                    source = aliasSource;
+                    return true;
+                }
+
+                if (this._sourceByObjectName.TryGetValue(sourceName, out var byName) && byName != null)
+                {
+                    source = byName;
+                    return true;
+                }
+
+                source = null!;
+                return false;
+            }
+
+            public void MarkColumnAsString(ColumnReferenceExpression columnReference)
+            {
+                this.RegisterColumnReference(columnReference, DescriptorColumnKind.NVarChar);
+            }
+
+            public RegisteredDescriptorColumn? RegisterColumnReference(ColumnReferenceExpression columnReference, DescriptorColumnKind typeHint)
+            {
+                if (columnReference.ColumnType == ColumnType.Wildcard)
+                {
+                    return null;
+                }
+
+                var identifiers = columnReference.MultiPartIdentifier?.Identifiers;
+                if (identifiers == null || identifiers.Count < 1)
+                {
+                    return null;
+                }
+
+                var columnName = identifiers[identifiers.Count - 1].Value;
+                if (string.IsNullOrWhiteSpace(columnName))
+                {
+                    return null;
+                }
+
+                TableSource? source = null;
+                if (identifiers.Count > 1)
+                {
+                    for (int i = identifiers.Count - 2; i >= 0; i--)
                     {
-                        this._tableReferenceMap[table] = existingByAlias;
-                        return existingByAlias;
+                        var sourceName = identifiers[i].Value;
+                        if (!string.IsNullOrWhiteSpace(sourceName) && this.TryResolveSource(sourceName, out var resolved))
+                        {
+                            source = resolved;
+                            break;
+                        }
                     }
                 }
+                else if (this._sources.Count == 1)
+                {
+                    source = this._sources[0];
+                }
 
-                var variableName = this.CreateVariableName(alias ?? tableNameNotNull);
-                this._tableDeclarations.Add(CreateTableDeclaration(variableName, tableNameNotNull, table.SchemaObject.SchemaIdentifier?.Value, table.SchemaObject.DatabaseIdentifier?.Value, alias));
+                if (source == null)
+                {
+                    return null;
+                }
+
+                var descriptorColumn = source.Descriptor.GetOrAddColumn(columnName!, typeHint);
+                return new RegisteredDescriptorColumn(source, descriptorColumn);
+            }
+
+            private TableSource RegisterSource(TableDescriptor descriptor, string variableSeed, string? alias, string objectName)
+            {
+                var source = new TableSource(descriptor, this.CreateVariableName(variableSeed), alias);
+                this._sources.Add(source);
+                this._sourceDeclarations.Add(this.CreateSourceDeclaration(source));
 
                 if (!string.IsNullOrWhiteSpace(alias))
                 {
-                    this._tableAliasMap[alias!] = variableName;
+                    this._sourceByAlias[alias!] = source;
                 }
 
-                if (this._tableNameMap.TryGetValue(tableNameNotNull, out var existingByName))
+                if (this._sourceByObjectName.TryGetValue(objectName, out var existingByName))
                 {
-                    if (!string.Equals(existingByName, variableName, StringComparison.OrdinalIgnoreCase))
+                    if (!ReferenceEquals(existingByName, source))
                     {
-                        this._tableNameMap[tableNameNotNull] = null;
+                        this._sourceByObjectName[objectName] = null;
                     }
                 }
                 else
                 {
-                    this._tableNameMap[tableNameNotNull] = variableName;
+                    this._sourceByObjectName[objectName] = source;
                 }
 
-                this._tableReferenceMap[table] = variableName;
-                return variableName;
+                return source;
             }
 
-            public bool TryResolveTableVariable(string sourceName, out string tableVariableName)
+            private LocalDeclarationStatementSyntax CreateSourceDeclaration(TableSource source)
             {
-                if (this._tableAliasMap.TryGetValue(sourceName, out var aliasTableVariableName))
+                var arguments = new List<ArgumentSyntax>();
+
+                if (!string.IsNullOrWhiteSpace(source.SqlAlias))
                 {
-                    tableVariableName = aliasTableVariableName;
-                    return true;
+                    arguments.Add(Argument(StringLiteral(source.SqlAlias!)));
                 }
 
-                if (this._tableNameMap.TryGetValue(sourceName, out var variableName) && variableName != null)
+                if (source.Descriptor.Kind == DescriptorKind.SubQuery && arguments.Count == 0)
                 {
-                    tableVariableName = variableName;
-                    return true;
+                    throw new SqExpressSqlTranspilerException("Derived table alias cannot be empty.");
                 }
 
-                tableVariableName = string.Empty;
-                return false;
+                return LocalDeclarationStatement(
+                    VariableDeclaration(IdentifierName("var"))
+                        .AddVariables(
+                            VariableDeclarator(Identifier(source.VariableName))
+                                .WithInitializer(
+                                    EqualsValueClause(
+                                        ObjectCreationExpression(IdentifierName(source.Descriptor.ClassName))
+                                            .WithArgumentList(ArgumentList(SeparatedList(arguments)))))));
             }
 
             private string CreateVariableName(string source)
@@ -905,50 +1398,146 @@ namespace SqExpress.SqlTranspiler
                 return candidate;
             }
 
-            private static LocalDeclarationStatementSyntax CreateTableDeclaration(string variableName, string tableName, string? schema, string? database, string? alias)
+            private string CreateClassName(string source, string fallback)
             {
-                var arguments = new List<ExpressionSyntax>();
-                if (database != null)
+                var normalized = NormalizeTypeIdentifier(source, fallback);
+
+                var candidate = normalized;
+                var index = 0;
+                while (this._classNames.Contains(candidate))
                 {
-                    if (schema == null)
+                    index++;
+                    candidate = normalized + index.ToString(CultureInfo.InvariantCulture);
+                }
+
+                this._classNames.Add(candidate);
+                return candidate;
+            }
+        }
+
+        private readonly struct RegisteredDescriptorColumn
+        {
+            public RegisteredDescriptorColumn(TableSource source, TableDescriptorColumn column)
+            {
+                this.Source = source;
+                this.Column = column;
+            }
+
+            public TableSource Source { get; }
+
+            public TableDescriptorColumn Column { get; }
+        }
+
+        private sealed class TableSource
+        {
+            public TableSource(TableDescriptor descriptor, string variableName, string? sqlAlias)
+            {
+                this.Descriptor = descriptor;
+                this.VariableName = variableName;
+                this.SqlAlias = sqlAlias;
+            }
+
+            public TableDescriptor Descriptor { get; }
+
+            public string VariableName { get; }
+
+            public string? SqlAlias { get; }
+        }
+
+        private sealed class TableDescriptor
+        {
+            private readonly List<TableDescriptorColumn> _columns = new();
+            private readonly Dictionary<string, TableDescriptorColumn> _columnMap = new(StringComparer.OrdinalIgnoreCase);
+            private readonly HashSet<string> _propertyNames = new(StringComparer.OrdinalIgnoreCase);
+
+            public TableDescriptor(string className, DescriptorKind kind, string objectName, string? schemaName, string? databaseName)
+            {
+                this.ClassName = className;
+                this.Kind = kind;
+                this.ObjectName = objectName;
+                this.SchemaName = schemaName;
+                this.DatabaseName = databaseName;
+            }
+
+            public string ClassName { get; }
+
+            public DescriptorKind Kind { get; }
+
+            public string ObjectName { get; }
+
+            public string? SchemaName { get; }
+
+            public string? DatabaseName { get; }
+
+            public IReadOnlyList<TableDescriptorColumn> Columns => this._columns;
+
+            public TableDescriptorColumn GetOrAddColumn(string sqlName, DescriptorColumnKind kind)
+            {
+                if (this._columnMap.TryGetValue(sqlName, out var existing))
+                {
+                    if (kind == DescriptorColumnKind.NVarChar && existing.Kind != DescriptorColumnKind.NVarChar)
                     {
-                        throw new SqExpressSqlTranspilerException("Database-qualified table without schema is not supported.");
+                        existing.Kind = DescriptorColumnKind.NVarChar;
                     }
 
-                    arguments.Add(StringLiteral(database));
-                    arguments.Add(StringLiteral(schema));
-                    arguments.Add(StringLiteral(tableName));
-                }
-                else
-                {
-                    arguments.Add(schema != null ? StringLiteral(schema) : LiteralExpression(SyntaxKind.NullLiteralExpression));
-                    arguments.Add(StringLiteral(tableName));
+                    return existing;
                 }
 
-                if (!string.IsNullOrWhiteSpace(alias))
+                var normalizedProperty = NormalizeTypeIdentifier(sqlName, "Column");
+                var propertyName = normalizedProperty;
+                var index = 0;
+                while (this._propertyNames.Contains(propertyName))
                 {
-                    arguments.Add(StringLiteral(alias!));
+                    index++;
+                    propertyName = normalizedProperty + index.ToString(CultureInfo.InvariantCulture);
                 }
 
-                return LocalDeclarationStatement(
-                    VariableDeclaration(IdentifierName("var"))
-                        .AddVariables(
-                            VariableDeclarator(Identifier(variableName))
-                                .WithInitializer(
-                                    EqualsValueClause(
-                                        ObjectCreationExpression(IdentifierName("TableBase"))
-                                            .WithArgumentList(ArgumentList(SeparatedList(arguments.Select(Argument))))))));
+                this._propertyNames.Add(propertyName);
+
+                var column = new TableDescriptorColumn(sqlName, propertyName, kind);
+                this._columnMap[sqlName] = column;
+                this._columns.Add(column);
+                return column;
             }
+        }
 
-            private sealed class ReferenceEqualityComparer<T> : IEqualityComparer<T>
-                where T : class
+        private sealed class TableDescriptorColumn
+        {
+            public TableDescriptorColumn(string sqlName, string propertyName, DescriptorColumnKind kind)
             {
-                public static readonly ReferenceEqualityComparer<T> Instance = new ReferenceEqualityComparer<T>();
-
-                public bool Equals(T? x, T? y) => ReferenceEquals(x, y);
-
-                public int GetHashCode(T obj) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj);
+                this.SqlName = sqlName;
+                this.PropertyName = propertyName;
+                this.Kind = kind;
             }
+
+            public string SqlName { get; }
+
+            public string PropertyName { get; }
+
+            public DescriptorColumnKind Kind { get; set; }
+        }
+
+        private enum DescriptorKind
+        {
+            Table,
+            Cte,
+            SubQuery
+        }
+
+        private enum DescriptorColumnKind
+        {
+            Int32,
+            NVarChar
+        }
+
+        private sealed class ReferenceEqualityComparer<T> : IEqualityComparer<T>
+            where T : class
+        {
+            public static readonly ReferenceEqualityComparer<T> Instance = new ReferenceEqualityComparer<T>();
+
+            public bool Equals(T? x, T? y) => ReferenceEquals(x, y);
+
+            public int GetHashCode(T obj) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj);
         }
     }
 }

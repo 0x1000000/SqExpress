@@ -1,5 +1,7 @@
-﻿using System;
+using System;
+#if NETSTANDARD
 using System.Runtime.Serialization;
+#endif
 
 namespace SqExpress.CodeGenUtil
 {
@@ -9,9 +11,11 @@ namespace SqExpress.CodeGenUtil
         {
         }
 
+#if NETSTANDARD
         protected SqExpressCodeGenException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
+#endif
 
         public SqExpressCodeGenException(string? message) : base(message)
         {

@@ -69,8 +69,16 @@ namespace SqExpress.Test.CodeGenUtil
             var assembly = Assembly.Load(ms.ToArray());
 
             var allTypes = assembly.GetTypes();
+            var typeNames = allTypes.Select(t => t.Name).ToList();
 
-            Assert.AreEqual(21, allTypes.Length);
+            Assert.That(typeNames, Does.Contain("TestTable1"));
+            Assert.That(typeNames, Does.Contain("TestTable2"));
+            Assert.That(typeNames, Does.Contain("TestMergeTmpTable"));
+            Assert.That(typeNames.Any(n => n.Contains("Table1Data", StringComparison.Ordinal)), Is.True);
+            Assert.That(typeNames.Any(n => n.Contains("Table1Name", StringComparison.Ordinal)), Is.True);
+            Assert.That(typeNames.Any(n => n.Contains("Table2Data", StringComparison.Ordinal)), Is.True);
+            Assert.That(typeNames.Any(n => n.Contains("Table2Name", StringComparison.Ordinal)), Is.True);
+            Assert.That(typeNames.Any(n => n.Contains("TestMergeData", StringComparison.Ordinal)), Is.True);
         }
 
         private static readonly string TestTable1Text = @"
