@@ -1,0 +1,87 @@
+:root {
+    --bg-grad-start: #f5fbfa;
+    --bg-grad-end: #e7eef8;
+    --surface: #ffffff;
+    --border-color: #c8d5e5;
+    --text-main: #10253c;
+    --muted-text: #4b647d;
+}
+
+html,
+body {
+    margin: 0;
+    min-height: 100%;
+    font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    color: var(--text-main);
+    background: linear-gradient(165deg, var(--bg-grad-start) 0%, var(--bg-grad-end) 100%);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+h1:focus {
+    outline: none;
+}
+
+pre,
+code,
+textarea,
+.ace_editor {
+    font-family: Consolas, "Courier New", monospace;
+}
+
+a {
+    color: #0e7490;
+}
+
+#blazor-error-ui {
+    background: #fef2f2;
+    border-top: 1px solid #fecaca;
+    color: #7f1d1d;
+    bottom: 0;
+    display: none;
+    left: 0;
+    padding: 0.65rem 1rem;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    float: right;
+}
+
+.loading-progress {
+    position: relative;
+    display: block;
+    width: 7rem;
+    height: 7rem;
+    margin: 25vh auto 0.9rem auto;
+}
+
+.loading-progress circle {
+    fill: none;
+    stroke: #d5e4f3;
+    stroke-width: 0.65rem;
+    transform-origin: 50% 50%;
+    transform: rotate(-90deg);
+}
+
+.loading-progress circle:last-child {
+    stroke: #0f766e;
+    stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * 0.8), 500%;
+    transition: stroke-dasharray 0.05s ease-in-out;
+}
+
+.loading-progress-text {
+    position: absolute;
+    text-align: center;
+    font-weight: 700;
+    inset: calc(25vh + 2.8rem) 0 auto 0;
+}
+
+.loading-progress-text:after {
+    content: var(--blazor-load-percentage-text, "Loading");
+}
