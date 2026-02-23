@@ -7,6 +7,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using NUnit.Framework;
 using SqExpress.SqlExport;
+using SqExpress.Syntax;
 using SqExpress.Syntax.Select;
 using SqExpress.SqlTranspiler;
 
@@ -53,6 +54,9 @@ namespace SqExpress.SqlTranspiler.Test
         private const string SqlOffsetFetch = "SELECT [u].[UserId] FROM [dbo].[Users] [u] ORDER BY [u].[UserId] OFFSET 10 ROW FETCH NEXT 5 ROW ONLY";
         private const string SqlOffsetOnly = "SELECT [u].[UserId] FROM [dbo].[Users] [u] ORDER BY [u].[UserId] OFFSET 20 ROW";
         private const string SqlUnionAllOffsetFetch = "SELECT 1 [A] UNION ALL SELECT 2 [A] ORDER BY [A] OFFSET 1 ROW FETCH NEXT 1 ROW ONLY";
+        private const string SqlUpdateWithJoin = "UPDATE [u] SET [u].[Name]=[o].[Title],[u].[IsActive]=1 FROM [dbo].[Users] [u] JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[UserId] WHERE [o].[Title] LIKE 'A%'";
+        private const string SqlDeleteWithJoin = "DELETE [u] FROM [dbo].[Users] [u] JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[UserId] WHERE [o].[IsDeleted]=1";
+        private const string SqlMergeBasic = "MERGE [dbo].[Users] [A0] USING [dbo].[UsersStaging] [s] ON [A0].[UserId]=[s].[UserId] WHEN MATCHED THEN UPDATE SET [A0].[Name]=[s].[Name],[A0].[IsActive]=[s].[IsActive] WHEN NOT MATCHED THEN INSERT([UserId],[Name],[IsActive]) VALUES([s].[UserId],[s].[Name],[s].[IsActive]) WHEN NOT MATCHED BY SOURCE THEN  DELETE;";
         private const string SqlInSubQuery = "SELECT [u].[UserId] FROM [dbo].[Users] [u] WHERE [u].[UserId] IN(SELECT [o].[UserId] FROM [dbo].[Orders] [o])";
         private const string SqlExistsSubQuery = "SELECT [u].[UserId] FROM [dbo].[Users] [u] WHERE EXISTS(SELECT 1 FROM [dbo].[Orders] [o] WHERE [o].[UserId]=[u].[UserId])";
         private const string SqlScalarSubQuery = "SELECT [u].[UserId],(SELECT COUNT(1) FROM [dbo].[Orders] [o] WHERE [o].[UserId]=[u].[UserId]) [OrderCount] FROM [dbo].[Users] [u]";
@@ -658,12 +662,71 @@ namespace SqExpress.SqlTranspiler.Test
         }
 
         [Test]
-        public void Transpile_RejectsNonSelectStatement()
+        public void TranspileUpdate_IsSupported()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                "UPDATE u " +
+                "SET u.Name = o.Title, u.IsActive = 1 " +
+                "FROM dbo.Users u INNER JOIN dbo.Orders o ON o.UserId = u.UserId " +
+                "WHERE o.Title LIKE 'A%'");
+
+            Assert.AreEqual("UPDATE", result.StatementKind);
+            Assert.That(result.QueryCSharpCode, Does.Contain("public static IExprExec Build()"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Update(u)"));
+            Assert.That(result.QueryCSharpCode, Does.Contain(".Set(u.Name, o.Title)"));
+            Assert.That(result.QueryCSharpCode, Does.Contain(".Set(u.IsActive, 1)"));
+            AssertCompilesAndSql(result, SqlUpdateWithJoin);
+        }
+
+        [Test]
+        public void TranspileDelete_IsSupported()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                "DELETE u " +
+                "FROM dbo.Users u INNER JOIN dbo.Orders o ON o.UserId = u.UserId " +
+                "WHERE o.IsDeleted = 1");
+
+            Assert.AreEqual("DELETE", result.StatementKind);
+            Assert.That(result.QueryCSharpCode, Does.Contain("public static IExprExec Build()"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Delete(u)"));
+            Assert.That(result.QueryCSharpCode, Does.Contain(".From(u)"));
+            Assert.That(result.QueryCSharpCode, Does.Contain(".InnerJoin(o, o.UserId == u.UserId)"));
+            AssertCompilesAndSql(result, SqlDeleteWithJoin);
+        }
+
+        [Test]
+        public void TranspileMerge_IsSupported()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                "MERGE dbo.Users AS t " +
+                "USING dbo.UsersStaging AS s " +
+                "ON t.UserId = s.UserId " +
+                "WHEN MATCHED THEN UPDATE SET t.Name = s.Name, t.IsActive = s.IsActive " +
+                "WHEN NOT MATCHED BY TARGET THEN INSERT (UserId, Name, IsActive) VALUES (s.UserId, s.Name, s.IsActive) " +
+                "WHEN NOT MATCHED BY SOURCE THEN DELETE;");
+
+            Assert.AreEqual("MERGE", result.StatementKind);
+            Assert.That(result.QueryCSharpCode, Does.Contain("public static IExprExec Build()"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("MergeInto(users, s)"));
+            Assert.That(result.QueryCSharpCode, Does.Contain(".WhenMatched()"));
+            Assert.That(result.QueryCSharpCode, Does.Contain(".ThenUpdate()"));
+            Assert.That(result.QueryCSharpCode, Does.Contain(".ThenInsert()"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("CustomColumnFactory.Any(\"UserId\")"));
+            Assert.That(result.QueryCSharpCode, Does.Contain(".WhenNotMatchedBySource()"));
+            Assert.That(result.QueryCSharpCode, Does.Contain(".ThenDelete()"));
+            AssertCompilesAndSql(result, SqlMergeBasic);
+        }
+
+        [Test]
+        public void Transpile_RejectsUnsupportedStatement()
         {
             var transpiler = new SqExpressSqlTranspiler();
 
             var ex = Assert.Throws<SqExpressSqlTranspilerException>(() => transpiler.Transpile("INSERT INTO dbo.Users(UserId) VALUES (1)"));
-            Assert.That(ex?.Message, Does.Contain("Only SELECT statements are supported"));
+            Assert.That(ex?.Message, Does.Contain("Only SELECT, UPDATE, DELETE and MERGE statements are supported"));
         }
 
         [Test]
@@ -738,12 +801,12 @@ namespace SqExpress.SqlTranspiler.Test
         {
             var effectiveOptions = options ?? new SqExpressSqlTranspilerOptions();
             var assembly = AssertCompiles(result, assemblyName);
-            var query = InvokeGeneratedBuildMethod(assembly, effectiveOptions);
-            var sql = query.ToSql(TSqlExporter.Default);
+            var expr = InvokeGeneratedBuildMethod(assembly, effectiveOptions);
+            var sql = expr.ToSql(TSqlExporter.Default);
             Assert.AreEqual(expectedSql, sql);
         }
 
-        private static IExprQuery InvokeGeneratedBuildMethod(Assembly generatedAssembly, SqExpressSqlTranspilerOptions options)
+        private static IExpr InvokeGeneratedBuildMethod(Assembly generatedAssembly, SqExpressSqlTranspilerOptions options)
         {
             var generatedTypeName = options.NamespaceName + "." + options.ClassName;
             var generatedType = generatedAssembly.GetType(generatedTypeName);
@@ -759,12 +822,12 @@ namespace SqExpress.SqlTranspiler.Test
             }
 
             var invocationResult = generatedMethod!.Invoke(null, Array.Empty<object>());
-            if (invocationResult is not IExprQuery)
+            if (invocationResult is not IExpr)
             {
-                Assert.Fail("Generated method did not return IExprQuery.");
+                Assert.Fail("Generated method did not return IExpr.");
             }
 
-            return (IExprQuery)invocationResult!;
+            return (IExpr)invocationResult!;
         }
 
         private static void AssertNoSyntaxErrors(SyntaxTree syntaxTree)

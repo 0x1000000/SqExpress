@@ -27,8 +27,24 @@ namespace SqExpress.SqlTranspiler
                 return this.TranspileSelect(selectStatement, effectiveOptions);
             }
 
+            if (statement is UpdateStatement updateStatement)
+            {
+                return this.TranspileUpdate(updateStatement, effectiveOptions);
+            }
+
+            if (statement is DeleteStatement deleteStatement)
+            {
+                return this.TranspileDelete(deleteStatement, effectiveOptions);
+            }
+
+            if (statement is MergeStatement mergeStatement)
+            {
+                return this.TranspileMerge(mergeStatement, effectiveOptions);
+            }
+
             throw new SqExpressSqlTranspilerException(
-                $"Only SELECT statements are supported at the moment. Encountered: {statement.GetType().Name}.");
+                "Only SELECT, UPDATE, DELETE and MERGE statements are supported at the moment. " +
+                $"Encountered: {statement.GetType().Name}.");
         }
 
         public SqExpressTranspileResult TranspileSelect(string sql, SqExpressSqlTranspilerOptions? options = null)
@@ -68,7 +84,195 @@ namespace SqExpress.SqlTranspiler
                 declarationsAst: declarationsAst);
         }
 
+        private SqExpressTranspileResult TranspileUpdate(UpdateStatement updateStatement, SqExpressSqlTranspilerOptions options)
+        {
+            if (updateStatement.OptimizerHints.Count > 0)
+            {
+                throw new SqExpressSqlTranspilerException("UPDATE optimizer hints are not supported yet.");
+            }
+
+            var specification = updateStatement.UpdateSpecification
+                ?? throw new SqExpressSqlTranspilerException("UPDATE specification is missing.");
+
+            if (specification.TopRowFilter != null)
+            {
+                throw new SqExpressSqlTranspilerException("UPDATE TOP is not supported yet.");
+            }
+
+            if (specification.OutputClause != null || specification.OutputIntoClause != null)
+            {
+                throw new SqExpressSqlTranspilerException("UPDATE OUTPUT is not supported yet.");
+            }
+
+            if (specification.SetClauses.Count < 1)
+            {
+                throw new SqExpressSqlTranspilerException("UPDATE SET cannot be empty.");
+            }
+
+            var context = new TranspileContext(options);
+            context.RegisterCtes(updateStatement.WithCtesAndXmlNamespaces);
+
+            if (specification.FromClause != null)
+            {
+                if (specification.FromClause.TableReferences.Count != 1)
+                {
+                    throw new SqExpressSqlTranspilerException("Only one root FROM table-reference is supported.");
+                }
+
+                this.PreRegisterTableReferences(specification.FromClause.TableReferences[0], context);
+            }
+
+            this.PreRegisterDmlTarget(specification.Target, context, "UPDATE");
+            var targetSource = this.ResolveDmlTargetSource(specification.Target, context, "UPDATE");
+            ExpressionSyntax current = Invoke("Update", IdentifierName(targetSource.VariableName));
+            current = this.ApplyUpdateSetClauses(current, specification.SetClauses, context);
+
+            if (specification.FromClause != null)
+            {
+                current = this.ApplyTableReference(current, specification.FromClause.TableReferences[0], context, isRoot: true);
+            }
+
+            if (specification.WhereClause != null)
+            {
+                current = InvokeMember(current, "Where", this.BuildBooleanExpression(specification.WhereClause.SearchCondition, context));
+            }
+            else
+            {
+                current = InvokeMember(current, "All");
+            }
+
+            var queryAst = this.BuildExecAst(current, context, options);
+            var declarationsAst = this.BuildDeclarationsAst(context, options);
+
+            return new SqExpressTranspileResult(
+                statementKind: "UPDATE",
+                queryAst: queryAst,
+                declarationsAst: declarationsAst);
+        }
+
+        private SqExpressTranspileResult TranspileDelete(DeleteStatement deleteStatement, SqExpressSqlTranspilerOptions options)
+        {
+            if (deleteStatement.OptimizerHints.Count > 0)
+            {
+                throw new SqExpressSqlTranspilerException("DELETE optimizer hints are not supported yet.");
+            }
+
+            var specification = deleteStatement.DeleteSpecification
+                ?? throw new SqExpressSqlTranspilerException("DELETE specification is missing.");
+
+            if (specification.TopRowFilter != null)
+            {
+                throw new SqExpressSqlTranspilerException("DELETE TOP is not supported yet.");
+            }
+
+            if (specification.OutputClause != null || specification.OutputIntoClause != null)
+            {
+                throw new SqExpressSqlTranspilerException("DELETE OUTPUT is not supported yet.");
+            }
+
+            var context = new TranspileContext(options);
+            context.RegisterCtes(deleteStatement.WithCtesAndXmlNamespaces);
+
+            if (specification.FromClause != null)
+            {
+                if (specification.FromClause.TableReferences.Count != 1)
+                {
+                    throw new SqExpressSqlTranspilerException("Only one root FROM table-reference is supported.");
+                }
+
+                this.PreRegisterTableReferences(specification.FromClause.TableReferences[0], context);
+            }
+
+            this.PreRegisterDmlTarget(specification.Target, context, "DELETE");
+            var targetSource = this.ResolveDmlTargetSource(specification.Target, context, "DELETE");
+            ExpressionSyntax current = Invoke("Delete", IdentifierName(targetSource.VariableName));
+
+            if (specification.FromClause != null)
+            {
+                current = this.ApplyTableReference(current, specification.FromClause.TableReferences[0], context, isRoot: true);
+            }
+
+            if (specification.WhereClause != null)
+            {
+                current = InvokeMember(current, "Where", this.BuildBooleanExpression(specification.WhereClause.SearchCondition, context));
+            }
+            else
+            {
+                current = InvokeMember(current, "All");
+            }
+
+            var queryAst = this.BuildExecAst(current, context, options);
+            var declarationsAst = this.BuildDeclarationsAst(context, options);
+
+            return new SqExpressTranspileResult(
+                statementKind: "DELETE",
+                queryAst: queryAst,
+                declarationsAst: declarationsAst);
+        }
+
+        private SqExpressTranspileResult TranspileMerge(MergeStatement mergeStatement, SqExpressSqlTranspilerOptions options)
+        {
+            if (mergeStatement.OptimizerHints.Count > 0)
+            {
+                throw new SqExpressSqlTranspilerException("MERGE optimizer hints are not supported yet.");
+            }
+
+            var specification = mergeStatement.MergeSpecification
+                ?? throw new SqExpressSqlTranspilerException("MERGE specification is missing.");
+
+            if (specification.TopRowFilter != null)
+            {
+                throw new SqExpressSqlTranspilerException("MERGE TOP is not supported yet.");
+            }
+
+            if (specification.OutputClause != null || specification.OutputIntoClause != null)
+            {
+                throw new SqExpressSqlTranspilerException("MERGE OUTPUT is not supported yet.");
+            }
+
+            if (specification.SearchCondition == null)
+            {
+                throw new SqExpressSqlTranspilerException("MERGE ON condition is required.");
+            }
+
+            var context = new TranspileContext(options);
+            context.RegisterCtes(mergeStatement.WithCtesAndXmlNamespaces);
+            this.PreRegisterTableReferences(specification.TableReference, context);
+            this.PreRegisterDmlTarget(specification.Target, context, "MERGE");
+
+            var targetSource = this.ResolveDmlTargetSource(specification.Target, context, "MERGE");
+            var targetAlias = specification.TableAlias?.Value;
+            if (!string.IsNullOrWhiteSpace(targetAlias))
+            {
+                context.AddSourceAlias(targetAlias!, targetSource);
+            }
+
+            var source = this.ResolveJoinedSource(specification.TableReference, context);
+            ExpressionSyntax current = Invoke("MergeInto", IdentifierName(targetSource.VariableName), IdentifierName(source.VariableName));
+            current = InvokeMember(current, "On", this.BuildBooleanExpression(specification.SearchCondition, context));
+            current = this.ApplyMergeActionClauses(current, specification.ActionClauses, context);
+            current = InvokeMember(current, "Done");
+
+            var queryAst = this.BuildExecAst(current, context, options);
+            var declarationsAst = this.BuildDeclarationsAst(context, options);
+
+            return new SqExpressTranspileResult(
+                statementKind: "MERGE",
+                queryAst: queryAst,
+                declarationsAst: declarationsAst);
+        }
+
         private CompilationUnitSyntax BuildQueryAst(ExpressionSyntax doneExpression, TranspileContext context, SqExpressSqlTranspilerOptions options)
+            => this.BuildMethodAst(doneExpression, context, options, "IExprQuery");
+
+        private CompilationUnitSyntax BuildExecAst(ExpressionSyntax doneExpression, TranspileContext context, SqExpressSqlTranspilerOptions options)
+            => this.BuildMethodAst(doneExpression, context, options, "IExprExec");
+
+        private CompilationUnitSyntax BuildMethodAst(
+            ExpressionSyntax doneExpression,
+            TranspileContext context,
+            SqExpressSqlTranspilerOptions options,
+            string returnTypeName)
         {
             var queryVariableName = NormalizeIdentifier(options.QueryVariableName, "query");
             var bodyStatements = new List<RoslynStatementSyntax>();
@@ -82,7 +286,7 @@ namespace SqExpress.SqlTranspiler
                                 .WithInitializer(EqualsValueClause(doneExpression)))));
             bodyStatements.Add(ReturnStatement(IdentifierName(queryVariableName)));
 
-            var methodDeclaration = MethodDeclaration(IdentifierName("IExprQuery"), Identifier(options.MethodName))
+            var methodDeclaration = MethodDeclaration(IdentifierName(returnTypeName), Identifier(options.MethodName))
                 .AddModifiers(Token(SyntaxKind.PublicKeyword), Token(SyntaxKind.StaticKeyword))
                 .WithBody(Block(bodyStatements));
 
@@ -642,6 +846,291 @@ namespace SqExpress.SqlTranspiler
 
             throw new SqExpressSqlTranspilerException($"Unsupported table reference: {tableReference.GetType().Name}.");
         }
+
+        private void PreRegisterDmlTarget(TableReference targetReference, TranspileContext context, string operationName)
+        {
+            if (targetReference is not NamedTableReference namedTable)
+            {
+                throw new SqExpressSqlTranspilerException($"{operationName} target must be a named table.");
+            }
+
+            var alias = namedTable.Alias?.Value;
+            if (!string.IsNullOrWhiteSpace(alias) && context.TryResolveSource(alias!, out _))
+            {
+                return;
+            }
+
+            var schemaObject = namedTable.SchemaObject
+                ?? throw new SqExpressSqlTranspilerException($"{operationName} target table is missing.");
+            var objectName = schemaObject.BaseIdentifier?.Value;
+            if (schemaObject.DatabaseIdentifier == null
+                && schemaObject.SchemaIdentifier == null
+                && !string.IsNullOrWhiteSpace(objectName)
+                && context.TryResolveSource(objectName!, out _))
+            {
+                return;
+            }
+
+            context.GetOrAddNamedSource(namedTable);
+        }
+
+        private TableSource ResolveDmlTargetSource(TableReference targetReference, TranspileContext context, string operationName)
+        {
+            if (targetReference is not NamedTableReference namedTable)
+            {
+                throw new SqExpressSqlTranspilerException($"{operationName} target must be a named table.");
+            }
+
+            var schemaObject = namedTable.SchemaObject
+                ?? throw new SqExpressSqlTranspilerException($"{operationName} target table is missing.");
+            var objectName = schemaObject.BaseIdentifier?.Value;
+            if (string.IsNullOrWhiteSpace(objectName))
+            {
+                throw new SqExpressSqlTranspilerException($"{operationName} target table name is missing.");
+            }
+
+            var alias = namedTable.Alias?.Value;
+            var isUnqualifiedTarget = schemaObject.DatabaseIdentifier == null && schemaObject.SchemaIdentifier == null;
+            TableSource source;
+
+            if (!string.IsNullOrWhiteSpace(alias) && context.TryResolveSource(alias!, out var byAlias))
+            {
+                source = byAlias;
+            }
+            else if (isUnqualifiedTarget && context.TryResolveSource(objectName!, out var byName))
+            {
+                source = byName;
+            }
+            else
+            {
+                source = context.GetOrAddNamedSource(namedTable);
+            }
+
+            if (source.Descriptor?.Kind != DescriptorKind.Table)
+            {
+                throw new SqExpressSqlTranspilerException($"{operationName} target must resolve to a regular table source.");
+            }
+
+            return source;
+        }
+
+        private ExpressionSyntax ApplyUpdateSetClauses(ExpressionSyntax current, IList<SetClause> setClauses, TranspileContext context)
+        {
+            foreach (var setClause in setClauses)
+            {
+                if (setClause is not AssignmentSetClause assignment)
+                {
+                    throw new SqExpressSqlTranspilerException($"Unsupported UPDATE SET clause: {setClause.GetType().Name}.");
+                }
+
+                if (assignment.AssignmentKind != AssignmentKind.Equals)
+                {
+                    throw new SqExpressSqlTranspilerException($"Unsupported assignment kind in SET clause: {assignment.AssignmentKind}.");
+                }
+
+                if (assignment.Variable != null)
+                {
+                    throw new SqExpressSqlTranspilerException("SET variable assignment is not supported.");
+                }
+
+                if (this.TryExtractVariableReference(assignment.NewValue, out var variableName, out var kindHint))
+                {
+                    context.RegisterSqlVariable(variableName, kindHint);
+                    context.RegisterSqlVariable(variableName, this.InferScalarVariableKind(assignment.Column, context));
+                }
+
+                if (this.TryInferDescriptorColumnKind(assignment.NewValue, context, out var leftHint))
+                {
+                    context.MarkColumnAsKind(assignment.Column, leftHint);
+                }
+
+                if (assignment.NewValue is ColumnReferenceExpression rightColumn
+                    && this.TryInferDescriptorColumnKind(assignment.Column, context, out var rightHint))
+                {
+                    context.MarkColumnAsKind(rightColumn, rightHint);
+                }
+
+                var column = this.BuildColumnExpression(assignment.Column, context);
+                var value = this.BuildScalarExpression(assignment.NewValue, context, wrapLiterals: false);
+                current = InvokeMember(current, "Set", column, value);
+            }
+
+            return current;
+        }
+
+        private ExpressionSyntax ApplyMergeActionClauses(ExpressionSyntax current, IList<MergeActionClause> actionClauses, TranspileContext context)
+        {
+            MergeActionClause? whenMatched = null;
+            MergeActionClause? whenNotMatchedByTarget = null;
+            MergeActionClause? whenNotMatchedBySource = null;
+
+            foreach (var actionClause in actionClauses)
+            {
+                switch (actionClause.Condition)
+                {
+                    case MergeCondition.Matched:
+                        if (whenMatched != null)
+                        {
+                            throw new SqExpressSqlTranspilerException("Multiple WHEN MATCHED clauses are not supported yet.");
+                        }
+
+                        whenMatched = actionClause;
+                        break;
+                    case MergeCondition.NotMatched:
+                    case MergeCondition.NotMatchedByTarget:
+                        if (whenNotMatchedByTarget != null)
+                        {
+                            throw new SqExpressSqlTranspilerException("Multiple WHEN NOT MATCHED BY TARGET clauses are not supported yet.");
+                        }
+
+                        whenNotMatchedByTarget = actionClause;
+                        break;
+                    case MergeCondition.NotMatchedBySource:
+                        if (whenNotMatchedBySource != null)
+                        {
+                            throw new SqExpressSqlTranspilerException("Multiple WHEN NOT MATCHED BY SOURCE clauses are not supported yet.");
+                        }
+
+                        whenNotMatchedBySource = actionClause;
+                        break;
+                    default:
+                        throw new SqExpressSqlTranspilerException($"Unsupported MERGE action condition: {actionClause.Condition}.");
+                }
+            }
+
+            if (whenMatched != null)
+            {
+                current = this.ApplyMergeActionClause(current, whenMatched, context);
+            }
+
+            if (whenNotMatchedByTarget != null)
+            {
+                current = this.ApplyMergeActionClause(current, whenNotMatchedByTarget, context);
+            }
+
+            if (whenNotMatchedBySource != null)
+            {
+                current = this.ApplyMergeActionClause(current, whenNotMatchedBySource, context);
+            }
+
+            return current;
+        }
+
+        private ExpressionSyntax ApplyMergeActionClause(ExpressionSyntax current, MergeActionClause actionClause, TranspileContext context)
+        {
+            switch (actionClause.Condition)
+            {
+                case MergeCondition.Matched:
+                    current = actionClause.SearchCondition != null
+                        ? InvokeMember(current, "WhenMatchedAnd", this.BuildBooleanExpression(actionClause.SearchCondition, context))
+                        : InvokeMember(current, "WhenMatched");
+
+                    return actionClause.Action switch
+                    {
+                        UpdateMergeAction updateAction => this.ApplyUpdateSetClauses(
+                            InvokeMember(current, "ThenUpdate"),
+                            updateAction.SetClauses,
+                            context),
+                        DeleteMergeAction => InvokeMember(current, "ThenDelete"),
+                        _ => throw new SqExpressSqlTranspilerException(
+                            $"Unsupported WHEN MATCHED action: {actionClause.Action.GetType().Name}.")
+                    };
+                case MergeCondition.NotMatched:
+                case MergeCondition.NotMatchedByTarget:
+                    current = actionClause.SearchCondition != null
+                        ? InvokeMember(current, "WhenNotMatchedByTargetAnd", this.BuildBooleanExpression(actionClause.SearchCondition, context))
+                        : InvokeMember(current, "WhenNotMatchedByTarget");
+
+                    if (actionClause.Action is not InsertMergeAction insertAction)
+                    {
+                        throw new SqExpressSqlTranspilerException(
+                            $"Unsupported WHEN NOT MATCHED BY TARGET action: {actionClause.Action.GetType().Name}.");
+                    }
+
+                    return this.ApplyMergeInsertAction(current, insertAction, context);
+                case MergeCondition.NotMatchedBySource:
+                    current = actionClause.SearchCondition != null
+                        ? InvokeMember(current, "WhenNotMatchedBySourceAnd", this.BuildBooleanExpression(actionClause.SearchCondition, context))
+                        : InvokeMember(current, "WhenNotMatchedBySource");
+
+                    return actionClause.Action switch
+                    {
+                        UpdateMergeAction updateAction => this.ApplyUpdateSetClauses(
+                            InvokeMember(current, "ThenUpdate"),
+                            updateAction.SetClauses,
+                            context),
+                        DeleteMergeAction => InvokeMember(current, "ThenDelete"),
+                        _ => throw new SqExpressSqlTranspilerException(
+                            $"Unsupported WHEN NOT MATCHED BY SOURCE action: {actionClause.Action.GetType().Name}.")
+                    };
+                default:
+                    throw new SqExpressSqlTranspilerException($"Unsupported MERGE action condition: {actionClause.Condition}.");
+            }
+        }
+
+        private ExpressionSyntax ApplyMergeInsertAction(ExpressionSyntax current, InsertMergeAction insertAction, TranspileContext context)
+        {
+            var source = insertAction.Source
+                ?? throw new SqExpressSqlTranspilerException("MERGE INSERT source is missing.");
+
+            if (this.IsMergeInsertDefaultValues(insertAction))
+            {
+                return InvokeMember(current, "ThenInsertDefaultValues");
+            }
+
+            if (insertAction.Columns.Count < 1)
+            {
+                throw new SqExpressSqlTranspilerException("MERGE INSERT column list cannot be empty unless DEFAULT VALUES is used.");
+            }
+
+            if (source.RowValues.Count != 1)
+            {
+                throw new SqExpressSqlTranspilerException("MERGE INSERT currently supports exactly one VALUES row.");
+            }
+
+            var values = source.RowValues[0].ColumnValues;
+            if (values.Count != insertAction.Columns.Count)
+            {
+                throw new SqExpressSqlTranspilerException("MERGE INSERT column count does not match VALUES item count.");
+            }
+
+            current = InvokeMember(current, "ThenInsert");
+            for (var i = 0; i < insertAction.Columns.Count; i++)
+            {
+                var columnName = this.BuildMergeInsertColumnName(insertAction.Columns[i]);
+                var value = this.BuildScalarExpression(values[i], context, wrapLiterals: false);
+                current = InvokeMember(current, "Set", columnName, value);
+            }
+
+            return current;
+        }
+
+        private ExpressionSyntax BuildMergeInsertColumnName(ColumnReferenceExpression columnReference)
+        {
+            if (columnReference.ColumnType == ColumnType.Wildcard)
+            {
+                throw new SqExpressSqlTranspilerException("MERGE INSERT column name cannot be wildcard.");
+            }
+
+            var identifiers = columnReference.MultiPartIdentifier?.Identifiers;
+            if (identifiers == null || identifiers.Count < 1)
+            {
+                throw new SqExpressSqlTranspilerException("MERGE INSERT column reference does not contain identifiers.");
+            }
+
+            var columnName = identifiers[identifiers.Count - 1].Value;
+            if (string.IsNullOrWhiteSpace(columnName))
+            {
+                throw new SqExpressSqlTranspilerException("MERGE INSERT column name cannot be empty.");
+            }
+
+            return InvokeMember(IdentifierName("CustomColumnFactory"), "Any", StringLiteral(columnName!));
+        }
+
+        private bool IsMergeInsertDefaultValues(InsertMergeAction insertAction)
+            => insertAction.Columns.Count == 0
+               && insertAction.Source != null
+               && insertAction.Source.RowValues.Count == 0;
 
         private ExpressionSyntax BuildSelectElement(SelectElement selectElement, TranspileContext context)
         {
@@ -3388,6 +3877,16 @@ namespace SqExpress.SqlTranspiler
 
                 source = null!;
                 return false;
+            }
+
+            public void AddSourceAlias(string alias, TableSource source)
+            {
+                if (string.IsNullOrWhiteSpace(alias))
+                {
+                    throw new SqExpressSqlTranspilerException("Source alias cannot be empty.");
+                }
+
+                this._sourceByAlias[alias] = source;
             }
 
             public SqlVariable RegisterSqlVariable(string sqlName, SqlVariableKind kindHint)
