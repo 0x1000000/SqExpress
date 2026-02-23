@@ -1,7 +1,7 @@
 {
   "mainAssemblyName": "SqExpress.SqlTranspiler.Blazor",
   "resources": {
-    "hash": "sha256-AxS6PdVyRSY/dxGD2MBBSympFsc+5K7BkK9OEgbMa5I=",
+    "hash": "sha256-Q5YNIzhMVcdPQ1J9nt1Ubhe8D/V2e+X068VpWiSKCjg=",
     "jsModuleNative": {
       "dotnet.native.js": "sha256-1te8JmuurFg5emn3XN03ivBh4t26VSh9rul02Awoij8="
     },
@@ -35,8 +35,8 @@
       "Microsoft.JSInterop.wasm": "sha256-h4y35qYW/ZECt9W2BY/V8Fit8/2hkz8c0ZWh3Mb8z7M=",
       "Microsoft.JSInterop.WebAssembly.wasm": "sha256-4soNkn8aqTulPavV5tgrBBe7jEypSOVIlJw/okXugLA=",
       "Microsoft.SqlServer.TransactSql.ScriptDom.wasm": "sha256-UH74xgz6eEdXZRQwq9d0QXhspWn80N5zcOJkV7K5Gtk=",
-      "SqExpress.SqlTranspiler.Blazor.wasm": "sha256-PovIxTilqQl3syqXzjVvqZxRPAaF8ksPu+BHSrRtdtQ=",
-      "SqExpress.SqlTranspiler.wasm": "sha256-M7/zJ37g8zM0qZ8Jb80wIMYc2FTj15FVgXdes70+yvA=",
+      "SqExpress.SqlTranspiler.Blazor.wasm": "sha256-GA1kwTKjXtnT9WBhOz4+znPuhZ/VQzR1FPmXD47RLJg=",
+      "SqExpress.SqlTranspiler.wasm": "sha256-iylHhdEgv2OUYARl3Jv+Dj03wHgSXkaRaHh+FJe7JE0=",
       "SqExpress.wasm": "sha256-FT17DJO7m63OlDm6IF2nsbTENfrlthp3r+ei4FkaZ6I=",
       "System.Collections.Concurrent.wasm": "sha256-kw9Hx3za4Ng8qivxqdRDzc07szOvGRRaB3bR76Ed/CY=",
       "System.Collections.Immutable.wasm": "sha256-lvmGkMy8VCW9bz2QQNM2lRqAt0216rSNrqUVyHOWL3Y=",
