@@ -37,13 +37,18 @@ namespace SqExpress.SqlTranspiler
                 return this.TranspileDelete(deleteStatement, effectiveOptions);
             }
 
+            if (statement is InsertStatement insertStatement)
+            {
+                return this.TranspileInsert(insertStatement, effectiveOptions);
+            }
+
             if (statement is MergeStatement mergeStatement)
             {
                 return this.TranspileMerge(mergeStatement, effectiveOptions);
             }
 
             throw new SqExpressSqlTranspilerException(
-                "Only SELECT, UPDATE, DELETE and MERGE statements are supported at the moment. " +
+                "Only SELECT, INSERT, UPDATE, DELETE and MERGE statements are supported at the moment. " +
                 $"Encountered: {statement.GetType().Name}.");
         }
 
@@ -80,6 +85,52 @@ namespace SqExpress.SqlTranspiler
 
             return new SqExpressTranspileResult(
                 statementKind: "SELECT",
+                queryAst: queryAst,
+                declarationsAst: declarationsAst);
+        }
+
+        private SqExpressTranspileResult TranspileInsert(InsertStatement insertStatement, SqExpressSqlTranspilerOptions options)
+        {
+            if (insertStatement.OptimizerHints.Count > 0)
+            {
+                throw new SqExpressSqlTranspilerException("INSERT optimizer hints are not supported yet.");
+            }
+
+            var specification = insertStatement.InsertSpecification
+                ?? throw new SqExpressSqlTranspilerException("INSERT specification is missing.");
+
+            if (specification.TopRowFilter != null)
+            {
+                throw new SqExpressSqlTranspilerException("INSERT TOP is not supported yet.");
+            }
+
+            if (specification.OutputClause != null || specification.OutputIntoClause != null)
+            {
+                throw new SqExpressSqlTranspilerException("INSERT OUTPUT is not supported yet.");
+            }
+
+            if (specification.InsertOption == InsertOption.Over)
+            {
+                throw new SqExpressSqlTranspilerException("INSERT OVER is not supported.");
+            }
+
+            var context = new TranspileContext(options);
+            context.RegisterCtes(insertStatement.WithCtesAndXmlNamespaces);
+            this.PreRegisterDmlTarget(specification.Target, context, "INSERT");
+
+            var targetSource = this.ResolveDmlTargetSource(specification.Target, context, "INSERT");
+            var targetColumns = this.BuildInsertTargetColumns(specification.Columns, context);
+
+            ExpressionSyntax current = Invoke(
+                "InsertInto",
+                Prepend(IdentifierName(targetSource.VariableName), targetColumns));
+            current = this.ApplyInsertSource(current, specification, context);
+
+            var queryAst = this.BuildExecAst(current, context, options);
+            var declarationsAst = this.BuildDeclarationsAst(context, options);
+
+            return new SqExpressTranspileResult(
+                statementKind: "INSERT",
                 queryAst: queryAst,
                 declarationsAst: declarationsAst);
         }
@@ -290,9 +341,13 @@ namespace SqExpress.SqlTranspiler
                 .AddModifiers(Token(SyntaxKind.PublicKeyword), Token(SyntaxKind.StaticKeyword))
                 .WithBody(Block(bodyStatements));
 
+            var members = new List<MemberDeclarationSyntax>();
+            members.Add(methodDeclaration);
+            members.AddRange(this.BuildEmbeddedQueryDescriptorClasses(context));
+
             var classDeclaration = ClassDeclaration(options.ClassName)
                 .AddModifiers(Token(SyntaxKind.PublicKeyword), Token(SyntaxKind.StaticKeyword))
-                .AddMembers(methodDeclaration);
+                .AddMembers(members.ToArray());
 
             return CompilationUnit()
                 .AddUsings(
@@ -310,6 +365,27 @@ namespace SqExpress.SqlTranspiler
 
         private CompilationUnitSyntax BuildDeclarationsAst(TranspileContext context, SqExpressSqlTranspilerOptions options)
         {
+            var members = context.Descriptors
+                .Where(i => i.Kind == DescriptorKind.Table)
+                .Select(i => (MemberDeclarationSyntax)this.BuildTableDescriptorClass(i))
+                .ToArray();
+
+            return CompilationUnit()
+                .AddUsings(
+                    UsingDirective(ParseName("System")),
+                    UsingDirective(ParseName("SqExpress")),
+                    UsingDirective(ParseName("SqExpress.Syntax.Select")),
+                    UsingDirective(ParseName("SqExpress.Syntax.Functions")),
+                    UsingDirective(ParseName("SqExpress.Syntax.Functions.Known")),
+                    UsingDirective(ParseName("SqExpress.SqQueryBuilder")).WithStaticKeyword(Token(SyntaxKind.StaticKeyword)))
+                .AddMembers(
+                    NamespaceDeclaration(ParseName(options.EffectiveDeclarationsNamespaceName))
+                        .AddMembers(members))
+                .NormalizeWhitespace();
+        }
+
+        private IReadOnlyList<ClassDeclarationSyntax> BuildEmbeddedQueryDescriptorClasses(TranspileContext context)
+        {
             static int DescriptorOrder(DescriptorKind kind) => kind switch
             {
                 DescriptorKind.Cte => 0,
@@ -317,13 +393,15 @@ namespace SqExpress.SqlTranspiler
                 _ => 2
             };
 
-            var members = new List<MemberDeclarationSyntax>();
+            var members = new List<ClassDeclarationSyntax>();
             var builtDescriptors = new HashSet<TableDescriptor>();
             while (true)
             {
                 var nextDescriptor = context.Descriptors
                     .Select((descriptor, index) => new { descriptor, index })
-                    .Where(i => !builtDescriptors.Contains(i.descriptor))
+                    .Where(i =>
+                        !builtDescriptors.Contains(i.descriptor)
+                        && i.descriptor.Kind is DescriptorKind.Cte or DescriptorKind.SubQuery)
                     .OrderBy(i => DescriptorOrder(i.descriptor.Kind))
                     .ThenBy(i => i.index)
                     .Select(i => i.descriptor)
@@ -338,18 +416,7 @@ namespace SqExpress.SqlTranspiler
                 builtDescriptors.Add(nextDescriptor);
             }
 
-            return CompilationUnit()
-                .AddUsings(
-                    UsingDirective(ParseName("System")),
-                    UsingDirective(ParseName("SqExpress")),
-                    UsingDirective(ParseName("SqExpress.Syntax.Select")),
-                    UsingDirective(ParseName("SqExpress.Syntax.Functions")),
-                    UsingDirective(ParseName("SqExpress.Syntax.Functions.Known")),
-                    UsingDirective(ParseName("SqExpress.SqQueryBuilder")).WithStaticKeyword(Token(SyntaxKind.StaticKeyword)))
-                .AddMembers(
-                    NamespaceDeclaration(ParseName(options.EffectiveDeclarationsNamespaceName))
-                        .AddMembers(members.ToArray()))
-                .NormalizeWhitespace();
+            return members;
         }
 
         private ClassDeclarationSyntax BuildDescriptorClass(TableDescriptor descriptor, TranspileContext context)
@@ -912,6 +979,110 @@ namespace SqExpress.SqlTranspiler
             }
 
             return source;
+        }
+
+        private List<ExpressionSyntax> BuildInsertTargetColumns(IList<ColumnReferenceExpression> columns, TranspileContext context)
+        {
+            if (columns.Count < 1)
+            {
+                throw new SqExpressSqlTranspilerException(
+                    "INSERT without target column list is not supported yet.");
+            }
+
+            return columns
+                .Select(i => this.BuildColumnExpression(i, context))
+                .ToList();
+        }
+
+        private ExpressionSyntax ApplyInsertSource(ExpressionSyntax current, InsertSpecification specification, TranspileContext context)
+        {
+            var source = specification.InsertSource
+                ?? throw new SqExpressSqlTranspilerException("INSERT source is missing.");
+
+            switch (source)
+            {
+                case ValuesInsertSource valuesSource:
+                    if (valuesSource.IsDefaultValues)
+                    {
+                        throw new SqExpressSqlTranspilerException("INSERT DEFAULT VALUES is not supported yet.");
+                    }
+
+                    if (valuesSource.RowValues.Count < 1)
+                    {
+                        throw new SqExpressSqlTranspilerException("INSERT VALUES cannot be empty.");
+                    }
+
+                    if (specification.Columns.Count < 1)
+                    {
+                        throw new SqExpressSqlTranspilerException(
+                            "INSERT VALUES requires explicit target columns.");
+                    }
+
+                    foreach (var row in valuesSource.RowValues)
+                    {
+                        if (row.ColumnValues.Count != specification.Columns.Count)
+                        {
+                            throw new SqExpressSqlTranspilerException(
+                                "INSERT column count does not match VALUES item count.");
+                        }
+
+                        var values = new List<ExpressionSyntax>();
+                        for (var i = 0; i < row.ColumnValues.Count; i++)
+                        {
+                            var value = row.ColumnValues[i];
+                            if (value is DefaultLiteral)
+                            {
+                                throw new SqExpressSqlTranspilerException(
+                                    "INSERT VALUES with DEFAULT item is not supported yet.");
+                            }
+
+                            this.ApplyInsertValueTypeHints(specification.Columns[i], value, context);
+                            values.Add(this.BuildScalarExpression(value, context, wrapLiterals: false));
+                        }
+
+                        current = InvokeMember(current, "Values", values);
+                    }
+
+                    return InvokeMember(current, "DoneWithValues");
+                case SelectInsertSource selectSource:
+                    if (specification.Columns.Count < 1)
+                    {
+                        throw new SqExpressSqlTranspilerException(
+                            "INSERT...SELECT requires explicit target columns.");
+                    }
+
+                    if (selectSource.Select == null)
+                    {
+                        throw new SqExpressSqlTranspilerException("INSERT SELECT source is missing.");
+                    }
+
+                    this.PreRegisterQueryExpression(selectSource.Select, context);
+                    return InvokeMember(current, "From", this.BuildQueryExpression(selectSource.Select, context));
+                case ExecuteInsertSource:
+                    throw new SqExpressSqlTranspilerException("INSERT EXEC source is not supported yet.");
+                default:
+                    throw new SqExpressSqlTranspilerException($"Unsupported INSERT source: {source.GetType().Name}.");
+            }
+        }
+
+        private void ApplyInsertValueTypeHints(ColumnReferenceExpression targetColumn, ScalarExpression value, TranspileContext context)
+        {
+            if (this.TryExtractVariableReference(value, out var variableName, out var kindHint))
+            {
+                context.RegisterSqlVariable(variableName, kindHint);
+                context.RegisterSqlVariable(variableName, this.InferScalarVariableKind(targetColumn, context));
+            }
+
+            if (this.TryInferDescriptorColumnKind(value, context, out var targetHint))
+            {
+                context.MarkColumnAsKind(targetColumn, targetHint);
+            }
+
+            if (value is ColumnReferenceExpression sourceColumn
+                && this.TryInferDescriptorColumnKind(targetColumn, context, out var sourceHint))
+            {
+                context.MarkColumnAsKind(sourceColumn, sourceHint);
+            }
         }
 
         private ExpressionSyntax ApplyUpdateSetClauses(ExpressionSyntax current, IList<SetClause> setClauses, TranspileContext context)

@@ -54,6 +54,8 @@ namespace SqExpress.SqlTranspiler.Test
         private const string SqlOffsetFetch = "SELECT [u].[UserId] FROM [dbo].[Users] [u] ORDER BY [u].[UserId] OFFSET 10 ROW FETCH NEXT 5 ROW ONLY";
         private const string SqlOffsetOnly = "SELECT [u].[UserId] FROM [dbo].[Users] [u] ORDER BY [u].[UserId] OFFSET 20 ROW";
         private const string SqlUnionAllOffsetFetch = "SELECT 1 [A] UNION ALL SELECT 2 [A] ORDER BY [A] OFFSET 1 ROW FETCH NEXT 1 ROW ONLY";
+        private const string SqlInsertValues = "INSERT INTO [dbo].[Users]([UserId],[Name]) VALUES (1,'A'),(2,'B')";
+        private const string SqlInsertFromSelect = "INSERT INTO [dbo].[Users]([UserId],[Name]) SELECT [o].[UserId],[o].[Title] FROM [dbo].[Orders] [o] WHERE [o].[IsDeleted]=0";
         private const string SqlUpdateWithJoin = "UPDATE [u] SET [u].[Name]=[o].[Title],[u].[IsActive]=1 FROM [dbo].[Users] [u] JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[UserId] WHERE [o].[Title] LIKE 'A%'";
         private const string SqlDeleteWithJoin = "DELETE [u] FROM [dbo].[Users] [u] JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[UserId] WHERE [o].[IsDeleted]=1";
         private const string SqlMergeBasic = "MERGE [dbo].[Users] [A0] USING [dbo].[UsersStaging] [s] ON [A0].[UserId]=[s].[UserId] WHEN MATCHED THEN UPDATE SET [A0].[Name]=[s].[Name],[A0].[IsActive]=[s].[IsActive] WHEN NOT MATCHED THEN INSERT([UserId],[Name],[IsActive]) VALUES([s].[UserId],[s].[Name],[s].[IsActive]) WHEN NOT MATCHED BY SOURCE THEN  DELETE;";
@@ -415,9 +417,9 @@ namespace SqExpress.SqlTranspiler.Test
 
             var result = transpiler.Transpile(sql);
 
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public sealed class CCte : CteBase"));
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public override IExprSubQuery CreateQuery()"));
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("return Select(Literal(1).As(\"A\")).Done();"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("public sealed class CCte : CteBase"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("public override IExprSubQuery CreateQuery()"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("return Select(Literal(1).As(\"A\")).Done();"));
             Assert.That(result.QueryCSharpCode, Does.Contain("From(c)"));
             AssertCompilesAndSql(result, SqlCteSimple);
         }
@@ -430,10 +432,10 @@ namespace SqExpress.SqlTranspiler.Test
 
             var result = transpiler.Transpile(sql);
 
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public sealed class CUCte : CteBase"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("public sealed class CUCte : CteBase"));
             Assert.That(result.DeclarationsCSharpCode, Does.Contain("public sealed class UsersTable : TableBase"));
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("var u = new UsersTable(\"u\");"));
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("Where(u.Name == \"A\")"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var u = new UsersTable(\"u\");"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Where(u.Name == \"A\")"));
             AssertCompilesAndSql(result, SqlCteWithTable);
         }
 
@@ -443,17 +445,17 @@ namespace SqExpress.SqlTranspiler.Test
             var transpiler = new SqExpressSqlTranspiler();
 
             var cteUnion = transpiler.Transpile("WITH C AS (SELECT 1 AS A UNION ALL SELECT 2 AS A) SELECT c.A FROM C c");
-            Assert.That(cteUnion.DeclarationsCSharpCode, Does.Contain(".UnionAll("));
+            Assert.That(cteUnion.QueryCSharpCode, Does.Contain(".UnionAll("));
             AssertCompilesAndSql(cteUnion, SqlCteUnionAll);
 
             var derivedSetOrder = transpiler.Transpile(
                 "SELECT sq.A FROM (SELECT 1 AS A UNION ALL SELECT 2 AS A) sq");
-            Assert.That(derivedSetOrder.DeclarationsCSharpCode, Does.Contain(".UnionAll("));
+            Assert.That(derivedSetOrder.QueryCSharpCode, Does.Contain(".UnionAll("));
             AssertCompilesAndSql(derivedSetOrder, SqlDerivedUnion);
 
             var derivedOrderOffset = transpiler.Transpile(
                 "SELECT sq.A FROM (SELECT 1 AS A ORDER BY A OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY) sq");
-            Assert.That(derivedOrderOffset.DeclarationsCSharpCode, Does.Contain(".OffsetFetch(0, 1)"));
+            Assert.That(derivedOrderOffset.QueryCSharpCode, Does.Contain(".OffsetFetch(0, 1)"));
             AssertCompilesAndSql(derivedOrderOffset, SqlDerivedOrderOffset);
         }
 
@@ -499,7 +501,7 @@ namespace SqExpress.SqlTranspiler.Test
             Assert.That(result.QueryCSharpCode, Does.Contain(".OuterApply("));
             Assert.That(result.QueryCSharpCode, Does.Contain("Exists(Select"));
             Assert.That(result.QueryCSharpCode, Does.Contain(".OffsetFetch(0, 20)"));
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public sealed class RCte : CteBase"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("public sealed class RCte : CteBase"));
 
             var assembly = AssertCompiles(result, "GeneratedTranspilerGodScenarioTests");
             var query = InvokeGeneratedBuildMethod(assembly, new SqExpressSqlTranspilerOptions());
@@ -521,15 +523,16 @@ namespace SqExpress.SqlTranspiler.Test
                 "WITH C AS (SELECT u.UserId FROM dbo.Users u) " +
                 "SELECT sq.UserId FROM (SELECT c.UserId FROM C c) sq");
 
-            var idxCte = result.DeclarationsCSharpCode.IndexOf("public sealed class CCte : CteBase", StringComparison.Ordinal);
-            var idxSub = result.DeclarationsCSharpCode.IndexOf("public sealed class SqSubQuery : DerivedTableBase", StringComparison.Ordinal);
+            var idxCte = result.QueryCSharpCode.IndexOf("public sealed class CCte : CteBase", StringComparison.Ordinal);
+            var idxSub = result.QueryCSharpCode.IndexOf("public sealed class SqSubQuery : DerivedTableBase", StringComparison.Ordinal);
             var idxTable = result.DeclarationsCSharpCode.IndexOf("public sealed class UsersTable : TableBase", StringComparison.Ordinal);
 
             Assert.That(idxCte, Is.GreaterThanOrEqualTo(0));
             Assert.That(idxSub, Is.GreaterThanOrEqualTo(0));
             Assert.That(idxTable, Is.GreaterThanOrEqualTo(0));
             Assert.That(idxCte, Is.LessThan(idxSub));
-            Assert.That(idxSub, Is.LessThan(idxTable));
+            Assert.That(result.DeclarationsCSharpCode, Does.Not.Contain("class CCte"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Not.Contain("class SqSubQuery"));
         }
 
         [Test]
@@ -540,9 +543,9 @@ namespace SqExpress.SqlTranspiler.Test
 
             var result = transpiler.Transpile(sql);
 
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public sealed class SqSubQuery : DerivedTableBase"));
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("protected override IExprSubQuery CreateQuery()"));
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("return Select(Literal(1).As(\"A\")).Done();"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("public sealed class SqSubQuery : DerivedTableBase"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("protected override IExprSubQuery CreateQuery()"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("return Select(Literal(1).As(\"A\")).Done();"));
             Assert.That(result.QueryCSharpCode, Does.Contain("var sq = new SqSubQuery(\"sq\");"));
             AssertCompilesAndSql(result, SqlSubSimple);
         }
@@ -555,10 +558,10 @@ namespace SqExpress.SqlTranspiler.Test
 
             var result = transpiler.Transpile(sql);
 
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public sealed class SqSubQuery : DerivedTableBase"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("public sealed class SqSubQuery : DerivedTableBase"));
             Assert.That(result.DeclarationsCSharpCode, Does.Contain("public sealed class UsersTable : TableBase"));
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("var u = new UsersTable(\"u\");"));
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("Where(u.Name == \"A\")"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var u = new UsersTable(\"u\");"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Where(u.Name == \"A\")"));
             AssertCompilesAndSql(result, SqlSubWithTable);
         }
 
@@ -570,9 +573,9 @@ namespace SqExpress.SqlTranspiler.Test
 
             var result = transpiler.Transpile(sql);
 
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public sealed class SqSubQuery : DerivedTableBase"));
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public sealed class ISubQuery : DerivedTableBase"));
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("var i = new ISubQuery(\"i\");"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("public sealed class SqSubQuery : DerivedTableBase"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("public sealed class ISubQuery : DerivedTableBase"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var i = new ISubQuery(\"i\");"));
             AssertCompilesAndSql(result, SqlSubNested);
         }
 
@@ -680,6 +683,31 @@ namespace SqExpress.SqlTranspiler.Test
         }
 
         [Test]
+        public void TranspileInsert_IsSupported()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+
+            var valuesResult = transpiler.Transpile(
+                "INSERT INTO dbo.Users(UserId, Name) VALUES (1, 'A'), (2, 'B')");
+
+            Assert.AreEqual("INSERT", valuesResult.StatementKind);
+            Assert.That(valuesResult.QueryCSharpCode, Does.Contain("public static IExprExec Build()"));
+            Assert.That(valuesResult.QueryCSharpCode, Does.Contain("InsertInto(users, users.UserId, users.Name)"));
+            Assert.That(valuesResult.QueryCSharpCode, Does.Contain(".Values(1, \"A\")"));
+            Assert.That(valuesResult.QueryCSharpCode, Does.Contain(".Values(2, \"B\")"));
+            Assert.That(valuesResult.QueryCSharpCode, Does.Contain(".DoneWithValues()"));
+            AssertCompilesAndSql(valuesResult, SqlInsertValues);
+
+            var selectResult = transpiler.Transpile(
+                "INSERT INTO dbo.Users(UserId, Name) " +
+                "SELECT o.UserId, o.Title FROM dbo.Orders o WHERE o.IsDeleted = 0");
+
+            Assert.That(selectResult.QueryCSharpCode, Does.Contain("InsertInto(users, users.UserId, users.Name)"));
+            Assert.That(selectResult.QueryCSharpCode, Does.Contain(".From(Select(o.UserId, o.Title)"));
+            AssertCompilesAndSql(selectResult, SqlInsertFromSelect);
+        }
+
+        [Test]
         public void TranspileDelete_IsSupported()
         {
             var transpiler = new SqExpressSqlTranspiler();
@@ -725,8 +753,8 @@ namespace SqExpress.SqlTranspiler.Test
         {
             var transpiler = new SqExpressSqlTranspiler();
 
-            var ex = Assert.Throws<SqExpressSqlTranspilerException>(() => transpiler.Transpile("INSERT INTO dbo.Users(UserId) VALUES (1)"));
-            Assert.That(ex?.Message, Does.Contain("Only SELECT, UPDATE, DELETE and MERGE statements are supported"));
+            var ex = Assert.Throws<SqExpressSqlTranspilerException>(() => transpiler.Transpile("TRUNCATE TABLE dbo.Users"));
+            Assert.That(ex?.Message, Does.Contain("Only SELECT, INSERT, UPDATE, DELETE and MERGE statements are supported"));
         }
 
         [Test]

@@ -4,12 +4,18 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JsRuntime
 
-<PageTitle>SqExpress SQL Transpiler</PageTitle>
+<PageTitle>T-SQL to SqExpress C# Transpiler</PageTitle>
 
 <section class="workspace">
     <header class="workspace-header">
-        <h1>SqExpress SQL Transpiler</h1>
-        <p>Client-side only WebAssembly app: T-SQL in, SqExpress C# out.</p>
+        <div class="workspace-title-row">
+            <h1>T-SQL to SqExpress C# Transpiler</h1>
+            <a class="github-link" href="https://github.com/0x1000000/SqExpress" target="_blank" rel="noopener noreferrer">GitHub Project</a>
+        </div>
+        <p>
+            Accepts T-SQL statements with SELECT, nested subqueries, CTE, INSERT, UPDATE, DELETE, and MERGE,
+            including variables like <code>&#64;name</code> and list variables for <code>IN (&#64;items)</code>.
+        </p>
     </header>
 
     <div class="editor-card">
@@ -25,14 +31,19 @@
         <div class="error-box">@this._error</div>
     }
 
+    <div class="note-box">
+        Note: column types usually cannot be determined reliably from SQL text alone. The transpiler uses best-effort inference.
+        For accurate table descriptors, use the scaffolding/codegen tool included in SqExpress.
+    </div>
+
     <div class="outputs-grid">
         <div class="output-card">
             <h2>SqQuery Output</h2>
-            <pre>@this._queryOutput</pre>
+            <div id="query-output-editor" class="csharp-output-editor"></div>
         </div>
         <div class="output-card">
             <h2>Declarations Output</h2>
-            <pre>@this._declarationsOutput</pre>
+            <div id="declarations-output-editor" class="csharp-output-editor"></div>
         </div>
     </div>
 </section>
@@ -40,6 +51,8 @@
 @code
 {
     private const string EditorElementId = "sql-editor";
+    private const string QueryOutputElementId = "query-output-editor";
+    private const string DeclarationsOutputElementId = "declarations-output-editor";
     private DotNetObjectReference<Home>? _dotNetRef;
     private string _sqlText =
         "SELECT u.UserId, u.Name AS UserName " +
@@ -51,6 +64,7 @@
     private string _declarationsOutput = string.Empty;
     private string? _error;
     private bool _editorInitialized;
+    private bool _outputEditorsInitialized;
 
     [JSInvokable]
     public Task OnSqlChangedFromJs(string sqlText)
@@ -69,6 +83,9 @@
         this._dotNetRef = DotNetObjectReference.Create(this);
         await JsRuntime.InvokeVoidAsync("sqExpressSqlEditor.initialize", EditorElementId, this._dotNetRef, this._sqlText);
         this._editorInitialized = true;
+        await JsRuntime.InvokeVoidAsync("sqExpressCodeOutput.initialize", QueryOutputElementId, this._queryOutput);
+        await JsRuntime.InvokeVoidAsync("sqExpressCodeOutput.initialize", DeclarationsOutputElementId, this._declarationsOutput);
+        this._outputEditorsInitialized = true;
         await this.TranspileAsync();
     }
 
@@ -94,6 +111,12 @@
             this._declarationsOutput = string.Empty;
             this._error = ex.Message;
         }
+
+        if (this._outputEditorsInitialized)
+        {
+            await JsRuntime.InvokeVoidAsync("sqExpressCodeOutput.setValue", QueryOutputElementId, this._queryOutput);
+            await JsRuntime.InvokeVoidAsync("sqExpressCodeOutput.setValue", DeclarationsOutputElementId, this._declarationsOutput);
+        }
     }
 
     public async ValueTask DisposeAsync()
@@ -101,6 +124,12 @@
         if (this._editorInitialized)
         {
             await JsRuntime.InvokeVoidAsync("sqExpressSqlEditor.dispose", EditorElementId);
+        }
+
+        if (this._outputEditorsInitialized)
+        {
+            await JsRuntime.InvokeVoidAsync("sqExpressCodeOutput.dispose", QueryOutputElementId);
+            await JsRuntime.InvokeVoidAsync("sqExpressCodeOutput.dispose", DeclarationsOutputElementId);
         }
 
         this._dotNetRef?.Dispose();

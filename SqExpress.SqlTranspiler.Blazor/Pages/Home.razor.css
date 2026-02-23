@@ -11,6 +11,32 @@
     letter-spacing: -0.02em;
 }
 
+.workspace-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.github-link {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid #0f172a;
+    background: #0f172a;
+    color: #ffffff;
+    text-decoration: none;
+    border-radius: 10px;
+    padding: 0.45rem 0.8rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.github-link:hover {
+    background: #1e293b;
+    border-color: #1e293b;
+}
+
 .workspace-header p {
     margin-top: 0.4rem;
     color: var(--muted-text);
@@ -80,6 +106,16 @@
     white-space: pre-wrap;
 }
 
+.note-box {
+    margin-top: 0.75rem;
+    border: 1px solid #bfdbfe;
+    border-radius: 10px;
+    background: #eff6ff;
+    color: #1e3a8a;
+    padding: 0.65rem 0.75rem;
+    line-height: 1.45;
+}
+
 .outputs-grid {
     display: grid;
     grid-template-columns: 1fr;
@@ -95,23 +131,29 @@
     flex-direction: column;
 }
 
-.output-card pre {
-    margin: 0.65rem 0 0 0;
+.csharp-output-editor {
+    margin-top: 0.65rem;
     border-radius: 10px;
-    min-height: 240px;
-    max-height: 500px;
-    overflow: auto;
-    padding: 0.8rem;
-    background: #0b1220;
-    color: #e2e8f0;
-    font-size: 0.84rem;
-    line-height: 1.5;
+    min-height: 480px;
+    max-height: 1000px;
+    border: 1px solid #1f2937;
     width: 100%;
     max-width: 100%;
-    white-space: pre;
-    word-break: normal;
-    overflow-x: auto;
-    overflow-y: auto;
+    overflow: hidden;
+}
+
+.workspace-header code {
+    font-size: 0.88em;
+    background: #e2e8f0;
+    border-radius: 6px;
+    padding: 0.05rem 0.3rem;
+    color: #0f172a;
+}
+
+@media (max-width: 680px) {
+    .workspace-title-row {
+        align-items: flex-start;
+    }
 }
 
 @media (min-width: 1080px) {
