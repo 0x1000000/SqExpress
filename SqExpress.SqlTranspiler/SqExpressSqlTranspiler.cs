@@ -72,6 +72,7 @@ namespace SqExpress.SqlTranspiler
         {
             var queryVariableName = NormalizeIdentifier(options.QueryVariableName, "query");
             var bodyStatements = new List<RoslynStatementSyntax>();
+            bodyStatements.AddRange(context.ParameterDeclarations);
             bodyStatements.AddRange(context.SourceDeclarations);
             bodyStatements.Add(
                 LocalDeclarationStatement(
@@ -105,10 +106,32 @@ namespace SqExpress.SqlTranspiler
 
         private CompilationUnitSyntax BuildDeclarationsAst(TranspileContext context, SqExpressSqlTranspilerOptions options)
         {
-            var members = new List<MemberDeclarationSyntax>();
-            for (var i = 0; i < context.Descriptors.Count; i++)
+            static int DescriptorOrder(DescriptorKind kind) => kind switch
             {
-                members.Add(this.BuildDescriptorClass(context.Descriptors[i], context));
+                DescriptorKind.Cte => 0,
+                DescriptorKind.SubQuery => 1,
+                _ => 2
+            };
+
+            var members = new List<MemberDeclarationSyntax>();
+            var builtDescriptors = new HashSet<TableDescriptor>();
+            while (true)
+            {
+                var nextDescriptor = context.Descriptors
+                    .Select((descriptor, index) => new { descriptor, index })
+                    .Where(i => !builtDescriptors.Contains(i.descriptor))
+                    .OrderBy(i => DescriptorOrder(i.descriptor.Kind))
+                    .ThenBy(i => i.index)
+                    .Select(i => i.descriptor)
+                    .FirstOrDefault();
+
+                if (nextDescriptor == null)
+                {
+                    break;
+                }
+
+                members.Add(this.BuildDescriptorClass(nextDescriptor, context));
+                builtDescriptors.Add(nextDescriptor);
             }
 
             return CompilationUnit()
@@ -232,6 +255,7 @@ namespace SqExpress.SqlTranspiler
             var cteQueryExpression = this.BuildQueryExpression(descriptor.QueryExpression, cteQueryContext);
             var cteQueryDoneExpression = InvokeMember(cteQueryExpression, "Done");
             var createQueryBody = new List<RoslynStatementSyntax>();
+            createQueryBody.AddRange(cteQueryContext.ParameterDeclarations);
             createQueryBody.AddRange(cteQueryContext.SourceDeclarations);
             createQueryBody.Add(ReturnStatement(cteQueryDoneExpression));
 
@@ -285,6 +309,7 @@ namespace SqExpress.SqlTranspiler
             var subQueryExpression = this.BuildQueryExpression(descriptor.QueryExpression, subQueryContext);
             var subQueryDoneExpression = InvokeMember(subQueryExpression, "Done");
             var createQueryBody = new List<RoslynStatementSyntax>();
+            createQueryBody.AddRange(subQueryContext.ParameterDeclarations);
             createQueryBody.AddRange(subQueryContext.SourceDeclarations);
             createQueryBody.Add(ReturnStatement(subQueryDoneExpression));
 
@@ -306,9 +331,35 @@ namespace SqExpress.SqlTranspiler
 
         private PropertyDeclarationSyntax BuildDescriptorProperty(TableDescriptorColumn column, bool tableDescriptor)
         {
-            var typeName = tableDescriptor
-                ? column.Kind == DescriptorColumnKind.NVarChar ? "StringTableColumn" : "Int32TableColumn"
-                : column.Kind == DescriptorColumnKind.NVarChar ? "StringCustomColumn" : "Int32CustomColumn";
+            string typeName;
+            if (tableDescriptor)
+            {
+                typeName = column.Kind switch
+                {
+                    DescriptorColumnKind.NVarChar => "StringTableColumn",
+                    DescriptorColumnKind.Boolean => "BooleanTableColumn",
+                    DescriptorColumnKind.Decimal => "DecimalTableColumn",
+                    DescriptorColumnKind.DateTime => "DateTimeTableColumn",
+                    DescriptorColumnKind.DateTimeOffset => "DateTimeOffsetTableColumn",
+                    DescriptorColumnKind.Guid => "GuidTableColumn",
+                    DescriptorColumnKind.ByteArray => "ByteArrayTableColumn",
+                    _ => "Int32TableColumn"
+                };
+            }
+            else
+            {
+                typeName = column.Kind switch
+                {
+                    DescriptorColumnKind.NVarChar => "StringCustomColumn",
+                    DescriptorColumnKind.Boolean => "BooleanCustomColumn",
+                    DescriptorColumnKind.Decimal => "DecimalCustomColumn",
+                    DescriptorColumnKind.DateTime => "DateTimeCustomColumn",
+                    DescriptorColumnKind.DateTimeOffset => "DateTimeOffsetCustomColumn",
+                    DescriptorColumnKind.Guid => "GuidCustomColumn",
+                    DescriptorColumnKind.ByteArray => "ByteArrayCustomColumn",
+                    _ => "Int32CustomColumn"
+                };
+            }
 
             return PropertyDeclaration(IdentifierName(typeName), Identifier(column.PropertyName))
                 .AddModifiers(Token(SyntaxKind.PublicKeyword))
@@ -321,14 +372,26 @@ namespace SqExpress.SqlTranspiler
 
         private ExpressionSyntax BuildCreateColumnExpression(TableDescriptorColumn column, bool tableDescriptor)
         {
-            if (column.Kind == DescriptorColumnKind.NVarChar)
+            return column.Kind switch
             {
-                return tableDescriptor
-                    ? InvokeMember(ThisExpression(), "CreateStringColumn", StringLiteral(column.SqlName), LiteralExpression(SyntaxKind.NullLiteralExpression), LiteralExpression(SyntaxKind.TrueLiteralExpression))
-                    : InvokeMember(ThisExpression(), "CreateStringColumn", StringLiteral(column.SqlName));
-            }
-
-            return InvokeMember(ThisExpression(), "CreateInt32Column", StringLiteral(column.SqlName));
+                DescriptorColumnKind.NVarChar => tableDescriptor
+                    ? InvokeMember(
+                        ThisExpression(),
+                        "CreateStringColumn",
+                        StringLiteral(column.SqlName),
+                        LiteralExpression(SyntaxKind.NullLiteralExpression),
+                        LiteralExpression(SyntaxKind.TrueLiteralExpression))
+                    : InvokeMember(ThisExpression(), "CreateStringColumn", StringLiteral(column.SqlName)),
+                DescriptorColumnKind.Boolean => InvokeMember(ThisExpression(), "CreateBooleanColumn", StringLiteral(column.SqlName)),
+                DescriptorColumnKind.Decimal => InvokeMember(ThisExpression(), "CreateDecimalColumn", StringLiteral(column.SqlName)),
+                DescriptorColumnKind.DateTime => InvokeMember(ThisExpression(), "CreateDateTimeColumn", StringLiteral(column.SqlName)),
+                DescriptorColumnKind.DateTimeOffset => InvokeMember(ThisExpression(), "CreateDateTimeOffsetColumn", StringLiteral(column.SqlName)),
+                DescriptorColumnKind.Guid => InvokeMember(ThisExpression(), "CreateGuidColumn", StringLiteral(column.SqlName)),
+                DescriptorColumnKind.ByteArray => tableDescriptor
+                    ? InvokeMember(ThisExpression(), "CreateByteArrayColumn", StringLiteral(column.SqlName), LiteralExpression(SyntaxKind.NullLiteralExpression))
+                    : InvokeMember(ThisExpression(), "CreateByteArrayColumn", StringLiteral(column.SqlName)),
+                _ => InvokeMember(ThisExpression(), "CreateInt32Column", StringLiteral(column.SqlName))
+            };
         }
 
         private void PreRegisterQueryExpression(QueryExpression queryExpression, TranspileContext context)
@@ -995,14 +1058,28 @@ namespace SqExpress.SqlTranspiler
 
             if (expression is BooleanComparisonExpression comparison)
             {
-                if (IsStringLiteral(comparison.FirstExpression) && comparison.SecondExpression is ColumnReferenceExpression rightStringColumn)
+                if (this.TryExtractVariableReference(comparison.FirstExpression, out var firstVariableName, out var firstVariableHint))
                 {
-                    context.MarkColumnAsString(rightStringColumn);
+                    context.RegisterSqlVariable(firstVariableName, firstVariableHint);
+                    context.RegisterSqlVariable(firstVariableName, this.InferScalarVariableKind(comparison.SecondExpression, context));
                 }
 
-                if (IsStringLiteral(comparison.SecondExpression) && comparison.FirstExpression is ColumnReferenceExpression leftStringColumn)
+                if (this.TryExtractVariableReference(comparison.SecondExpression, out var secondVariableName, out var secondVariableHint))
                 {
-                    context.MarkColumnAsString(leftStringColumn);
+                    context.RegisterSqlVariable(secondVariableName, secondVariableHint);
+                    context.RegisterSqlVariable(secondVariableName, this.InferScalarVariableKind(comparison.FirstExpression, context));
+                }
+
+                if (comparison.SecondExpression is ColumnReferenceExpression rightColumn
+                    && this.TryInferDescriptorColumnKind(comparison.FirstExpression, context, out var rightHint))
+                {
+                    context.MarkColumnAsKind(rightColumn, rightHint);
+                }
+
+                if (comparison.FirstExpression is ColumnReferenceExpression leftColumn
+                    && this.TryInferDescriptorColumnKind(comparison.SecondExpression, context, out var leftHint))
+                {
+                    context.MarkColumnAsKind(leftColumn, leftHint);
                 }
 
                 var kind = MapComparisonKind(comparison.ComparisonType);
@@ -1025,11 +1102,10 @@ namespace SqExpress.SqlTranspiler
                     throw new SqExpressSqlTranspilerException("IN predicate is supported only for column references.");
                 }
 
-                var column = this.BuildColumnExpression(inColumn, context);
-
                 ExpressionSyntax inCall;
                 if (inPredicate.Subquery != null)
                 {
+                    var column = this.BuildColumnExpression(inColumn, context);
                     var inSubQuery = this.BuildSubQueryExpression(inPredicate.Subquery, context);
                     inCall = InvokeMember(column, "In", inSubQuery);
                 }
@@ -1040,13 +1116,27 @@ namespace SqExpress.SqlTranspiler
                         throw new SqExpressSqlTranspilerException("IN predicate cannot be empty.");
                     }
 
-                    if (inPredicate.Values.Any(IsStringLiteral))
+                    if (inPredicate.Values.Count == 1 && inPredicate.Values[0] is VariableReference listVariable)
                     {
-                        context.MarkColumnAsString(inColumn);
+                        var listKind = this.InferListVariableKind(inColumn, context);
+                        var registeredListVariable = context.RegisterSqlVariable(listVariable.Name, listKind);
+                        var column = this.BuildColumnExpression(inColumn, context);
+                        inCall = InvokeMember(column, "In", IdentifierName(registeredListVariable.VariableName));
                     }
+                    else
+                    {
+                        var column = this.BuildColumnExpression(inColumn, context);
+                        foreach (var value in inPredicate.Values)
+                        {
+                            if (this.TryInferDescriptorColumnKind(value, context, out var inHint))
+                            {
+                                context.MarkColumnAsKind(inColumn, inHint);
+                            }
+                        }
 
-                    var values = inPredicate.Values.Select(item => this.BuildScalarExpression(item, context, wrapLiterals: false)).ToList();
-                    inCall = InvokeMember(column, "In", values);
+                        var values = inPredicate.Values.Select(item => this.BuildScalarExpression(item, context, wrapLiterals: false)).ToList();
+                        inCall = InvokeMember(column, "In", values);
+                    }
                 }
 
                 if (inPredicate.NotDefined)
@@ -1072,7 +1162,7 @@ namespace SqExpress.SqlTranspiler
 
                 if (like.FirstExpression is ColumnReferenceExpression likeColumn)
                 {
-                    context.MarkColumnAsString(likeColumn);
+                    context.MarkColumnAsKind(likeColumn, DescriptorColumnKind.NVarChar);
                 }
 
                 var test = this.BuildScalarExpression(like.FirstExpression, context, wrapLiterals: false);
@@ -1093,10 +1183,17 @@ namespace SqExpress.SqlTranspiler
                     throw new SqExpressSqlTranspilerException($"Unsupported boolean ternary expression: {between.TernaryExpressionType}.");
                 }
 
-                if ((IsStringLiteral(between.SecondExpression) || IsStringLiteral(between.ThirdExpression))
-                    && between.FirstExpression is ColumnReferenceExpression betweenColumn)
+                if (between.FirstExpression is ColumnReferenceExpression betweenColumn)
                 {
-                    context.MarkColumnAsString(betweenColumn);
+                    if (this.TryInferDescriptorColumnKind(between.SecondExpression, context, out var betweenSecondHint))
+                    {
+                        context.MarkColumnAsKind(betweenColumn, betweenSecondHint);
+                    }
+
+                    if (this.TryInferDescriptorColumnKind(between.ThirdExpression, context, out var betweenThirdHint))
+                    {
+                        context.MarkColumnAsKind(betweenColumn, betweenThirdHint);
+                    }
                 }
 
                 var test = this.BuildScalarExpression(between.FirstExpression, context, wrapLiterals: false);
@@ -1146,6 +1243,12 @@ namespace SqExpress.SqlTranspiler
                     : NumericLiteral(integerLiteral.Value);
             }
 
+            if (expression is VariableReference variableReference)
+            {
+                var variable = context.RegisterSqlVariable(variableReference.Name, SqlVariableKind.UnknownScalar);
+                return Invoke("Literal", IdentifierName(variable.VariableName));
+            }
+
             if (expression is NumericLiteral numericLiteral)
             {
                 return wrapLiterals
@@ -1158,6 +1261,14 @@ namespace SqExpress.SqlTranspiler
                 return wrapLiterals
                     ? Invoke("Literal", DecimalOrDoubleLiteral(moneyLiteral.Value))
                     : DecimalOrDoubleLiteral(moneyLiteral.Value);
+            }
+
+            if (expression is BinaryLiteral binaryLiteral)
+            {
+                var binaryValue = ParseBinaryLiteral(binaryLiteral.Value);
+                return wrapLiterals
+                    ? Invoke("Literal", binaryValue)
+                    : binaryValue;
             }
 
             if (expression is CoalesceExpression coalesceExpression)
@@ -1235,6 +1346,7 @@ namespace SqExpress.SqlTranspiler
             this.PreRegisterQueryExpression(scalarSubquery.QueryExpression, subQueryContext);
             var subQueryExpression = this.BuildQueryExpression(scalarSubquery.QueryExpression, subQueryContext);
             context.AbsorbSourceDeclarations(subQueryContext);
+            context.AbsorbSqlVariables(subQueryContext);
 
             return subQueryExpression;
         }
@@ -1251,15 +1363,30 @@ namespace SqExpress.SqlTranspiler
                 SqlDataTypeOption.Int => MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, IdentifierName("SqlType"), IdentifierName("Int32")),
                 SqlDataTypeOption.BigInt => MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, IdentifierName("SqlType"), IdentifierName("Int64")),
                 SqlDataTypeOption.SmallInt => MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, IdentifierName("SqlType"), IdentifierName("Int16")),
+                SqlDataTypeOption.TinyInt => MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, IdentifierName("SqlType"), IdentifierName("Int16")),
                 SqlDataTypeOption.Bit => MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, IdentifierName("SqlType"), IdentifierName("Boolean")),
                 SqlDataTypeOption.Decimal => InvokeMember(IdentifierName("SqlType"), "Decimal"),
                 SqlDataTypeOption.Numeric => InvokeMember(IdentifierName("SqlType"), "Decimal"),
+                SqlDataTypeOption.Money => InvokeMember(IdentifierName("SqlType"), "Decimal"),
+                SqlDataTypeOption.SmallMoney => InvokeMember(IdentifierName("SqlType"), "Decimal"),
                 SqlDataTypeOption.Float => MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, IdentifierName("SqlType"), IdentifierName("Double")),
                 SqlDataTypeOption.DateTime => InvokeMember(IdentifierName("SqlType"), "DateTime"),
+                SqlDataTypeOption.DateTime2 => InvokeMember(IdentifierName("SqlType"), "DateTime"),
+                SqlDataTypeOption.SmallDateTime => InvokeMember(IdentifierName("SqlType"), "DateTime"),
                 SqlDataTypeOption.Date => InvokeMember(IdentifierName("SqlType"), "DateTime", LiteralExpression(SyntaxKind.TrueLiteralExpression)),
+                SqlDataTypeOption.Time => InvokeMember(IdentifierName("SqlType"), "DateTime"),
+                SqlDataTypeOption.DateTimeOffset => MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, IdentifierName("SqlType"), IdentifierName("DateTimeOffset")),
                 SqlDataTypeOption.UniqueIdentifier => MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, IdentifierName("SqlType"), IdentifierName("Guid")),
+                SqlDataTypeOption.VarBinary => InvokeMember(IdentifierName("SqlType"), "ByteArray", LiteralExpression(SyntaxKind.NullLiteralExpression)),
+                SqlDataTypeOption.Binary => InvokeMember(IdentifierName("SqlType"), "ByteArray", LiteralExpression(SyntaxKind.NullLiteralExpression)),
+                SqlDataTypeOption.Image => InvokeMember(IdentifierName("SqlType"), "ByteArray", LiteralExpression(SyntaxKind.NullLiteralExpression)),
+                SqlDataTypeOption.Timestamp => InvokeMember(IdentifierName("SqlType"), "ByteArray", LiteralExpression(SyntaxKind.NullLiteralExpression)),
                 SqlDataTypeOption.VarChar => InvokeMember(IdentifierName("SqlType"), "String"),
                 SqlDataTypeOption.NVarChar => InvokeMember(IdentifierName("SqlType"), "String", LiteralExpression(SyntaxKind.NullLiteralExpression), LiteralExpression(SyntaxKind.TrueLiteralExpression)),
+                SqlDataTypeOption.Char => InvokeMember(IdentifierName("SqlType"), "String"),
+                SqlDataTypeOption.NChar => InvokeMember(IdentifierName("SqlType"), "String", LiteralExpression(SyntaxKind.NullLiteralExpression), LiteralExpression(SyntaxKind.TrueLiteralExpression)),
+                SqlDataTypeOption.Text => InvokeMember(IdentifierName("SqlType"), "String"),
+                SqlDataTypeOption.NText => InvokeMember(IdentifierName("SqlType"), "String", LiteralExpression(SyntaxKind.NullLiteralExpression), LiteralExpression(SyntaxKind.TrueLiteralExpression)),
                 _ => throw new SqExpressSqlTranspilerException($"Unsupported SQL cast type: {sqlDataType.SqlDataTypeOption}.")
             };
         }
@@ -2241,6 +2368,252 @@ namespace SqExpress.SqlTranspiler
             return Invoke("Column", StringLiteral(columnName));
         }
 
+        private SqlVariableKind InferScalarVariableKind(ScalarExpression expression, TranspileContext context)
+        {
+            if (expression is StringLiteral)
+            {
+                return SqlVariableKind.StringScalar;
+            }
+
+            if (expression is IntegerLiteral)
+            {
+                return SqlVariableKind.Int32Scalar;
+            }
+
+            if (expression is Microsoft.SqlServer.TransactSql.ScriptDom.NumericLiteral
+                || expression is MoneyLiteral)
+            {
+                return SqlVariableKind.DecimalScalar;
+            }
+
+            if (expression is BinaryLiteral)
+            {
+                return SqlVariableKind.ByteArrayScalar;
+            }
+
+            if (expression is ParenthesisExpression parenthesisExpression)
+            {
+                return this.InferScalarVariableKind(parenthesisExpression.Expression, context);
+            }
+
+            if (expression is CastCall castCall && castCall.DataType is SqlDataTypeReference castDataType)
+            {
+                return this.MapSqlTypeToScalarVariableKind(castDataType.SqlDataTypeOption);
+            }
+
+            if (expression is ColumnReferenceExpression columnReference
+                && context.TryResolveKnownColumnKind(columnReference, out var knownColumnKind))
+            {
+                return this.MapDescriptorKindToScalarVariableKind(knownColumnKind);
+            }
+
+            if (expression is VariableReference variableReference
+                && context.TryGetSqlVariableKind(variableReference.Name, out var existingVariableKind))
+            {
+                return existingVariableKind;
+            }
+
+            return SqlVariableKind.UnknownScalar;
+        }
+
+        private bool TryExtractVariableReference(ScalarExpression expression, out string variableName, out SqlVariableKind kindHint)
+        {
+            variableName = string.Empty;
+            kindHint = SqlVariableKind.UnknownScalar;
+
+            if (expression is VariableReference variableReference)
+            {
+                variableName = variableReference.Name;
+                return true;
+            }
+
+            if (expression is ParenthesisExpression parenthesisExpression)
+            {
+                return this.TryExtractVariableReference(parenthesisExpression.Expression, out variableName, out kindHint);
+            }
+
+            if (expression is CastCall castCall
+                && castCall.Parameter is VariableReference castVariable
+                && castCall.DataType is SqlDataTypeReference castDataType)
+            {
+                variableName = castVariable.Name;
+                kindHint = this.MapSqlTypeToScalarVariableKind(castDataType.SqlDataTypeOption);
+                return true;
+            }
+
+            return false;
+        }
+
+        private SqlVariableKind InferListVariableKind(ColumnReferenceExpression inColumn, TranspileContext context)
+        {
+            if (context.TryResolveKnownColumnKind(inColumn, out var knownColumnKind))
+            {
+                if (knownColumnKind == DescriptorColumnKind.Int32)
+                {
+                    return SqlVariableKind.StringList;
+                }
+
+                return this.MapDescriptorKindToListVariableKind(knownColumnKind);
+            }
+
+            return SqlVariableKind.StringList;
+        }
+
+        private bool TryInferDescriptorColumnKind(ScalarExpression expression, TranspileContext context, out DescriptorColumnKind kind)
+        {
+            kind = DescriptorColumnKind.Int32;
+
+            if (expression is StringLiteral)
+            {
+                kind = DescriptorColumnKind.NVarChar;
+                return true;
+            }
+
+            if (expression is BinaryLiteral)
+            {
+                kind = DescriptorColumnKind.ByteArray;
+                return true;
+            }
+
+            if (expression is Microsoft.SqlServer.TransactSql.ScriptDom.NumericLiteral || expression is MoneyLiteral)
+            {
+                kind = DescriptorColumnKind.Decimal;
+                return true;
+            }
+
+            if (expression is ParenthesisExpression parenthesisExpression)
+            {
+                return this.TryInferDescriptorColumnKind(parenthesisExpression.Expression, context, out kind);
+            }
+
+            if (expression is CastCall castCall && castCall.DataType is SqlDataTypeReference castDataType)
+            {
+                kind = this.MapSqlTypeToDescriptorKind(castDataType.SqlDataTypeOption);
+                return true;
+            }
+
+            if (expression is VariableReference variableReference
+                && context.TryGetSqlVariableKind(variableReference.Name, out var sqlVariableKind))
+            {
+                if (this.TryMapVariableKindToDescriptorKind(sqlVariableKind, out kind))
+                {
+                    return true;
+                }
+            }
+
+            if (expression is ColumnReferenceExpression columnReference
+                && context.TryResolveKnownColumnKind(columnReference, out var knownColumnKind))
+            {
+                kind = knownColumnKind;
+                return true;
+            }
+
+            return false;
+        }
+
+        private SqlVariableKind MapSqlTypeToScalarVariableKind(SqlDataTypeOption dataTypeOption)
+        {
+            return dataTypeOption switch
+            {
+                SqlDataTypeOption.Bit => SqlVariableKind.BooleanScalar,
+                SqlDataTypeOption.Int or SqlDataTypeOption.BigInt or SqlDataTypeOption.SmallInt or SqlDataTypeOption.TinyInt => SqlVariableKind.Int32Scalar,
+                SqlDataTypeOption.Decimal or SqlDataTypeOption.Numeric or SqlDataTypeOption.Money or SqlDataTypeOption.SmallMoney => SqlVariableKind.DecimalScalar,
+                SqlDataTypeOption.DateTime or SqlDataTypeOption.DateTime2 or SqlDataTypeOption.SmallDateTime or SqlDataTypeOption.Date or SqlDataTypeOption.Time => SqlVariableKind.DateTimeScalar,
+                SqlDataTypeOption.DateTimeOffset => SqlVariableKind.DateTimeOffsetScalar,
+                SqlDataTypeOption.UniqueIdentifier => SqlVariableKind.GuidScalar,
+                SqlDataTypeOption.VarBinary or SqlDataTypeOption.Binary or SqlDataTypeOption.Image or SqlDataTypeOption.Timestamp => SqlVariableKind.ByteArrayScalar,
+                SqlDataTypeOption.VarChar or SqlDataTypeOption.NVarChar or SqlDataTypeOption.Char or SqlDataTypeOption.NChar or SqlDataTypeOption.Text or SqlDataTypeOption.NText => SqlVariableKind.StringScalar,
+                _ => SqlVariableKind.UnknownScalar
+            };
+        }
+
+        private DescriptorColumnKind MapSqlTypeToDescriptorKind(SqlDataTypeOption dataTypeOption)
+        {
+            return dataTypeOption switch
+            {
+                SqlDataTypeOption.Bit => DescriptorColumnKind.Boolean,
+                SqlDataTypeOption.Decimal or SqlDataTypeOption.Numeric or SqlDataTypeOption.Money or SqlDataTypeOption.SmallMoney => DescriptorColumnKind.Decimal,
+                SqlDataTypeOption.DateTime or SqlDataTypeOption.DateTime2 or SqlDataTypeOption.SmallDateTime or SqlDataTypeOption.Date or SqlDataTypeOption.Time => DescriptorColumnKind.DateTime,
+                SqlDataTypeOption.DateTimeOffset => DescriptorColumnKind.DateTimeOffset,
+                SqlDataTypeOption.UniqueIdentifier => DescriptorColumnKind.Guid,
+                SqlDataTypeOption.VarBinary or SqlDataTypeOption.Binary or SqlDataTypeOption.Image or SqlDataTypeOption.Timestamp => DescriptorColumnKind.ByteArray,
+                SqlDataTypeOption.VarChar or SqlDataTypeOption.NVarChar or SqlDataTypeOption.Char or SqlDataTypeOption.NChar or SqlDataTypeOption.Text or SqlDataTypeOption.NText => DescriptorColumnKind.NVarChar,
+                _ => DescriptorColumnKind.Int32
+            };
+        }
+
+        private SqlVariableKind MapDescriptorKindToScalarVariableKind(DescriptorColumnKind kind)
+        {
+            return kind switch
+            {
+                DescriptorColumnKind.NVarChar => SqlVariableKind.StringScalar,
+                DescriptorColumnKind.Boolean => SqlVariableKind.BooleanScalar,
+                DescriptorColumnKind.Decimal => SqlVariableKind.DecimalScalar,
+                DescriptorColumnKind.DateTime => SqlVariableKind.DateTimeScalar,
+                DescriptorColumnKind.DateTimeOffset => SqlVariableKind.DateTimeOffsetScalar,
+                DescriptorColumnKind.Guid => SqlVariableKind.GuidScalar,
+                DescriptorColumnKind.ByteArray => SqlVariableKind.ByteArrayScalar,
+                _ => SqlVariableKind.Int32Scalar
+            };
+        }
+
+        private SqlVariableKind MapDescriptorKindToListVariableKind(DescriptorColumnKind kind)
+        {
+            return kind switch
+            {
+                DescriptorColumnKind.NVarChar => SqlVariableKind.StringList,
+                DescriptorColumnKind.Boolean => SqlVariableKind.BooleanList,
+                DescriptorColumnKind.Decimal => SqlVariableKind.DecimalList,
+                DescriptorColumnKind.DateTime => SqlVariableKind.DateTimeList,
+                DescriptorColumnKind.DateTimeOffset => SqlVariableKind.DateTimeOffsetList,
+                DescriptorColumnKind.Guid => SqlVariableKind.GuidList,
+                DescriptorColumnKind.ByteArray => SqlVariableKind.ByteArrayList,
+                _ => SqlVariableKind.Int32List
+            };
+        }
+
+        private bool TryMapVariableKindToDescriptorKind(SqlVariableKind variableKind, out DescriptorColumnKind kind)
+        {
+            kind = DescriptorColumnKind.Int32;
+            switch (variableKind)
+            {
+                case SqlVariableKind.StringScalar:
+                case SqlVariableKind.StringList:
+                    kind = DescriptorColumnKind.NVarChar;
+                    return true;
+                case SqlVariableKind.BooleanScalar:
+                case SqlVariableKind.BooleanList:
+                    kind = DescriptorColumnKind.Boolean;
+                    return true;
+                case SqlVariableKind.DecimalScalar:
+                case SqlVariableKind.DecimalList:
+                    kind = DescriptorColumnKind.Decimal;
+                    return true;
+                case SqlVariableKind.DateTimeScalar:
+                case SqlVariableKind.DateTimeList:
+                    kind = DescriptorColumnKind.DateTime;
+                    return true;
+                case SqlVariableKind.DateTimeOffsetScalar:
+                case SqlVariableKind.DateTimeOffsetList:
+                    kind = DescriptorColumnKind.DateTimeOffset;
+                    return true;
+                case SqlVariableKind.GuidScalar:
+                case SqlVariableKind.GuidList:
+                    kind = DescriptorColumnKind.Guid;
+                    return true;
+                case SqlVariableKind.ByteArrayScalar:
+                case SqlVariableKind.ByteArrayList:
+                    kind = DescriptorColumnKind.ByteArray;
+                    return true;
+                case SqlVariableKind.Int32Scalar:
+                case SqlVariableKind.Int32List:
+                    kind = DescriptorColumnKind.Int32;
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
         private ExpressionSyntax BuildOrderBy(ExpressionWithSortOrder orderByItem, TranspileContext context)
         {
             var expression = this.BuildScalarExpression(orderByItem.Expression, context, wrapLiterals: false);
@@ -2288,9 +2661,6 @@ namespace SqExpress.SqlTranspiler
         private static bool IsStar(ScalarExpression expression)
             => expression is ColumnReferenceExpression column && column.ColumnType == ColumnType.Wildcard;
 
-        private static bool IsStringLiteral(ScalarExpression expression)
-            => expression is StringLiteral;
-
         private static bool IsLiteralOnlyExpression(ScalarExpression expression)
         {
             switch (expression)
@@ -2300,6 +2670,7 @@ namespace SqExpress.SqlTranspiler
                 case Microsoft.SqlServer.TransactSql.ScriptDom.IntegerLiteral:
                 case Microsoft.SqlServer.TransactSql.ScriptDom.NumericLiteral:
                 case Microsoft.SqlServer.TransactSql.ScriptDom.MoneyLiteral:
+                case Microsoft.SqlServer.TransactSql.ScriptDom.BinaryLiteral:
                     return true;
                 case UnaryExpression unary:
                     return IsLiteralOnlyExpression(unary.Expression);
@@ -2663,6 +3034,35 @@ namespace SqExpress.SqlTranspiler
             throw new SqExpressSqlTranspilerException($"Could not parse numeric literal '{value}'.");
         }
 
+        private static ExpressionSyntax ParseBinaryLiteral(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || !value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new SqExpressSqlTranspilerException($"Could not parse binary literal '{value}'.");
+            }
+
+            var hex = value.Substring(2);
+            if (hex.Length % 2 != 0)
+            {
+                throw new SqExpressSqlTranspilerException($"Binary literal '{value}' has odd number of digits.");
+            }
+
+            var items = new List<ExpressionSyntax>(hex.Length / 2);
+            for (var i = 0; i < hex.Length; i += 2)
+            {
+                var byteValue = Convert.ToByte(hex.Substring(i, 2), 16);
+                items.Add(LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal(byteValue)));
+            }
+
+            return ArrayCreationExpression(ArrayType(PredefinedType(Token(SyntaxKind.ByteKeyword)))
+                    .WithRankSpecifiers(
+                        SingletonList(
+                            ArrayRankSpecifier(
+                                SingletonSeparatedList<ExpressionSyntax>(
+                                    OmittedArraySizeExpression())))))
+                .WithInitializer(InitializerExpression(SyntaxKind.ArrayInitializerExpression, SeparatedList(items)));
+        }
+
         private static IReadOnlyList<ExpressionSyntax> Prepend(ExpressionSyntax first, IReadOnlyList<ExpressionSyntax> rest)
         {
             var result = new List<ExpressionSyntax>(rest.Count + 1) { first };
@@ -2709,6 +3109,8 @@ namespace SqExpress.SqlTranspiler
             private readonly Dictionary<SchemaObjectFunctionTableReference, TableSource> _schemaFunctionSourceMap = new(ReferenceEqualityComparer<SchemaObjectFunctionTableReference>.Instance);
             private readonly Dictionary<BuiltInFunctionTableReference, TableSource> _builtInFunctionSourceMap = new(ReferenceEqualityComparer<BuiltInFunctionTableReference>.Instance);
             private readonly Dictionary<GlobalFunctionTableReference, TableSource> _globalFunctionSourceMap = new(ReferenceEqualityComparer<GlobalFunctionTableReference>.Instance);
+            private readonly Dictionary<string, SqlVariable> _sqlVariableMap = new(StringComparer.OrdinalIgnoreCase);
+            private readonly List<SqlVariable> _sqlVariables = new();
             private readonly Dictionary<string, TableSource> _sourceByAlias = new(StringComparer.OrdinalIgnoreCase);
             private readonly Dictionary<string, TableSource?> _sourceByObjectName = new(StringComparer.OrdinalIgnoreCase);
             private readonly HashSet<string> _variableNames;
@@ -2737,9 +3139,31 @@ namespace SqExpress.SqlTranspiler
 
             public IReadOnlyList<LocalDeclarationStatementSyntax> SourceDeclarations => this._sourceDeclarations;
 
+            public IReadOnlyList<LocalDeclarationStatementSyntax> ParameterDeclarations
+                => this._sqlVariables
+                    .Select(this.CreateSqlVariableDeclaration)
+                    .ToList();
+
             public void AbsorbSourceDeclarations(TranspileContext context)
             {
                 this._sourceDeclarations.AddRange(context._sourceDeclarations);
+            }
+
+            public void AbsorbSqlVariables(TranspileContext context)
+            {
+                foreach (var sqlVariable in context._sqlVariables)
+                {
+                    if (this._sqlVariableMap.TryGetValue(sqlVariable.SqlName, out var existing))
+                    {
+                        existing.Kind = MergeSqlVariableKinds(existing.Kind, sqlVariable.Kind);
+                        continue;
+                    }
+
+                    var copied = new SqlVariable(sqlVariable.SqlName, sqlVariable.VariableName, sqlVariable.Kind);
+                    this._sqlVariableMap[copied.SqlName] = copied;
+                    this._sqlVariables.Add(copied);
+                    this._variableNames.Add(copied.VariableName);
+                }
             }
 
             public void RegisterCtes(WithCtesAndXmlNamespaces? withClause)
@@ -2966,9 +3390,74 @@ namespace SqExpress.SqlTranspiler
                 return false;
             }
 
-            public void MarkColumnAsString(ColumnReferenceExpression columnReference)
+            public SqlVariable RegisterSqlVariable(string sqlName, SqlVariableKind kindHint)
             {
-                this.RegisterColumnReference(columnReference, DescriptorColumnKind.NVarChar);
+                if (string.IsNullOrWhiteSpace(sqlName))
+                {
+                    throw new SqExpressSqlTranspilerException("SQL variable name cannot be empty.");
+                }
+
+                var normalizedSqlName = sqlName.StartsWith("@", StringComparison.Ordinal)
+                    ? sqlName
+                    : "@" + sqlName;
+
+                if (this._sqlVariableMap.TryGetValue(normalizedSqlName, out var existing))
+                {
+                    existing.Kind = MergeSqlVariableKinds(existing.Kind, kindHint);
+                    return existing;
+                }
+
+                var variableNameSeed = NormalizeSqlVariableName(normalizedSqlName);
+                var variable = new SqlVariable(
+                    normalizedSqlName,
+                    this.CreateVariableName(variableNameSeed),
+                    MergeSqlVariableKinds(SqlVariableKind.UnknownScalar, kindHint));
+
+                this._sqlVariableMap[normalizedSqlName] = variable;
+                this._sqlVariables.Add(variable);
+                return variable;
+            }
+
+            public bool TryGetSqlVariableKind(string sqlName, out SqlVariableKind kind)
+            {
+                kind = SqlVariableKind.UnknownScalar;
+                if (string.IsNullOrWhiteSpace(sqlName))
+                {
+                    return false;
+                }
+
+                var normalizedSqlName = sqlName.StartsWith("@", StringComparison.Ordinal)
+                    ? sqlName
+                    : "@" + sqlName;
+                if (!this._sqlVariableMap.TryGetValue(normalizedSqlName, out var variable))
+                {
+                    return false;
+                }
+
+                kind = variable.Kind;
+                return true;
+            }
+
+            public bool TryResolveKnownColumnKind(ColumnReferenceExpression columnReference, out DescriptorColumnKind kind)
+            {
+                kind = DescriptorColumnKind.Int32;
+                if (!this.TryResolveColumnDescriptor(columnReference, out var descriptor, out var columnName))
+                {
+                    return false;
+                }
+
+                if (!descriptor.TryGetColumn(columnName, out var column))
+                {
+                    return false;
+                }
+
+                kind = column.Kind;
+                return true;
+            }
+
+            public void MarkColumnAsKind(ColumnReferenceExpression columnReference, DescriptorColumnKind kind)
+            {
+                this.RegisterColumnReference(columnReference, kind);
             }
 
             public RegisteredDescriptorColumn? RegisterColumnReference(ColumnReferenceExpression columnReference, DescriptorColumnKind typeHint)
@@ -3055,6 +3544,147 @@ namespace SqExpress.SqlTranspiler
                 }
 
                 return false;
+            }
+
+            private LocalDeclarationStatementSyntax CreateSqlVariableDeclaration(SqlVariable sqlVariable)
+            {
+                ExpressionSyntax initializer = sqlVariable.Kind switch
+                {
+                    SqlVariableKind.UnknownScalar => StringLiteral(string.Empty),
+                    SqlVariableKind.StringScalar => StringLiteral(string.Empty),
+                    SqlVariableKind.Int32Scalar => LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal(0)),
+                    SqlVariableKind.DecimalScalar => LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal(0m)),
+                    SqlVariableKind.BooleanScalar => LiteralExpression(SyntaxKind.FalseLiteralExpression),
+                    SqlVariableKind.GuidScalar => ParseExpression("default(global::System.Guid)"),
+                    SqlVariableKind.DateTimeScalar => ParseExpression("default(global::System.DateTime)"),
+                    SqlVariableKind.DateTimeOffsetScalar => ParseExpression("default(global::System.DateTimeOffset)"),
+                    SqlVariableKind.ByteArrayScalar => ParseExpression("global::System.Array.Empty<byte>()"),
+                    SqlVariableKind.StringList => ParseExpression("new[] { Literal(\"\") }"),
+                    SqlVariableKind.Int32List => ParseExpression("new[] { Literal(0) }"),
+                    SqlVariableKind.DecimalList => ParseExpression("new[] { Literal(0m) }"),
+                    SqlVariableKind.BooleanList => ParseExpression("new[] { Literal(false) }"),
+                    SqlVariableKind.GuidList => ParseExpression("new[] { Literal(default(global::System.Guid)) }"),
+                    SqlVariableKind.DateTimeList => ParseExpression("new[] { Literal(default(global::System.DateTime)) }"),
+                    SqlVariableKind.DateTimeOffsetList => ParseExpression("new[] { Literal(default(global::System.DateTimeOffset)) }"),
+                    SqlVariableKind.ByteArrayList => ParseExpression("new[] { Literal(global::System.Array.Empty<byte>()) }"),
+                    _ => StringLiteral(string.Empty)
+                };
+
+                return LocalDeclarationStatement(
+                    VariableDeclaration(IdentifierName("var"))
+                        .AddVariables(
+                            VariableDeclarator(Identifier(sqlVariable.VariableName))
+                                .WithInitializer(EqualsValueClause(initializer))));
+            }
+
+            private static SqlVariableKind MergeSqlVariableKinds(SqlVariableKind existing, SqlVariableKind hint)
+            {
+                if (hint == SqlVariableKind.UnknownScalar)
+                {
+                    return existing;
+                }
+
+                if (existing == SqlVariableKind.UnknownScalar)
+                {
+                    return hint;
+                }
+
+                var existingIsList = IsListVariableKind(existing);
+                var hintIsList = IsListVariableKind(hint);
+                if (existingIsList != hintIsList)
+                {
+                    throw new SqExpressSqlTranspilerException("The same SQL variable cannot be used both as scalar and list.");
+                }
+
+                if (existing == hint)
+                {
+                    return existing;
+                }
+
+                if (existing is SqlVariableKind.Int32Scalar && hint is SqlVariableKind.DecimalScalar
+                    || existing is SqlVariableKind.DecimalScalar && hint is SqlVariableKind.Int32Scalar)
+                {
+                    return SqlVariableKind.DecimalScalar;
+                }
+
+                if (existing is SqlVariableKind.Int32List && hint is SqlVariableKind.DecimalList
+                    || existing is SqlVariableKind.DecimalList && hint is SqlVariableKind.Int32List)
+                {
+                    return SqlVariableKind.DecimalList;
+                }
+
+                return existing;
+            }
+
+            private static bool IsListVariableKind(SqlVariableKind kind)
+                => kind is SqlVariableKind.StringList
+                    or SqlVariableKind.Int32List
+                    or SqlVariableKind.DecimalList
+                    or SqlVariableKind.BooleanList
+                    or SqlVariableKind.DateTimeList
+                    or SqlVariableKind.DateTimeOffsetList
+                    or SqlVariableKind.GuidList
+                    or SqlVariableKind.ByteArrayList;
+
+            private static string NormalizeSqlVariableName(string sqlVariableName)
+            {
+                var withoutPrefix = sqlVariableName.TrimStart('@');
+                return string.IsNullOrWhiteSpace(withoutPrefix)
+                    ? "p"
+                    : withoutPrefix;
+            }
+
+            private bool TryResolveColumnDescriptor(
+                ColumnReferenceExpression columnReference,
+                out TableDescriptor descriptor,
+                out string columnName)
+            {
+                descriptor = null!;
+                columnName = string.Empty;
+
+                if (columnReference.ColumnType == ColumnType.Wildcard)
+                {
+                    return false;
+                }
+
+                var identifiers = columnReference.MultiPartIdentifier?.Identifiers;
+                if (identifiers == null || identifiers.Count < 1)
+                {
+                    return false;
+                }
+
+                var resolvedColumnName = identifiers[identifiers.Count - 1].Value;
+                if (string.IsNullOrWhiteSpace(resolvedColumnName))
+                {
+                    return false;
+                }
+
+                TableSource? source = null;
+                if (identifiers.Count > 1)
+                {
+                    for (int i = identifiers.Count - 2; i >= 0; i--)
+                    {
+                        var sourceName = identifiers[i].Value;
+                        if (!string.IsNullOrWhiteSpace(sourceName) && this.TryResolveSource(sourceName, out var resolved))
+                        {
+                            source = resolved;
+                            break;
+                        }
+                    }
+                }
+                else if (this._sources.Count == 1)
+                {
+                    source = this._sources[0];
+                }
+
+                if (source?.Descriptor == null)
+                {
+                    return false;
+                }
+
+                descriptor = source.Descriptor;
+                columnName = resolvedColumnName!;
+                return true;
             }
 
             private TableSource RegisterSource(TableDescriptor descriptor, string variableSeed, string? alias, string objectName)
@@ -3214,6 +3844,22 @@ namespace SqExpress.SqlTranspiler
             public ExpressionSyntax InitializationExpression { get; }
         }
 
+        private sealed class SqlVariable
+        {
+            public SqlVariable(string sqlName, string variableName, SqlVariableKind kind)
+            {
+                this.SqlName = sqlName;
+                this.VariableName = variableName;
+                this.Kind = kind;
+            }
+
+            public string SqlName { get; }
+
+            public string VariableName { get; }
+
+            public SqlVariableKind Kind { get; set; }
+        }
+
         private sealed class TableDescriptor
         {
             private readonly List<TableDescriptorColumn> _columns = new();
@@ -3244,14 +3890,14 @@ namespace SqExpress.SqlTranspiler
 
             public IReadOnlyList<TableDescriptorColumn> Columns => this._columns;
 
+            public bool TryGetColumn(string sqlName, out TableDescriptorColumn column)
+                => this._columnMap.TryGetValue(sqlName, out column!);
+
             public TableDescriptorColumn GetOrAddColumn(string sqlName, DescriptorColumnKind kind)
             {
                 if (this._columnMap.TryGetValue(sqlName, out var existing))
                 {
-                    if (kind == DescriptorColumnKind.NVarChar && existing.Kind != DescriptorColumnKind.NVarChar)
-                    {
-                        existing.Kind = DescriptorColumnKind.NVarChar;
-                    }
+                    existing.Kind = MergeDescriptorColumnKinds(existing.Kind, kind);
 
                     return existing;
                 }
@@ -3271,6 +3917,32 @@ namespace SqExpress.SqlTranspiler
                 this._columnMap[sqlName] = column;
                 this._columns.Add(column);
                 return column;
+            }
+
+            private static DescriptorColumnKind MergeDescriptorColumnKinds(DescriptorColumnKind existing, DescriptorColumnKind hint)
+            {
+                if (existing == hint)
+                {
+                    return existing;
+                }
+
+                if (existing == DescriptorColumnKind.Int32)
+                {
+                    return hint;
+                }
+
+                if (hint == DescriptorColumnKind.Int32)
+                {
+                    return existing;
+                }
+
+                if (existing == DescriptorColumnKind.Decimal && hint == DescriptorColumnKind.Boolean
+                    || existing == DescriptorColumnKind.Boolean && hint == DescriptorColumnKind.Decimal)
+                {
+                    return DescriptorColumnKind.Decimal;
+                }
+
+                return existing;
             }
         }
 
@@ -3300,7 +3972,34 @@ namespace SqExpress.SqlTranspiler
         private enum DescriptorColumnKind
         {
             Int32,
-            NVarChar
+            NVarChar,
+            Boolean,
+            Decimal,
+            DateTime,
+            DateTimeOffset,
+            Guid,
+            ByteArray
+        }
+
+        private enum SqlVariableKind
+        {
+            UnknownScalar,
+            StringScalar,
+            Int32Scalar,
+            DecimalScalar,
+            BooleanScalar,
+            DateTimeScalar,
+            DateTimeOffsetScalar,
+            GuidScalar,
+            ByteArrayScalar,
+            StringList,
+            Int32List,
+            DecimalList,
+            BooleanList,
+            DateTimeList,
+            DateTimeOffsetList,
+            GuidList,
+            ByteArrayList
         }
 
         private sealed class ReferenceEqualityComparer<T> : IEqualityComparer<T>

@@ -63,7 +63,9 @@ namespace SqExpress.SqlTranspiler.Test
         private const string SqlCteUnionAll = "WITH [C] AS(SELECT 1 [A] UNION ALL SELECT 2 [A])SELECT [c].[A] FROM [C] [c]";
         private const string SqlDerivedUnion = "SELECT [sq].[A] FROM (SELECT 1 [A] UNION ALL SELECT 2 [A])[sq]";
         private const string SqlDerivedOrderOffset = "SELECT [sq].[A] FROM (SELECT 1 [A] ORDER BY [A] OFFSET 0 ROW FETCH NEXT 1 ROW ONLY)[sq]";
-
+        private const string SqlVariableStringCompare = "SELECT [u].[UserId] FROM [dbo].[Users] [u] WHERE [u].[Name]=''";
+        private const string SqlVariableIntCompare = "SELECT [u].[UserId] FROM [dbo].[Users] [u] WHERE [u].[UserId]=0 AND 0>0";
+        private const string SqlVariableInList = "SELECT [u].[UserId] FROM [dbo].[Users] [u] WHERE [u].[Name] IN('')";
         [Test]
         public void TranspileSelect_BasicQuery_GeneratesQueryAndDeclarations()
         {
@@ -170,6 +172,69 @@ namespace SqExpress.SqlTranspiler.Test
             var schemaFunction = transpiler.Transpile("SELECT f.Value FROM dbo.MyFunc(1) f");
             Assert.That(schemaFunction.QueryCSharpCode, Does.Contain("TableFunctionCustom(\"dbo\", \"MyFunc\", 1)"));
             AssertCompilesAndSql(schemaFunction, SqlFromSchemaTableFunction);
+        }
+
+        [Test]
+        public void TranspileSelect_SqlVariables_AreTranspiledIntoTypedLocals()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+
+            var stringVariable = transpiler.Transpile("SELECT u.UserId FROM dbo.Users u WHERE u.Name = @name");
+            Assert.That(stringVariable.QueryCSharpCode, Does.Contain("var name = \"\";"));
+            Assert.That(stringVariable.QueryCSharpCode, Does.Contain("Where(u.Name == Literal(name))"));
+            AssertCompilesAndSql(stringVariable, SqlVariableStringCompare);
+
+            var intVariable = transpiler.Transpile("SELECT u.UserId FROM dbo.Users u WHERE u.UserId = @id AND @id > 0");
+            Assert.That(intVariable.QueryCSharpCode, Does.Contain("var id = 0;"));
+            Assert.That(intVariable.QueryCSharpCode, Does.Contain("Where((u.UserId == Literal(id)) & (Literal(id) > 0))"));
+            AssertCompilesAndSql(intVariable, SqlVariableIntCompare);
+
+            var inVariable = transpiler.Transpile("SELECT u.UserId FROM dbo.Users u WHERE u.Name IN (@names)");
+            Assert.That(inVariable.QueryCSharpCode, Does.Contain("var names = new[]"));
+            Assert.That(inVariable.QueryCSharpCode, Does.Contain("\"\""));
+            Assert.That(inVariable.QueryCSharpCode, Does.Contain("u.Name.In(names)"));
+            AssertCompilesAndSql(inVariable, SqlVariableInList);
+        }
+
+        [Test]
+        public void TranspileSelect_DescriptorAndVariableTyping_SupportsExtendedTypes()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var sql =
+                "SELECT u.UserId FROM dbo.Users u " +
+                "WHERE CAST(@createdAt AS datetime) = u.CreatedAt " +
+                "AND CAST(@isActive AS bit) = u.IsActive " +
+                "AND CAST(@amount AS decimal(10,2)) = u.Amount " +
+                "AND CAST(@userGuid AS uniqueidentifier) = u.ExternalId " +
+                "AND CAST(@payload AS varbinary(max)) = u.Payload " +
+                "AND u.ExternalId IN (@guidList) " +
+                "AND u.Amount IN (@amountList) " +
+                "AND u.CreatedAt IN (@dateList) " +
+                "AND u.IsActive IN (@flagList) " +
+                "AND u.Payload IN (@payloadList)";
+
+            var result = transpiler.Transpile(sql);
+
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public DateTimeTableColumn CreatedAt"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public BooleanTableColumn IsActive"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public DecimalTableColumn Amount"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public GuidTableColumn ExternalId"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public ByteArrayTableColumn Payload"));
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("var createdAt = default(global::System.DateTime);"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var isActive = false;"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var amount = 0M;"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var userGuid = default(global::System.Guid);"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var payload = global::System.Array"));
+            Assert.That(result.QueryCSharpCode, Does.Contain(".Empty<byte>();"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var guidList = new[]"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Literal(default(global::System.Guid))"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Literal(0m)"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Literal(default(global::System.DateTime))"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Literal(false)"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Literal(global::System.Array.Empty<byte>())"));
+
+            AssertCompiles(result);
         }
 
         [Test]
@@ -386,6 +451,81 @@ namespace SqExpress.SqlTranspiler.Test
                 "SELECT sq.A FROM (SELECT 1 AS A ORDER BY A OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY) sq");
             Assert.That(derivedOrderOffset.DeclarationsCSharpCode, Does.Contain(".OffsetFetch(0, 1)"));
             AssertCompilesAndSql(derivedOrderOffset, SqlDerivedOrderOffset);
+        }
+
+        [Test]
+        public void Transpile_GodScenario_RecursiveCte_Functions_AndThreeTierSubQueries_AreSupported()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var sql =
+                "WITH R(N) AS (" +
+                "SELECT 1 " +
+                "UNION ALL " +
+                "SELECT r.N + 1 FROM R r WHERE r.N < 3" +
+                ") " +
+                "SELECT " +
+                "u.UserId, " +
+                "ISNULL(u.Name, 'NA') AS UserName, " +
+                "LEN(u.Name) AS NameLen, " +
+                "ROW_NUMBER() OVER(ORDER BY u.UserId) AS Rn, " +
+                "(SELECT COUNT(*) FROM (SELECT l2.UserId FROM (SELECT o3.UserId FROM dbo.Orders o3 WHERE o3.Amount > 0) l2) l1) AS NestedCnt, " +
+                "(SELECT COUNT(*) FROM R rr WHERE rr.N <= 2) AS DepthCnt " +
+                "FROM dbo.Users u " +
+                "OUTER APPLY (" +
+                "SELECT o.OrderId FROM dbo.Orders o ORDER BY o.OrderId DESC OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY" +
+                ") oa " +
+                "WHERE u.UserId IN (" +
+                "SELECT x.UserId FROM (" +
+                "SELECT y.UserId FROM (" +
+                "SELECT o2.UserId FROM dbo.Orders o2 WHERE o2.Amount > 0" +
+                ") y" +
+                ") x" +
+                ") " +
+                "AND EXISTS (SELECT 1 FROM R rx WHERE rx.N = 1) " +
+                "ORDER BY u.UserId OFFSET 0 ROWS FETCH NEXT 20 ROWS ONLY";
+
+            var result = transpiler.Transpile(sql);
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("RowNumber().OverOrderBy(Asc(u.UserId)).As(\"Rn\")"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("IsNull(u.Name, \"NA\").As(\"UserName\")"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("ScalarFunctionSys(\"LEN\", u.Name).As(\"NameLen\")"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Select(\r\n"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("\r\n                    u.UserId,"));
+            Assert.That(result.QueryCSharpCode, Does.Contain(".Where(\r\n"));
+            Assert.That(result.QueryCSharpCode, Does.Contain(".OuterApply("));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Exists(Select"));
+            Assert.That(result.QueryCSharpCode, Does.Contain(".OffsetFetch(0, 20)"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public sealed class RCte : CteBase"));
+
+            var assembly = AssertCompiles(result, "GeneratedTranspilerGodScenarioTests");
+            var query = InvokeGeneratedBuildMethod(assembly, new SqExpressSqlTranspilerOptions());
+            var generatedSql = query.ToSql(TSqlExporter.Default);
+
+            Assert.That(generatedSql, Does.Contain("WITH [R]"));
+            Assert.That(generatedSql, Does.Contain("UNION ALL"));
+            Assert.That(generatedSql, Does.Contain("OUTER APPLY"));
+            Assert.That(generatedSql, Does.Contain("ROW_NUMBER()OVER"));
+            Assert.That(generatedSql, Does.Contain("EXISTS(SELECT 1 FROM [R] [rx]"));
+            Assert.That(generatedSql, Does.Contain("OFFSET 0 ROW FETCH NEXT 20 ROW ONLY"));
+        }
+
+        [Test]
+        public void Transpile_Declarations_Order_CteAndSubQueries_BeforeTables()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                "WITH C AS (SELECT u.UserId FROM dbo.Users u) " +
+                "SELECT sq.UserId FROM (SELECT c.UserId FROM C c) sq");
+
+            var idxCte = result.DeclarationsCSharpCode.IndexOf("public sealed class CCte : CteBase", StringComparison.Ordinal);
+            var idxSub = result.DeclarationsCSharpCode.IndexOf("public sealed class SqSubQuery : DerivedTableBase", StringComparison.Ordinal);
+            var idxTable = result.DeclarationsCSharpCode.IndexOf("public sealed class UsersTable : TableBase", StringComparison.Ordinal);
+
+            Assert.That(idxCte, Is.GreaterThanOrEqualTo(0));
+            Assert.That(idxSub, Is.GreaterThanOrEqualTo(0));
+            Assert.That(idxTable, Is.GreaterThanOrEqualTo(0));
+            Assert.That(idxCte, Is.LessThan(idxSub));
+            Assert.That(idxSub, Is.LessThan(idxTable));
         }
 
         [Test]
