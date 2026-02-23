@@ -163,5 +163,23 @@ namespace SqExpress
         {
             return new ExprOrderBy(Helpers.Combine(order.OrderList, thenBy));
         }
+
+        public static ExprAggregateOverFunction FrameClause(this ExprAggregateOverFunction aggregateOverFunction, SqQueryBuilder.FrameBorder start, SqQueryBuilder.FrameBorder? end)
+        {
+            return aggregateOverFunction.WithOver(
+                new ExprOver(
+                    aggregateOverFunction.Over.Partitions,
+                    aggregateOverFunction.Over.OrderBy,
+                    new ExprFrameClause(start.BuildExpression(), end?.BuildExpression())));
+        }
+
+        public static ExprAggregateOverFunction FrameClauseEmpty(this ExprAggregateOverFunction aggregateOverFunction)
+        {
+            return aggregateOverFunction.WithOver(
+                new ExprOver(
+                    aggregateOverFunction.Over.Partitions,
+                    aggregateOverFunction.Over.OrderBy,
+                    null));
+        }
     }
 }

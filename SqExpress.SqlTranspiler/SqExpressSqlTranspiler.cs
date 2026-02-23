@@ -7,6 +7,8 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.SqlServer.TransactSql.ScriptDom;
+using SqExpress.Syntax.Functions;
+using SqExpress.Syntax.Functions.Known;
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 using RoslynStatementSyntax = Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax;
 
@@ -46,21 +48,6 @@ namespace SqExpress.SqlTranspiler
 
         private SqExpressTranspileResult TranspileSelect(SelectStatement selectStatement, SqExpressSqlTranspilerOptions options)
         {
-            if (selectStatement.QueryExpression is not QuerySpecification specification)
-            {
-                throw new SqExpressSqlTranspilerException("Only SELECT query specifications are supported (UNION/EXCEPT/INTERSECT are not supported yet).");
-            }
-
-            if (specification.GroupByClause != null)
-            {
-                throw new SqExpressSqlTranspilerException("GROUP BY is not supported yet.");
-            }
-
-            if (specification.HavingClause != null)
-            {
-                throw new SqExpressSqlTranspilerException("HAVING is not supported yet.");
-            }
-
             if (selectStatement.Into != null)
             {
                 throw new SqExpressSqlTranspilerException("SELECT INTO is not supported yet.");
@@ -68,18 +55,8 @@ namespace SqExpress.SqlTranspiler
 
             var context = new TranspileContext(options);
             context.RegisterCtes(selectStatement.WithCtesAndXmlNamespaces);
-
-            if (specification.FromClause != null)
-            {
-                if (specification.FromClause.TableReferences.Count != 1)
-                {
-                    throw new SqExpressSqlTranspilerException("Only one root FROM table-reference is supported.");
-                }
-
-                this.PreRegisterTableReferences(specification.FromClause.TableReferences[0], context);
-            }
-
-            var queryExpression = this.BuildSelectExpression(specification, specification.OrderByClause, context);
+            this.PreRegisterQueryExpression(selectStatement.QueryExpression, context);
+            var queryExpression = this.BuildQueryExpression(selectStatement.QueryExpression, context);
             var doneExpression = InvokeMember(queryExpression, "Done");
 
             var queryAst = this.BuildQueryAst(doneExpression, context, options);
@@ -116,6 +93,8 @@ namespace SqExpress.SqlTranspiler
                 .AddUsings(
                     UsingDirective(ParseName("SqExpress")),
                     UsingDirective(ParseName("SqExpress.Syntax.Select")),
+                    UsingDirective(ParseName("SqExpress.Syntax.Functions")),
+                    UsingDirective(ParseName("SqExpress.Syntax.Functions.Known")),
                     UsingDirective(ParseName(options.EffectiveDeclarationsNamespaceName)),
                     UsingDirective(ParseName("SqExpress.SqQueryBuilder")).WithStaticKeyword(Token(SyntaxKind.StaticKeyword)))
                 .AddMembers(
@@ -126,28 +105,33 @@ namespace SqExpress.SqlTranspiler
 
         private CompilationUnitSyntax BuildDeclarationsAst(TranspileContext context, SqExpressSqlTranspilerOptions options)
         {
-            var members = context.Descriptors
-                .Select(this.BuildDescriptorClass)
-                .ToArray();
+            var members = new List<MemberDeclarationSyntax>();
+            for (var i = 0; i < context.Descriptors.Count; i++)
+            {
+                members.Add(this.BuildDescriptorClass(context.Descriptors[i], context));
+            }
 
             return CompilationUnit()
                 .AddUsings(
                     UsingDirective(ParseName("System")),
                     UsingDirective(ParseName("SqExpress")),
-                    UsingDirective(ParseName("SqExpress.Syntax.Select")))
+                    UsingDirective(ParseName("SqExpress.Syntax.Select")),
+                    UsingDirective(ParseName("SqExpress.Syntax.Functions")),
+                    UsingDirective(ParseName("SqExpress.Syntax.Functions.Known")),
+                    UsingDirective(ParseName("SqExpress.SqQueryBuilder")).WithStaticKeyword(Token(SyntaxKind.StaticKeyword)))
                 .AddMembers(
                     NamespaceDeclaration(ParseName(options.EffectiveDeclarationsNamespaceName))
-                        .AddMembers(members))
+                        .AddMembers(members.ToArray()))
                 .NormalizeWhitespace();
         }
 
-        private ClassDeclarationSyntax BuildDescriptorClass(TableDescriptor descriptor)
+        private ClassDeclarationSyntax BuildDescriptorClass(TableDescriptor descriptor, TranspileContext context)
         {
             return descriptor.Kind switch
             {
                 DescriptorKind.Table => this.BuildTableDescriptorClass(descriptor),
-                DescriptorKind.Cte => this.BuildCteDescriptorClass(descriptor),
-                DescriptorKind.SubQuery => this.BuildSubQueryDescriptorClass(descriptor),
+                DescriptorKind.Cte => this.BuildCteDescriptorClass(descriptor, context),
+                DescriptorKind.SubQuery => this.BuildSubQueryDescriptorClass(descriptor, context),
                 _ => throw new SqExpressSqlTranspilerException($"Unsupported descriptor kind: {descriptor.Kind}")
             };
         }
@@ -208,7 +192,7 @@ namespace SqExpress.SqlTranspiler
                 .AddMembers(constructor);
         }
 
-        private ClassDeclarationSyntax BuildCteDescriptorClass(TableDescriptor descriptor)
+        private ClassDeclarationSyntax BuildCteDescriptorClass(TableDescriptor descriptor, TranspileContext parentContext)
         {
             var constructorStatements = descriptor.Columns
                 .Select(column =>
@@ -238,17 +222,22 @@ namespace SqExpress.SqlTranspiler
                             }))))
                 .WithBody(Block(constructorStatements));
 
+            var cteQueryContext = parentContext.CreateChild();
+            if (descriptor.QueryExpression == null)
+            {
+                throw new SqExpressSqlTranspilerException("CTE query expression is required.");
+            }
+
+            this.PreRegisterQueryExpression(descriptor.QueryExpression, cteQueryContext);
+            var cteQueryExpression = this.BuildQueryExpression(descriptor.QueryExpression, cteQueryContext);
+            var cteQueryDoneExpression = InvokeMember(cteQueryExpression, "Done");
+            var createQueryBody = new List<RoslynStatementSyntax>();
+            createQueryBody.AddRange(cteQueryContext.SourceDeclarations);
+            createQueryBody.Add(ReturnStatement(cteQueryDoneExpression));
+
             var createQueryMethod = MethodDeclaration(IdentifierName("IExprSubQuery"), Identifier("CreateQuery"))
                 .AddModifiers(Token(SyntaxKind.PublicKeyword), Token(SyntaxKind.OverrideKeyword))
-                .WithExpressionBody(
-                    ArrowExpressionClause(
-                        ThrowExpression(
-                            ObjectCreationExpression(IdentifierName("NotImplementedException"))
-                                .WithArgumentList(
-                                    ArgumentList(
-                                        SingletonSeparatedList(
-                                            Argument(StringLiteral("CTE query transpilation is not implemented yet."))))))))
-                .WithSemicolonToken(Token(SyntaxKind.SemicolonToken));
+                .WithBody(Block(createQueryBody));
 
             var properties = descriptor.Columns
                 .Select(column => this.BuildDescriptorProperty(column, tableDescriptor: false))
@@ -262,7 +251,7 @@ namespace SqExpress.SqlTranspiler
                 .AddMembers(createQueryMethod);
         }
 
-        private ClassDeclarationSyntax BuildSubQueryDescriptorClass(TableDescriptor descriptor)
+        private ClassDeclarationSyntax BuildSubQueryDescriptorClass(TableDescriptor descriptor, TranspileContext parentContext)
         {
             var constructorStatements = descriptor.Columns
                 .Select(column =>
@@ -286,17 +275,22 @@ namespace SqExpress.SqlTranspiler
                         ArgumentList(SingletonSeparatedList(Argument(IdentifierName("alias"))))))
                 .WithBody(Block(constructorStatements));
 
+            var subQueryContext = parentContext.CreateChild();
+            if (descriptor.QueryExpression == null)
+            {
+                throw new SqExpressSqlTranspilerException("Derived subquery expression is required.");
+            }
+
+            this.PreRegisterQueryExpression(descriptor.QueryExpression, subQueryContext);
+            var subQueryExpression = this.BuildQueryExpression(descriptor.QueryExpression, subQueryContext);
+            var subQueryDoneExpression = InvokeMember(subQueryExpression, "Done");
+            var createQueryBody = new List<RoslynStatementSyntax>();
+            createQueryBody.AddRange(subQueryContext.SourceDeclarations);
+            createQueryBody.Add(ReturnStatement(subQueryDoneExpression));
+
             var createQueryMethod = MethodDeclaration(IdentifierName("IExprSubQuery"), Identifier("CreateQuery"))
                 .AddModifiers(Token(SyntaxKind.ProtectedKeyword), Token(SyntaxKind.OverrideKeyword))
-                .WithExpressionBody(
-                    ArrowExpressionClause(
-                        ThrowExpression(
-                            ObjectCreationExpression(IdentifierName("NotImplementedException"))
-                                .WithArgumentList(
-                                    ArgumentList(
-                                        SingletonSeparatedList(
-                                            Argument(StringLiteral("Sub query transpilation is not implemented yet."))))))))
-                .WithSemicolonToken(Token(SyntaxKind.SemicolonToken));
+                .WithBody(Block(createQueryBody));
 
             var properties = descriptor.Columns
                 .Select(column => this.BuildDescriptorProperty(column, tableDescriptor: false))
@@ -337,6 +331,115 @@ namespace SqExpress.SqlTranspiler
             return InvokeMember(ThisExpression(), "CreateInt32Column", StringLiteral(column.SqlName));
         }
 
+        private void PreRegisterQueryExpression(QueryExpression queryExpression, TranspileContext context)
+        {
+            if (queryExpression is QueryParenthesisExpression parenthesized)
+            {
+                this.PreRegisterQueryExpression(parenthesized.QueryExpression, context);
+                return;
+            }
+
+            if (queryExpression is QuerySpecification specification)
+            {
+                if (specification.FromClause != null)
+                {
+                    if (specification.FromClause.TableReferences.Count != 1)
+                    {
+                        throw new SqExpressSqlTranspilerException("Only one root FROM table-reference is supported.");
+                    }
+
+                    this.PreRegisterTableReferences(specification.FromClause.TableReferences[0], context);
+                }
+
+                return;
+            }
+
+            if (queryExpression is BinaryQueryExpression binaryQuery)
+            {
+                this.PreRegisterQueryExpression(binaryQuery.FirstQueryExpression, context);
+                this.PreRegisterQueryExpression(binaryQuery.SecondQueryExpression, context);
+                return;
+            }
+
+            throw new SqExpressSqlTranspilerException($"Unsupported query expression: {queryExpression.GetType().Name}.");
+        }
+
+        private ExpressionSyntax BuildQueryExpression(QueryExpression queryExpression, TranspileContext context, bool allowOrderByAndOffset = true)
+        {
+            if (queryExpression is QueryParenthesisExpression parenthesized)
+            {
+                return this.BuildQueryExpression(parenthesized.QueryExpression, context, allowOrderByAndOffset);
+            }
+
+            if (queryExpression is QuerySpecification specification)
+            {
+                if (!allowOrderByAndOffset
+                    && (specification.OrderByClause != null || specification.OffsetClause != null))
+                {
+                    throw new SqExpressSqlTranspilerException("ORDER BY/OFFSET is not supported inside set-operation operands.");
+                }
+
+                if (specification.HavingClause != null)
+                {
+                    throw new SqExpressSqlTranspilerException("HAVING is not supported yet.");
+                }
+
+                return this.BuildSelectExpression(specification, specification.OrderByClause, context);
+            }
+
+            if (queryExpression is BinaryQueryExpression binaryQuery)
+            {
+                if (binaryQuery.ForClause != null)
+                {
+                    throw new SqExpressSqlTranspilerException("FOR clause is not supported yet.");
+                }
+
+                var left = this.BuildQueryExpression(binaryQuery.FirstQueryExpression, context, allowOrderByAndOffset: false);
+                var right = this.BuildQueryExpression(binaryQuery.SecondQueryExpression, context, allowOrderByAndOffset: false);
+
+                var setMethod = binaryQuery.BinaryQueryExpressionType switch
+                {
+                    BinaryQueryExpressionType.Union => binaryQuery.All ? "UnionAll" : "Union",
+                    BinaryQueryExpressionType.Except => binaryQuery.All
+                        ? throw new SqExpressSqlTranspilerException("EXCEPT ALL is not supported.")
+                        : "Except",
+                    BinaryQueryExpressionType.Intersect => binaryQuery.All
+                        ? throw new SqExpressSqlTranspilerException("INTERSECT ALL is not supported.")
+                        : "Intersect",
+                    _ => throw new SqExpressSqlTranspilerException($"Unsupported query binary operation: {binaryQuery.BinaryQueryExpressionType}.")
+                };
+
+                var current = InvokeMember(left, setMethod, right);
+
+                if (binaryQuery.OrderByClause != null)
+                {
+                    var orderByArguments = binaryQuery.OrderByClause
+                        .OrderByElements
+                        .Select(item => this.BuildOrderBy(item, context))
+                        .ToList();
+
+                    if (orderByArguments.Count > 0)
+                    {
+                        current = InvokeMember(current, "OrderBy", orderByArguments);
+                    }
+                }
+
+                if (binaryQuery.OffsetClause != null)
+                {
+                    if (binaryQuery.OrderByClause == null)
+                    {
+                        throw new SqExpressSqlTranspilerException("OFFSET/FETCH requires ORDER BY.");
+                    }
+
+                    current = this.ApplyOffsetFetch(current, binaryQuery.OffsetClause);
+                }
+
+                return current;
+            }
+
+            throw new SqExpressSqlTranspilerException($"Unsupported query expression: {queryExpression.GetType().Name}.");
+        }
+
         private ExpressionSyntax BuildSelectExpression(QuerySpecification specification, OrderByClause? orderByClause, TranspileContext context)
         {
             var selectArguments = specification.SelectElements.Select(item => this.BuildSelectElement(item, context)).ToList();
@@ -355,7 +458,7 @@ namespace SqExpress.SqlTranspiler
             ExpressionSyntax current;
             if (top != null)
             {
-                var topExpression = UnwrapParentheses(this.BuildScalarExpression(top.Expression, context));
+                var topExpression = UnwrapParentheses(this.BuildScalarExpression(top.Expression, context, wrapLiterals: false));
                 var topMethod = distinct ? "SelectTopDistinct" : "SelectTop";
                 current = Invoke(topMethod, Prepend(topExpression, selectArguments));
             }
@@ -375,6 +478,27 @@ namespace SqExpress.SqlTranspiler
                 current = InvokeMember(current, "Where", whereExpression);
             }
 
+            if (specification.GroupByClause != null)
+            {
+                var groupByColumns = this.BuildGroupByColumns(specification.GroupByClause, context);
+                if (groupByColumns.Count == 0)
+                {
+                    throw new SqExpressSqlTranspilerException("GROUP BY cannot be empty.");
+                }
+
+                current = InvokeMember(current, "GroupBy", Prepend(groupByColumns[0], groupByColumns.Skip(1).ToList()));
+            }
+
+            if (specification.HavingClause != null)
+            {
+                throw new SqExpressSqlTranspilerException("HAVING is not supported yet.");
+            }
+
+            if (specification.ForClause != null)
+            {
+                throw new SqExpressSqlTranspilerException("FOR clause is not supported yet.");
+            }
+
             if (orderByClause != null)
             {
                 var orderByArguments = orderByClause
@@ -386,6 +510,16 @@ namespace SqExpress.SqlTranspiler
                 {
                     current = InvokeMember(current, "OrderBy", orderByArguments);
                 }
+            }
+
+            if (specification.OffsetClause != null)
+            {
+                if (orderByClause == null)
+                {
+                    throw new SqExpressSqlTranspilerException("OFFSET/FETCH requires ORDER BY.");
+                }
+
+                current = this.ApplyOffsetFetch(current, specification.OffsetClause);
             }
 
             return current;
@@ -402,6 +536,24 @@ namespace SqExpress.SqlTranspiler
             if (tableReference is QueryDerivedTable derivedTable)
             {
                 context.GetOrAddDerivedSource(derivedTable);
+                return;
+            }
+
+            if (tableReference is SchemaObjectFunctionTableReference schemaFunction)
+            {
+                context.GetOrAddSchemaFunctionSource(schemaFunction, this);
+                return;
+            }
+
+            if (tableReference is BuiltInFunctionTableReference builtInFunction)
+            {
+                context.GetOrAddBuiltInFunctionSource(builtInFunction, this);
+                return;
+            }
+
+            if (tableReference is GlobalFunctionTableReference globalFunction)
+            {
+                context.GetOrAddGlobalFunctionSource(globalFunction, this);
                 return;
             }
 
@@ -432,7 +584,10 @@ namespace SqExpress.SqlTranspiler
         {
             if (selectElement is SelectScalarExpression scalar)
             {
-                var expression = this.BuildScalarExpression(scalar.Expression, context);
+                var expression = this.BuildScalarExpression(
+                    scalar.Expression,
+                    context,
+                    wrapLiterals: IsLiteralOnlyExpression(scalar.Expression));
                 var alias = TryGetSelectAlias(scalar.ColumnName);
                 if (alias != null)
                 {
@@ -485,6 +640,39 @@ namespace SqExpress.SqlTranspiler
                 return InvokeMember(current, "From", IdentifierName(source.VariableName));
             }
 
+            if (tableReference is SchemaObjectFunctionTableReference schemaFunctionTable)
+            {
+                if (!isRoot)
+                {
+                    throw new SqExpressSqlTranspilerException("Unexpected standalone table reference in joined table tree.");
+                }
+
+                var source = context.GetOrAddSchemaFunctionSource(schemaFunctionTable, this);
+                return InvokeMember(current, "From", IdentifierName(source.VariableName));
+            }
+
+            if (tableReference is BuiltInFunctionTableReference builtInFunctionTable)
+            {
+                if (!isRoot)
+                {
+                    throw new SqExpressSqlTranspilerException("Unexpected standalone table reference in joined table tree.");
+                }
+
+                var source = context.GetOrAddBuiltInFunctionSource(builtInFunctionTable, this);
+                return InvokeMember(current, "From", IdentifierName(source.VariableName));
+            }
+
+            if (tableReference is GlobalFunctionTableReference globalFunctionTable)
+            {
+                if (!isRoot)
+                {
+                    throw new SqExpressSqlTranspilerException("Unexpected standalone table reference in joined table tree.");
+                }
+
+                var source = context.GetOrAddGlobalFunctionSource(globalFunctionTable, this);
+                return InvokeMember(current, "From", IdentifierName(source.VariableName));
+            }
+
             if (tableReference is JoinParenthesisTableReference joinParenthesis)
             {
                 return this.ApplyTableReference(current, joinParenthesis.Join, context, isRoot);
@@ -516,11 +704,193 @@ namespace SqExpress.SqlTranspiler
                 return unqualifiedJoin.UnqualifiedJoinType switch
                 {
                     UnqualifiedJoinType.CrossJoin => InvokeMember(withLeft, "CrossJoin", IdentifierName(rightSource.VariableName)),
+                    UnqualifiedJoinType.CrossApply => InvokeMember(withLeft, "CrossApply", IdentifierName(rightSource.VariableName)),
+                    UnqualifiedJoinType.OuterApply => InvokeMember(withLeft, "OuterApply", IdentifierName(rightSource.VariableName)),
                     _ => throw new SqExpressSqlTranspilerException($"Unsupported unqualified join type: {unqualifiedJoin.UnqualifiedJoinType}.")
                 };
             }
 
             throw new SqExpressSqlTranspilerException($"Unsupported table reference: {tableReference.GetType().Name}.");
+        }
+
+        private ExpressionSyntax ApplyOffsetFetch(ExpressionSyntax current, OffsetClause offsetClause)
+        {
+            if (!TryExtractInt32Constant(offsetClause.OffsetExpression, out var offset))
+            {
+                throw new SqExpressSqlTranspilerException("OFFSET/FETCH currently supports only integer constants.");
+            }
+
+            if (offset < 0)
+            {
+                throw new SqExpressSqlTranspilerException("OFFSET cannot be negative.");
+            }
+
+            if (offsetClause.FetchExpression == null)
+            {
+                return InvokeMember(
+                    current,
+                    "Offset",
+                    LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal(offset)));
+            }
+
+            if (!TryExtractInt32Constant(offsetClause.FetchExpression, out var fetch))
+            {
+                throw new SqExpressSqlTranspilerException("OFFSET/FETCH currently supports only integer constants.");
+            }
+
+            if (fetch < 0)
+            {
+                throw new SqExpressSqlTranspilerException("FETCH cannot be negative.");
+            }
+
+            return InvokeMember(
+                current,
+                "OffsetFetch",
+                LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal(offset)),
+                LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal(fetch)));
+        }
+
+        private ExpressionSyntax BuildTableFunctionSourceExpression(SchemaObjectFunctionTableReference functionReference, TranspileContext context)
+        {
+            if (functionReference.ForPath)
+            {
+                throw new SqExpressSqlTranspilerException("FOR PATH table functions are not supported.");
+            }
+
+            var schemaObject = functionReference.SchemaObject
+                ?? throw new SqExpressSqlTranspilerException("Table function name is missing.");
+
+            if (schemaObject.ServerIdentifier != null)
+            {
+                throw new SqExpressSqlTranspilerException("Server-qualified table functions are not supported.");
+            }
+
+            var functionName = schemaObject.BaseIdentifier?.Value;
+            if (string.IsNullOrWhiteSpace(functionName))
+            {
+                throw new SqExpressSqlTranspilerException("Table function name cannot be empty.");
+            }
+
+            var args = functionReference.Parameters
+                .Select(p => this.BuildScalarExpression(p, context, wrapLiterals: false))
+                .ToList();
+
+            ExpressionSyntax functionExpression;
+            if (schemaObject.DatabaseIdentifier != null)
+            {
+                var schemaName = schemaObject.SchemaIdentifier?.Value;
+                if (string.IsNullOrWhiteSpace(schemaName))
+                {
+                    throw new SqExpressSqlTranspilerException("Database-qualified table function without schema is not supported.");
+                }
+
+                functionExpression = args.Count == 0
+                    ? Invoke(
+                        "TableFunctionDbCustom",
+                        StringLiteral(schemaObject.DatabaseIdentifier.Value),
+                        StringLiteral(schemaName!),
+                        StringLiteral(functionName!))
+                    : Invoke(
+                        "TableFunctionDbCustom",
+                        Prepend(
+                            StringLiteral(schemaObject.DatabaseIdentifier.Value),
+                            Prepend(
+                                StringLiteral(schemaName!),
+                                Prepend(StringLiteral(functionName!), args))));
+            }
+            else if (schemaObject.SchemaIdentifier != null)
+            {
+                functionExpression = args.Count == 0
+                    ? Invoke(
+                        "TableFunctionCustom",
+                        StringLiteral(schemaObject.SchemaIdentifier.Value),
+                        StringLiteral(functionName!))
+                    : Invoke(
+                        "TableFunctionCustom",
+                        Prepend(
+                            StringLiteral(schemaObject.SchemaIdentifier.Value),
+                            Prepend(StringLiteral(functionName!), args)));
+            }
+            else
+            {
+                functionExpression = args.Count == 0
+                    ? Invoke("TableFunctionSys", StringLiteral(functionName!))
+                    : Invoke("TableFunctionSys", Prepend(StringLiteral(functionName!), args));
+            }
+
+            if (!string.IsNullOrWhiteSpace(functionReference.Alias?.Value))
+            {
+                functionExpression = InvokeMember(
+                    functionExpression,
+                    "As",
+                    Invoke("TableAlias", StringLiteral(functionReference.Alias!.Value)));
+            }
+
+            return functionExpression;
+        }
+
+        private ExpressionSyntax BuildTableFunctionSourceExpression(BuiltInFunctionTableReference functionReference, TranspileContext context)
+        {
+            if (functionReference.ForPath)
+            {
+                throw new SqExpressSqlTranspilerException("FOR PATH table functions are not supported.");
+            }
+
+            var functionName = functionReference.Name?.Value;
+            if (string.IsNullOrWhiteSpace(functionName))
+            {
+                throw new SqExpressSqlTranspilerException("Table function name cannot be empty.");
+            }
+
+            var args = functionReference.Parameters
+                .Select(p => this.BuildScalarExpression(p, context, wrapLiterals: false))
+                .ToList();
+
+            var functionExpression = args.Count == 0
+                ? Invoke("TableFunctionSys", StringLiteral(functionName!))
+                : Invoke("TableFunctionSys", Prepend(StringLiteral(functionName!), args));
+
+            if (!string.IsNullOrWhiteSpace(functionReference.Alias?.Value))
+            {
+                functionExpression = InvokeMember(
+                    functionExpression,
+                    "As",
+                    Invoke("TableAlias", StringLiteral(functionReference.Alias!.Value)));
+            }
+
+            return functionExpression;
+        }
+
+        private ExpressionSyntax BuildTableFunctionSourceExpression(GlobalFunctionTableReference functionReference, TranspileContext context)
+        {
+            if (functionReference.ForPath)
+            {
+                throw new SqExpressSqlTranspilerException("FOR PATH table functions are not supported.");
+            }
+
+            var functionName = functionReference.Name?.Value;
+            if (string.IsNullOrWhiteSpace(functionName))
+            {
+                throw new SqExpressSqlTranspilerException("Table function name cannot be empty.");
+            }
+
+            var args = functionReference.Parameters
+                .Select(p => this.BuildScalarExpression(p, context, wrapLiterals: false))
+                .ToList();
+
+            var functionExpression = args.Count == 0
+                ? Invoke("TableFunctionSys", StringLiteral(functionName!))
+                : Invoke("TableFunctionSys", Prepend(StringLiteral(functionName!), args));
+
+            if (!string.IsNullOrWhiteSpace(functionReference.Alias?.Value))
+            {
+                functionExpression = InvokeMember(
+                    functionExpression,
+                    "As",
+                    Invoke("TableAlias", StringLiteral(functionReference.Alias!.Value)));
+            }
+
+            return functionExpression;
         }
 
         private TableSource ResolveJoinedSource(TableReference tableReference, TranspileContext context)
@@ -535,12 +905,63 @@ namespace SqExpress.SqlTranspiler
                 return context.GetOrAddDerivedSource(derivedTable);
             }
 
+            if (tableReference is SchemaObjectFunctionTableReference schemaFunctionTable)
+            {
+                return context.GetOrAddSchemaFunctionSource(schemaFunctionTable, this);
+            }
+
+            if (tableReference is BuiltInFunctionTableReference builtInFunctionTable)
+            {
+                return context.GetOrAddBuiltInFunctionSource(builtInFunctionTable, this);
+            }
+
+            if (tableReference is GlobalFunctionTableReference globalFunctionTable)
+            {
+                return context.GetOrAddGlobalFunctionSource(globalFunctionTable, this);
+            }
+
             if (tableReference is JoinParenthesisTableReference parenthesized)
             {
                 return this.ResolveJoinedSource(parenthesized.Join, context);
             }
 
             throw new SqExpressSqlTranspilerException("Only named tables and derived subqueries are supported on the right side of JOIN.");
+        }
+
+        private IReadOnlyList<ExpressionSyntax> BuildGroupByColumns(GroupByClause groupByClause, TranspileContext context)
+        {
+            if (groupByClause.All)
+            {
+                throw new SqExpressSqlTranspilerException("GROUP BY ALL is not supported.");
+            }
+
+            if (groupByClause.GroupByOption != GroupByOption.None)
+            {
+                throw new SqExpressSqlTranspilerException($"GROUP BY option '{groupByClause.GroupByOption}' is not supported.");
+            }
+
+            if (groupByClause.GroupingSpecifications.Count == 0)
+            {
+                throw new SqExpressSqlTranspilerException("GROUP BY cannot be empty.");
+            }
+
+            var columns = new List<ExpressionSyntax>();
+            foreach (var groupingSpecification in groupByClause.GroupingSpecifications)
+            {
+                if (groupingSpecification is not ExpressionGroupingSpecification expressionGrouping)
+                {
+                    throw new SqExpressSqlTranspilerException($"Unsupported GROUP BY item: {groupingSpecification.GetType().Name}.");
+                }
+
+                if (expressionGrouping.Expression is not ColumnReferenceExpression columnReference)
+                {
+                    throw new SqExpressSqlTranspilerException("GROUP BY currently supports only column references.");
+                }
+
+                columns.Add(this.BuildColumnExpression(columnReference, context));
+            }
+
+            return columns;
         }
 
         private ExpressionSyntax BuildBooleanExpression(BooleanExpression expression, TranspileContext context)
@@ -587,47 +1008,59 @@ namespace SqExpress.SqlTranspiler
                 var kind = MapComparisonKind(comparison.ComparisonType);
                 return BinaryExpression(
                     kind,
-                    ParenthesizeIfNeeded(this.BuildScalarExpression(comparison.FirstExpression, context)),
-                    ParenthesizeIfNeeded(this.BuildScalarExpression(comparison.SecondExpression, context)));
+                    ParenthesizeIfNeeded(this.BuildScalarExpression(comparison.FirstExpression, context, wrapLiterals: false)),
+                    ParenthesizeIfNeeded(this.BuildScalarExpression(comparison.SecondExpression, context, wrapLiterals: false)));
             }
 
             if (expression is BooleanIsNullExpression isNull)
             {
-                var test = this.BuildScalarExpression(isNull.Expression, context);
+                var test = this.BuildScalarExpression(isNull.Expression, context, wrapLiterals: false);
                 return Invoke(isNull.IsNot ? "IsNotNull" : "IsNull", test);
             }
 
             if (expression is InPredicate inPredicate)
             {
-                if (inPredicate.Subquery != null)
-                {
-                    throw new SqExpressSqlTranspilerException("IN (subquery) is not supported yet.");
-                }
-
-                if (inPredicate.Values.Count < 1)
-                {
-                    throw new SqExpressSqlTranspilerException("IN predicate cannot be empty.");
-                }
-
                 if (inPredicate.Expression is not ColumnReferenceExpression inColumn)
                 {
                     throw new SqExpressSqlTranspilerException("IN predicate is supported only for column references.");
                 }
 
-                if (inPredicate.Values.Any(IsStringLiteral))
+                var column = this.BuildColumnExpression(inColumn, context);
+
+                ExpressionSyntax inCall;
+                if (inPredicate.Subquery != null)
                 {
-                    context.MarkColumnAsString(inColumn);
+                    var inSubQuery = this.BuildSubQueryExpression(inPredicate.Subquery, context);
+                    inCall = InvokeMember(column, "In", inSubQuery);
+                }
+                else
+                {
+                    if (inPredicate.Values.Count < 1)
+                    {
+                        throw new SqExpressSqlTranspilerException("IN predicate cannot be empty.");
+                    }
+
+                    if (inPredicate.Values.Any(IsStringLiteral))
+                    {
+                        context.MarkColumnAsString(inColumn);
+                    }
+
+                    var values = inPredicate.Values.Select(item => this.BuildScalarExpression(item, context, wrapLiterals: false)).ToList();
+                    inCall = InvokeMember(column, "In", values);
                 }
 
-                var column = this.BuildColumnExpression(inColumn, context);
-                var values = inPredicate.Values.Select(item => this.BuildScalarExpression(item, context)).ToList();
-                var inCall = InvokeMember(column, "In", values);
                 if (inPredicate.NotDefined)
                 {
                     return PrefixUnaryExpression(SyntaxKind.LogicalNotExpression, ParenthesizeIfNeeded(inCall));
                 }
 
                 return inCall;
+            }
+
+            if (expression is ExistsPredicate existsPredicate)
+            {
+                var existsSubQuery = this.BuildSubQueryExpression(existsPredicate.Subquery, context);
+                return Invoke("Exists", existsSubQuery);
             }
 
             if (expression is LikePredicate like)
@@ -642,7 +1075,7 @@ namespace SqExpress.SqlTranspiler
                     context.MarkColumnAsString(likeColumn);
                 }
 
-                var test = this.BuildScalarExpression(like.FirstExpression, context);
+                var test = this.BuildScalarExpression(like.FirstExpression, context, wrapLiterals: false);
                 var likeCall = Invoke("Like", test, StringLiteral(stringPattern.Value));
                 if (like.NotDefined)
                 {
@@ -666,9 +1099,9 @@ namespace SqExpress.SqlTranspiler
                     context.MarkColumnAsString(betweenColumn);
                 }
 
-                var test = this.BuildScalarExpression(between.FirstExpression, context);
-                var start = this.BuildScalarExpression(between.SecondExpression, context);
-                var end = this.BuildScalarExpression(between.ThirdExpression, context);
+                var test = this.BuildScalarExpression(between.FirstExpression, context, wrapLiterals: false);
+                var start = this.BuildScalarExpression(between.SecondExpression, context, wrapLiterals: false);
+                var end = this.BuildScalarExpression(between.ThirdExpression, context, wrapLiterals: false);
 
                 var betweenExpression =
                     BinaryExpression(
@@ -687,7 +1120,7 @@ namespace SqExpress.SqlTranspiler
             throw new SqExpressSqlTranspilerException($"Unsupported boolean expression: {expression.GetType().Name}.");
         }
 
-        private ExpressionSyntax BuildScalarExpression(ScalarExpression expression, TranspileContext context)
+        private ExpressionSyntax BuildScalarExpression(ScalarExpression expression, TranspileContext context, bool wrapLiterals)
         {
             if (expression is ColumnReferenceExpression columnReference)
             {
@@ -701,22 +1134,43 @@ namespace SqExpress.SqlTranspiler
 
             if (expression is StringLiteral stringLiteral)
             {
-                return Invoke("Literal", StringLiteral(stringLiteral.Value));
+                return wrapLiterals
+                    ? Invoke("Literal", StringLiteral(stringLiteral.Value))
+                    : StringLiteral(stringLiteral.Value);
             }
 
             if (expression is IntegerLiteral integerLiteral)
             {
-                return Invoke("Literal", NumericLiteral(integerLiteral.Value));
+                return wrapLiterals
+                    ? Invoke("Literal", NumericLiteral(integerLiteral.Value))
+                    : NumericLiteral(integerLiteral.Value);
             }
 
             if (expression is NumericLiteral numericLiteral)
             {
-                return Invoke("Literal", DecimalOrDoubleLiteral(numericLiteral.Value));
+                return wrapLiterals
+                    ? Invoke("Literal", DecimalOrDoubleLiteral(numericLiteral.Value))
+                    : DecimalOrDoubleLiteral(numericLiteral.Value);
             }
 
             if (expression is MoneyLiteral moneyLiteral)
             {
-                return Invoke("Literal", DecimalOrDoubleLiteral(moneyLiteral.Value));
+                return wrapLiterals
+                    ? Invoke("Literal", DecimalOrDoubleLiteral(moneyLiteral.Value))
+                    : DecimalOrDoubleLiteral(moneyLiteral.Value);
+            }
+
+            if (expression is CoalesceExpression coalesceExpression)
+            {
+                if (coalesceExpression.Expressions.Count < 2)
+                {
+                    throw new SqExpressSqlTranspilerException("COALESCE expression must have at least two arguments.");
+                }
+
+                var args = coalesceExpression.Expressions
+                    .Select(item => this.BuildScalarExpression(item, context, wrapLiterals))
+                    .ToList();
+                return Invoke("Coalesce", args);
             }
 
             if (expression is UnaryExpression unary)
@@ -729,12 +1183,12 @@ namespace SqExpress.SqlTranspiler
                     _ => throw new SqExpressSqlTranspilerException($"Unsupported unary expression: {unary.UnaryExpressionType}.")
                 };
 
-                return PrefixUnaryExpression(unaryKind, ParenthesizeIfNeeded(this.BuildScalarExpression(unary.Expression, context)));
+                return PrefixUnaryExpression(unaryKind, ParenthesizeIfNeeded(this.BuildScalarExpression(unary.Expression, context, wrapLiterals)));
             }
 
             if (expression is ParenthesisExpression parenthesis)
             {
-                return ParenthesizedExpression(this.BuildScalarExpression(parenthesis.Expression, context));
+                return ParenthesizedExpression(this.BuildScalarExpression(parenthesis.Expression, context, wrapLiterals));
             }
 
             if (expression is BinaryExpression binary)
@@ -742,21 +1196,47 @@ namespace SqExpress.SqlTranspiler
                 var binaryKind = MapBinaryKind(binary.BinaryExpressionType);
                 return BinaryExpression(
                     binaryKind,
-                    ParenthesizeIfNeeded(this.BuildScalarExpression(binary.FirstExpression, context)),
-                    ParenthesizeIfNeeded(this.BuildScalarExpression(binary.SecondExpression, context)));
+                    ParenthesizeIfNeeded(this.BuildScalarExpression(binary.FirstExpression, context, wrapLiterals)),
+                    ParenthesizeIfNeeded(this.BuildScalarExpression(binary.SecondExpression, context, wrapLiterals)));
+            }
+
+            if (expression is CaseExpression caseExpression)
+            {
+                return this.BuildCaseExpression(caseExpression, context, wrapLiterals: false);
             }
 
             if (expression is FunctionCall functionCall)
             {
-                return this.BuildFunctionCall(functionCall, context);
+                return this.BuildFunctionCall(functionCall, context, wrapLiterals);
+            }
+
+            if (expression is ScalarSubquery scalarSubquery)
+            {
+                var subQuery = this.BuildSubQueryExpression(scalarSubquery, context);
+                return Invoke("ValueQuery", subQuery);
             }
 
             if (expression is CastCall castCall)
             {
-                return Invoke("Cast", this.BuildScalarExpression(castCall.Parameter, context), this.BuildSqlType(castCall.DataType));
+                return Invoke("Cast", this.BuildScalarExpression(castCall.Parameter, context, wrapLiterals), this.BuildSqlType(castCall.DataType));
             }
 
             throw new SqExpressSqlTranspilerException($"Unsupported scalar expression: {expression.GetType().Name}.");
+        }
+
+        private ExpressionSyntax BuildSubQueryExpression(ScalarSubquery scalarSubquery, TranspileContext context)
+        {
+            if (scalarSubquery.Collation != null)
+            {
+                throw new SqExpressSqlTranspilerException("Subquery collation is not supported.");
+            }
+
+            var subQueryContext = context.CreateChild(shareVariableNames: true, inheritSourceResolution: true);
+            this.PreRegisterQueryExpression(scalarSubquery.QueryExpression, subQueryContext);
+            var subQueryExpression = this.BuildQueryExpression(scalarSubquery.QueryExpression, subQueryContext);
+            context.AbsorbSourceDeclarations(subQueryContext);
+
+            return subQueryExpression;
         }
 
         private ExpressionSyntax BuildSqlType(DataTypeReference dataType)
@@ -784,35 +1264,75 @@ namespace SqExpress.SqlTranspiler
             };
         }
 
-        private ExpressionSyntax BuildFunctionCall(FunctionCall functionCall, TranspileContext context)
+        private ExpressionSyntax BuildCaseExpression(CaseExpression caseExpression, TranspileContext context, bool wrapLiterals)
+        {
+            var chain = Invoke("Case");
+
+            if (caseExpression is SearchedCaseExpression searchedCase)
+            {
+                foreach (var clause in searchedCase.WhenClauses)
+                {
+                    if (clause is not SearchedWhenClause searchedWhen)
+                    {
+                        throw new SqExpressSqlTranspilerException($"Unsupported searched CASE clause: {clause.GetType().Name}.");
+                    }
+
+                    var whenCondition = this.BuildBooleanExpression(searchedWhen.WhenExpression, context);
+                    var thenValue = this.BuildScalarExpression(searchedWhen.ThenExpression, context, wrapLiterals);
+                    chain = InvokeMember(InvokeMember(chain, "When", whenCondition), "Then", thenValue);
+                }
+
+                var elseValue = searchedCase.ElseExpression != null
+                    ? this.BuildScalarExpression(searchedCase.ElseExpression, context, wrapLiterals)
+                    : IdentifierName("Null");
+
+                return InvokeMember(chain, "Else", elseValue);
+            }
+
+            if (caseExpression is SimpleCaseExpression simpleCase)
+            {
+                foreach (var clause in simpleCase.WhenClauses)
+                {
+                    if (clause is not SimpleWhenClause simpleWhen)
+                    {
+                        throw new SqExpressSqlTranspilerException($"Unsupported simple CASE clause: {clause.GetType().Name}.");
+                    }
+
+                    var whenCondition = BinaryExpression(
+                        SyntaxKind.EqualsExpression,
+                        ParenthesizeIfNeeded(this.BuildScalarExpression(simpleCase.InputExpression, context, wrapLiterals: false)),
+                        ParenthesizeIfNeeded(this.BuildScalarExpression(simpleWhen.WhenExpression, context, wrapLiterals: false)));
+
+                    var thenValue = this.BuildScalarExpression(simpleWhen.ThenExpression, context, wrapLiterals);
+                    chain = InvokeMember(InvokeMember(chain, "When", whenCondition), "Then", thenValue);
+                }
+
+                var elseValue = simpleCase.ElseExpression != null
+                    ? this.BuildScalarExpression(simpleCase.ElseExpression, context, wrapLiterals)
+                    : IdentifierName("Null");
+
+                return InvokeMember(chain, "Else", elseValue);
+            }
+
+            throw new SqExpressSqlTranspilerException($"Unsupported CASE expression type: {caseExpression.GetType().Name}.");
+        }
+
+        private ExpressionSyntax BuildFunctionCall(FunctionCall functionCall, TranspileContext context, bool wrapLiterals)
         {
             if (functionCall.CallTarget != null)
             {
                 throw new SqExpressSqlTranspilerException("Schema-qualified function calls are not supported yet.");
             }
 
-            var functionName = functionCall.FunctionName.Value;
-            if (string.Equals(functionName, "COUNT", StringComparison.OrdinalIgnoreCase))
+            if (functionCall.OverClause != null)
             {
-                if (functionCall.Parameters.Count == 1 && IsStar(functionCall.Parameters[0]))
-                {
-                    if (functionCall.UniqueRowFilter == UniqueRowFilter.Distinct)
-                    {
-                        throw new SqExpressSqlTranspilerException("COUNT(DISTINCT *) is not valid.");
-                    }
+                return this.BuildWindowFunctionCall(functionCall, context, wrapLiterals);
+            }
 
-                    return Invoke("CountOne");
-                }
-
-                if (functionCall.Parameters.Count != 1)
-                {
-                    throw new SqExpressSqlTranspilerException("COUNT supports exactly one argument.");
-                }
-
-                var countArg = this.BuildScalarExpression(functionCall.Parameters[0], context);
-                return functionCall.UniqueRowFilter == UniqueRowFilter.Distinct
-                    ? Invoke("CountDistinct", countArg)
-                    : Invoke("Count", countArg);
+            var functionName = functionCall.FunctionName.Value;
+            if (this.TryBuildKnownFunctionCall(functionCall, context, wrapLiterals, out var knownFunctionCall))
+            {
+                return knownFunctionCall;
             }
 
             if (functionCall.UniqueRowFilter == UniqueRowFilter.Distinct)
@@ -822,7 +1342,7 @@ namespace SqExpress.SqlTranspiler
                     throw new SqExpressSqlTranspilerException("DISTINCT aggregate function with multiple arguments is not supported.");
                 }
 
-                return Invoke("AggregateFunction", StringLiteral(functionName), LiteralExpression(SyntaxKind.TrueLiteralExpression), this.BuildScalarExpression(functionCall.Parameters[0], context));
+                return Invoke("AggregateFunction", StringLiteral(functionName), LiteralExpression(SyntaxKind.TrueLiteralExpression), this.BuildScalarExpression(functionCall.Parameters[0], context, wrapLiterals));
             }
 
             var functionArgs = functionCall.Parameters.Select(arg =>
@@ -831,10 +1351,854 @@ namespace SqExpress.SqlTranspiler
                 {
                     throw new SqExpressSqlTranspilerException($"Function '{functionName}' with '*' argument is not supported.");
                 }
-                return this.BuildScalarExpression(arg, context);
+                return this.BuildScalarExpression(arg, context, wrapLiterals);
             }).ToList();
 
             return Invoke("ScalarFunctionSys", Prepend(StringLiteral(functionName), functionArgs));
+        }
+
+        private ExpressionSyntax BuildWindowFunctionCall(FunctionCall functionCall, TranspileContext context, bool wrapLiterals)
+        {
+            if (functionCall.OverClause == null)
+            {
+                throw new SqExpressSqlTranspilerException("Expected OVER clause for window function.");
+            }
+
+            if (functionCall.OverClause.WindowName != null)
+            {
+                throw new SqExpressSqlTranspilerException("Named windows in OVER clause are not supported yet.");
+            }
+
+            var functionName = functionCall.FunctionName.Value;
+            var normalizedName = functionName.ToUpperInvariant();
+
+            if (IsKnownAggregateFunctionName(normalizedName) || functionCall.UniqueRowFilter == UniqueRowFilter.Distinct)
+            {
+                if (functionCall.OverClause.WindowFrameClause != null)
+                {
+                    return this.BuildAggregateWindowFunctionWithFrameHelpers(functionCall, context, wrapLiterals);
+                }
+
+                var aggregateFunction = this.BuildAggregateFunctionCall(functionCall, context, wrapLiterals);
+                return this.ApplyWindowOverToAggregate(aggregateFunction, functionCall.OverClause, context);
+            }
+
+            return this.BuildAnalyticWindowFunction(functionCall, context, wrapLiterals);
+        }
+
+        private ExpressionSyntax BuildAggregateFunctionCall(FunctionCall functionCall, TranspileContext context, bool wrapLiterals)
+        {
+            var functionName = functionCall.FunctionName.Value;
+            var normalizedName = functionName.ToUpperInvariant();
+            var distinct = functionCall.UniqueRowFilter == UniqueRowFilter.Distinct;
+
+            switch (normalizedName)
+            {
+                case "COUNT":
+                {
+                    if (functionCall.Parameters.Count == 1 && IsStar(functionCall.Parameters[0]))
+                    {
+                        if (distinct)
+                        {
+                            throw new SqExpressSqlTranspilerException("COUNT(DISTINCT *) is not valid.");
+                        }
+
+                        return Invoke("CountOne");
+                    }
+
+                    if (functionCall.Parameters.Count != 1)
+                    {
+                        throw new SqExpressSqlTranspilerException("COUNT supports exactly one argument.");
+                    }
+
+                    var countArg = this.BuildScalarExpression(functionCall.Parameters[0], context, wrapLiterals);
+                    return distinct
+                        ? Invoke("CountDistinct", countArg)
+                        : Invoke("Count", countArg);
+                }
+                case "MIN":
+                case "MAX":
+                case "SUM":
+                case "AVG":
+                {
+                    if (functionCall.Parameters.Count != 1)
+                    {
+                        throw new SqExpressSqlTranspilerException($"Aggregate function '{functionName}' supports exactly one argument.");
+                    }
+
+                    var arg = functionCall.Parameters[0];
+                    if (IsStar(arg))
+                    {
+                        throw new SqExpressSqlTranspilerException($"Aggregate function '{functionName}' does not support '*'.");
+                    }
+
+                    var value = this.BuildScalarExpression(arg, context, wrapLiterals);
+                    return normalizedName switch
+                    {
+                        "MIN" => Invoke(distinct ? "MinDistinct" : "Min", value),
+                        "MAX" => Invoke(distinct ? "MaxDistinct" : "Max", value),
+                        "SUM" => Invoke(distinct ? "SumDistinct" : "Sum", value),
+                        "AVG" => Invoke(distinct ? "AvgDistinct" : "Avg", value),
+                        _ => throw new SqExpressSqlTranspilerException($"Unsupported aggregate function '{functionName}'.")
+                    };
+                }
+                default:
+                {
+                    if (functionCall.Parameters.Count != 1)
+                    {
+                        throw new SqExpressSqlTranspilerException($"Aggregate function '{functionName}' with OVER supports exactly one argument.");
+                    }
+
+                    var arg = functionCall.Parameters[0];
+                    if (IsStar(arg))
+                    {
+                        throw new SqExpressSqlTranspilerException($"Aggregate function '{functionName}' with '*' argument is not supported.");
+                    }
+
+                    var value = this.BuildScalarExpression(arg, context, wrapLiterals);
+                    return Invoke(
+                        "AggregateFunction",
+                        StringLiteral(functionName),
+                        distinct
+                            ? LiteralExpression(SyntaxKind.TrueLiteralExpression)
+                            : LiteralExpression(SyntaxKind.FalseLiteralExpression),
+                        value);
+                }
+            }
+        }
+
+        private ExpressionSyntax ApplyWindowOverToAggregate(ExpressionSyntax aggregateFunction, OverClause overClause, TranspileContext context)
+        {
+            var partitions = this.BuildWindowPartitionExpressions(overClause, context);
+            var orderItems = this.BuildWindowOrderByItemExpressions(overClause.OrderByClause, context);
+
+            ExpressionSyntax result;
+            if (partitions.Count == 0)
+            {
+                result = orderItems.Count == 0
+                    ? InvokeMember(aggregateFunction, "Over")
+                    : InvokeMember(aggregateFunction, "OverOrderBy", Prepend(orderItems[0], orderItems.Skip(1).ToList()));
+            }
+            else
+            {
+                var partitioned = InvokeMember(aggregateFunction, "OverPartitionBy", Prepend(partitions[0], partitions.Skip(1).ToList()));
+                result = orderItems.Count == 0
+                    ? InvokeMember(partitioned, "NoOrderBy")
+                    : InvokeMember(partitioned, "OrderBy", Prepend(orderItems[0], orderItems.Skip(1).ToList()));
+            }
+
+            return result;
+        }
+
+        private ExpressionSyntax BuildAggregateWindowFunctionWithFrameHelpers(FunctionCall functionCall, TranspileContext context, bool wrapLiterals)
+        {
+            var overClause = functionCall.OverClause
+                ?? throw new SqExpressSqlTranspilerException("Expected OVER clause for aggregate window function.");
+
+            var frameClause = overClause.WindowFrameClause
+                ?? throw new SqExpressSqlTranspilerException("Expected frame clause for aggregate window function.");
+
+            if (frameClause.WindowFrameType == WindowFrameType.Range)
+            {
+                throw new SqExpressSqlTranspilerException("RANGE window frame is not supported yet. Use ROWS frame.");
+            }
+
+            var aggregateFunction = this.BuildAggregateFunctionCall(functionCall, context, wrapLiterals);
+            var partitions = this.BuildWindowPartitionExpressions(overClause, context);
+            var orderItems = this.BuildWindowOrderByItemExpressions(overClause.OrderByClause, context);
+
+            ExpressionSyntax baseWindow;
+            if (partitions.Count == 0)
+            {
+                baseWindow = orderItems.Count == 0
+                    ? InvokeMember(aggregateFunction, "Over")
+                    : InvokeMember(aggregateFunction, "OverOrderBy", Prepend(orderItems[0], orderItems.Skip(1).ToList()));
+            }
+            else
+            {
+                var partitioned = InvokeMember(aggregateFunction, "OverPartitionBy", Prepend(partitions[0], partitions.Skip(1).ToList()));
+                baseWindow = orderItems.Count == 0
+                    ? InvokeMember(partitioned, "NoOrderBy")
+                    : InvokeMember(partitioned, "OrderBy", Prepend(orderItems[0], orderItems.Skip(1).ToList()));
+            }
+
+            var start = this.BuildFrameBorderHelper(frameClause.Top, context);
+            var end = frameClause.Bottom == null
+                ? LiteralExpression(SyntaxKind.NullLiteralExpression)
+                : this.BuildFrameBorderHelper(frameClause.Bottom, context);
+
+            return InvokeMember(baseWindow, "FrameClause", start, end);
+        }
+
+        private ExpressionSyntax BuildAnalyticWindowFunction(FunctionCall functionCall, TranspileContext context, bool wrapLiterals)
+        {
+            var overClause = functionCall.OverClause
+                ?? throw new SqExpressSqlTranspilerException("Expected OVER clause for analytic function.");
+
+            if (!this.TryBuildAnalyticWindowFunctionBuilder(functionCall, context, wrapLiterals, out var builderExpression, out var frameBuilder))
+            {
+                return this.BuildAnalyticWindowFunctionLowLevel(functionCall, context, wrapLiterals);
+            }
+
+            var partitions = this.BuildWindowPartitionExpressions(overClause, context);
+            var orderItems = this.BuildWindowOrderByItemExpressions(overClause.OrderByClause, context);
+
+            if (frameBuilder)
+            {
+                if (orderItems.Count == 0)
+                {
+                    return this.BuildAnalyticWindowFunctionLowLevel(functionCall, context, wrapLiterals);
+                }
+
+                ExpressionSyntax overBuilder = partitions.Count == 0
+                    ? InvokeMember(builderExpression, "OverOrderBy", Prepend(orderItems[0], orderItems.Skip(1).ToList()))
+                    : InvokeMember(
+                        InvokeMember(builderExpression, "OverPartitionBy", Prepend(partitions[0], partitions.Skip(1).ToList())),
+                        "OverOrderBy",
+                        Prepend(orderItems[0], orderItems.Skip(1).ToList()));
+
+                if (overClause.WindowFrameClause == null)
+                {
+                    return InvokeMember(overBuilder, "FrameClauseEmpty");
+                }
+
+                if (overClause.WindowFrameClause.WindowFrameType == WindowFrameType.Range)
+                {
+                    throw new SqExpressSqlTranspilerException("RANGE window frame is not supported yet. Use ROWS frame.");
+                }
+
+                var start = this.BuildFrameBorderHelper(overClause.WindowFrameClause.Top, context);
+                var end = overClause.WindowFrameClause.Bottom == null
+                    ? LiteralExpression(SyntaxKind.NullLiteralExpression)
+                    : this.BuildFrameBorderHelper(overClause.WindowFrameClause.Bottom, context);
+
+                return InvokeMember(overBuilder, "FrameClause", start, end);
+            }
+
+            if (overClause.WindowFrameClause != null)
+            {
+                return this.BuildAnalyticWindowFunctionLowLevel(functionCall, context, wrapLiterals);
+            }
+
+            if (orderItems.Count == 0)
+            {
+                return this.BuildAnalyticWindowFunctionLowLevel(functionCall, context, wrapLiterals);
+            }
+
+            return partitions.Count == 0
+                ? InvokeMember(builderExpression, "OverOrderBy", Prepend(orderItems[0], orderItems.Skip(1).ToList()))
+                : InvokeMember(
+                    InvokeMember(builderExpression, "OverPartitionBy", Prepend(partitions[0], partitions.Skip(1).ToList())),
+                    "OverOrderBy",
+                    Prepend(orderItems[0], orderItems.Skip(1).ToList()));
+        }
+
+        private bool TryBuildAnalyticWindowFunctionBuilder(
+            FunctionCall functionCall,
+            TranspileContext context,
+            bool wrapLiterals,
+            out ExpressionSyntax builderExpression,
+            out bool frameBuilder)
+        {
+            var functionName = functionCall.FunctionName.Value;
+            var normalizedName = functionName.ToUpperInvariant();
+            var arguments = this.BuildFunctionArguments(functionCall.Parameters, context, wrapLiterals);
+
+            frameBuilder = false;
+            builderExpression = default!;
+
+            switch (normalizedName)
+            {
+                case "ROW_NUMBER":
+                {
+                    if (arguments.Count != 0)
+                    {
+                        return false;
+                    }
+
+                    builderExpression = Invoke("RowNumber");
+                    return true;
+                }
+                case "RANK":
+                {
+                    if (arguments.Count != 0)
+                    {
+                        return false;
+                    }
+
+                    builderExpression = Invoke("Rank");
+                    return true;
+                }
+                case "DENSE_RANK":
+                {
+                    if (arguments.Count != 0)
+                    {
+                        return false;
+                    }
+
+                    builderExpression = Invoke("DenseRank");
+                    return true;
+                }
+                case "CUME_DIST":
+                {
+                    if (arguments.Count != 0)
+                    {
+                        return false;
+                    }
+
+                    builderExpression = Invoke("CumeDist");
+                    return true;
+                }
+                case "PERCENT_RANK":
+                {
+                    if (arguments.Count != 0)
+                    {
+                        return false;
+                    }
+
+                    builderExpression = Invoke("PercentRank");
+                    return true;
+                }
+                case "NTILE":
+                {
+                    if (arguments.Count != 1)
+                    {
+                        return false;
+                    }
+
+                    builderExpression = Invoke("Ntile", arguments[0]);
+                    return true;
+                }
+                case "LAG":
+                {
+                    if (arguments.Count == 0 || arguments.Count > 3)
+                    {
+                        return false;
+                    }
+
+                    builderExpression = arguments.Count switch
+                    {
+                        1 => Invoke("Lag", arguments[0]),
+                        2 => Invoke("Lag", arguments[0], arguments[1]),
+                        3 => Invoke("Lag", arguments[0], arguments[1], arguments[2]),
+                        _ => throw new SqExpressSqlTranspilerException("Unexpected LAG argument count.")
+                    };
+                    return true;
+                }
+                case "LEAD":
+                {
+                    if (arguments.Count == 0 || arguments.Count > 3)
+                    {
+                        return false;
+                    }
+
+                    builderExpression = arguments.Count switch
+                    {
+                        1 => Invoke("Lead", arguments[0]),
+                        2 => Invoke("Lead", arguments[0], arguments[1]),
+                        3 => Invoke("Lead", arguments[0], arguments[1], arguments[2]),
+                        _ => throw new SqExpressSqlTranspilerException("Unexpected LEAD argument count.")
+                    };
+                    return true;
+                }
+                case "FIRST_VALUE":
+                {
+                    if (arguments.Count != 1)
+                    {
+                        return false;
+                    }
+
+                    frameBuilder = true;
+                    builderExpression = Invoke("FirstValue", arguments[0]);
+                    return true;
+                }
+                case "LAST_VALUE":
+                {
+                    if (arguments.Count != 1)
+                    {
+                        return false;
+                    }
+
+                    frameBuilder = true;
+                    builderExpression = Invoke("LastValue", arguments[0]);
+                    return true;
+                }
+                default:
+                {
+                    if (functionCall.OverClause?.WindowFrameClause != null)
+                    {
+                        if (arguments.Count == 0)
+                        {
+                            return false;
+                        }
+
+                        frameBuilder = true;
+                        builderExpression = Invoke("AnalyticFunctionFrame", Prepend(StringLiteral(functionName), arguments));
+                        return true;
+                    }
+
+                    builderExpression = arguments.Count == 0
+                        ? Invoke("AnalyticFunction", StringLiteral(functionName))
+                        : Invoke("AnalyticFunction", Prepend(StringLiteral(functionName), arguments));
+                    return true;
+                }
+            }
+        }
+
+        private ExpressionSyntax BuildAnalyticWindowFunctionLowLevel(FunctionCall functionCall, TranspileContext context, bool wrapLiterals)
+        {
+            var functionName = functionCall.FunctionName.Value;
+            var analyticArgs = this.BuildFunctionArguments(functionCall.Parameters, context, wrapLiterals);
+            var argsExpr = analyticArgs.Count == 0
+                ? LiteralExpression(SyntaxKind.NullLiteralExpression)
+                : this.BuildExprValueArray(analyticArgs);
+            var overExpression = this.BuildOverClause(functionCall.OverClause!, context);
+
+            return Invoke("AnalyticFunction", StringLiteral(functionName), argsExpr, overExpression);
+        }
+
+        private IReadOnlyList<ExpressionSyntax> BuildWindowPartitionExpressions(OverClause overClause, TranspileContext context)
+        {
+            return overClause.Partitions
+                .Select(partition => this.BuildScalarExpression(partition, context, wrapLiterals: false))
+                .ToList();
+        }
+
+        private IReadOnlyList<ExpressionSyntax> BuildWindowOrderByItemExpressions(OrderByClause? orderByClause, TranspileContext context)
+        {
+            if (orderByClause == null)
+            {
+                return Array.Empty<ExpressionSyntax>();
+            }
+
+            if (orderByClause.OrderByElements.Count == 0)
+            {
+                throw new SqExpressSqlTranspilerException("OVER ORDER BY list cannot be empty.");
+            }
+
+            return orderByClause.OrderByElements
+                .Select(item =>
+                    item.SortOrder == SortOrder.Descending
+                        ? (ExpressionSyntax)Invoke("Desc", this.BuildScalarExpression(item.Expression, context, wrapLiterals: false))
+                        : Invoke("Asc", this.BuildScalarExpression(item.Expression, context, wrapLiterals: false)))
+                .ToList();
+        }
+
+        private ExpressionSyntax BuildFrameBorderHelper(WindowDelimiter delimiter, TranspileContext context)
+        {
+            switch (delimiter.WindowDelimiterType)
+            {
+                case WindowDelimiterType.CurrentRow:
+                    return MemberAccessExpression(
+                        SyntaxKind.SimpleMemberAccessExpression,
+                        IdentifierName("FrameBorder"),
+                        IdentifierName("CurrentRow"));
+                case WindowDelimiterType.UnboundedPreceding:
+                    return MemberAccessExpression(
+                        SyntaxKind.SimpleMemberAccessExpression,
+                        IdentifierName("FrameBorder"),
+                        IdentifierName("UnboundedPreceding"));
+                case WindowDelimiterType.UnboundedFollowing:
+                    return MemberAccessExpression(
+                        SyntaxKind.SimpleMemberAccessExpression,
+                        IdentifierName("FrameBorder"),
+                        IdentifierName("UnboundedFollowing"));
+                case WindowDelimiterType.ValuePreceding:
+                {
+                    if (delimiter.OffsetValue == null)
+                    {
+                        throw new SqExpressSqlTranspilerException("Window frame boundary offset cannot be empty.");
+                    }
+
+                    return InvokeMember(
+                        IdentifierName("FrameBorder"),
+                        "Preceding",
+                        this.BuildScalarExpression(delimiter.OffsetValue, context, wrapLiterals: false));
+                }
+                case WindowDelimiterType.ValueFollowing:
+                {
+                    if (delimiter.OffsetValue == null)
+                    {
+                        throw new SqExpressSqlTranspilerException("Window frame boundary offset cannot be empty.");
+                    }
+
+                    return InvokeMember(
+                        IdentifierName("FrameBorder"),
+                        "Following",
+                        this.BuildScalarExpression(delimiter.OffsetValue, context, wrapLiterals: false));
+                }
+                default:
+                    throw new SqExpressSqlTranspilerException($"Unsupported window frame delimiter: {delimiter.WindowDelimiterType}.");
+            }
+        }
+
+        private ExpressionSyntax BuildOverClause(OverClause overClause, TranspileContext context)
+        {
+            if (overClause.WindowName != null)
+            {
+                throw new SqExpressSqlTranspilerException("Named windows in OVER clause are not supported yet.");
+            }
+
+            var partitionsExpr = overClause.Partitions.Count == 0
+                ? LiteralExpression(SyntaxKind.NullLiteralExpression)
+                : this.BuildExprValueArray(
+                    overClause.Partitions
+                        .Select(partition => this.BuildScalarExpression(partition, context, wrapLiterals: false))
+                        .ToList());
+
+            var orderByExpr = overClause.OrderByClause == null
+                ? LiteralExpression(SyntaxKind.NullLiteralExpression)
+                : this.BuildWindowOrderBy(overClause.OrderByClause, context);
+
+            var frameExpr = overClause.WindowFrameClause == null
+                ? LiteralExpression(SyntaxKind.NullLiteralExpression)
+                : this.BuildWindowFrame(overClause.WindowFrameClause, context);
+
+            return ObjectCreationExpression(IdentifierName("ExprOver"))
+                .WithArgumentList(
+                    ArgumentList(
+                        SeparatedList(new[]
+                        {
+                            Argument(partitionsExpr),
+                            Argument(orderByExpr),
+                            Argument(frameExpr)
+                        })));
+        }
+
+        private ExpressionSyntax BuildWindowOrderBy(OrderByClause orderByClause, TranspileContext context)
+        {
+            if (orderByClause.OrderByElements.Count == 0)
+            {
+                throw new SqExpressSqlTranspilerException("OVER ORDER BY list cannot be empty.");
+            }
+
+            var items = orderByClause.OrderByElements
+                .Select(item =>
+                    (ExpressionSyntax)ObjectCreationExpression(IdentifierName("ExprOrderByItem"))
+                        .WithArgumentList(
+                            ArgumentList(
+                                SeparatedList(new[]
+                                {
+                                    Argument(this.BuildScalarExpression(item.Expression, context, wrapLiterals: false)),
+                                    Argument(
+                                        item.SortOrder == SortOrder.Descending
+                                            ? LiteralExpression(SyntaxKind.TrueLiteralExpression)
+                                            : LiteralExpression(SyntaxKind.FalseLiteralExpression))
+                                }))))
+                .ToList();
+
+            var itemArray = ImplicitArrayCreationExpression(
+                InitializerExpression(
+                    SyntaxKind.ArrayInitializerExpression,
+                    SeparatedList(items)));
+
+            return ObjectCreationExpression(IdentifierName("ExprOrderBy"))
+                .WithArgumentList(
+                    ArgumentList(
+                        SingletonSeparatedList(
+                            Argument(itemArray))));
+        }
+
+        private ExpressionSyntax BuildWindowFrame(WindowFrameClause windowFrame, TranspileContext context)
+        {
+            if (windowFrame.WindowFrameType == WindowFrameType.Range)
+            {
+                throw new SqExpressSqlTranspilerException("RANGE window frame is not supported yet. Use ROWS frame.");
+            }
+
+            var top = this.BuildWindowDelimiter(windowFrame.Top, context);
+            var bottom = windowFrame.Bottom == null
+                ? LiteralExpression(SyntaxKind.NullLiteralExpression)
+                : this.BuildWindowDelimiter(windowFrame.Bottom, context);
+
+            return ObjectCreationExpression(IdentifierName("ExprFrameClause"))
+                .WithArgumentList(
+                    ArgumentList(
+                        SeparatedList(new[]
+                        {
+                            Argument(top),
+                            Argument(bottom)
+                        })));
+        }
+
+        private ExpressionSyntax BuildWindowDelimiter(WindowDelimiter delimiter, TranspileContext context)
+        {
+            switch (delimiter.WindowDelimiterType)
+            {
+                case WindowDelimiterType.CurrentRow:
+                    return MemberAccessExpression(
+                        SyntaxKind.SimpleMemberAccessExpression,
+                        IdentifierName("ExprCurrentRowFrameBorder"),
+                        IdentifierName("Instance"));
+                case WindowDelimiterType.UnboundedPreceding:
+                    return ObjectCreationExpression(IdentifierName("ExprUnboundedFrameBorder"))
+                        .WithArgumentList(
+                            ArgumentList(
+                                SingletonSeparatedList(
+                                    Argument(
+                                        MemberAccessExpression(
+                                            SyntaxKind.SimpleMemberAccessExpression,
+                                            IdentifierName("FrameBorderDirection"),
+                                            IdentifierName("Preceding"))))));
+                case WindowDelimiterType.UnboundedFollowing:
+                    return ObjectCreationExpression(IdentifierName("ExprUnboundedFrameBorder"))
+                        .WithArgumentList(
+                            ArgumentList(
+                                SingletonSeparatedList(
+                                    Argument(
+                                        MemberAccessExpression(
+                                            SyntaxKind.SimpleMemberAccessExpression,
+                                            IdentifierName("FrameBorderDirection"),
+                                            IdentifierName("Following"))))));
+                case WindowDelimiterType.ValuePreceding:
+                {
+                    if (delimiter.OffsetValue == null)
+                    {
+                        throw new SqExpressSqlTranspilerException("Window frame boundary offset cannot be empty.");
+                    }
+
+                    return ObjectCreationExpression(IdentifierName("ExprValueFrameBorder"))
+                        .WithArgumentList(
+                            ArgumentList(
+                                SeparatedList(new[]
+                                {
+                                    Argument(this.BuildScalarExpression(delimiter.OffsetValue, context, wrapLiterals: false)),
+                                    Argument(
+                                        MemberAccessExpression(
+                                            SyntaxKind.SimpleMemberAccessExpression,
+                                            IdentifierName("FrameBorderDirection"),
+                                            IdentifierName("Preceding")))
+                                })));
+                }
+                case WindowDelimiterType.ValueFollowing:
+                {
+                    if (delimiter.OffsetValue == null)
+                    {
+                        throw new SqExpressSqlTranspilerException("Window frame boundary offset cannot be empty.");
+                    }
+
+                    return ObjectCreationExpression(IdentifierName("ExprValueFrameBorder"))
+                        .WithArgumentList(
+                            ArgumentList(
+                                SeparatedList(new[]
+                                {
+                                    Argument(this.BuildScalarExpression(delimiter.OffsetValue, context, wrapLiterals: false)),
+                                    Argument(
+                                        MemberAccessExpression(
+                                            SyntaxKind.SimpleMemberAccessExpression,
+                                            IdentifierName("FrameBorderDirection"),
+                                            IdentifierName("Following")))
+                                })));
+                }
+                default:
+                    throw new SqExpressSqlTranspilerException($"Unsupported window frame delimiter: {delimiter.WindowDelimiterType}.");
+            }
+        }
+
+        private IReadOnlyList<ExpressionSyntax> BuildFunctionArguments(
+            IList<ScalarExpression> parameters,
+            TranspileContext context,
+            bool wrapLiterals)
+        {
+            return parameters
+                .Select(arg =>
+                {
+                    if (IsStar(arg))
+                    {
+                        throw new SqExpressSqlTranspilerException("Function call with '*' argument is not supported in this context.");
+                    }
+
+                    return this.BuildScalarExpression(arg, context, wrapLiterals);
+                })
+                .ToList();
+        }
+
+        private ExpressionSyntax BuildExprValueArray(IReadOnlyList<ExpressionSyntax> values)
+        {
+            return ArrayCreationExpression(
+                    ArrayType(ParseTypeName("SqExpress.Syntax.Value.ExprValue"))
+                        .WithRankSpecifiers(
+                            SingletonList(
+                                ArrayRankSpecifier(
+                                    SingletonSeparatedList<ExpressionSyntax>(
+                                        OmittedArraySizeExpression())))))
+                .WithInitializer(
+                    InitializerExpression(
+                        SyntaxKind.ArrayInitializerExpression,
+                        SeparatedList(values)));
+        }
+
+        private static bool IsKnownAggregateFunctionName(string normalizedName)
+        {
+            return normalizedName switch
+            {
+                "COUNT" => true,
+                "MIN" => true,
+                "MAX" => true,
+                "SUM" => true,
+                "AVG" => true,
+                _ => false
+            };
+        }
+
+        private bool TryBuildKnownFunctionCall(
+            FunctionCall functionCall,
+            TranspileContext context,
+            bool wrapLiterals,
+            out ExpressionSyntax expression)
+        {
+            var functionName = functionCall.FunctionName.Value;
+            var normalizedName = functionName.ToUpperInvariant();
+            expression = default!;
+
+            switch (normalizedName)
+            {
+                case "COUNT":
+                {
+                    if (functionCall.Parameters.Count == 1 && IsStar(functionCall.Parameters[0]))
+                    {
+                        if (functionCall.UniqueRowFilter == UniqueRowFilter.Distinct)
+                        {
+                            throw new SqExpressSqlTranspilerException("COUNT(DISTINCT *) is not valid.");
+                        }
+
+                        expression = Invoke("CountOne");
+                        return true;
+                    }
+
+                    if (functionCall.Parameters.Count != 1)
+                    {
+                        throw new SqExpressSqlTranspilerException("COUNT supports exactly one argument.");
+                    }
+
+                    var countArg = this.BuildScalarExpression(functionCall.Parameters[0], context, wrapLiterals);
+                    expression = functionCall.UniqueRowFilter == UniqueRowFilter.Distinct
+                        ? Invoke("CountDistinct", countArg)
+                        : Invoke("Count", countArg);
+                    return true;
+                }
+                case "MIN":
+                case "MAX":
+                case "SUM":
+                case "AVG":
+                {
+                    if (functionCall.Parameters.Count != 1)
+                    {
+                        return false;
+                    }
+
+                    var arg = this.BuildScalarExpression(functionCall.Parameters[0], context, wrapLiterals);
+                    var distinct = functionCall.UniqueRowFilter == UniqueRowFilter.Distinct;
+                    expression = normalizedName switch
+                    {
+                        "MIN" => Invoke(distinct ? "MinDistinct" : "Min", arg),
+                        "MAX" => Invoke(distinct ? "MaxDistinct" : "Max", arg),
+                        "SUM" => Invoke(distinct ? "SumDistinct" : "Sum", arg),
+                        "AVG" => Invoke(distinct ? "AvgDistinct" : "Avg", arg),
+                        _ => throw new SqExpressSqlTranspilerException($"Unsupported known aggregate function: {functionName}.")
+                    };
+                    return true;
+                }
+                case "ISNULL":
+                {
+                    if (functionCall.UniqueRowFilter == UniqueRowFilter.Distinct || functionCall.Parameters.Count != 2)
+                    {
+                        return false;
+                    }
+
+                    var arg1 = this.BuildScalarExpression(functionCall.Parameters[0], context, wrapLiterals);
+                    var arg2 = this.BuildScalarExpression(functionCall.Parameters[1], context, wrapLiterals);
+                    expression = Invoke("IsNull", arg1, arg2);
+                    return true;
+                }
+                case "COALESCE":
+                {
+                    if (functionCall.UniqueRowFilter == UniqueRowFilter.Distinct || functionCall.Parameters.Count < 2)
+                    {
+                        return false;
+                    }
+
+                    var args = functionCall.Parameters
+                        .Select(p => this.BuildScalarExpression(p, context, wrapLiterals))
+                        .ToList();
+                    expression = Invoke("Coalesce", args);
+                    return true;
+                }
+                case "GETDATE":
+                {
+                    if (functionCall.UniqueRowFilter == UniqueRowFilter.Distinct || functionCall.Parameters.Count != 0)
+                    {
+                        return false;
+                    }
+
+                    expression = Invoke("GetDate");
+                    return true;
+                }
+                case "GETUTCDATE":
+                {
+                    if (functionCall.UniqueRowFilter == UniqueRowFilter.Distinct || functionCall.Parameters.Count != 0)
+                    {
+                        return false;
+                    }
+
+                    expression = Invoke("GetUtcDate");
+                    return true;
+                }
+                case "DATEADD":
+                {
+                    if (functionCall.UniqueRowFilter == UniqueRowFilter.Distinct || functionCall.Parameters.Count != 3)
+                    {
+                        return false;
+                    }
+
+                    if (!TryParseDateAddDatePart(functionCall.Parameters[0], out var dateAddDatePart))
+                    {
+                        return false;
+                    }
+
+                    if (!TryExtractInt32Constant(functionCall.Parameters[1], out var number))
+                    {
+                        return false;
+                    }
+
+                    var date = this.BuildScalarExpression(functionCall.Parameters[2], context, wrapLiterals);
+                    expression = Invoke(
+                        "DateAdd",
+                        MemberAccessExpression(
+                            SyntaxKind.SimpleMemberAccessExpression,
+                            IdentifierName("DateAddDatePart"),
+                            IdentifierName(dateAddDatePart.ToString())),
+                        LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal(number)),
+                        date);
+                    return true;
+                }
+                case "DATEDIFF":
+                {
+                    if (functionCall.UniqueRowFilter == UniqueRowFilter.Distinct || functionCall.Parameters.Count != 3)
+                    {
+                        return false;
+                    }
+
+                    if (!TryParseDateDiffDatePart(functionCall.Parameters[0], out var dateDiffDatePart))
+                    {
+                        return false;
+                    }
+
+                    var startDate = this.BuildScalarExpression(functionCall.Parameters[1], context, wrapLiterals);
+                    var endDate = this.BuildScalarExpression(functionCall.Parameters[2], context, wrapLiterals);
+                    expression = Invoke(
+                        "DateDiff",
+                        MemberAccessExpression(
+                            SyntaxKind.SimpleMemberAccessExpression,
+                            IdentifierName("DateDiffDatePart"),
+                            IdentifierName(dateDiffDatePart.ToString())),
+                        startDate,
+                        endDate);
+                    return true;
+                }
+                default:
+                    return false;
+            }
         }
 
         private ExpressionSyntax BuildColumnExpression(ColumnReferenceExpression columnReference, TranspileContext context)
@@ -866,12 +2230,20 @@ namespace SqExpress.SqlTranspiler
                     IdentifierName(resolvedColumn.Column.PropertyName));
             }
 
+            if (context.TryResolveColumnSource(columnReference, out var dynamicSource) && dynamicSource.Descriptor == null)
+            {
+                if (identifiers.Count > 1)
+                {
+                    return InvokeMember(IdentifierName(dynamicSource.VariableName), "Column", StringLiteral(columnName));
+                }
+            }
+
             return Invoke("Column", StringLiteral(columnName));
         }
 
         private ExpressionSyntax BuildOrderBy(ExpressionWithSortOrder orderByItem, TranspileContext context)
         {
-            var expression = this.BuildScalarExpression(orderByItem.Expression, context);
+            var expression = this.BuildScalarExpression(orderByItem.Expression, context, wrapLiterals: false);
             if (orderByItem.SortOrder == SortOrder.Descending)
             {
                 return Invoke("Desc", expression);
@@ -918,6 +2290,185 @@ namespace SqExpress.SqlTranspiler
 
         private static bool IsStringLiteral(ScalarExpression expression)
             => expression is StringLiteral;
+
+        private static bool IsLiteralOnlyExpression(ScalarExpression expression)
+        {
+            switch (expression)
+            {
+                case Microsoft.SqlServer.TransactSql.ScriptDom.NullLiteral:
+                case Microsoft.SqlServer.TransactSql.ScriptDom.StringLiteral:
+                case Microsoft.SqlServer.TransactSql.ScriptDom.IntegerLiteral:
+                case Microsoft.SqlServer.TransactSql.ScriptDom.NumericLiteral:
+                case Microsoft.SqlServer.TransactSql.ScriptDom.MoneyLiteral:
+                    return true;
+                case UnaryExpression unary:
+                    return IsLiteralOnlyExpression(unary.Expression);
+                case ParenthesisExpression parenthesis:
+                    return IsLiteralOnlyExpression(parenthesis.Expression);
+                case BinaryExpression binary:
+                    return IsLiteralOnlyExpression(binary.FirstExpression)
+                           && IsLiteralOnlyExpression(binary.SecondExpression);
+                case CastCall castCall:
+                    return IsLiteralOnlyExpression(castCall.Parameter);
+                default:
+                    return false;
+            }
+        }
+
+        private static bool TryExtractInt32Constant(ScalarExpression expression, out int value)
+        {
+            value = 0;
+            switch (expression)
+            {
+                case IntegerLiteral integerLiteral:
+                    return int.TryParse(integerLiteral.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
+                case UnaryExpression unaryExpression when unaryExpression.UnaryExpressionType == UnaryExpressionType.Negative:
+                    if (TryExtractInt32Constant(unaryExpression.Expression, out var negativeInner))
+                    {
+                        value = -negativeInner;
+                        return true;
+                    }
+                    return false;
+                case UnaryExpression unaryExpression when unaryExpression.UnaryExpressionType == UnaryExpressionType.Positive:
+                    return TryExtractInt32Constant(unaryExpression.Expression, out value);
+                default:
+                    return false;
+            }
+        }
+
+        private static bool TryParseDateAddDatePart(ScalarExpression expression, out DateAddDatePart datePart)
+        {
+            datePart = default;
+            if (!TryGetDatePartToken(expression, out var token))
+            {
+                return false;
+            }
+
+            switch (token)
+            {
+                case "YEAR":
+                case "YY":
+                case "YYYY":
+                    datePart = DateAddDatePart.Year;
+                    return true;
+                case "MONTH":
+                case "MM":
+                case "M":
+                    datePart = DateAddDatePart.Month;
+                    return true;
+                case "DAY":
+                case "DD":
+                case "D":
+                    datePart = DateAddDatePart.Day;
+                    return true;
+                case "WEEK":
+                case "WK":
+                case "WW":
+                    datePart = DateAddDatePart.Week;
+                    return true;
+                case "HOUR":
+                case "HH":
+                    datePart = DateAddDatePart.Hour;
+                    return true;
+                case "MINUTE":
+                case "MI":
+                case "N":
+                    datePart = DateAddDatePart.Minute;
+                    return true;
+                case "SECOND":
+                case "SS":
+                case "S":
+                    datePart = DateAddDatePart.Second;
+                    return true;
+                case "MILLISECOND":
+                case "MS":
+                    datePart = DateAddDatePart.Millisecond;
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static bool TryParseDateDiffDatePart(ScalarExpression expression, out DateDiffDatePart datePart)
+        {
+            datePart = default;
+            if (!TryGetDatePartToken(expression, out var token))
+            {
+                return false;
+            }
+
+            switch (token)
+            {
+                case "YEAR":
+                case "YY":
+                case "YYYY":
+                    datePart = DateDiffDatePart.Year;
+                    return true;
+                case "MONTH":
+                case "MM":
+                case "M":
+                    datePart = DateDiffDatePart.Month;
+                    return true;
+                case "DAY":
+                case "DD":
+                case "D":
+                    datePart = DateDiffDatePart.Day;
+                    return true;
+                case "HOUR":
+                case "HH":
+                    datePart = DateDiffDatePart.Hour;
+                    return true;
+                case "MINUTE":
+                case "MI":
+                case "N":
+                    datePart = DateDiffDatePart.Minute;
+                    return true;
+                case "SECOND":
+                case "SS":
+                case "S":
+                    datePart = DateDiffDatePart.Second;
+                    return true;
+                case "MILLISECOND":
+                case "MS":
+                    datePart = DateDiffDatePart.Millisecond;
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static bool TryGetDatePartToken(ScalarExpression expression, out string token)
+        {
+            token = string.Empty;
+
+            if (expression is ColumnReferenceExpression columnReference
+                && columnReference.ColumnType != ColumnType.Wildcard
+                && columnReference.MultiPartIdentifier?.Identifiers != null
+                && columnReference.MultiPartIdentifier.Identifiers.Count == 1)
+            {
+                var singleIdentifier = columnReference.MultiPartIdentifier.Identifiers[0].Value;
+                if (!string.IsNullOrWhiteSpace(singleIdentifier))
+                {
+                    token = singleIdentifier.ToUpperInvariant();
+                    return true;
+                }
+            }
+
+            if (expression is IdentifierLiteral identifierLiteral && !string.IsNullOrWhiteSpace(identifierLiteral.Value))
+            {
+                token = identifierLiteral.Value.ToUpperInvariant();
+                return true;
+            }
+
+            if (expression is Microsoft.SqlServer.TransactSql.ScriptDom.StringLiteral stringLiteral
+                && !string.IsNullOrWhiteSpace(stringLiteral.Value))
+            {
+                token = stringLiteral.Value.ToUpperInvariant();
+                return true;
+            }
+
+            return false;
+        }
 
         private static TSqlScript ParseScript(string sql)
         {
@@ -981,9 +2532,37 @@ namespace SqExpress.SqlTranspiler
             return null;
         }
 
+        private static QuerySpecification UnwrapQuerySpecification(QueryExpression? queryExpression, string errorMessage)
+        {
+            if (queryExpression == null)
+            {
+                throw new SqExpressSqlTranspilerException(errorMessage);
+            }
+
+            var current = queryExpression;
+            while (current is QueryParenthesisExpression parenthesized)
+            {
+                current = parenthesized.QueryExpression;
+            }
+
+            if (current is QuerySpecification querySpecification)
+            {
+                return querySpecification;
+            }
+
+            throw new SqExpressSqlTranspilerException(errorMessage);
+        }
+
         private static IReadOnlyList<string> ExtractProjectedColumns(QueryExpression queryExpression)
         {
-            if (queryExpression is not QuerySpecification specification)
+            QuerySpecification specification;
+            try
+            {
+                specification = UnwrapQuerySpecification(
+                    queryExpression,
+                    "Only SELECT query specifications are supported for projected columns extraction.");
+            }
+            catch (SqExpressSqlTranspilerException)
             {
                 return Array.Empty<string>();
             }
@@ -1121,24 +2700,47 @@ namespace SqExpress.SqlTranspiler
 
         private sealed class TranspileContext
         {
-            private readonly List<TableDescriptor> _descriptors = new();
+            private readonly SharedDescriptorState _sharedState;
+            private readonly TranspileContext? _parent;
             private readonly List<TableSource> _sources = new();
             private readonly List<LocalDeclarationStatementSyntax> _sourceDeclarations = new();
             private readonly Dictionary<NamedTableReference, TableSource> _namedSourceMap = new(ReferenceEqualityComparer<NamedTableReference>.Instance);
             private readonly Dictionary<QueryDerivedTable, TableSource> _derivedSourceMap = new(ReferenceEqualityComparer<QueryDerivedTable>.Instance);
+            private readonly Dictionary<SchemaObjectFunctionTableReference, TableSource> _schemaFunctionSourceMap = new(ReferenceEqualityComparer<SchemaObjectFunctionTableReference>.Instance);
+            private readonly Dictionary<BuiltInFunctionTableReference, TableSource> _builtInFunctionSourceMap = new(ReferenceEqualityComparer<BuiltInFunctionTableReference>.Instance);
+            private readonly Dictionary<GlobalFunctionTableReference, TableSource> _globalFunctionSourceMap = new(ReferenceEqualityComparer<GlobalFunctionTableReference>.Instance);
             private readonly Dictionary<string, TableSource> _sourceByAlias = new(StringComparer.OrdinalIgnoreCase);
             private readonly Dictionary<string, TableSource?> _sourceByObjectName = new(StringComparer.OrdinalIgnoreCase);
-            private readonly Dictionary<string, TableDescriptor> _cteDescriptors = new(StringComparer.OrdinalIgnoreCase);
-            private readonly HashSet<string> _variableNames = new(StringComparer.OrdinalIgnoreCase);
-            private readonly HashSet<string> _classNames = new(StringComparer.OrdinalIgnoreCase);
+            private readonly HashSet<string> _variableNames;
 
             public TranspileContext(SqExpressSqlTranspilerOptions options)
+                : this(new SharedDescriptorState(), new HashSet<string>(StringComparer.OrdinalIgnoreCase), parent: null)
             {
             }
 
-            public IReadOnlyList<TableDescriptor> Descriptors => this._descriptors;
+            private TranspileContext(SharedDescriptorState sharedState, HashSet<string> variableNames, TranspileContext? parent)
+            {
+                this._sharedState = sharedState;
+                this._variableNames = variableNames;
+                this._parent = parent;
+            }
+
+            public TranspileContext CreateChild(bool shareVariableNames = false, bool inheritSourceResolution = false)
+                => new TranspileContext(
+                    this._sharedState,
+                    shareVariableNames
+                        ? this._variableNames
+                        : new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+                    parent: inheritSourceResolution ? this : null);
+
+            public IReadOnlyList<TableDescriptor> Descriptors => this._sharedState.Descriptors;
 
             public IReadOnlyList<LocalDeclarationStatementSyntax> SourceDeclarations => this._sourceDeclarations;
+
+            public void AbsorbSourceDeclarations(TranspileContext context)
+            {
+                this._sourceDeclarations.AddRange(context._sourceDeclarations);
+            }
 
             public void RegisterCtes(WithCtesAndXmlNamespaces? withClause)
             {
@@ -1155,7 +2757,7 @@ namespace SqExpress.SqlTranspiler
                         continue;
                     }
 
-                    if (this._cteDescriptors.ContainsKey(cteName!))
+                    if (this._sharedState.CteDescriptors.ContainsKey(cteName!))
                     {
                         continue;
                     }
@@ -1165,7 +2767,8 @@ namespace SqExpress.SqlTranspiler
                         kind: DescriptorKind.Cte,
                         objectName: cteName!,
                         schemaName: null,
-                        databaseName: null);
+                        databaseName: null,
+                        queryExpression: cte.QueryExpression);
 
                     var columns = cte.Columns.Count > 0
                         ? cte.Columns.Select(i => i.Value).Where(i => !string.IsNullOrWhiteSpace(i)).ToList()
@@ -1176,8 +2779,8 @@ namespace SqExpress.SqlTranspiler
                         descriptor.GetOrAddColumn(column, DescriptorColumnKind.Int32);
                     }
 
-                    this._cteDescriptors[cteName!] = descriptor;
-                    this._descriptors.Add(descriptor);
+                    this._sharedState.CteDescriptors[cteName!] = descriptor;
+                    this._sharedState.Descriptors.Add(descriptor);
                 }
             }
 
@@ -1209,20 +2812,21 @@ namespace SqExpress.SqlTranspiler
 
                 if (tableReference.SchemaObject.DatabaseIdentifier == null
                     && tableReference.SchemaObject.SchemaIdentifier == null
-                    && this._cteDescriptors.TryGetValue(objectName!, out var cteDescriptor))
+                    && this._sharedState.CteDescriptors.TryGetValue(objectName!, out var cteDescriptor))
                 {
                     descriptor = cteDescriptor;
                 }
                 else
                 {
                     descriptor = new TableDescriptor(
-                        className: this.CreateClassName((alias ?? objectName) + "Table", "GeneratedTable"),
+                        className: this.CreateClassName(objectName + "Table", "GeneratedTable"),
                         kind: DescriptorKind.Table,
                         objectName: objectName!,
                         schemaName: tableReference.SchemaObject.SchemaIdentifier?.Value,
-                        databaseName: tableReference.SchemaObject.DatabaseIdentifier?.Value);
+                        databaseName: tableReference.SchemaObject.DatabaseIdentifier?.Value,
+                        queryExpression: null);
 
-                    this._descriptors.Add(descriptor);
+                    this._sharedState.Descriptors.Add(descriptor);
                 }
 
                 var source = this.RegisterSource(descriptor, alias ?? objectName!, alias, objectName!);
@@ -1248,17 +2852,93 @@ namespace SqExpress.SqlTranspiler
                     kind: DescriptorKind.SubQuery,
                     objectName: alias!,
                     schemaName: null,
-                    databaseName: null);
+                    databaseName: null,
+                    queryExpression: queryDerivedTable.QueryExpression);
 
                 foreach (var column in ExtractProjectedColumns(queryDerivedTable.QueryExpression))
                 {
                     descriptor.GetOrAddColumn(column, DescriptorColumnKind.Int32);
                 }
 
-                this._descriptors.Add(descriptor);
+                this._sharedState.Descriptors.Add(descriptor);
 
                 var source = this.RegisterSource(descriptor, alias!, alias, alias!);
                 this._derivedSourceMap[queryDerivedTable] = source;
+                return source;
+            }
+
+            public TableSource GetOrAddSchemaFunctionSource(SchemaObjectFunctionTableReference functionReference, SqExpressSqlTranspiler transpiler)
+            {
+                if (this._schemaFunctionSourceMap.TryGetValue(functionReference, out var existing))
+                {
+                    return existing;
+                }
+
+                var functionName = functionReference.SchemaObject?.BaseIdentifier?.Value;
+                if (string.IsNullOrWhiteSpace(functionName))
+                {
+                    throw new SqExpressSqlTranspilerException("Table function name cannot be empty.");
+                }
+
+                var alias = functionReference.Alias?.Value;
+                var sourceExpression = transpiler.BuildTableFunctionSourceExpression(functionReference, this);
+                var source = this.RegisterDynamicSource(
+                    sourceExpression,
+                    alias ?? functionName!,
+                    alias,
+                    functionName!);
+
+                this._schemaFunctionSourceMap[functionReference] = source;
+                return source;
+            }
+
+            public TableSource GetOrAddBuiltInFunctionSource(BuiltInFunctionTableReference functionReference, SqExpressSqlTranspiler transpiler)
+            {
+                if (this._builtInFunctionSourceMap.TryGetValue(functionReference, out var existing))
+                {
+                    return existing;
+                }
+
+                var functionName = functionReference.Name?.Value;
+                if (string.IsNullOrWhiteSpace(functionName))
+                {
+                    throw new SqExpressSqlTranspilerException("Table function name cannot be empty.");
+                }
+
+                var alias = functionReference.Alias?.Value;
+                var sourceExpression = transpiler.BuildTableFunctionSourceExpression(functionReference, this);
+                var source = this.RegisterDynamicSource(
+                    sourceExpression,
+                    alias ?? functionName!,
+                    alias,
+                    functionName!);
+
+                this._builtInFunctionSourceMap[functionReference] = source;
+                return source;
+            }
+
+            public TableSource GetOrAddGlobalFunctionSource(GlobalFunctionTableReference functionReference, SqExpressSqlTranspiler transpiler)
+            {
+                if (this._globalFunctionSourceMap.TryGetValue(functionReference, out var existing))
+                {
+                    return existing;
+                }
+
+                var functionName = functionReference.Name?.Value;
+                if (string.IsNullOrWhiteSpace(functionName))
+                {
+                    throw new SqExpressSqlTranspilerException("Table function name cannot be empty.");
+                }
+
+                var alias = functionReference.Alias?.Value;
+                var sourceExpression = transpiler.BuildTableFunctionSourceExpression(functionReference, this);
+                var source = this.RegisterDynamicSource(
+                    sourceExpression,
+                    alias ?? functionName!,
+                    alias,
+                    functionName!);
+
+                this._globalFunctionSourceMap[functionReference] = source;
                 return source;
             }
 
@@ -1273,6 +2953,12 @@ namespace SqExpress.SqlTranspiler
                 if (this._sourceByObjectName.TryGetValue(sourceName, out var byName) && byName != null)
                 {
                     source = byName;
+                    return true;
+                }
+
+                if (this._parent != null && this._parent.TryResolveSource(sourceName, out var parentSource))
+                {
+                    source = parentSource;
                     return true;
                 }
 
@@ -1327,13 +3013,94 @@ namespace SqExpress.SqlTranspiler
                     return null;
                 }
 
+                if (source.Descriptor == null)
+                {
+                    return null;
+                }
+
                 var descriptorColumn = source.Descriptor.GetOrAddColumn(columnName!, typeHint);
                 return new RegisteredDescriptorColumn(source, descriptorColumn);
             }
 
+            public bool TryResolveColumnSource(ColumnReferenceExpression columnReference, out TableSource source)
+            {
+                source = null!;
+                if (columnReference.ColumnType == ColumnType.Wildcard)
+                {
+                    return false;
+                }
+
+                var identifiers = columnReference.MultiPartIdentifier?.Identifiers;
+                if (identifiers == null || identifiers.Count < 1)
+                {
+                    return false;
+                }
+
+                if (identifiers.Count > 1)
+                {
+                    for (int i = identifiers.Count - 2; i >= 0; i--)
+                    {
+                        var sourceName = identifiers[i].Value;
+                        if (!string.IsNullOrWhiteSpace(sourceName) && this.TryResolveSource(sourceName, out var resolved))
+                        {
+                            source = resolved;
+                            return true;
+                        }
+                    }
+                }
+                else if (this._sources.Count == 1)
+                {
+                    source = this._sources[0];
+                    return true;
+                }
+
+                return false;
+            }
+
             private TableSource RegisterSource(TableDescriptor descriptor, string variableSeed, string? alias, string objectName)
             {
-                var source = new TableSource(descriptor, this.CreateVariableName(variableSeed), alias);
+                var source = new TableSource(
+                    descriptor,
+                    this.CreateVariableName(variableSeed),
+                    alias,
+                    ObjectCreationExpression(IdentifierName(descriptor.ClassName))
+                        .WithArgumentList(
+                            ArgumentList(
+                                SeparatedList(
+                                    !string.IsNullOrWhiteSpace(alias)
+                                        ? new[] { Argument(StringLiteral(alias!)) }
+                                        : Array.Empty<ArgumentSyntax>()))));
+                this._sources.Add(source);
+                this._sourceDeclarations.Add(this.CreateSourceDeclaration(source));
+
+                if (!string.IsNullOrWhiteSpace(alias))
+                {
+                    this._sourceByAlias[alias!] = source;
+                }
+
+                if (this._sourceByObjectName.TryGetValue(objectName, out var existingByName))
+                {
+                    if (!ReferenceEquals(existingByName, source))
+                    {
+                        this._sourceByObjectName[objectName] = null;
+                    }
+                }
+                else
+                {
+                    this._sourceByObjectName[objectName] = source;
+                }
+
+                return source;
+            }
+
+            private TableSource RegisterDynamicSource(ExpressionSyntax sourceExpression, string variableSeed, string? alias, string objectName)
+            {
+                var source = new TableSource(
+                    descriptor: null,
+                    variableName: this.CreateVariableName(variableSeed),
+                    sqlAlias: alias,
+                    initializationExpression: sourceExpression);
+
                 this._sources.Add(source);
                 this._sourceDeclarations.Add(this.CreateSourceDeclaration(source));
 
@@ -1359,14 +3126,7 @@ namespace SqExpress.SqlTranspiler
 
             private LocalDeclarationStatementSyntax CreateSourceDeclaration(TableSource source)
             {
-                var arguments = new List<ArgumentSyntax>();
-
-                if (!string.IsNullOrWhiteSpace(source.SqlAlias))
-                {
-                    arguments.Add(Argument(StringLiteral(source.SqlAlias!)));
-                }
-
-                if (source.Descriptor.Kind == DescriptorKind.SubQuery && arguments.Count == 0)
+                if (source.Descriptor?.Kind == DescriptorKind.SubQuery && string.IsNullOrWhiteSpace(source.SqlAlias))
                 {
                     throw new SqExpressSqlTranspilerException("Derived table alias cannot be empty.");
                 }
@@ -1376,9 +3136,7 @@ namespace SqExpress.SqlTranspiler
                         .AddVariables(
                             VariableDeclarator(Identifier(source.VariableName))
                                 .WithInitializer(
-                                    EqualsValueClause(
-                                        ObjectCreationExpression(IdentifierName(source.Descriptor.ClassName))
-                                            .WithArgumentList(ArgumentList(SeparatedList(arguments)))))));
+                                    EqualsValueClause(source.InitializationExpression))));
             }
 
             private string CreateVariableName(string source)
@@ -1404,15 +3162,24 @@ namespace SqExpress.SqlTranspiler
 
                 var candidate = normalized;
                 var index = 0;
-                while (this._classNames.Contains(candidate))
+                while (this._sharedState.ClassNames.Contains(candidate))
                 {
                     index++;
                     candidate = normalized + index.ToString(CultureInfo.InvariantCulture);
                 }
 
-                this._classNames.Add(candidate);
+                this._sharedState.ClassNames.Add(candidate);
                 return candidate;
             }
+        }
+
+        private sealed class SharedDescriptorState
+        {
+            public List<TableDescriptor> Descriptors { get; } = new();
+
+            public Dictionary<string, TableDescriptor> CteDescriptors { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+            public HashSet<string> ClassNames { get; } = new(StringComparer.OrdinalIgnoreCase);
         }
 
         private readonly struct RegisteredDescriptorColumn
@@ -1430,18 +3197,21 @@ namespace SqExpress.SqlTranspiler
 
         private sealed class TableSource
         {
-            public TableSource(TableDescriptor descriptor, string variableName, string? sqlAlias)
+            public TableSource(TableDescriptor? descriptor, string variableName, string? sqlAlias, ExpressionSyntax initializationExpression)
             {
                 this.Descriptor = descriptor;
                 this.VariableName = variableName;
                 this.SqlAlias = sqlAlias;
+                this.InitializationExpression = initializationExpression;
             }
 
-            public TableDescriptor Descriptor { get; }
+            public TableDescriptor? Descriptor { get; }
 
             public string VariableName { get; }
 
             public string? SqlAlias { get; }
+
+            public ExpressionSyntax InitializationExpression { get; }
         }
 
         private sealed class TableDescriptor
@@ -1450,13 +3220,14 @@ namespace SqExpress.SqlTranspiler
             private readonly Dictionary<string, TableDescriptorColumn> _columnMap = new(StringComparer.OrdinalIgnoreCase);
             private readonly HashSet<string> _propertyNames = new(StringComparer.OrdinalIgnoreCase);
 
-            public TableDescriptor(string className, DescriptorKind kind, string objectName, string? schemaName, string? databaseName)
+            public TableDescriptor(string className, DescriptorKind kind, string objectName, string? schemaName, string? databaseName, QueryExpression? queryExpression)
             {
                 this.ClassName = className;
                 this.Kind = kind;
                 this.ObjectName = objectName;
                 this.SchemaName = schemaName;
                 this.DatabaseName = databaseName;
+                this.QueryExpression = queryExpression;
             }
 
             public string ClassName { get; }
@@ -1468,6 +3239,8 @@ namespace SqExpress.SqlTranspiler
             public string? SchemaName { get; }
 
             public string? DatabaseName { get; }
+
+            public QueryExpression? QueryExpression { get; }
 
             public IReadOnlyList<TableDescriptorColumn> Columns => this._columns;
 

@@ -1,0 +1,121 @@
+.workspace {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 2rem 1rem;
+}
+
+.workspace-header h1 {
+    margin: 0;
+    font-size: 2rem;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+}
+
+.workspace-header p {
+    margin-top: 0.4rem;
+    color: var(--muted-text);
+}
+
+.editor-card,
+.output-card {
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    background: var(--surface);
+    box-shadow: 0 8px 32px rgba(11, 24, 36, 0.06);
+}
+
+.editor-card {
+    margin-top: 1rem;
+    padding: 0.85rem;
+}
+
+.card-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.65rem;
+}
+
+.card-title-row h2,
+.output-card h2 {
+    margin: 0;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted-text);
+}
+
+.action-button {
+    border: 1px solid #0f766e;
+    background: #0f766e;
+    color: #ffffff;
+    border-radius: 10px;
+    padding: 0.45rem 0.9rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.action-button:hover {
+    background: #0c625b;
+    border-color: #0c625b;
+}
+
+.sql-editor {
+    width: 100%;
+    min-height: 300px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+}
+
+.error-box {
+    margin-top: 0.75rem;
+    border: 1px solid #fda4af;
+    border-radius: 10px;
+    background: #fff1f2;
+    color: #881337;
+    padding: 0.65rem 0.75rem;
+    white-space: pre-wrap;
+}
+
+.outputs-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.9rem;
+    margin-top: 1rem;
+    min-width: 0;
+}
+
+.output-card {
+    padding: 0.75rem;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.output-card pre {
+    margin: 0.65rem 0 0 0;
+    border-radius: 10px;
+    min-height: 240px;
+    max-height: 500px;
+    overflow: auto;
+    padding: 0.8rem;
+    background: #0b1220;
+    color: #e2e8f0;
+    font-size: 0.84rem;
+    line-height: 1.5;
+    width: 100%;
+    max-width: 100%;
+    white-space: pre;
+    word-break: normal;
+    overflow-x: auto;
+    overflow-y: auto;
+}
+
+@media (min-width: 1080px) {
+    .outputs-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}

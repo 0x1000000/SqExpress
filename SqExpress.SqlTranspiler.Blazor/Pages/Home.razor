@@ -1,0 +1,108 @@
+@page "/"
+@using Microsoft.JSInterop
+@using SqExpress.SqlTranspiler
+@implements IAsyncDisposable
+@inject IJSRuntime JsRuntime
+
+<PageTitle>SqExpress SQL Transpiler</PageTitle>
+
+<section class="workspace">
+    <header class="workspace-header">
+        <h1>SqExpress SQL Transpiler</h1>
+        <p>Client-side only WebAssembly app: T-SQL in, SqExpress C# out.</p>
+    </header>
+
+    <div class="editor-card">
+        <div class="card-title-row">
+            <h2>SQL Input</h2>
+            <button class="action-button" @onclick="TranspileAsync">Transpile</button>
+        </div>
+        <div id="sql-editor" class="sql-editor"></div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(this._error))
+    {
+        <div class="error-box">@this._error</div>
+    }
+
+    <div class="outputs-grid">
+        <div class="output-card">
+            <h2>SqQuery Output</h2>
+            <pre>@this._queryOutput</pre>
+        </div>
+        <div class="output-card">
+            <h2>Declarations Output</h2>
+            <pre>@this._declarationsOutput</pre>
+        </div>
+    </div>
+</section>
+
+@code
+{
+    private const string EditorElementId = "sql-editor";
+    private DotNetObjectReference<Home>? _dotNetRef;
+    private string _sqlText =
+        "SELECT u.UserId, u.Name AS UserName " +
+        "FROM dbo.Users u " +
+        "WHERE u.IsActive = 1 " +
+        "ORDER BY u.Name DESC";
+
+    private string _queryOutput = string.Empty;
+    private string _declarationsOutput = string.Empty;
+    private string? _error;
+    private bool _editorInitialized;
+
+    [JSInvokable]
+    public Task OnSqlChangedFromJs(string sqlText)
+    {
+        this._sqlText = sqlText;
+        return Task.CompletedTask;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        this._dotNetRef = DotNetObjectReference.Create(this);
+        await JsRuntime.InvokeVoidAsync("sqExpressSqlEditor.initialize", EditorElementId, this._dotNetRef, this._sqlText);
+        this._editorInitialized = true;
+        await this.TranspileAsync();
+    }
+
+    private async Task TranspileAsync()
+    {
+        try
+        {
+            if (this._editorInitialized)
+            {
+                this._sqlText = await JsRuntime.InvokeAsync<string>("sqExpressSqlEditor.getValue", EditorElementId);
+            }
+
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(this._sqlText);
+
+            this._queryOutput = result.QueryCSharpCode;
+            this._declarationsOutput = result.DeclarationsCSharpCode;
+            this._error = null;
+        }
+        catch (Exception ex)
+        {
+            this._queryOutput = string.Empty;
+            this._declarationsOutput = string.Empty;
+            this._error = ex.Message;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (this._editorInitialized)
+        {
+            await JsRuntime.InvokeVoidAsync("sqExpressSqlEditor.dispose", EditorElementId);
+        }
+
+        this._dotNetRef?.Dispose();
+    }
+}
