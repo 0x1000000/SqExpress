@@ -35,6 +35,21 @@ a {
     color: #0e7490;
 }
 
+#app {
+    min-height: 100%;
+    background: transparent;
+}
+
+.app-loading {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(165deg, var(--bg-grad-start) 0%, var(--bg-grad-end) 100%);
+}
+
 #blazor-error-ui {
     background: #fef2f2;
     border-top: 1px solid #fecaca;
@@ -58,7 +73,7 @@ a {
     display: block;
     width: 7rem;
     height: 7rem;
-    margin: 25vh auto 0.9rem auto;
+    margin: 0 0 0.9rem 0;
 }
 
 .loading-progress circle {
@@ -76,10 +91,9 @@ a {
 }
 
 .loading-progress-text {
-    position: absolute;
+    position: static;
     text-align: center;
     font-weight: 700;
-    inset: calc(25vh + 2.8rem) 0 auto 0;
 }
 
 .loading-progress-text:after {

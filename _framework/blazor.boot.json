@@ -1,7 +1,7 @@
 {
   "mainAssemblyName": "SqExpress.SqlTranspiler.Blazor",
   "resources": {
-    "hash": "sha256-Q5YNIzhMVcdPQ1J9nt1Ubhe8D/V2e+X068VpWiSKCjg=",
+    "hash": "sha256-VeGYuFj2e4K/L43JIF8jSkH4Imd5Rmicsx2jgNlLG7k=",
     "jsModuleNative": {
       "dotnet.native.js": "sha256-1te8JmuurFg5emn3XN03ivBh4t26VSh9rul02Awoij8="
     },
@@ -9,7 +9,7 @@
       "dotnet.runtime.js": "sha256-ZDVyGEZEz4QOmKAwlgqf4qB6Psobwb9hIqMw9YpIo4I="
     },
     "wasmNative": {
-      "dotnet.native.wasm": "sha256-kL1cToR7Y4wpGfI45Fk1dg4FP90N8GsKdeInXZ/zLhA="
+      "dotnet.native.wasm": "sha256-TwbuWlH94VpsqeG9GHj0n8qOb31a3vD9yCeqvmqM9FQ="
     },
     "icu": {
       "icudt_CJK.dat": "sha256-SZLtQnRc0JkwqHab0VUVP7T3uBPSeYzxzDnpxPpUnHk=",
@@ -18,7 +18,7 @@
     },
     "coreAssembly": {},
     "assembly": {
-      "Microsoft.AspNetCore.Components.wasm": "sha256-mhcuWmIO6ApyGVS/0kDax8vwo2eIBLBgVtEEl4z+hjQ=",
+      "Microsoft.AspNetCore.Components.wasm": "sha256-IjJip8jb3hdK/BsO5NsuIsDbIXNFWz3UOZSVgUAXyIo=",
       "Microsoft.AspNetCore.Components.Web.wasm": "sha256-/n6EsWKSHkNRpPH567RJZzJMMF44duUtK3z0iAeBca4=",
       "Microsoft.AspNetCore.Components.WebAssembly.wasm": "sha256-USZwWZkhotwEqRgGVy7AJpcY3nID5gb2sRYt5GINnUk=",
       "Microsoft.CodeAnalysis.CSharp.wasm": "sha256-VcpjgiVQGVhlsFFL+GzVh/tl1ycxkiTzhb3zMyKI0Yg=",
@@ -35,9 +35,9 @@
       "Microsoft.JSInterop.wasm": "sha256-h4y35qYW/ZECt9W2BY/V8Fit8/2hkz8c0ZWh3Mb8z7M=",
       "Microsoft.JSInterop.WebAssembly.wasm": "sha256-4soNkn8aqTulPavV5tgrBBe7jEypSOVIlJw/okXugLA=",
       "Microsoft.SqlServer.TransactSql.ScriptDom.wasm": "sha256-UH74xgz6eEdXZRQwq9d0QXhspWn80N5zcOJkV7K5Gtk=",
-      "SqExpress.SqlTranspiler.Blazor.wasm": "sha256-GA1kwTKjXtnT9WBhOz4+znPuhZ/VQzR1FPmXD47RLJg=",
-      "SqExpress.SqlTranspiler.wasm": "sha256-iylHhdEgv2OUYARl3Jv+Dj03wHgSXkaRaHh+FJe7JE0=",
-      "SqExpress.wasm": "sha256-FT17DJO7m63OlDm6IF2nsbTENfrlthp3r+ei4FkaZ6I=",
+      "SqExpress.SqlTranspiler.Blazor.wasm": "sha256-fZSskSpwCtMMowfCiQRuvj+DWh9DSHknZltcPpXMswc=",
+      "SqExpress.SqlTranspiler.wasm": "sha256-31MAhmTGqzkA9YwlV/AUp1CwLjwHYV9TpwfJeGPbleE=",
+      "SqExpress.wasm": "sha256-c3/9pW5s+IdSJat+u6IpSdMjWUpNrk0Tgqx3n4hpofE=",
       "System.Collections.Concurrent.wasm": "sha256-kw9Hx3za4Ng8qivxqdRDzc07szOvGRRaB3bR76Ed/CY=",
       "System.Collections.Immutable.wasm": "sha256-lvmGkMy8VCW9bz2QQNM2lRqAt0216rSNrqUVyHOWL3Y=",
       "System.Collections.NonGeneric.wasm": "sha256-9ua5lsRlv0HlszKy+ZZc1eB2khwfR+7LtBBTbKLR85Q=",
@@ -54,7 +54,7 @@
       "System.IO.Compression.wasm": "sha256-PSLu9w/kptW/rmdH3RkXo9VsgLZ6gyQPa+4Q4RcBLjg=",
       "System.IO.MemoryMappedFiles.wasm": "sha256-I5/H0rHjngMlsnn6ZUOwyBJ9g2Fv6K0XKztMHxG4dKw=",
       "System.Linq.Expressions.wasm": "sha256-OdTdHznTwvfIozFGL0JmBFyGGn+hQEDpK6dnCpU0rNM=",
-      "System.Linq.wasm": "sha256-N3nLDDNH9v9/IsCANGc+/VmbmZGUfdIfWbUutDwBbvw=",
+      "System.Linq.wasm": "sha256-DIEFwwrDpivgbHuIQrxqROLaf6KG8xE94PFhPbagm4s=",
       "System.Memory.wasm": "sha256-dZSoQ43lUIM9AxRMPRUdpVIRzJeCW03ktxc7XsvZ0bw=",
       "System.Net.Http.wasm": "sha256-uVImQ2BsWQFKmaqqe8k3Dw41Um2vDNQByWJfFsxzfX4=",
       "System.Net.Primitives.wasm": "sha256-1qcsGHhOXcuqb9iJj964eAhM69peWtMX7e51LBkcZ1U=",

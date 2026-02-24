@@ -3,19 +3,48 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Client-side T-SQL to SqExpress C# transpiler. Supports SELECT, subqueries, CTE, INSERT, UPDATE, DELETE, MERGE, and SQL variables." />
+    <meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large,max-video-preview:-1" />
+    <meta name="author" content="SqExpress" />
+    <meta name="theme-color" content="#0f766e" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="SqExpress" />
+    <meta property="og:title" content="T-SQL to SqExpress C# Transpiler" />
+    <meta property="og:description" content="Transpile T-SQL into SqExpress C# code directly in the browser." />
+    <meta property="og:url" content="https://0x1000000.github.io/SqExpress/" />
+    <meta property="og:image" content="https://0x1000000.github.io/SqExpress/favicon.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="T-SQL to SqExpress C# Transpiler" />
+    <meta name="twitter:description" content="Transpile T-SQL into SqExpress C# code directly in the browser." />
+    <meta name="twitter:image" content="https://0x1000000.github.io/SqExpress/favicon.png" />
     <title>T-SQL to SqExpress C# Transpiler</title>
     <base href="/SqExpress/" />
+    <link rel="canonical" href="https://0x1000000.github.io/SqExpress/" />
+    <link rel="sitemap" type="application/xml" title="Sitemap" href="sitemap.xml" />
     <link rel="stylesheet" href="css/app.css" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <link href="SqExpress.SqlTranspiler.Blazor.styles.css" rel="stylesheet" />
+    <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            "name": "T-SQL to SqExpress C# Transpiler",
+            "url": "https://0x1000000.github.io/SqExpress/",
+            "applicationCategory": "DeveloperApplication",
+            "operatingSystem": "Any",
+            "description": "Client-side T-SQL to SqExpress C# transpiler with support for SELECT, CTE, subqueries, INSERT, UPDATE, DELETE, and MERGE."
+        }
+    </script>
 </head>
 <body>
     <div id="app">
-        <svg class="loading-progress">
-            <circle r="40%" cx="50%" cy="50%" />
-            <circle r="40%" cx="50%" cy="50%" />
-        </svg>
-        <div class="loading-progress-text"></div>
+        <div class="app-loading">
+            <svg class="loading-progress">
+                <circle r="40%" cx="50%" cy="50%" />
+                <circle r="40%" cx="50%" cy="50%" />
+            </svg>
+            <div class="loading-progress-text"></div>
+        </div>
     </div>
 
     <div id="blazor-error-ui">
