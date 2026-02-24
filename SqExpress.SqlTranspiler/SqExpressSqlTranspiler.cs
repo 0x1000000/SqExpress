@@ -14,7 +14,7 @@ using RoslynStatementSyntax = Microsoft.CodeAnalysis.CSharp.Syntax.StatementSynt
 
 namespace SqExpress.SqlTranspiler
 {
-    public sealed class SqExpressSqlTranspiler : ISqExpressSqlTranspiler
+    public sealed partial class SqExpressSqlTranspiler : ISqExpressSqlTranspiler
     {
         public SqExpressTranspileResult Transpile(string sql, SqExpressSqlTranspilerOptions? options = null)
         {
@@ -377,7 +377,9 @@ namespace SqExpress.SqlTranspiler
             var usings = new List<UsingDirectiveSyntax>
             {
                 UsingDirective(ParseName("SqExpress")),
+                UsingDirective(ParseName("System.Collections.Generic")),
                 UsingDirective(ParseName("SqExpress.Syntax.Select")),
+                UsingDirective(ParseName("SqExpress.Syntax.Value")),
                 UsingDirective(ParseName("SqExpress.Syntax.Functions")),
                 UsingDirective(ParseName("SqExpress.Syntax.Functions.Known")),
                 UsingDirective(ParseName(options.EffectiveDeclarationsNamespaceName))
@@ -1168,7 +1170,7 @@ namespace SqExpress.SqlTranspiler
                     throw new SqExpressSqlTranspilerException("GROUP BY cannot be empty.");
                 }
 
-                current = InvokeMember(current, "GroupBy", Prepend(groupByColumns[0], groupByColumns.Skip(1).ToList()));
+                current = InvokeMember(current, "GroupBy", groupByColumns);
             }
 
             if (specification.HavingClause != null)
@@ -1218,6 +1220,12 @@ namespace SqExpress.SqlTranspiler
             if (tableReference is QueryDerivedTable derivedTable)
             {
                 context.GetOrAddDerivedSource(derivedTable);
+                return;
+            }
+
+            if (tableReference is InlineDerivedTable inlineDerivedTable)
+            {
+                context.GetOrAddInlineDerivedSource(inlineDerivedTable, this);
                 return;
             }
 
@@ -1711,6 +1719,17 @@ namespace SqExpress.SqlTranspiler
                 return InvokeMember(current, "From", IdentifierName(source.VariableName));
             }
 
+            if (tableReference is InlineDerivedTable inlineDerivedTable)
+            {
+                if (!isRoot)
+                {
+                    throw new SqExpressSqlTranspilerException("Unexpected standalone table reference in joined table tree.");
+                }
+
+                var source = context.GetOrAddInlineDerivedSource(inlineDerivedTable, this);
+                return InvokeMember(current, "From", IdentifierName(source.VariableName));
+            }
+
             if (tableReference is SchemaObjectFunctionTableReference schemaFunctionTable)
             {
                 if (!isRoot)
@@ -1964,6 +1983,73 @@ namespace SqExpress.SqlTranspiler
             return functionExpression;
         }
 
+        private ExpressionSyntax BuildInlineDerivedTableSourceExpression(InlineDerivedTable inlineDerivedTable, TranspileContext context)
+        {
+            if (inlineDerivedTable.RowValues.Count < 1)
+            {
+                throw new SqExpressSqlTranspilerException("VALUES table constructor cannot be empty.");
+            }
+
+            var exprValueType = ParseTypeName("ExprValue");
+            var readOnlyExprValueListType = ParseTypeName("IReadOnlyList<ExprValue>");
+            var rowInitializers = inlineDerivedTable.RowValues
+                .Select(row =>
+                    (ExpressionSyntax)ArrayCreationExpression(
+                            ArrayType(exprValueType)
+                                .WithRankSpecifiers(
+                                    SingletonList(
+                                        ArrayRankSpecifier(
+                                            SingletonSeparatedList<ExpressionSyntax>(
+                                                OmittedArraySizeExpression())))))
+                        .WithInitializer(
+                            InitializerExpression(
+                                SyntaxKind.ArrayInitializerExpression,
+                                SeparatedList(
+                                    row.ColumnValues
+                                        .Select(value => this.BuildScalarExpression(value, context, wrapLiterals: true))
+                                        .ToArray()))))
+                .ToArray();
+
+            var valuesArg = ImplicitArrayCreationExpression(
+                InitializerExpression(
+                    SyntaxKind.ArrayInitializerExpression,
+                    SeparatedList(
+                        rowInitializers
+                            .Select(row => (ExpressionSyntax)CastExpression(readOnlyExprValueListType, row))
+                            .ToArray())));
+
+            var valuesTable = Invoke(
+                "Values",
+                valuesArg);
+
+            var alias = inlineDerivedTable.Alias?.Value;
+            if (string.IsNullOrWhiteSpace(alias))
+            {
+                throw new SqExpressSqlTranspilerException("VALUES derived table alias cannot be empty.");
+            }
+
+            var columnNames = inlineDerivedTable.Columns
+                .Select(i => i.Value)
+                .Where(i => !string.IsNullOrWhiteSpace(i))
+                .ToList();
+
+            if (columnNames.Count < 1)
+            {
+                var firstRowColumnCount = inlineDerivedTable.RowValues[0].ColumnValues.Count;
+                for (var i = 0; i < firstRowColumnCount; i++)
+                {
+                    columnNames.Add("C" + (i + 1).ToString(CultureInfo.InvariantCulture));
+                }
+            }
+
+            return InvokeMember(
+                valuesTable,
+                "As",
+                Prepend(
+                    StringLiteral(alias!),
+                    columnNames.Select(StringLiteral).ToList()));
+        }
+
         private TableSource ResolveJoinedSource(TableReference tableReference, TranspileContext context)
         {
             if (tableReference is NamedTableReference namedTable)
@@ -1974,6 +2060,11 @@ namespace SqExpress.SqlTranspiler
             if (tableReference is QueryDerivedTable derivedTable)
             {
                 return context.GetOrAddDerivedSource(derivedTable);
+            }
+
+            if (tableReference is InlineDerivedTable inlineDerivedTable)
+            {
+                return context.GetOrAddInlineDerivedSource(inlineDerivedTable, this);
             }
 
             if (tableReference is SchemaObjectFunctionTableReference schemaFunctionTable)
@@ -2033,215 +2124,6 @@ namespace SqExpress.SqlTranspiler
             }
 
             return columns;
-        }
-
-        private ExpressionSyntax BuildBooleanExpression(BooleanExpression expression, TranspileContext context)
-        {
-            if (expression is BooleanParenthesisExpression parenthesis)
-            {
-                return ParenthesizedExpression(this.BuildBooleanExpression(parenthesis.Expression, context));
-            }
-
-            if (expression is BooleanNotExpression notExpression)
-            {
-                return PrefixUnaryExpression(
-                    SyntaxKind.LogicalNotExpression,
-                    ParenthesizeIfNeeded(this.BuildBooleanExpression(notExpression.Expression, context)));
-            }
-
-            if (expression is BooleanBinaryExpression binary)
-            {
-                var kind = binary.BinaryExpressionType switch
-                {
-                    BooleanBinaryExpressionType.And => SyntaxKind.BitwiseAndExpression,
-                    BooleanBinaryExpressionType.Or => SyntaxKind.BitwiseOrExpression,
-                    _ => throw new SqExpressSqlTranspilerException($"Unsupported boolean binary operation: {binary.BinaryExpressionType}.")
-                };
-
-                return BinaryExpression(
-                    kind,
-                    ParenthesizeIfNeeded(this.BuildBooleanExpression(binary.FirstExpression, context)),
-                    ParenthesizeIfNeeded(this.BuildBooleanExpression(binary.SecondExpression, context)));
-            }
-
-            if (expression is BooleanComparisonExpression comparison)
-            {
-                if (this.TryExtractVariableReference(comparison.FirstExpression, out var firstVariableName, out var firstVariableHint))
-                {
-                    context.RegisterSqlVariable(firstVariableName, firstVariableHint);
-                    context.RegisterSqlVariable(firstVariableName, this.InferScalarVariableKind(comparison.SecondExpression, context));
-                }
-
-                if (this.TryExtractVariableReference(comparison.SecondExpression, out var secondVariableName, out var secondVariableHint))
-                {
-                    context.RegisterSqlVariable(secondVariableName, secondVariableHint);
-                    context.RegisterSqlVariable(secondVariableName, this.InferScalarVariableKind(comparison.FirstExpression, context));
-                }
-
-                if (comparison.SecondExpression is ColumnReferenceExpression rightColumn
-                    && this.TryInferDescriptorColumnKind(comparison.FirstExpression, context, out var rightHint))
-                {
-                    context.MarkColumnAsKind(rightColumn, rightHint);
-                }
-
-                if (comparison.FirstExpression is ColumnReferenceExpression leftColumn
-                    && this.TryInferDescriptorColumnKind(comparison.SecondExpression, context, out var leftHint))
-                {
-                    context.MarkColumnAsKind(leftColumn, leftHint);
-                }
-
-                var kind = MapComparisonKind(comparison.ComparisonType);
-                var leftExpression = this.BuildComparisonOperand(comparison.FirstExpression, comparison.SecondExpression, context);
-                var rightExpression = this.BuildComparisonOperand(comparison.SecondExpression, comparison.FirstExpression, context);
-                return BinaryExpression(
-                    kind,
-                    ParenthesizeIfNeeded(leftExpression),
-                    ParenthesizeIfNeeded(rightExpression));
-            }
-
-            if (expression is BooleanIsNullExpression isNull)
-            {
-                if (isNull.Expression is ColumnReferenceExpression nullableColumn)
-                {
-                    context.MarkColumnNullable(nullableColumn);
-                }
-
-                var test = this.BuildScalarExpression(isNull.Expression, context, wrapLiterals: false);
-                return Invoke(isNull.IsNot ? "IsNotNull" : "IsNull", test);
-            }
-
-            if (expression is InPredicate inPredicate)
-            {
-                if (inPredicate.Expression is not ColumnReferenceExpression inColumn)
-                {
-                    throw new SqExpressSqlTranspilerException("IN predicate is supported only for column references.");
-                }
-
-                ExpressionSyntax inCall;
-                if (inPredicate.Subquery != null)
-                {
-                    var column = this.BuildColumnExpression(inColumn, context);
-                    var inSubQuery = this.BuildSubQueryExpression(inPredicate.Subquery, context);
-                    inCall = InvokeMember(column, "In", inSubQuery);
-                }
-                else
-                {
-                    if (inPredicate.Values.Count < 1)
-                    {
-                        throw new SqExpressSqlTranspilerException("IN predicate cannot be empty.");
-                    }
-
-                    if (inPredicate.Values.Count == 1 && inPredicate.Values[0] is VariableReference listVariable)
-                    {
-                        var listKind = this.InferListVariableKind(inColumn, context);
-                        var registeredListVariable = context.RegisterSqlVariable(listVariable.Name, listKind);
-                        var column = this.BuildColumnExpression(inColumn, context);
-                        inCall = InvokeMember(column, "In", IdentifierName(registeredListVariable.VariableName));
-                    }
-                    else
-                    {
-                        var column = this.BuildColumnExpression(inColumn, context);
-                        foreach (var value in inPredicate.Values)
-                        {
-                            if (this.TryInferDescriptorColumnKind(value, context, out var inHint))
-                            {
-                                context.MarkColumnAsKind(inColumn, inHint);
-                            }
-                        }
-
-                        var values = inPredicate.Values.Select(item => this.BuildScalarExpression(item, context, wrapLiterals: false)).ToList();
-                        inCall = InvokeMember(column, "In", values);
-                    }
-                }
-
-                if (inPredicate.NotDefined)
-                {
-                    return PrefixUnaryExpression(SyntaxKind.LogicalNotExpression, ParenthesizeIfNeeded(inCall));
-                }
-
-                return inCall;
-            }
-
-            if (expression is ExistsPredicate existsPredicate)
-            {
-                var existsSubQuery = this.BuildSubQueryExpression(existsPredicate.Subquery, context);
-                return Invoke("Exists", existsSubQuery);
-            }
-
-            if (expression is LikePredicate like)
-            {
-                if (like.SecondExpression is not StringLiteral stringPattern)
-                {
-                    throw new SqExpressSqlTranspilerException("LIKE is supported only with string literal pattern.");
-                }
-
-                if (like.FirstExpression is ColumnReferenceExpression likeColumn)
-                {
-                    context.MarkColumnAsKind(likeColumn, DescriptorColumnKind.NVarChar);
-                }
-
-                var test = this.BuildScalarExpression(like.FirstExpression, context, wrapLiterals: false);
-                var likeCall = Invoke("Like", test, StringLiteral(stringPattern.Value));
-                if (like.NotDefined)
-                {
-                    return PrefixUnaryExpression(SyntaxKind.LogicalNotExpression, ParenthesizeIfNeeded(likeCall));
-                }
-
-                return likeCall;
-            }
-
-            if (expression is BooleanTernaryExpression between)
-            {
-                if (between.TernaryExpressionType != BooleanTernaryExpressionType.Between
-                    && between.TernaryExpressionType != BooleanTernaryExpressionType.NotBetween)
-                {
-                    throw new SqExpressSqlTranspilerException($"Unsupported boolean ternary expression: {between.TernaryExpressionType}.");
-                }
-
-                if (between.FirstExpression is ColumnReferenceExpression betweenColumn)
-                {
-                    if (this.TryInferDescriptorColumnKind(between.SecondExpression, context, out var betweenSecondHint))
-                    {
-                        context.MarkColumnAsKind(betweenColumn, betweenSecondHint);
-                    }
-
-                    if (this.TryInferDescriptorColumnKind(between.ThirdExpression, context, out var betweenThirdHint))
-                    {
-                        context.MarkColumnAsKind(betweenColumn, betweenThirdHint);
-                    }
-                }
-
-                var test = this.BuildScalarExpression(between.FirstExpression, context, wrapLiterals: false);
-                var start = this.BuildScalarExpression(between.SecondExpression, context, wrapLiterals: false);
-                var end = this.BuildScalarExpression(between.ThirdExpression, context, wrapLiterals: false);
-
-                var betweenExpression =
-                    BinaryExpression(
-                        SyntaxKind.BitwiseAndExpression,
-                        ParenthesizedExpression(BinaryExpression(SyntaxKind.GreaterThanOrEqualExpression, test, start)),
-                        ParenthesizedExpression(BinaryExpression(SyntaxKind.LessThanOrEqualExpression, test, end)));
-
-                if (between.TernaryExpressionType == BooleanTernaryExpressionType.NotBetween)
-                {
-                    return PrefixUnaryExpression(SyntaxKind.LogicalNotExpression, ParenthesizeIfNeeded(betweenExpression));
-                }
-
-                return betweenExpression;
-            }
-
-            throw new SqExpressSqlTranspilerException($"Unsupported boolean expression: {expression.GetType().Name}.");
-        }
-
-        private ExpressionSyntax BuildComparisonOperand(ScalarExpression operand, ScalarExpression opposite, TranspileContext context)
-        {
-            if (operand is VariableReference variableReference
-                && opposite is ColumnReferenceExpression)
-            {
-                var variable = context.RegisterSqlVariable(variableReference.Name, SqlVariableKind.UnknownScalar);
-                return IdentifierName(variable.VariableName);
-            }
-
-            return this.BuildScalarExpression(operand, context, wrapLiterals: false);
         }
 
         private ExpressionSyntax BuildScalarExpression(ScalarExpression expression, TranspileContext context, bool wrapLiterals)
@@ -2574,17 +2456,40 @@ namespace SqExpress.SqlTranspiler
 
         private ExpressionSyntax BuildFunctionCall(FunctionCall functionCall, TranspileContext context, bool wrapLiterals)
         {
-            if (functionCall.CallTarget != null)
-            {
-                throw new SqExpressSqlTranspilerException("Schema-qualified function calls are not supported yet.");
-            }
-
             if (functionCall.OverClause != null)
             {
                 return this.BuildWindowFunctionCall(functionCall, context, wrapLiterals);
             }
 
             var functionName = functionCall.FunctionName.Value;
+            if (functionCall.CallTarget != null)
+            {
+                if (functionCall.UniqueRowFilter == UniqueRowFilter.Distinct)
+                {
+                    throw new SqExpressSqlTranspilerException("DISTINCT is not supported for schema-qualified function calls.");
+                }
+
+                if (!TryGetFunctionSchemaName(functionCall.CallTarget, out var schemaName))
+                {
+                    throw new SqExpressSqlTranspilerException(
+                        $"Unsupported function call target type: {functionCall.CallTarget.GetType().Name}.");
+                }
+
+                var customFunctionArgs = functionCall.Parameters.Select(arg =>
+                {
+                    if (IsStar(arg))
+                    {
+                        throw new SqExpressSqlTranspilerException($"Function '{functionName}' with '*' argument is not supported.");
+                    }
+
+                    return this.BuildScalarExpression(arg, context, wrapLiterals);
+                }).ToList();
+
+                return customFunctionArgs.Count == 0
+                    ? Invoke("ScalarFunctionCustom", StringLiteral(schemaName), StringLiteral(functionName))
+                    : Invoke("ScalarFunctionCustom", Prepend(StringLiteral(schemaName), Prepend(StringLiteral(functionName), customFunctionArgs)));
+            }
+
             if (this.TryBuildKnownFunctionCall(functionCall, context, wrapLiterals, out var knownFunctionCall))
             {
                 return knownFunctionCall;
@@ -2612,641 +2517,53 @@ namespace SqExpress.SqlTranspiler
             return Invoke("ScalarFunctionSys", Prepend(StringLiteral(functionName), functionArgs));
         }
 
-        private ExpressionSyntax BuildWindowFunctionCall(FunctionCall functionCall, TranspileContext context, bool wrapLiterals)
+        private static bool TryGetFunctionSchemaName(CallTarget callTarget, out string schemaName)
         {
-            if (functionCall.OverClause == null)
+            schemaName = string.Empty;
+            switch (callTarget)
             {
-                throw new SqExpressSqlTranspilerException("Expected OVER clause for window function.");
-            }
-
-            if (functionCall.OverClause.WindowName != null)
-            {
-                throw new SqExpressSqlTranspilerException("Named windows in OVER clause are not supported yet.");
-            }
-
-            var functionName = functionCall.FunctionName.Value;
-            var normalizedName = functionName.ToUpperInvariant();
-
-            if (IsKnownAggregateFunctionName(normalizedName) || functionCall.UniqueRowFilter == UniqueRowFilter.Distinct)
-            {
-                if (functionCall.OverClause.WindowFrameClause != null)
+                case MultiPartIdentifierCallTarget multiPartIdentifierCallTarget:
                 {
-                    return this.BuildAggregateWindowFunctionWithFrameHelpers(functionCall, context, wrapLiterals);
-                }
-
-                var aggregateFunction = this.BuildAggregateFunctionCall(functionCall, context, wrapLiterals);
-                return this.ApplyWindowOverToAggregate(aggregateFunction, functionCall.OverClause, context);
-            }
-
-            return this.BuildAnalyticWindowFunction(functionCall, context, wrapLiterals);
-        }
-
-        private ExpressionSyntax BuildAggregateFunctionCall(FunctionCall functionCall, TranspileContext context, bool wrapLiterals)
-        {
-            var functionName = functionCall.FunctionName.Value;
-            var normalizedName = functionName.ToUpperInvariant();
-            var distinct = functionCall.UniqueRowFilter == UniqueRowFilter.Distinct;
-
-            switch (normalizedName)
-            {
-                case "COUNT":
-                {
-                    if (functionCall.Parameters.Count == 1 && IsStar(functionCall.Parameters[0]))
-                    {
-                        if (distinct)
-                        {
-                            throw new SqExpressSqlTranspilerException("COUNT(DISTINCT *) is not valid.");
-                        }
-
-                        return Invoke("CountOne");
-                    }
-
-                    if (functionCall.Parameters.Count != 1)
-                    {
-                        throw new SqExpressSqlTranspilerException("COUNT supports exactly one argument.");
-                    }
-
-                    var countArg = this.BuildScalarExpression(functionCall.Parameters[0], context, wrapLiterals);
-                    return distinct
-                        ? Invoke("CountDistinct", countArg)
-                        : Invoke("Count", countArg);
-                }
-                case "MIN":
-                case "MAX":
-                case "SUM":
-                case "AVG":
-                {
-                    if (functionCall.Parameters.Count != 1)
-                    {
-                        throw new SqExpressSqlTranspilerException($"Aggregate function '{functionName}' supports exactly one argument.");
-                    }
-
-                    var arg = functionCall.Parameters[0];
-                    if (IsStar(arg))
-                    {
-                        throw new SqExpressSqlTranspilerException($"Aggregate function '{functionName}' does not support '*'.");
-                    }
-
-                    var value = this.BuildScalarExpression(arg, context, wrapLiterals);
-                    return normalizedName switch
-                    {
-                        "MIN" => Invoke(distinct ? "MinDistinct" : "Min", value),
-                        "MAX" => Invoke(distinct ? "MaxDistinct" : "Max", value),
-                        "SUM" => Invoke(distinct ? "SumDistinct" : "Sum", value),
-                        "AVG" => Invoke(distinct ? "AvgDistinct" : "Avg", value),
-                        _ => throw new SqExpressSqlTranspilerException($"Unsupported aggregate function '{functionName}'.")
-                    };
-                }
-                default:
-                {
-                    if (functionCall.Parameters.Count != 1)
-                    {
-                        throw new SqExpressSqlTranspilerException($"Aggregate function '{functionName}' with OVER supports exactly one argument.");
-                    }
-
-                    var arg = functionCall.Parameters[0];
-                    if (IsStar(arg))
-                    {
-                        throw new SqExpressSqlTranspilerException($"Aggregate function '{functionName}' with '*' argument is not supported.");
-                    }
-
-                    var value = this.BuildScalarExpression(arg, context, wrapLiterals);
-                    return Invoke(
-                        "AggregateFunction",
-                        StringLiteral(functionName),
-                        distinct
-                            ? LiteralExpression(SyntaxKind.TrueLiteralExpression)
-                            : LiteralExpression(SyntaxKind.FalseLiteralExpression),
-                        value);
-                }
-            }
-        }
-
-        private ExpressionSyntax ApplyWindowOverToAggregate(ExpressionSyntax aggregateFunction, OverClause overClause, TranspileContext context)
-        {
-            var partitions = this.BuildWindowPartitionExpressions(overClause, context);
-            var orderItems = this.BuildWindowOrderByItemExpressions(overClause.OrderByClause, context);
-
-            ExpressionSyntax result;
-            if (partitions.Count == 0)
-            {
-                result = orderItems.Count == 0
-                    ? InvokeMember(aggregateFunction, "Over")
-                    : InvokeMember(aggregateFunction, "OverOrderBy", Prepend(orderItems[0], orderItems.Skip(1).ToList()));
-            }
-            else
-            {
-                var partitioned = InvokeMember(aggregateFunction, "OverPartitionBy", Prepend(partitions[0], partitions.Skip(1).ToList()));
-                result = orderItems.Count == 0
-                    ? InvokeMember(partitioned, "NoOrderBy")
-                    : InvokeMember(partitioned, "OrderBy", Prepend(orderItems[0], orderItems.Skip(1).ToList()));
-            }
-
-            return result;
-        }
-
-        private ExpressionSyntax BuildAggregateWindowFunctionWithFrameHelpers(FunctionCall functionCall, TranspileContext context, bool wrapLiterals)
-        {
-            var overClause = functionCall.OverClause
-                ?? throw new SqExpressSqlTranspilerException("Expected OVER clause for aggregate window function.");
-
-            var frameClause = overClause.WindowFrameClause
-                ?? throw new SqExpressSqlTranspilerException("Expected frame clause for aggregate window function.");
-
-            if (frameClause.WindowFrameType == WindowFrameType.Range)
-            {
-                throw new SqExpressSqlTranspilerException("RANGE window frame is not supported yet. Use ROWS frame.");
-            }
-
-            var aggregateFunction = this.BuildAggregateFunctionCall(functionCall, context, wrapLiterals);
-            var partitions = this.BuildWindowPartitionExpressions(overClause, context);
-            var orderItems = this.BuildWindowOrderByItemExpressions(overClause.OrderByClause, context);
-
-            ExpressionSyntax baseWindow;
-            if (partitions.Count == 0)
-            {
-                baseWindow = orderItems.Count == 0
-                    ? InvokeMember(aggregateFunction, "Over")
-                    : InvokeMember(aggregateFunction, "OverOrderBy", Prepend(orderItems[0], orderItems.Skip(1).ToList()));
-            }
-            else
-            {
-                var partitioned = InvokeMember(aggregateFunction, "OverPartitionBy", Prepend(partitions[0], partitions.Skip(1).ToList()));
-                baseWindow = orderItems.Count == 0
-                    ? InvokeMember(partitioned, "NoOrderBy")
-                    : InvokeMember(partitioned, "OrderBy", Prepend(orderItems[0], orderItems.Skip(1).ToList()));
-            }
-
-            var start = this.BuildFrameBorderHelper(frameClause.Top, context);
-            var end = frameClause.Bottom == null
-                ? LiteralExpression(SyntaxKind.NullLiteralExpression)
-                : this.BuildFrameBorderHelper(frameClause.Bottom, context);
-
-            return InvokeMember(baseWindow, "FrameClause", start, end);
-        }
-
-        private ExpressionSyntax BuildAnalyticWindowFunction(FunctionCall functionCall, TranspileContext context, bool wrapLiterals)
-        {
-            var overClause = functionCall.OverClause
-                ?? throw new SqExpressSqlTranspilerException("Expected OVER clause for analytic function.");
-
-            if (!this.TryBuildAnalyticWindowFunctionBuilder(functionCall, context, wrapLiterals, out var builderExpression, out var frameBuilder))
-            {
-                return this.BuildAnalyticWindowFunctionLowLevel(functionCall, context, wrapLiterals);
-            }
-
-            var partitions = this.BuildWindowPartitionExpressions(overClause, context);
-            var orderItems = this.BuildWindowOrderByItemExpressions(overClause.OrderByClause, context);
-
-            if (frameBuilder)
-            {
-                if (orderItems.Count == 0)
-                {
-                    return this.BuildAnalyticWindowFunctionLowLevel(functionCall, context, wrapLiterals);
-                }
-
-                ExpressionSyntax overBuilder = partitions.Count == 0
-                    ? InvokeMember(builderExpression, "OverOrderBy", Prepend(orderItems[0], orderItems.Skip(1).ToList()))
-                    : InvokeMember(
-                        InvokeMember(builderExpression, "OverPartitionBy", Prepend(partitions[0], partitions.Skip(1).ToList())),
-                        "OverOrderBy",
-                        Prepend(orderItems[0], orderItems.Skip(1).ToList()));
-
-                if (overClause.WindowFrameClause == null)
-                {
-                    return InvokeMember(overBuilder, "FrameClauseEmpty");
-                }
-
-                if (overClause.WindowFrameClause.WindowFrameType == WindowFrameType.Range)
-                {
-                    throw new SqExpressSqlTranspilerException("RANGE window frame is not supported yet. Use ROWS frame.");
-                }
-
-                var start = this.BuildFrameBorderHelper(overClause.WindowFrameClause.Top, context);
-                var end = overClause.WindowFrameClause.Bottom == null
-                    ? LiteralExpression(SyntaxKind.NullLiteralExpression)
-                    : this.BuildFrameBorderHelper(overClause.WindowFrameClause.Bottom, context);
-
-                return InvokeMember(overBuilder, "FrameClause", start, end);
-            }
-
-            if (overClause.WindowFrameClause != null)
-            {
-                return this.BuildAnalyticWindowFunctionLowLevel(functionCall, context, wrapLiterals);
-            }
-
-            if (orderItems.Count == 0)
-            {
-                return this.BuildAnalyticWindowFunctionLowLevel(functionCall, context, wrapLiterals);
-            }
-
-            return partitions.Count == 0
-                ? InvokeMember(builderExpression, "OverOrderBy", Prepend(orderItems[0], orderItems.Skip(1).ToList()))
-                : InvokeMember(
-                    InvokeMember(builderExpression, "OverPartitionBy", Prepend(partitions[0], partitions.Skip(1).ToList())),
-                    "OverOrderBy",
-                    Prepend(orderItems[0], orderItems.Skip(1).ToList()));
-        }
-
-        private bool TryBuildAnalyticWindowFunctionBuilder(
-            FunctionCall functionCall,
-            TranspileContext context,
-            bool wrapLiterals,
-            out ExpressionSyntax builderExpression,
-            out bool frameBuilder)
-        {
-            var functionName = functionCall.FunctionName.Value;
-            var normalizedName = functionName.ToUpperInvariant();
-            var arguments = this.BuildFunctionArguments(functionCall.Parameters, context, wrapLiterals);
-
-            frameBuilder = false;
-            builderExpression = default!;
-
-            switch (normalizedName)
-            {
-                case "ROW_NUMBER":
-                {
-                    if (arguments.Count != 0)
+                    var identifiers = multiPartIdentifierCallTarget.MultiPartIdentifier?.Identifiers;
+                    if (identifiers == null || identifiers.Count < 1)
                     {
                         return false;
                     }
 
-                    builderExpression = Invoke("RowNumber");
+                    if (identifiers.Count > 1)
+                    {
+                        throw new SqExpressSqlTranspilerException(
+                            "Database-qualified scalar function calls are not supported yet.");
+                    }
+
+                    if (string.IsNullOrWhiteSpace(identifiers[0].Value))
+                    {
+                        return false;
+                    }
+
+                    schemaName = identifiers[0].Value;
                     return true;
                 }
-                case "RANK":
+                case UserDefinedTypeCallTarget userDefinedTypeCallTarget:
                 {
-                    if (arguments.Count != 0)
+                    var schemaObject = userDefinedTypeCallTarget.SchemaObjectName;
+                    if (schemaObject?.DatabaseIdentifier != null)
+                    {
+                        throw new SqExpressSqlTranspilerException(
+                            "Database-qualified scalar function calls are not supported yet.");
+                    }
+
+                    var schemaIdentifier = schemaObject?.SchemaIdentifier;
+                    if (schemaIdentifier == null || string.IsNullOrWhiteSpace(schemaIdentifier.Value))
                     {
                         return false;
                     }
 
-                    builderExpression = Invoke("Rank");
-                    return true;
-                }
-                case "DENSE_RANK":
-                {
-                    if (arguments.Count != 0)
-                    {
-                        return false;
-                    }
-
-                    builderExpression = Invoke("DenseRank");
-                    return true;
-                }
-                case "CUME_DIST":
-                {
-                    if (arguments.Count != 0)
-                    {
-                        return false;
-                    }
-
-                    builderExpression = Invoke("CumeDist");
-                    return true;
-                }
-                case "PERCENT_RANK":
-                {
-                    if (arguments.Count != 0)
-                    {
-                        return false;
-                    }
-
-                    builderExpression = Invoke("PercentRank");
-                    return true;
-                }
-                case "NTILE":
-                {
-                    if (arguments.Count != 1)
-                    {
-                        return false;
-                    }
-
-                    builderExpression = Invoke("Ntile", arguments[0]);
-                    return true;
-                }
-                case "LAG":
-                {
-                    if (arguments.Count == 0 || arguments.Count > 3)
-                    {
-                        return false;
-                    }
-
-                    builderExpression = arguments.Count switch
-                    {
-                        1 => Invoke("Lag", arguments[0]),
-                        2 => Invoke("Lag", arguments[0], arguments[1]),
-                        3 => Invoke("Lag", arguments[0], arguments[1], arguments[2]),
-                        _ => throw new SqExpressSqlTranspilerException("Unexpected LAG argument count.")
-                    };
-                    return true;
-                }
-                case "LEAD":
-                {
-                    if (arguments.Count == 0 || arguments.Count > 3)
-                    {
-                        return false;
-                    }
-
-                    builderExpression = arguments.Count switch
-                    {
-                        1 => Invoke("Lead", arguments[0]),
-                        2 => Invoke("Lead", arguments[0], arguments[1]),
-                        3 => Invoke("Lead", arguments[0], arguments[1], arguments[2]),
-                        _ => throw new SqExpressSqlTranspilerException("Unexpected LEAD argument count.")
-                    };
-                    return true;
-                }
-                case "FIRST_VALUE":
-                {
-                    if (arguments.Count != 1)
-                    {
-                        return false;
-                    }
-
-                    frameBuilder = true;
-                    builderExpression = Invoke("FirstValue", arguments[0]);
-                    return true;
-                }
-                case "LAST_VALUE":
-                {
-                    if (arguments.Count != 1)
-                    {
-                        return false;
-                    }
-
-                    frameBuilder = true;
-                    builderExpression = Invoke("LastValue", arguments[0]);
+                    schemaName = schemaIdentifier.Value;
                     return true;
                 }
                 default:
-                {
-                    if (functionCall.OverClause?.WindowFrameClause != null)
-                    {
-                        if (arguments.Count == 0)
-                        {
-                            return false;
-                        }
-
-                        frameBuilder = true;
-                        builderExpression = Invoke("AnalyticFunctionFrame", Prepend(StringLiteral(functionName), arguments));
-                        return true;
-                    }
-
-                    builderExpression = arguments.Count == 0
-                        ? Invoke("AnalyticFunction", StringLiteral(functionName))
-                        : Invoke("AnalyticFunction", Prepend(StringLiteral(functionName), arguments));
-                    return true;
-                }
-            }
-        }
-
-        private ExpressionSyntax BuildAnalyticWindowFunctionLowLevel(FunctionCall functionCall, TranspileContext context, bool wrapLiterals)
-        {
-            var functionName = functionCall.FunctionName.Value;
-            var analyticArgs = this.BuildFunctionArguments(functionCall.Parameters, context, wrapLiterals);
-            var argsExpr = analyticArgs.Count == 0
-                ? LiteralExpression(SyntaxKind.NullLiteralExpression)
-                : this.BuildExprValueArray(analyticArgs);
-            var overExpression = this.BuildOverClause(functionCall.OverClause!, context);
-
-            return Invoke("AnalyticFunction", StringLiteral(functionName), argsExpr, overExpression);
-        }
-
-        private IReadOnlyList<ExpressionSyntax> BuildWindowPartitionExpressions(OverClause overClause, TranspileContext context)
-        {
-            return overClause.Partitions
-                .Select(partition => this.BuildScalarExpression(partition, context, wrapLiterals: false))
-                .ToList();
-        }
-
-        private IReadOnlyList<ExpressionSyntax> BuildWindowOrderByItemExpressions(OrderByClause? orderByClause, TranspileContext context)
-        {
-            if (orderByClause == null)
-            {
-                return Array.Empty<ExpressionSyntax>();
-            }
-
-            if (orderByClause.OrderByElements.Count == 0)
-            {
-                throw new SqExpressSqlTranspilerException("OVER ORDER BY list cannot be empty.");
-            }
-
-            return orderByClause.OrderByElements
-                .Select(item =>
-                    item.SortOrder == SortOrder.Descending
-                        ? (ExpressionSyntax)Invoke("Desc", this.BuildScalarExpression(item.Expression, context, wrapLiterals: false))
-                        : Invoke("Asc", this.BuildScalarExpression(item.Expression, context, wrapLiterals: false)))
-                .ToList();
-        }
-
-        private ExpressionSyntax BuildFrameBorderHelper(WindowDelimiter delimiter, TranspileContext context)
-        {
-            switch (delimiter.WindowDelimiterType)
-            {
-                case WindowDelimiterType.CurrentRow:
-                    return MemberAccessExpression(
-                        SyntaxKind.SimpleMemberAccessExpression,
-                        IdentifierName("FrameBorder"),
-                        IdentifierName("CurrentRow"));
-                case WindowDelimiterType.UnboundedPreceding:
-                    return MemberAccessExpression(
-                        SyntaxKind.SimpleMemberAccessExpression,
-                        IdentifierName("FrameBorder"),
-                        IdentifierName("UnboundedPreceding"));
-                case WindowDelimiterType.UnboundedFollowing:
-                    return MemberAccessExpression(
-                        SyntaxKind.SimpleMemberAccessExpression,
-                        IdentifierName("FrameBorder"),
-                        IdentifierName("UnboundedFollowing"));
-                case WindowDelimiterType.ValuePreceding:
-                {
-                    if (delimiter.OffsetValue == null)
-                    {
-                        throw new SqExpressSqlTranspilerException("Window frame boundary offset cannot be empty.");
-                    }
-
-                    return InvokeMember(
-                        IdentifierName("FrameBorder"),
-                        "Preceding",
-                        this.BuildScalarExpression(delimiter.OffsetValue, context, wrapLiterals: false));
-                }
-                case WindowDelimiterType.ValueFollowing:
-                {
-                    if (delimiter.OffsetValue == null)
-                    {
-                        throw new SqExpressSqlTranspilerException("Window frame boundary offset cannot be empty.");
-                    }
-
-                    return InvokeMember(
-                        IdentifierName("FrameBorder"),
-                        "Following",
-                        this.BuildScalarExpression(delimiter.OffsetValue, context, wrapLiterals: false));
-                }
-                default:
-                    throw new SqExpressSqlTranspilerException($"Unsupported window frame delimiter: {delimiter.WindowDelimiterType}.");
-            }
-        }
-
-        private ExpressionSyntax BuildOverClause(OverClause overClause, TranspileContext context)
-        {
-            if (overClause.WindowName != null)
-            {
-                throw new SqExpressSqlTranspilerException("Named windows in OVER clause are not supported yet.");
-            }
-
-            var partitionsExpr = overClause.Partitions.Count == 0
-                ? LiteralExpression(SyntaxKind.NullLiteralExpression)
-                : this.BuildExprValueArray(
-                    overClause.Partitions
-                        .Select(partition => this.BuildScalarExpression(partition, context, wrapLiterals: false))
-                        .ToList());
-
-            var orderByExpr = overClause.OrderByClause == null
-                ? LiteralExpression(SyntaxKind.NullLiteralExpression)
-                : this.BuildWindowOrderBy(overClause.OrderByClause, context);
-
-            var frameExpr = overClause.WindowFrameClause == null
-                ? LiteralExpression(SyntaxKind.NullLiteralExpression)
-                : this.BuildWindowFrame(overClause.WindowFrameClause, context);
-
-            return ObjectCreationExpression(IdentifierName("ExprOver"))
-                .WithArgumentList(
-                    ArgumentList(
-                        SeparatedList(new[]
-                        {
-                            Argument(partitionsExpr),
-                            Argument(orderByExpr),
-                            Argument(frameExpr)
-                        })));
-        }
-
-        private ExpressionSyntax BuildWindowOrderBy(OrderByClause orderByClause, TranspileContext context)
-        {
-            if (orderByClause.OrderByElements.Count == 0)
-            {
-                throw new SqExpressSqlTranspilerException("OVER ORDER BY list cannot be empty.");
-            }
-
-            var items = orderByClause.OrderByElements
-                .Select(item =>
-                    (ExpressionSyntax)ObjectCreationExpression(IdentifierName("ExprOrderByItem"))
-                        .WithArgumentList(
-                            ArgumentList(
-                                SeparatedList(new[]
-                                {
-                                    Argument(this.BuildScalarExpression(item.Expression, context, wrapLiterals: false)),
-                                    Argument(
-                                        item.SortOrder == SortOrder.Descending
-                                            ? LiteralExpression(SyntaxKind.TrueLiteralExpression)
-                                            : LiteralExpression(SyntaxKind.FalseLiteralExpression))
-                                }))))
-                .ToList();
-
-            var itemArray = ImplicitArrayCreationExpression(
-                InitializerExpression(
-                    SyntaxKind.ArrayInitializerExpression,
-                    SeparatedList(items)));
-
-            return ObjectCreationExpression(IdentifierName("ExprOrderBy"))
-                .WithArgumentList(
-                    ArgumentList(
-                        SingletonSeparatedList(
-                            Argument(itemArray))));
-        }
-
-        private ExpressionSyntax BuildWindowFrame(WindowFrameClause windowFrame, TranspileContext context)
-        {
-            if (windowFrame.WindowFrameType == WindowFrameType.Range)
-            {
-                throw new SqExpressSqlTranspilerException("RANGE window frame is not supported yet. Use ROWS frame.");
-            }
-
-            var top = this.BuildWindowDelimiter(windowFrame.Top, context);
-            var bottom = windowFrame.Bottom == null
-                ? LiteralExpression(SyntaxKind.NullLiteralExpression)
-                : this.BuildWindowDelimiter(windowFrame.Bottom, context);
-
-            return ObjectCreationExpression(IdentifierName("ExprFrameClause"))
-                .WithArgumentList(
-                    ArgumentList(
-                        SeparatedList(new[]
-                        {
-                            Argument(top),
-                            Argument(bottom)
-                        })));
-        }
-
-        private ExpressionSyntax BuildWindowDelimiter(WindowDelimiter delimiter, TranspileContext context)
-        {
-            switch (delimiter.WindowDelimiterType)
-            {
-                case WindowDelimiterType.CurrentRow:
-                    return MemberAccessExpression(
-                        SyntaxKind.SimpleMemberAccessExpression,
-                        IdentifierName("ExprCurrentRowFrameBorder"),
-                        IdentifierName("Instance"));
-                case WindowDelimiterType.UnboundedPreceding:
-                    return ObjectCreationExpression(IdentifierName("ExprUnboundedFrameBorder"))
-                        .WithArgumentList(
-                            ArgumentList(
-                                SingletonSeparatedList(
-                                    Argument(
-                                        MemberAccessExpression(
-                                            SyntaxKind.SimpleMemberAccessExpression,
-                                            IdentifierName("FrameBorderDirection"),
-                                            IdentifierName("Preceding"))))));
-                case WindowDelimiterType.UnboundedFollowing:
-                    return ObjectCreationExpression(IdentifierName("ExprUnboundedFrameBorder"))
-                        .WithArgumentList(
-                            ArgumentList(
-                                SingletonSeparatedList(
-                                    Argument(
-                                        MemberAccessExpression(
-                                            SyntaxKind.SimpleMemberAccessExpression,
-                                            IdentifierName("FrameBorderDirection"),
-                                            IdentifierName("Following"))))));
-                case WindowDelimiterType.ValuePreceding:
-                {
-                    if (delimiter.OffsetValue == null)
-                    {
-                        throw new SqExpressSqlTranspilerException("Window frame boundary offset cannot be empty.");
-                    }
-
-                    return ObjectCreationExpression(IdentifierName("ExprValueFrameBorder"))
-                        .WithArgumentList(
-                            ArgumentList(
-                                SeparatedList(new[]
-                                {
-                                    Argument(this.BuildScalarExpression(delimiter.OffsetValue, context, wrapLiterals: false)),
-                                    Argument(
-                                        MemberAccessExpression(
-                                            SyntaxKind.SimpleMemberAccessExpression,
-                                            IdentifierName("FrameBorderDirection"),
-                                            IdentifierName("Preceding")))
-                                })));
-                }
-                case WindowDelimiterType.ValueFollowing:
-                {
-                    if (delimiter.OffsetValue == null)
-                    {
-                        throw new SqExpressSqlTranspilerException("Window frame boundary offset cannot be empty.");
-                    }
-
-                    return ObjectCreationExpression(IdentifierName("ExprValueFrameBorder"))
-                        .WithArgumentList(
-                            ArgumentList(
-                                SeparatedList(new[]
-                                {
-                                    Argument(this.BuildScalarExpression(delimiter.OffsetValue, context, wrapLiterals: false)),
-                                    Argument(
-                                        MemberAccessExpression(
-                                            SyntaxKind.SimpleMemberAccessExpression,
-                                            IdentifierName("FrameBorderDirection"),
-                                            IdentifierName("Following")))
-                                })));
-                }
-                default:
-                    throw new SqExpressSqlTranspilerException($"Unsupported window frame delimiter: {delimiter.WindowDelimiterType}.");
+                    return false;
             }
         }
 
@@ -4539,6 +3856,7 @@ namespace SqExpress.SqlTranspiler
             private readonly List<LocalDeclarationStatementSyntax> _sourceDeclarations = new();
             private readonly Dictionary<NamedTableReference, TableSource> _namedSourceMap = new(ReferenceEqualityComparer<NamedTableReference>.Instance);
             private readonly Dictionary<QueryDerivedTable, TableSource> _derivedSourceMap = new(ReferenceEqualityComparer<QueryDerivedTable>.Instance);
+            private readonly Dictionary<InlineDerivedTable, TableSource> _inlineDerivedSourceMap = new(ReferenceEqualityComparer<InlineDerivedTable>.Instance);
             private readonly Dictionary<SchemaObjectFunctionTableReference, TableSource> _schemaFunctionSourceMap = new(ReferenceEqualityComparer<SchemaObjectFunctionTableReference>.Instance);
             private readonly Dictionary<BuiltInFunctionTableReference, TableSource> _builtInFunctionSourceMap = new(ReferenceEqualityComparer<BuiltInFunctionTableReference>.Instance);
             private readonly Dictionary<GlobalFunctionTableReference, TableSource> _globalFunctionSourceMap = new(ReferenceEqualityComparer<GlobalFunctionTableReference>.Instance);
@@ -4550,6 +3868,18 @@ namespace SqExpress.SqlTranspiler
             private readonly string _tableDescriptorClassPrefix;
             private readonly string _tableDescriptorClassSuffix;
             private readonly string? _defaultSchemaName;
+            private static readonly ExpressionSyntax _guidDefaultInitializer = ParseExpression("default(global::System.Guid)");
+            private static readonly ExpressionSyntax _dateTimeDefaultInitializer = ParseExpression("default(global::System.DateTime)");
+            private static readonly ExpressionSyntax _dateTimeOffsetDefaultInitializer = ParseExpression("default(global::System.DateTimeOffset)");
+            private static readonly ExpressionSyntax _byteArrayEmptyInitializer = ParseExpression("global::System.Array.Empty<byte>()");
+            private static readonly ExpressionSyntax _stringListInitializer = ParseExpression("new[] { Literal(\"\") }");
+            private static readonly ExpressionSyntax _intListInitializer = ParseExpression("new[] { Literal(0) }");
+            private static readonly ExpressionSyntax _decimalListInitializer = ParseExpression("new[] { Literal(0m) }");
+            private static readonly ExpressionSyntax _boolListInitializer = ParseExpression("new[] { Literal(false) }");
+            private static readonly ExpressionSyntax _guidListInitializer = ParseExpression("new[] { Literal(default(global::System.Guid)) }");
+            private static readonly ExpressionSyntax _dateTimeListInitializer = ParseExpression("new[] { Literal(default(global::System.DateTime)) }");
+            private static readonly ExpressionSyntax _dateTimeOffsetListInitializer = ParseExpression("new[] { Literal(default(global::System.DateTimeOffset)) }");
+            private static readonly ExpressionSyntax _byteArrayListInitializer = ParseExpression("new[] { Literal(global::System.Array.Empty<byte>()) }");
 
             public TranspileContext(SqExpressSqlTranspilerOptions options)
                 : this(
@@ -4856,6 +4186,30 @@ namespace SqExpress.SqlTranspiler
                 return source;
             }
 
+            public TableSource GetOrAddInlineDerivedSource(InlineDerivedTable inlineDerivedTable, SqExpressSqlTranspiler transpiler)
+            {
+                if (this._inlineDerivedSourceMap.TryGetValue(inlineDerivedTable, out var existing))
+                {
+                    return existing;
+                }
+
+                var alias = inlineDerivedTable.Alias?.Value;
+                if (string.IsNullOrWhiteSpace(alias))
+                {
+                    throw new SqExpressSqlTranspilerException("VALUES derived table alias cannot be empty.");
+                }
+
+                var sourceExpression = transpiler.BuildInlineDerivedTableSourceExpression(inlineDerivedTable, this);
+                var source = this.RegisterDynamicSource(
+                    sourceExpression,
+                    alias!,
+                    alias,
+                    alias!);
+
+                this._inlineDerivedSourceMap[inlineDerivedTable] = source;
+                return source;
+            }
+
             public TableSource GetOrAddSchemaFunctionSource(SchemaObjectFunctionTableReference functionReference, SqExpressSqlTranspiler transpiler)
             {
                 if (this._schemaFunctionSourceMap.TryGetValue(functionReference, out var existing))
@@ -5132,33 +4486,53 @@ namespace SqExpress.SqlTranspiler
 
             private LocalDeclarationStatementSyntax CreateSqlVariableDeclaration(SqlVariable sqlVariable)
             {
-                ExpressionSyntax initializer = sqlVariable.Kind switch
-                {
-                    SqlVariableKind.UnknownScalar => StringLiteral(string.Empty),
-                    SqlVariableKind.StringScalar => StringLiteral(string.Empty),
-                    SqlVariableKind.Int32Scalar => LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal(0)),
-                    SqlVariableKind.DecimalScalar => LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal(0m)),
-                    SqlVariableKind.BooleanScalar => LiteralExpression(SyntaxKind.FalseLiteralExpression),
-                    SqlVariableKind.GuidScalar => ParseExpression("default(global::System.Guid)"),
-                    SqlVariableKind.DateTimeScalar => ParseExpression("default(global::System.DateTime)"),
-                    SqlVariableKind.DateTimeOffsetScalar => ParseExpression("default(global::System.DateTimeOffset)"),
-                    SqlVariableKind.ByteArrayScalar => ParseExpression("global::System.Array.Empty<byte>()"),
-                    SqlVariableKind.StringList => ParseExpression("new[] { Literal(\"\") }"),
-                    SqlVariableKind.Int32List => ParseExpression("new[] { Literal(0) }"),
-                    SqlVariableKind.DecimalList => ParseExpression("new[] { Literal(0m) }"),
-                    SqlVariableKind.BooleanList => ParseExpression("new[] { Literal(false) }"),
-                    SqlVariableKind.GuidList => ParseExpression("new[] { Literal(default(global::System.Guid)) }"),
-                    SqlVariableKind.DateTimeList => ParseExpression("new[] { Literal(default(global::System.DateTime)) }"),
-                    SqlVariableKind.DateTimeOffsetList => ParseExpression("new[] { Literal(default(global::System.DateTimeOffset)) }"),
-                    SqlVariableKind.ByteArrayList => ParseExpression("new[] { Literal(global::System.Array.Empty<byte>()) }"),
-                    _ => StringLiteral(string.Empty)
-                };
+                var initializer = GetSqlVariableInitializer(sqlVariable.Kind);
 
                 return LocalDeclarationStatement(
                     VariableDeclaration(IdentifierName("var"))
                         .AddVariables(
                             VariableDeclarator(Identifier(sqlVariable.VariableName))
                                 .WithInitializer(EqualsValueClause(initializer))));
+            }
+
+            private static ExpressionSyntax GetSqlVariableInitializer(SqlVariableKind kind)
+            {
+                return IsListVariableKind(kind)
+                    ? GetListVariableInitializer(kind)
+                    : GetScalarVariableInitializer(kind);
+            }
+
+            private static ExpressionSyntax GetScalarVariableInitializer(SqlVariableKind kind)
+            {
+                return kind switch
+                {
+                    SqlVariableKind.UnknownScalar => StringLiteral(string.Empty),
+                    SqlVariableKind.StringScalar => StringLiteral(string.Empty),
+                    SqlVariableKind.Int32Scalar => LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal(0)),
+                    SqlVariableKind.DecimalScalar => LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal(0m)),
+                    SqlVariableKind.BooleanScalar => LiteralExpression(SyntaxKind.FalseLiteralExpression),
+                    SqlVariableKind.GuidScalar => _guidDefaultInitializer,
+                    SqlVariableKind.DateTimeScalar => _dateTimeDefaultInitializer,
+                    SqlVariableKind.DateTimeOffsetScalar => _dateTimeOffsetDefaultInitializer,
+                    SqlVariableKind.ByteArrayScalar => _byteArrayEmptyInitializer,
+                    _ => StringLiteral(string.Empty)
+                };
+            }
+
+            private static ExpressionSyntax GetListVariableInitializer(SqlVariableKind kind)
+            {
+                return kind switch
+                {
+                    SqlVariableKind.StringList => _stringListInitializer,
+                    SqlVariableKind.Int32List => _intListInitializer,
+                    SqlVariableKind.DecimalList => _decimalListInitializer,
+                    SqlVariableKind.BooleanList => _boolListInitializer,
+                    SqlVariableKind.GuidList => _guidListInitializer,
+                    SqlVariableKind.DateTimeList => _dateTimeListInitializer,
+                    SqlVariableKind.DateTimeOffsetList => _dateTimeOffsetListInitializer,
+                    SqlVariableKind.ByteArrayList => _byteArrayListInitializer,
+                    _ => StringLiteral(string.Empty)
+                };
             }
 
             private static SqlVariableKind MergeSqlVariableKinds(SqlVariableKind existing, SqlVariableKind hint)

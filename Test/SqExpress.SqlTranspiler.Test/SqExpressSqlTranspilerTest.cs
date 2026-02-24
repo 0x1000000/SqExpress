@@ -22,6 +22,7 @@ namespace SqExpress.SqlTranspiler.Test
         private const string SqlCountStar = "SELECT COUNT(1) [Total] FROM [dbo].[Users] [A0]";
         private const string SqlQualifiedStar = "SELECT [u].*,[o].[OrderId] FROM [dbo].[Users] [u] JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[UserId]";
         private const string SqlFunction = "SELECT LEN([u].[Name]) [NameLength] FROM [dbo].[Users] [u]";
+        private const string SqlSchemaFunction = "SELECT [dbo].[NormalizeUserName]([u].[Name]) [NameLength] FROM [dbo].[Users] [u]";
         private const string SqlSelect1 = "SELECT 1";
         private const string SqlStringComparison = "SELECT [u].[Name] FROM [dbo].[Users] [u] WHERE [u].[Name]='A'";
         private const string SqlSubSimple = "SELECT [sq].[A] FROM (SELECT 1 [A])[sq]";
@@ -288,6 +289,41 @@ namespace SqExpress.SqlTranspiler.Test
 
             Assert.That(result.QueryCSharpCode, Does.Contain("ScalarFunctionSys(\"LEN\", u.Name).As(\"NameLength\")"));
             AssertCompilesAndSql(result, SqlFunction);
+        }
+
+        [Test]
+        public void TranspileSelect_FunctionCall_SchemaQualified_UsesScalarFunctionCustom()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+
+            var result = transpiler.Transpile("SELECT dbo.NormalizeUserName(u.Name) AS NameLength FROM dbo.Users u");
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("ScalarFunctionCustom(\"dbo\", \"NormalizeUserName\", u.Name).As(\"NameLength\")"));
+            AssertCompilesAndSql(result, SqlSchemaFunction);
+        }
+
+        [Test]
+        public void TranspileSelect_FunctionCall_DatabaseQualified_IsRejected()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+
+            var ex = Assert.Throws<SqExpressSqlTranspilerException>(
+                () => transpiler.Transpile("SELECT Db1.dbo.NormalizeUserName(u.Name) AS NameLength FROM dbo.Users u"));
+            Assert.That(ex?.Message, Does.Contain("Database-qualified scalar function calls are not supported yet."));
+        }
+
+        [Test]
+        public void TranspileSelect_FromValuesDerivedTable_IsSupported()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var sql = "SELECT RawData.Id, RawData.Val FROM (VALUES (1, 'a'), (2, 'b')) AS RawData(Id, Val)";
+
+            var result = transpiler.Transpile(sql);
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("Values("));
+            Assert.That(result.QueryCSharpCode, Does.Contain(".As(\"RawData\", \"Id\", \"Val\")"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Select(rawData.Column(\"Id\"), rawData.Column(\"Val\"))"));
+            AssertCompiles(result);
         }
 
         [Test]
