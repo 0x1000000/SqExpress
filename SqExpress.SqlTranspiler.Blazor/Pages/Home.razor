@@ -21,9 +21,48 @@
     <div class="editor-card">
         <div class="card-title-row">
             <h2>SQL Input</h2>
-            <button class="action-button" @onclick="TranspileAsync">Transpile</button>
+            <div class="editor-actions">
+                <button class="action-button action-button-secondary" @onclick="FormatSqlAsync">Format SQL</button>
+                <button class="action-button" @onclick="TranspileAsync">Transpile</button>
+            </div>
         </div>
         <div id="sql-editor" class="sql-editor"></div>
+    </div>
+
+    <div class="settings-card">
+        <div class="settings-grid">
+            <label class="setting-item">
+                <span class="setting-label">
+                    Table descriptor prefix
+                    <span class="setting-hint" title="Prepends this text to generated table descriptor class names. Example: prefix 'Table' + 'Users' => 'TableUsers'.">?</span>
+                </span>
+                <input type="text" value="@this._tableDescriptorPrefix" @oninput="this.OnTableDescriptorPrefixInputAsync" />
+            </label>
+            <label class="setting-item">
+                <span class="setting-label">
+                    Table descriptor suffix
+                    <span class="setting-hint" title="Appends this text to generated table descriptor class names. Example: 'Users' + suffix 'Tbl' => 'UsersTbl'.">?</span>
+                </span>
+                <input type="text" value="@this._tableDescriptorSuffix" @oninput="this.OnTableDescriptorSuffixInputAsync" />
+            </label>
+            <label class="setting-item">
+                <span class="setting-label">
+                    Default schema
+                    <span class="setting-hint" title="Schema used for unqualified table names (for example 'Users'). Default is 'dbo'. Leave empty to disable implicit schema.">?</span>
+                </span>
+                <input type="text" value="@this._defaultSchemaName" @oninput="this.OnDefaultSchemaInputAsync" />
+            </label>
+            <label class="setting-item setting-item-checkbox">
+                <span class="setting-label">
+                    Use static SqQueryBuilder
+                    <span class="setting-hint" title="When enabled, generated code uses 'using static SqExpress.SqQueryBuilder;'. When disabled, generated calls are explicit as 'SqQueryBuilder.Select(...)'.">?</span>
+                </span>
+                <div class="checkbox-input-row">
+                    <input type="checkbox" checked="@this._useStaticSqQueryBuilderUsing" @onchange="this.OnUseStaticSqQueryBuilderUsingChangedAsync" />
+                    <span class="checkbox-state" aria-hidden="true"></span>
+                </div>
+            </label>
+        </div>
     </div>
 
     @if (!string.IsNullOrWhiteSpace(this._error))
@@ -53,12 +92,20 @@
     private const string EditorElementId = "sql-editor";
     private const string QueryOutputElementId = "query-output-editor";
     private const string DeclarationsOutputElementId = "declarations-output-editor";
+    private const string PrefixStorageKey = "sqexpress.transpiler.tablePrefix";
+    private const string SuffixStorageKey = "sqexpress.transpiler.tableSuffix";
+    private const string DefaultSchemaStorageKey = "sqexpress.transpiler.defaultSchema";
+    private const string UseStaticSqQueryBuilderUsingStorageKey = "sqexpress.transpiler.useStaticSqQueryBuilderUsing";
     private DotNetObjectReference<Home>? _dotNetRef;
     private string _sqlText =
         "SELECT u.UserId, u.Name AS UserName " +
         "FROM dbo.Users u " +
         "WHERE u.IsActive = 1 " +
         "ORDER BY u.Name DESC";
+    private string _tableDescriptorPrefix = "Table";
+    private string _tableDescriptorSuffix = string.Empty;
+    private string _defaultSchemaName = "dbo";
+    private bool _useStaticSqQueryBuilderUsing = true;
 
     private string _queryOutput = string.Empty;
     private string _declarationsOutput = string.Empty;
@@ -81,6 +128,8 @@
         }
 
         this._dotNetRef = DotNetObjectReference.Create(this);
+        await this.LoadUiSettingsAsync();
+        this.StateHasChanged();
         await JsRuntime.InvokeVoidAsync("sqExpressSqlEditor.initialize", EditorElementId, this._dotNetRef, this._sqlText);
         this._editorInitialized = true;
         await JsRuntime.InvokeVoidAsync("sqExpressCodeOutput.initialize", QueryOutputElementId, this._queryOutput);
@@ -99,7 +148,14 @@
             }
 
             var transpiler = new SqExpressSqlTranspiler();
-            var result = transpiler.Transpile(this._sqlText);
+            var options = new SqExpressSqlTranspilerOptions
+            {
+                TableDescriptorClassPrefix = this._tableDescriptorPrefix,
+                TableDescriptorClassSuffix = this._tableDescriptorSuffix,
+                DefaultSchemaName = this._defaultSchemaName,
+                UseStaticSqQueryBuilderUsing = this._useStaticSqQueryBuilderUsing
+            };
+            var result = transpiler.Transpile(this._sqlText, options);
 
             this._queryOutput = result.QueryCSharpCode;
             this._declarationsOutput = result.DeclarationsCSharpCode;
@@ -116,6 +172,104 @@
         {
             await JsRuntime.InvokeVoidAsync("sqExpressCodeOutput.setValue", QueryOutputElementId, this._queryOutput);
             await JsRuntime.InvokeVoidAsync("sqExpressCodeOutput.setValue", DeclarationsOutputElementId, this._declarationsOutput);
+        }
+    }
+
+    private async Task FormatSqlAsync()
+    {
+        try
+        {
+            if (this._editorInitialized)
+            {
+                this._sqlText = await JsRuntime.InvokeAsync<string>("sqExpressSqlEditor.getValue", EditorElementId);
+            }
+
+            var formatter = new SqExpressSqlFormatter();
+            this._sqlText = formatter.Format(this._sqlText);
+            this._error = null;
+
+            if (this._editorInitialized)
+            {
+                await JsRuntime.InvokeVoidAsync("sqExpressSqlEditor.setValue", EditorElementId, this._sqlText);
+            }
+        }
+        catch (Exception ex)
+        {
+            this._error = ex.Message;
+        }
+    }
+
+    private async Task OnTableDescriptorPrefixInputAsync(ChangeEventArgs args)
+    {
+        this._tableDescriptorPrefix = args.Value?.ToString() ?? string.Empty;
+        await this.PersistUiSettingsAsync();
+    }
+
+    private async Task OnTableDescriptorSuffixInputAsync(ChangeEventArgs args)
+    {
+        this._tableDescriptorSuffix = args.Value?.ToString() ?? string.Empty;
+        await this.PersistUiSettingsAsync();
+    }
+
+    private async Task OnDefaultSchemaInputAsync(ChangeEventArgs args)
+    {
+        this._defaultSchemaName = args.Value?.ToString() ?? string.Empty;
+        await this.PersistUiSettingsAsync();
+    }
+
+    private async Task OnUseStaticSqQueryBuilderUsingChangedAsync(ChangeEventArgs args)
+    {
+        this._useStaticSqQueryBuilderUsing = args.Value is bool flag && flag;
+        await this.PersistUiSettingsAsync();
+    }
+
+    private async Task LoadUiSettingsAsync()
+    {
+        this._tableDescriptorPrefix = await this.GetStoredSettingAsync(PrefixStorageKey, this._tableDescriptorPrefix);
+        this._tableDescriptorSuffix = await this.GetStoredSettingAsync(SuffixStorageKey, this._tableDescriptorSuffix);
+        this._defaultSchemaName = await this.GetStoredSettingAsync(DefaultSchemaStorageKey, this._defaultSchemaName);
+        this._useStaticSqQueryBuilderUsing =
+            await this.GetStoredBoolSettingAsync(UseStaticSqQueryBuilderUsingStorageKey, this._useStaticSqQueryBuilderUsing);
+    }
+
+    private async Task PersistUiSettingsAsync()
+    {
+        await this.SetStoredSettingAsync(PrefixStorageKey, this._tableDescriptorPrefix);
+        await this.SetStoredSettingAsync(SuffixStorageKey, this._tableDescriptorSuffix);
+        await this.SetStoredSettingAsync(DefaultSchemaStorageKey, this._defaultSchemaName);
+        await this.SetStoredSettingAsync(
+            UseStaticSqQueryBuilderUsingStorageKey,
+            this._useStaticSqQueryBuilderUsing ? "true" : "false");
+    }
+
+    private async Task<bool> GetStoredBoolSettingAsync(string key, bool fallback)
+    {
+        var text = await this.GetStoredSettingAsync(key, fallback ? "true" : "false");
+        return string.Equals(text, "true", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task<string> GetStoredSettingAsync(string key, string fallback)
+    {
+        try
+        {
+            var value = await JsRuntime.InvokeAsync<string?>("sqExpressSettingsStore.get", key);
+            return value ?? fallback;
+        }
+        catch
+        {
+            return fallback;
+        }
+    }
+
+    private async Task SetStoredSettingAsync(string key, string value)
+    {
+        try
+        {
+            await JsRuntime.InvokeVoidAsync("sqExpressSettingsStore.set", key, value);
+        }
+        catch
+        {
+            // Ignore storage errors and keep transpiler usable.
         }
     }
 

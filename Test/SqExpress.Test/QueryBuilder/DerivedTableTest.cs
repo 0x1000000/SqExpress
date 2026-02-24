@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using NUnit.Framework;
+using SqExpress.DataAccess;
 using SqExpress.Syntax.Value;
 using static SqExpress.SqQueryBuilder;
 
@@ -229,6 +231,30 @@ namespace SqExpress.Test.QueryBuilder
             protected override IExprSubQuery CreateQuery()
             {
                 return Select(this.LastName, this.FirstName).From(this._table).Done();
+            }
+        }
+
+        public static IExprQuery Build(out User user)
+        {
+            user = new User();
+            var query = Select(
+                    user.UserId,
+                    user.FirstName,
+                    user.LastName,
+                    (user.FirstName + " " + user.LastName).As("FullName"))
+                .From(user)
+                .Done();
+            return query;
+        }
+
+        public static async Task Query(ISqDatabase database)
+        {
+            await foreach (var record in Build(out var user).Query(database))
+            {
+                var userId = user.UserId.Read(record);
+                var firstName = user.FirstName.Read(record);
+                var lastName = user.LastName.Read(record);
+                var fullName = record.GetString("FullName");
             }
         }
     }

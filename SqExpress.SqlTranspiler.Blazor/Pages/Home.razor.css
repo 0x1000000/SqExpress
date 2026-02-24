@@ -42,6 +42,122 @@
     color: var(--muted-text);
 }
 
+.settings-card {
+    margin-top: 0.9rem;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    background: var(--surface);
+    box-shadow: 0 8px 32px rgba(11, 24, 36, 0.06);
+    padding: 0.85rem;
+}
+
+.settings-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.setting-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 0;
+}
+
+.setting-item span {
+    font-size: 0.82rem;
+    color: var(--muted-text);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+}
+
+.setting-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.setting-hint {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1rem;
+    height: 1rem;
+    border: 1px solid #94a3b8;
+    border-radius: 50%;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #475569;
+    background: #f8fafc;
+    cursor: help;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.settings-grid {
+    --setting-control-height: 2.15rem;
+}
+
+.setting-item input[type="text"] {
+    width: 100%;
+    height: var(--setting-control-height);
+    margin: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.45rem 0.55rem;
+    font: inherit;
+    color: var(--text-main);
+    background: #fff;
+}
+
+.setting-item.setting-item-checkbox {
+    justify-content: flex-start;
+}
+
+.setting-item.setting-item-checkbox span {
+    white-space: nowrap;
+}
+
+.checkbox-input-row {
+    height: var(--setting-control-height);
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.checkbox-input-row input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+    padding: 0;
+    margin: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: #fff;
+}
+
+.checkbox-state::before {
+    content: "NO";
+    display: inline-block;
+    min-width: 2.2rem;
+    text-align: center;
+    font-size: 0.74rem;
+    line-height: 1.1;
+    padding: 0.2rem 0.35rem;
+    border-radius: 999px;
+    border: 1px solid #cbd5e1;
+    color: #64748b;
+    background: #f8fafc;
+    font-weight: 700;
+}
+
+.checkbox-input-row input[type="checkbox"]:checked + .checkbox-state::before {
+    content: "YES";
+    border-color: #10b981;
+    color: #065f46;
+    background: #ecfdf5;
+}
+
 .editor-card,
 .output-card {
     border: 1px solid var(--border-color);
@@ -61,6 +177,12 @@
     justify-content: space-between;
     gap: 1rem;
     margin-bottom: 0.65rem;
+}
+
+.editor-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .card-title-row h2,
@@ -86,6 +208,18 @@
 .action-button:hover {
     background: #0c625b;
     border-color: #0c625b;
+}
+
+.action-button.action-button-secondary {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+    color: #64748b;
+}
+
+.action-button.action-button-secondary:hover {
+    border-color: #94a3b8;
+    background: #f1f5f9;
+    color: #475569;
 }
 
 .sql-editor {
@@ -153,6 +287,15 @@
 @media (max-width: 680px) {
     .workspace-title-row {
         align-items: flex-start;
+    }
+
+    .editor-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .settings-grid {
+        grid-template-columns: 1fr;
     }
 }
 

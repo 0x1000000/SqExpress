@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://0x1000000.github.io/SqExpress/sitemap.xml

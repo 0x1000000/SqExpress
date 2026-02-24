@@ -80,7 +80,7 @@ namespace SqExpress.SqlTranspiler
             var queryExpression = this.BuildQueryExpression(selectStatement.QueryExpression, context);
             var doneExpression = InvokeMember(queryExpression, "Done");
 
-            var queryAst = this.BuildQueryAst(doneExpression, context, options);
+            var queryAst = this.BuildQueryAst(doneExpression, selectStatement.QueryExpression, context, options);
             var declarationsAst = this.BuildDeclarationsAst(context, options);
 
             return new SqExpressTranspileResult(
@@ -313,22 +313,34 @@ namespace SqExpress.SqlTranspiler
                 declarationsAst: declarationsAst);
         }
 
-        private CompilationUnitSyntax BuildQueryAst(ExpressionSyntax doneExpression, TranspileContext context, SqExpressSqlTranspilerOptions options)
-            => this.BuildMethodAst(doneExpression, context, options, "IExprQuery");
+        private CompilationUnitSyntax BuildQueryAst(
+            ExpressionSyntax doneExpression,
+            QueryExpression queryExpression,
+            TranspileContext context,
+            SqExpressSqlTranspilerOptions options)
+            => this.BuildMethodAst(doneExpression, queryExpression, context, options, "IExprQuery");
 
         private CompilationUnitSyntax BuildExecAst(ExpressionSyntax doneExpression, TranspileContext context, SqExpressSqlTranspilerOptions options)
-            => this.BuildMethodAst(doneExpression, context, options, "IExprExec");
+            => this.BuildMethodAst(doneExpression, queryExpression: null, context, options, "IExprExec");
 
         private CompilationUnitSyntax BuildMethodAst(
             ExpressionSyntax doneExpression,
+            QueryExpression? queryExpression,
             TranspileContext context,
             SqExpressSqlTranspilerOptions options,
             string returnTypeName)
         {
+            var isQueryResult = string.Equals(returnTypeName, "IExprQuery", StringComparison.Ordinal);
+            var exposedTableSources = isQueryResult
+                ? context.Sources
+                    .Where(i => i.Descriptor != null)
+                    .ToList()
+                : new List<TableSource>();
+
             var queryVariableName = NormalizeIdentifier(options.QueryVariableName, "query");
             var bodyStatements = new List<RoslynStatementSyntax>();
             bodyStatements.AddRange(context.ParameterDeclarations);
-            bodyStatements.AddRange(context.SourceDeclarations);
+            bodyStatements.AddRange(this.BuildBuildMethodSourceDeclarations(context.SourceDeclarations, exposedTableSources));
             bodyStatements.Add(
                 LocalDeclarationStatement(
                     VariableDeclaration(IdentifierName("var"))
@@ -337,30 +349,252 @@ namespace SqExpress.SqlTranspiler
                                 .WithInitializer(EqualsValueClause(doneExpression)))));
             bodyStatements.Add(ReturnStatement(IdentifierName(queryVariableName)));
 
+            var buildParameters = exposedTableSources
+                .Select(source =>
+                    Parameter(Identifier(source.VariableName))
+                        .WithType(IdentifierName(source.Descriptor!.ClassName))
+                        .AddModifiers(Token(SyntaxKind.OutKeyword)))
+                .ToArray();
+
             var methodDeclaration = MethodDeclaration(IdentifierName(returnTypeName), Identifier(options.MethodName))
                 .AddModifiers(Token(SyntaxKind.PublicKeyword), Token(SyntaxKind.StaticKeyword))
+                .WithParameterList(ParameterList(SeparatedList(buildParameters)))
                 .WithBody(Block(bodyStatements));
 
             var members = new List<MemberDeclarationSyntax>();
             members.Add(methodDeclaration);
+            if (isQueryResult)
+            {
+                members.Add(this.BuildAsyncQueryMethod(options, exposedTableSources, queryExpression, context));
+            }
+
             members.AddRange(this.BuildEmbeddedQueryDescriptorClasses(context));
 
             var classDeclaration = ClassDeclaration(options.ClassName)
                 .AddModifiers(Token(SyntaxKind.PublicKeyword), Token(SyntaxKind.StaticKeyword))
                 .AddMembers(members.ToArray());
 
-            return CompilationUnit()
-                .AddUsings(
-                    UsingDirective(ParseName("SqExpress")),
-                    UsingDirective(ParseName("SqExpress.Syntax.Select")),
-                    UsingDirective(ParseName("SqExpress.Syntax.Functions")),
-                    UsingDirective(ParseName("SqExpress.Syntax.Functions.Known")),
-                    UsingDirective(ParseName(options.EffectiveDeclarationsNamespaceName)),
-                    UsingDirective(ParseName("SqExpress.SqQueryBuilder")).WithStaticKeyword(Token(SyntaxKind.StaticKeyword)))
+            var usings = new List<UsingDirectiveSyntax>
+            {
+                UsingDirective(ParseName("SqExpress")),
+                UsingDirective(ParseName("SqExpress.Syntax.Select")),
+                UsingDirective(ParseName("SqExpress.Syntax.Functions")),
+                UsingDirective(ParseName("SqExpress.Syntax.Functions.Known")),
+                UsingDirective(ParseName(options.EffectiveDeclarationsNamespaceName))
+            };
+
+            if (options.UseStaticSqQueryBuilderUsing)
+            {
+                usings.Add(UsingDirective(ParseName("SqExpress.SqQueryBuilder")).WithStaticKeyword(Token(SyntaxKind.StaticKeyword)));
+            }
+
+            if (isQueryResult)
+            {
+                usings.Add(UsingDirective(ParseName("System.Threading.Tasks")));
+                usings.Add(UsingDirective(ParseName("SqExpress.DataAccess")));
+            }
+
+            var compilationUnit = CompilationUnit()
+                .AddUsings(usings.ToArray())
                 .AddMembers(
                     NamespaceDeclaration(ParseName(options.NamespaceName))
                         .AddMembers(classDeclaration))
                 .NormalizeWhitespace();
+
+            if (!options.UseStaticSqQueryBuilderUsing)
+            {
+                var excludedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    options.MethodName
+                };
+                compilationUnit = (CompilationUnitSyntax)new SqQueryBuilderCallQualifier(excludedNames).Visit(compilationUnit);
+            }
+
+            return compilationUnit;
+        }
+
+        private IReadOnlyList<RoslynStatementSyntax> BuildBuildMethodSourceDeclarations(
+            IReadOnlyList<LocalDeclarationStatementSyntax> sourceDeclarations,
+            IReadOnlyList<TableSource> exposedTableSources)
+        {
+            var exposedSourceInitializers = exposedTableSources
+                .ToDictionary(i => i.VariableName, i => i.InitializationExpression, StringComparer.OrdinalIgnoreCase);
+            var statements = new List<RoslynStatementSyntax>(sourceDeclarations.Count);
+
+            foreach (var sourceDeclaration in sourceDeclarations)
+            {
+                var declarationName = TryGetLocalDeclarationVariableName(sourceDeclaration);
+                if (declarationName != null
+                    && exposedSourceInitializers.TryGetValue(declarationName, out var initializationExpression))
+                {
+                    statements.Add(
+                        ExpressionStatement(
+                            AssignmentExpression(
+                                SyntaxKind.SimpleAssignmentExpression,
+                                IdentifierName(declarationName),
+                                initializationExpression)));
+                    continue;
+                }
+
+                statements.Add(sourceDeclaration);
+            }
+
+            return statements;
+        }
+
+        private MethodDeclarationSyntax BuildAsyncQueryMethod(
+            SqExpressSqlTranspilerOptions options,
+            IReadOnlyList<TableSource> exposedTableSources,
+            QueryExpression? queryExpression,
+            TranspileContext context)
+        {
+            var reservedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var databaseParamName = CreateUniqueIdentifier("database", reservedNames);
+            var buildInvocationArguments = new List<ArgumentSyntax>(exposedTableSources.Count);
+            foreach (var source in exposedTableSources)
+            {
+                var outVariableName = CreateUniqueIdentifier(source.VariableName, reservedNames);
+                buildInvocationArguments.Add(
+                    Argument(
+                            DeclarationExpression(
+                                IdentifierName("var"),
+                                SingleVariableDesignation(Identifier(outVariableName))))
+                        .WithRefOrOutKeyword(Token(SyntaxKind.OutKeyword)));
+            }
+
+            var buildInvocation = InvocationExpression(
+                IdentifierName(options.MethodName),
+                ArgumentList(SeparatedList(buildInvocationArguments)));
+            var queryInvocation = InvocationExpression(
+                MemberAccessExpression(
+                    SyntaxKind.SimpleMemberAccessExpression,
+                    buildInvocation,
+                    IdentifierName("Query")),
+                ArgumentList(SingletonSeparatedList(Argument(IdentifierName(databaseParamName)))));
+
+            var recordVariableName = CreateUniqueIdentifier("r", reservedNames);
+            var foreachBodyStatements = queryExpression == null
+                ? Array.Empty<RoslynStatementSyntax>()
+                : this.BuildQueryRecordReadStatements(queryExpression, context, recordVariableName, reservedNames);
+            var awaitForEach = ForEachStatement(
+                    IdentifierName("var"),
+                    Identifier(recordVariableName),
+                    queryInvocation,
+                    Block(foreachBodyStatements))
+                .WithAwaitKeyword(Token(SyntaxKind.AwaitKeyword));
+
+            return MethodDeclaration(IdentifierName("Task"), Identifier("Query"))
+                .AddModifiers(Token(SyntaxKind.PublicKeyword), Token(SyntaxKind.StaticKeyword), Token(SyntaxKind.AsyncKeyword))
+                .WithParameterList(
+                    ParameterList(
+                        SingletonSeparatedList(
+                            Parameter(Identifier(databaseParamName))
+                                .WithType(IdentifierName("ISqDatabase")))))
+                .WithBody(Block(awaitForEach));
+        }
+
+        private RoslynStatementSyntax[] BuildQueryRecordReadStatements(
+            QueryExpression queryExpression,
+            TranspileContext context,
+            string recordVariableName,
+            ISet<string> reservedNames)
+        {
+            if (!TryUnwrapQuerySpecification(queryExpression, out var specification))
+            {
+                return Array.Empty<RoslynStatementSyntax>();
+            }
+
+            var result = new List<RoslynStatementSyntax>();
+            foreach (var selectElement in specification.SelectElements)
+            {
+                if (selectElement is not SelectScalarExpression scalar)
+                {
+                    continue;
+                }
+
+                var alias = TryGetSelectAlias(scalar.ColumnName);
+                if (scalar.Expression is ColumnReferenceExpression columnReference)
+                {
+                    var identifiers = columnReference.MultiPartIdentifier?.Identifiers;
+                    var columnSqlName = identifiers != null && identifiers.Count > 0
+                        ? identifiers[identifiers.Count - 1].Value
+                        : null;
+
+                    if (string.IsNullOrWhiteSpace(alias))
+                    {
+                        alias = columnSqlName;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(columnSqlName)
+                        && context.TryResolveColumnSource(columnReference, out var source)
+                        && source.Descriptor != null
+                        && source.Descriptor.TryGetColumn(columnSqlName!, out var descriptorColumn))
+                    {
+                        var sourceColumn = MemberAccessExpression(
+                            SyntaxKind.SimpleMemberAccessExpression,
+                            IdentifierName(source.VariableName),
+                            IdentifierName(descriptorColumn.PropertyName));
+
+                        ExpressionSyntax readInvocation = string.Equals(alias, descriptorColumn.SqlName, StringComparison.OrdinalIgnoreCase)
+                            ? InvokeMember(sourceColumn, "Read", IdentifierName(recordVariableName))
+                            : InvokeMember(sourceColumn, "Read", IdentifierName(recordVariableName), StringLiteral(alias ?? descriptorColumn.SqlName));
+
+                        result.Add(CreateVarReadStatement(
+                            alias ?? descriptorColumn.PropertyName,
+                            readInvocation,
+                            reservedNames));
+                        continue;
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(alias))
+                {
+                    continue;
+                }
+
+                if (this.TryInferDescriptorColumnKind(scalar.Expression, context, out var inferredKind))
+                {
+                    var readMethodName = inferredKind switch
+                    {
+                        DescriptorColumnKind.NVarChar => "GetString",
+                        DescriptorColumnKind.Boolean => "GetBoolean",
+                        DescriptorColumnKind.Decimal => "GetDecimal",
+                        DescriptorColumnKind.DateTime => "GetDateTime",
+                        DescriptorColumnKind.DateTimeOffset => "GetDateTimeOffset",
+                        DescriptorColumnKind.Guid => "GetGuid",
+                        DescriptorColumnKind.ByteArray => "GetByteArray",
+                        _ => "GetInt32"
+                    };
+
+                    var readInvocation = InvokeMember(
+                        IdentifierName(recordVariableName),
+                        readMethodName,
+                        StringLiteral(alias!));
+                    result.Add(CreateVarReadStatement(alias!, readInvocation, reservedNames));
+                    continue;
+                }
+
+                var fallbackRead = InvokeMember(
+                    IdentifierName(recordVariableName),
+                    "GetValue",
+                    InvokeMember(IdentifierName(recordVariableName), "GetOrdinal", StringLiteral(alias!)));
+                result.Add(CreateVarReadStatement(alias!, fallbackRead, reservedNames));
+            }
+
+            return result.ToArray();
+        }
+
+        private static LocalDeclarationStatementSyntax CreateVarReadStatement(
+            string seedName,
+            ExpressionSyntax readExpression,
+            ISet<string> reservedNames)
+        {
+            var variableName = CreateUniqueIdentifier(seedName, reservedNames);
+            return LocalDeclarationStatement(
+                VariableDeclaration(IdentifierName("var"))
+                    .AddVariables(
+                        VariableDeclarator(Identifier(variableName))
+                            .WithInitializer(EqualsValueClause(readExpression))));
         }
 
         private CompilationUnitSyntax BuildDeclarationsAst(TranspileContext context, SqExpressSqlTranspilerOptions options)
@@ -370,14 +604,21 @@ namespace SqExpress.SqlTranspiler
                 .Select(i => (MemberDeclarationSyntax)this.BuildTableDescriptorClass(i))
                 .ToArray();
 
+            var usings = new List<UsingDirectiveSyntax>
+            {
+                UsingDirective(ParseName("System")),
+                UsingDirective(ParseName("SqExpress")),
+                UsingDirective(ParseName("SqExpress.Syntax.Select")),
+                UsingDirective(ParseName("SqExpress.Syntax.Functions")),
+                UsingDirective(ParseName("SqExpress.Syntax.Functions.Known"))
+            };
+            if (options.UseStaticSqQueryBuilderUsing)
+            {
+                usings.Add(UsingDirective(ParseName("SqExpress.SqQueryBuilder")).WithStaticKeyword(Token(SyntaxKind.StaticKeyword)));
+            }
+
             return CompilationUnit()
-                .AddUsings(
-                    UsingDirective(ParseName("System")),
-                    UsingDirective(ParseName("SqExpress")),
-                    UsingDirective(ParseName("SqExpress.Syntax.Select")),
-                    UsingDirective(ParseName("SqExpress.Syntax.Functions")),
-                    UsingDirective(ParseName("SqExpress.Syntax.Functions.Known")),
-                    UsingDirective(ParseName("SqExpress.SqQueryBuilder")).WithStaticKeyword(Token(SyntaxKind.StaticKeyword)))
+                .AddUsings(usings.ToArray())
                 .AddMembers(
                     NamespaceDeclaration(ParseName(options.EffectiveDeclarationsNamespaceName))
                         .AddMembers(members))
@@ -548,13 +789,36 @@ namespace SqExpress.SqlTranspiler
 
         private ClassDeclarationSyntax BuildSubQueryDescriptorClass(TableDescriptor descriptor, TranspileContext parentContext)
         {
+            var subQueryContext = parentContext.CreateChild();
+            if (descriptor.QueryExpression == null)
+            {
+                throw new SqExpressSqlTranspilerException("Derived subquery expression is required.");
+            }
+
+            this.PreRegisterQueryExpression(descriptor.QueryExpression, subQueryContext);
+            var subQueryExpression = this.BuildQueryExpression(descriptor.QueryExpression, subQueryContext);
+
+            var tableFieldSources = subQueryContext.Sources
+                .Where(i => i.Descriptor?.Kind == DescriptorKind.Table)
+                .ToList();
+            var tableFieldSourceByVariable = tableFieldSources
+                .ToDictionary(i => i.VariableName, StringComparer.OrdinalIgnoreCase);
+            var projectedTableBindings = this.ExtractSubQueryProjectedTableBindings(descriptor.QueryExpression, subQueryContext)
+                .ToDictionary(i => i.OutputColumnSqlName, StringComparer.OrdinalIgnoreCase);
+
             var constructorStatements = descriptor.Columns
                 .Select(column =>
-                    (RoslynStatementSyntax)ExpressionStatement(
+                {
+                    var initializeExpression = this.BuildSubQueryColumnInitialization(
+                        column,
+                        projectedTableBindings,
+                        tableFieldSourceByVariable);
+                    return (RoslynStatementSyntax)ExpressionStatement(
                         AssignmentExpression(
                             SyntaxKind.SimpleAssignmentExpression,
                             MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, ThisExpression(), IdentifierName(column.PropertyName)),
-                            this.BuildCreateColumnExpression(column, tableDescriptor: false))))
+                            initializeExpression));
+                })
                 .ToArray();
 
             var constructor = ConstructorDeclaration(descriptor.ClassName)
@@ -570,23 +834,37 @@ namespace SqExpress.SqlTranspiler
                         ArgumentList(SingletonSeparatedList(Argument(IdentifierName("alias"))))))
                 .WithBody(Block(constructorStatements));
 
-            var subQueryContext = parentContext.CreateChild();
-            if (descriptor.QueryExpression == null)
-            {
-                throw new SqExpressSqlTranspilerException("Derived subquery expression is required.");
-            }
+            var aliasToPropertyMap = descriptor.Columns
+                .GroupBy(i => i.SqlName, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(i => i.Key, i => i.First().PropertyName, StringComparer.OrdinalIgnoreCase);
+            subQueryExpression = ReplaceAsStringAliasWithColumnProperty(subQueryExpression, aliasToPropertyMap);
 
-            this.PreRegisterQueryExpression(descriptor.QueryExpression, subQueryContext);
-            var subQueryExpression = this.BuildQueryExpression(descriptor.QueryExpression, subQueryContext);
             var subQueryDoneExpression = InvokeMember(subQueryExpression, "Done");
             var createQueryBody = new List<RoslynStatementSyntax>();
             createQueryBody.AddRange(subQueryContext.ParameterDeclarations);
-            createQueryBody.AddRange(subQueryContext.SourceDeclarations);
+            var tableFieldNames = new HashSet<string>(tableFieldSources.Select(i => i.VariableName), StringComparer.OrdinalIgnoreCase);
+            createQueryBody.AddRange(
+                subQueryContext.SourceDeclarations
+                    .Where(i =>
+                    {
+                        var declarationName = TryGetLocalDeclarationVariableName(i);
+                        return declarationName == null || !tableFieldNames.Contains(declarationName);
+                    }));
             createQueryBody.Add(ReturnStatement(subQueryDoneExpression));
 
             var createQueryMethod = MethodDeclaration(IdentifierName("IExprSubQuery"), Identifier("CreateQuery"))
                 .AddModifiers(Token(SyntaxKind.ProtectedKeyword), Token(SyntaxKind.OverrideKeyword))
                 .WithBody(Block(createQueryBody));
+
+            var sourceFields = tableFieldSources
+                .Select(i =>
+                    (MemberDeclarationSyntax)FieldDeclaration(
+                            VariableDeclaration(IdentifierName(i.Descriptor!.ClassName))
+                                .AddVariables(
+                                    VariableDeclarator(Identifier(i.VariableName))
+                                        .WithInitializer(EqualsValueClause(i.InitializationExpression))))
+                        .AddModifiers(Token(SyntaxKind.PrivateKeyword), Token(SyntaxKind.ReadOnlyKeyword)))
+                .ToArray();
 
             var properties = descriptor.Columns
                 .Select(column => this.BuildDescriptorProperty(column, tableDescriptor: false))
@@ -595,9 +873,43 @@ namespace SqExpress.SqlTranspiler
             return ClassDeclaration(descriptor.ClassName)
                 .AddModifiers(Token(SyntaxKind.PublicKeyword), Token(SyntaxKind.SealedKeyword))
                 .WithBaseList(BaseList(SingletonSeparatedList<BaseTypeSyntax>(SimpleBaseType(IdentifierName("DerivedTableBase")))))
+                .AddMembers(sourceFields)
                 .AddMembers(properties)
                 .AddMembers(constructor)
                 .AddMembers(createQueryMethod);
+        }
+
+        private ExpressionSyntax BuildSubQueryColumnInitialization(
+            TableDescriptorColumn targetColumn,
+            IReadOnlyDictionary<string, SubQueryProjectedTableBinding> projectedTableBindings,
+            IReadOnlyDictionary<string, TableSource> tableFieldSourceByVariable)
+        {
+            if (projectedTableBindings.TryGetValue(targetColumn.SqlName, out var binding)
+                && tableFieldSourceByVariable.TryGetValue(binding.SourceVariableName, out _))
+            {
+                var sourceColumn = binding.SourceColumn;
+                if (targetColumn.IsNullable && !sourceColumn.IsNullable)
+                {
+                    return this.BuildCreateColumnExpression(targetColumn, tableDescriptor: false);
+                }
+
+                ExpressionSyntax sourceExpression = MemberAccessExpression(
+                    SyntaxKind.SimpleMemberAccessExpression,
+                    MemberAccessExpression(
+                        SyntaxKind.SimpleMemberAccessExpression,
+                        ThisExpression(),
+                        IdentifierName(binding.SourceVariableName)),
+                    IdentifierName(sourceColumn.PropertyName));
+
+                if (!string.Equals(sourceColumn.SqlName, targetColumn.SqlName, StringComparison.OrdinalIgnoreCase))
+                {
+                    sourceExpression = InvokeMember(sourceExpression, "WithColumnName", StringLiteral(targetColumn.SqlName));
+                }
+
+                return InvokeMember(sourceExpression, "AddToDerivedTable", ThisExpression());
+            }
+
+            return this.BuildCreateColumnExpression(targetColumn, tableDescriptor: false);
         }
 
         private PropertyDeclarationSyntax BuildDescriptorProperty(TableDescriptorColumn column, bool tableDescriptor)
@@ -607,28 +919,28 @@ namespace SqExpress.SqlTranspiler
             {
                 typeName = column.Kind switch
                 {
-                    DescriptorColumnKind.NVarChar => "StringTableColumn",
-                    DescriptorColumnKind.Boolean => "BooleanTableColumn",
-                    DescriptorColumnKind.Decimal => "DecimalTableColumn",
-                    DescriptorColumnKind.DateTime => "DateTimeTableColumn",
-                    DescriptorColumnKind.DateTimeOffset => "DateTimeOffsetTableColumn",
-                    DescriptorColumnKind.Guid => "GuidTableColumn",
-                    DescriptorColumnKind.ByteArray => "ByteArrayTableColumn",
-                    _ => "Int32TableColumn"
+                    DescriptorColumnKind.NVarChar => column.IsNullable ? "NullableStringTableColumn" : "StringTableColumn",
+                    DescriptorColumnKind.Boolean => column.IsNullable ? "NullableBooleanTableColumn" : "BooleanTableColumn",
+                    DescriptorColumnKind.Decimal => column.IsNullable ? "NullableDecimalTableColumn" : "DecimalTableColumn",
+                    DescriptorColumnKind.DateTime => column.IsNullable ? "NullableDateTimeTableColumn" : "DateTimeTableColumn",
+                    DescriptorColumnKind.DateTimeOffset => column.IsNullable ? "NullableDateTimeOffsetTableColumn" : "DateTimeOffsetTableColumn",
+                    DescriptorColumnKind.Guid => column.IsNullable ? "NullableGuidTableColumn" : "GuidTableColumn",
+                    DescriptorColumnKind.ByteArray => column.IsNullable ? "NullableByteArrayTableColumn" : "ByteArrayTableColumn",
+                    _ => column.IsNullable ? "NullableInt32TableColumn" : "Int32TableColumn"
                 };
             }
             else
             {
                 typeName = column.Kind switch
                 {
-                    DescriptorColumnKind.NVarChar => "StringCustomColumn",
-                    DescriptorColumnKind.Boolean => "BooleanCustomColumn",
-                    DescriptorColumnKind.Decimal => "DecimalCustomColumn",
-                    DescriptorColumnKind.DateTime => "DateTimeCustomColumn",
-                    DescriptorColumnKind.DateTimeOffset => "DateTimeOffsetCustomColumn",
-                    DescriptorColumnKind.Guid => "GuidCustomColumn",
-                    DescriptorColumnKind.ByteArray => "ByteArrayCustomColumn",
-                    _ => "Int32CustomColumn"
+                    DescriptorColumnKind.NVarChar => column.IsNullable ? "NullableStringCustomColumn" : "StringCustomColumn",
+                    DescriptorColumnKind.Boolean => column.IsNullable ? "NullableBooleanCustomColumn" : "BooleanCustomColumn",
+                    DescriptorColumnKind.Decimal => column.IsNullable ? "NullableDecimalCustomColumn" : "DecimalCustomColumn",
+                    DescriptorColumnKind.DateTime => column.IsNullable ? "NullableDateTimeCustomColumn" : "DateTimeCustomColumn",
+                    DescriptorColumnKind.DateTimeOffset => column.IsNullable ? "NullableDateTimeOffsetCustomColumn" : "DateTimeOffsetCustomColumn",
+                    DescriptorColumnKind.Guid => column.IsNullable ? "NullableGuidCustomColumn" : "GuidCustomColumn",
+                    DescriptorColumnKind.ByteArray => column.IsNullable ? "NullableByteArrayCustomColumn" : "ByteArrayCustomColumn",
+                    _ => column.IsNullable ? "NullableInt32CustomColumn" : "Int32CustomColumn"
                 };
             }
 
@@ -646,22 +958,51 @@ namespace SqExpress.SqlTranspiler
             return column.Kind switch
             {
                 DescriptorColumnKind.NVarChar => tableDescriptor
-                    ? InvokeMember(
-                        ThisExpression(),
-                        "CreateStringColumn",
-                        StringLiteral(column.SqlName),
-                        LiteralExpression(SyntaxKind.NullLiteralExpression),
-                        LiteralExpression(SyntaxKind.TrueLiteralExpression))
-                    : InvokeMember(ThisExpression(), "CreateStringColumn", StringLiteral(column.SqlName)),
-                DescriptorColumnKind.Boolean => InvokeMember(ThisExpression(), "CreateBooleanColumn", StringLiteral(column.SqlName)),
-                DescriptorColumnKind.Decimal => InvokeMember(ThisExpression(), "CreateDecimalColumn", StringLiteral(column.SqlName)),
-                DescriptorColumnKind.DateTime => InvokeMember(ThisExpression(), "CreateDateTimeColumn", StringLiteral(column.SqlName)),
-                DescriptorColumnKind.DateTimeOffset => InvokeMember(ThisExpression(), "CreateDateTimeOffsetColumn", StringLiteral(column.SqlName)),
-                DescriptorColumnKind.Guid => InvokeMember(ThisExpression(), "CreateGuidColumn", StringLiteral(column.SqlName)),
+                    ? column.IsNullable
+                        ? InvokeMember(
+                            ThisExpression(),
+                            "CreateNullableStringColumn",
+                            StringLiteral(column.SqlName),
+                            column.StringLength.HasValue
+                                ? LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal(column.StringLength.Value))
+                                : LiteralExpression(SyntaxKind.NullLiteralExpression),
+                            LiteralExpression(SyntaxKind.TrueLiteralExpression))
+                        : InvokeMember(
+                            ThisExpression(),
+                            "CreateStringColumn",
+                            StringLiteral(column.SqlName),
+                            column.StringLength.HasValue
+                                ? LiteralExpression(SyntaxKind.NumericLiteralExpression, Literal(column.StringLength.Value))
+                                : LiteralExpression(SyntaxKind.NullLiteralExpression),
+                            LiteralExpression(SyntaxKind.TrueLiteralExpression))
+                    : column.IsNullable
+                        ? InvokeMember(ThisExpression(), "CreateNullableStringColumn", StringLiteral(column.SqlName))
+                        : InvokeMember(ThisExpression(), "CreateStringColumn", StringLiteral(column.SqlName)),
+                DescriptorColumnKind.Boolean => column.IsNullable
+                    ? InvokeMember(ThisExpression(), "CreateNullableBooleanColumn", StringLiteral(column.SqlName))
+                    : InvokeMember(ThisExpression(), "CreateBooleanColumn", StringLiteral(column.SqlName)),
+                DescriptorColumnKind.Decimal => column.IsNullable
+                    ? InvokeMember(ThisExpression(), "CreateNullableDecimalColumn", StringLiteral(column.SqlName))
+                    : InvokeMember(ThisExpression(), "CreateDecimalColumn", StringLiteral(column.SqlName)),
+                DescriptorColumnKind.DateTime => column.IsNullable
+                    ? InvokeMember(ThisExpression(), "CreateNullableDateTimeColumn", StringLiteral(column.SqlName))
+                    : InvokeMember(ThisExpression(), "CreateDateTimeColumn", StringLiteral(column.SqlName)),
+                DescriptorColumnKind.DateTimeOffset => column.IsNullable
+                    ? InvokeMember(ThisExpression(), "CreateNullableDateTimeOffsetColumn", StringLiteral(column.SqlName))
+                    : InvokeMember(ThisExpression(), "CreateDateTimeOffsetColumn", StringLiteral(column.SqlName)),
+                DescriptorColumnKind.Guid => column.IsNullable
+                    ? InvokeMember(ThisExpression(), "CreateNullableGuidColumn", StringLiteral(column.SqlName))
+                    : InvokeMember(ThisExpression(), "CreateGuidColumn", StringLiteral(column.SqlName)),
                 DescriptorColumnKind.ByteArray => tableDescriptor
-                    ? InvokeMember(ThisExpression(), "CreateByteArrayColumn", StringLiteral(column.SqlName), LiteralExpression(SyntaxKind.NullLiteralExpression))
-                    : InvokeMember(ThisExpression(), "CreateByteArrayColumn", StringLiteral(column.SqlName)),
-                _ => InvokeMember(ThisExpression(), "CreateInt32Column", StringLiteral(column.SqlName))
+                    ? column.IsNullable
+                        ? InvokeMember(ThisExpression(), "CreateNullableByteArrayColumn", StringLiteral(column.SqlName), LiteralExpression(SyntaxKind.NullLiteralExpression))
+                        : InvokeMember(ThisExpression(), "CreateByteArrayColumn", StringLiteral(column.SqlName), LiteralExpression(SyntaxKind.NullLiteralExpression))
+                    : column.IsNullable
+                        ? InvokeMember(ThisExpression(), "CreateNullableByteArrayColumn", StringLiteral(column.SqlName))
+                        : InvokeMember(ThisExpression(), "CreateByteArrayColumn", StringLiteral(column.SqlName)),
+                _ => column.IsNullable
+                    ? InvokeMember(ThisExpression(), "CreateNullableInt32Column", StringLiteral(column.SqlName))
+                    : InvokeMember(ThisExpression(), "CreateInt32Column", StringLiteral(column.SqlName))
             };
         }
 
@@ -798,7 +1139,14 @@ namespace SqExpress.SqlTranspiler
             }
             else
             {
-                current = Invoke(distinct ? "SelectDistinct" : "Select", selectArguments);
+                if (!distinct && IsSelectOneProjection(specification))
+                {
+                    current = Invoke("SelectOne");
+                }
+                else
+                {
+                    current = Invoke(distinct ? "SelectDistinct" : "Select", selectArguments);
+                }
             }
 
             if (specification.FromClause != null)
@@ -1743,14 +2091,21 @@ namespace SqExpress.SqlTranspiler
                 }
 
                 var kind = MapComparisonKind(comparison.ComparisonType);
+                var leftExpression = this.BuildComparisonOperand(comparison.FirstExpression, comparison.SecondExpression, context);
+                var rightExpression = this.BuildComparisonOperand(comparison.SecondExpression, comparison.FirstExpression, context);
                 return BinaryExpression(
                     kind,
-                    ParenthesizeIfNeeded(this.BuildScalarExpression(comparison.FirstExpression, context, wrapLiterals: false)),
-                    ParenthesizeIfNeeded(this.BuildScalarExpression(comparison.SecondExpression, context, wrapLiterals: false)));
+                    ParenthesizeIfNeeded(leftExpression),
+                    ParenthesizeIfNeeded(rightExpression));
             }
 
             if (expression is BooleanIsNullExpression isNull)
             {
+                if (isNull.Expression is ColumnReferenceExpression nullableColumn)
+                {
+                    context.MarkColumnNullable(nullableColumn);
+                }
+
                 var test = this.BuildScalarExpression(isNull.Expression, context, wrapLiterals: false);
                 return Invoke(isNull.IsNot ? "IsNotNull" : "IsNull", test);
             }
@@ -1877,8 +2232,22 @@ namespace SqExpress.SqlTranspiler
             throw new SqExpressSqlTranspilerException($"Unsupported boolean expression: {expression.GetType().Name}.");
         }
 
+        private ExpressionSyntax BuildComparisonOperand(ScalarExpression operand, ScalarExpression opposite, TranspileContext context)
+        {
+            if (operand is VariableReference variableReference
+                && opposite is ColumnReferenceExpression)
+            {
+                var variable = context.RegisterSqlVariable(variableReference.Name, SqlVariableKind.UnknownScalar);
+                return IdentifierName(variable.VariableName);
+            }
+
+            return this.BuildScalarExpression(operand, context, wrapLiterals: false);
+        }
+
         private ExpressionSyntax BuildScalarExpression(ScalarExpression expression, TranspileContext context, bool wrapLiterals)
         {
+            this.ApplyOperatorAndFunctionTypeHints(expression, context);
+
             if (expression is ColumnReferenceExpression columnReference)
             {
                 return this.BuildColumnExpression(columnReference, context);
@@ -1993,6 +2362,105 @@ namespace SqExpress.SqlTranspiler
             }
 
             throw new SqExpressSqlTranspilerException($"Unsupported scalar expression: {expression.GetType().Name}.");
+        }
+
+        private void ApplyOperatorAndFunctionTypeHints(ScalarExpression expression, TranspileContext context)
+        {
+            if (expression is BinaryExpression binaryExpression)
+            {
+                if (binaryExpression.BinaryExpressionType == BinaryExpressionType.Add)
+                {
+                    var leftIsString = this.TryInferDescriptorColumnKind(binaryExpression.FirstExpression, context, out var leftKind)
+                        && leftKind == DescriptorColumnKind.NVarChar
+                        || binaryExpression.FirstExpression is StringLiteral;
+                    var rightIsString = this.TryInferDescriptorColumnKind(binaryExpression.SecondExpression, context, out var rightKind)
+                        && rightKind == DescriptorColumnKind.NVarChar
+                        || binaryExpression.SecondExpression is StringLiteral;
+
+                    if (leftIsString || rightIsString)
+                    {
+                        this.MarkColumnReferencesAsKind(binaryExpression.FirstExpression, DescriptorColumnKind.NVarChar, context);
+                        this.MarkColumnReferencesAsKind(binaryExpression.SecondExpression, DescriptorColumnKind.NVarChar, context);
+                        return;
+                    }
+                }
+
+                if (IsArithmeticBinary(binaryExpression.BinaryExpressionType))
+                {
+                    var numericKind = this.ShouldPreferDecimal(binaryExpression.FirstExpression, binaryExpression.SecondExpression, context)
+                        ? DescriptorColumnKind.Decimal
+                        : DescriptorColumnKind.Int32;
+                    this.MarkColumnReferencesAsKind(binaryExpression.FirstExpression, numericKind, context);
+                    this.MarkColumnReferencesAsKind(binaryExpression.SecondExpression, numericKind, context);
+                }
+
+                return;
+            }
+
+            if (expression is FunctionCall functionCall)
+            {
+                var functionName = functionCall.FunctionName.Value.ToUpperInvariant();
+                switch (functionName)
+                {
+                    case "LEN":
+                    case "LOWER":
+                    case "UPPER":
+                    case "LTRIM":
+                    case "RTRIM":
+                    case "TRIM":
+                    case "SUBSTRING":
+                    case "LEFT":
+                    case "RIGHT":
+                    case "REPLACE":
+                    case "CONCAT":
+                    case "CHARINDEX":
+                    case "PATINDEX":
+                        foreach (var parameter in functionCall.Parameters)
+                        {
+                            this.MarkColumnReferencesAsKind(parameter, DescriptorColumnKind.NVarChar, context);
+                        }
+                        return;
+                    case "DATEADD":
+                        if (functionCall.Parameters.Count == 3)
+                        {
+                            this.MarkColumnReferencesAsKind(functionCall.Parameters[2], DescriptorColumnKind.DateTime, context);
+                        }
+
+                        return;
+                    case "DATEDIFF":
+                        if (functionCall.Parameters.Count == 3)
+                        {
+                            this.MarkColumnReferencesAsKind(functionCall.Parameters[1], DescriptorColumnKind.DateTime, context);
+                            this.MarkColumnReferencesAsKind(functionCall.Parameters[2], DescriptorColumnKind.DateTime, context);
+                        }
+
+                        return;
+                    case "YEAR":
+                    case "MONTH":
+                    case "DAY":
+                    case "HOUR":
+                    case "MINUTE":
+                    case "SECOND":
+                        if (functionCall.Parameters.Count >= 1)
+                        {
+                            this.MarkColumnReferencesAsKind(functionCall.Parameters[0], DescriptorColumnKind.DateTime, context);
+                        }
+
+                        return;
+                    case "ABS":
+                    case "ROUND":
+                    case "CEILING":
+                    case "FLOOR":
+                    case "POWER":
+                    case "SQRT":
+                        foreach (var parameter in functionCall.Parameters)
+                        {
+                            this.MarkColumnReferencesAsKind(parameter, DescriptorColumnKind.Decimal, context);
+                        }
+
+                        return;
+                }
+            }
         }
 
         private ExpressionSyntax BuildSubQueryExpression(ScalarSubquery scalarSubquery, TranspileContext context)
@@ -3067,6 +3535,15 @@ namespace SqExpress.SqlTranspiler
                 return this.MapDescriptorKindToScalarVariableKind(knownColumnKind);
             }
 
+            if (expression is ColumnReferenceExpression unresolvedColumnReference)
+            {
+                var registeredColumn = context.RegisterColumnReference(unresolvedColumnReference, DescriptorColumnKind.Int32);
+                if (registeredColumn.HasValue)
+                {
+                    return this.MapDescriptorKindToScalarVariableKind(registeredColumn.Value.Column.Kind);
+                }
+            }
+
             if (expression is VariableReference variableReference
                 && context.TryGetSqlVariableKind(variableReference.Name, out var existingVariableKind))
             {
@@ -3169,6 +3646,98 @@ namespace SqExpress.SqlTranspiler
             }
 
             return false;
+        }
+
+        private bool ShouldPreferDecimal(ScalarExpression left, ScalarExpression right, TranspileContext context)
+        {
+            if (left is Microsoft.SqlServer.TransactSql.ScriptDom.NumericLiteral
+                || left is MoneyLiteral
+                || right is Microsoft.SqlServer.TransactSql.ScriptDom.NumericLiteral
+                || right is MoneyLiteral)
+            {
+                return true;
+            }
+
+            if (this.TryInferDescriptorColumnKind(left, context, out var leftKind) && leftKind == DescriptorColumnKind.Decimal)
+            {
+                return true;
+            }
+
+            if (this.TryInferDescriptorColumnKind(right, context, out var rightKind) && rightKind == DescriptorColumnKind.Decimal)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private void MarkColumnReferencesAsKind(ScalarExpression expression, DescriptorColumnKind kind, TranspileContext context)
+        {
+            foreach (var column in EnumerateColumnReferences(expression))
+            {
+                context.MarkColumnAsKind(column, kind);
+            }
+        }
+
+        private static bool IsArithmeticBinary(BinaryExpressionType type)
+        {
+            switch (type)
+            {
+                case BinaryExpressionType.Add:
+                case BinaryExpressionType.Subtract:
+                case BinaryExpressionType.Multiply:
+                case BinaryExpressionType.Divide:
+                case BinaryExpressionType.Modulo:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static IReadOnlyList<ColumnReferenceExpression> EnumerateColumnReferences(ScalarExpression expression)
+        {
+            var result = new List<ColumnReferenceExpression>();
+            CollectColumnReferences(expression, result);
+            return result;
+        }
+
+        private static void CollectColumnReferences(ScalarExpression expression, List<ColumnReferenceExpression> result)
+        {
+            switch (expression)
+            {
+                case ColumnReferenceExpression columnReference when columnReference.ColumnType != ColumnType.Wildcard:
+                    result.Add(columnReference);
+                    return;
+                case ParenthesisExpression parenthesis:
+                    CollectColumnReferences(parenthesis.Expression, result);
+                    return;
+                case UnaryExpression unary:
+                    CollectColumnReferences(unary.Expression, result);
+                    return;
+                case BinaryExpression binary:
+                    CollectColumnReferences(binary.FirstExpression, result);
+                    CollectColumnReferences(binary.SecondExpression, result);
+                    return;
+                case CastCall castCall:
+                    CollectColumnReferences(castCall.Parameter, result);
+                    return;
+                case CoalesceExpression coalesce:
+                    foreach (var inner in coalesce.Expressions)
+                    {
+                        CollectColumnReferences(inner, result);
+                    }
+
+                    return;
+                case FunctionCall functionCall:
+                    foreach (var parameter in functionCall.Parameters)
+                    {
+                        CollectColumnReferences(parameter, result);
+                    }
+
+                    return;
+                default:
+                    return;
+            }
         }
 
         private SqlVariableKind MapSqlTypeToScalarVariableKind(SqlDataTypeOption dataTypeOption)
@@ -3346,6 +3915,26 @@ namespace SqExpress.SqlTranspiler
             }
         }
 
+        private static bool IsSelectOneProjection(QuerySpecification specification)
+        {
+            if (specification.SelectElements.Count != 1)
+            {
+                return false;
+            }
+
+            if (specification.SelectElements[0] is not SelectScalarExpression scalar)
+            {
+                return false;
+            }
+
+            if (TryGetSelectAlias(scalar.ColumnName) != null)
+            {
+                return false;
+            }
+
+            return TryExtractInt32Constant(scalar.Expression, out var value) && value == 1;
+        }
+
         private static bool TryExtractInt32Constant(ScalarExpression expression, out int value)
         {
             value = 0;
@@ -3362,6 +3951,8 @@ namespace SqExpress.SqlTranspiler
                     return false;
                 case UnaryExpression unaryExpression when unaryExpression.UnaryExpressionType == UnaryExpressionType.Positive:
                     return TryExtractInt32Constant(unaryExpression.Expression, out value);
+                case ParenthesisExpression parenthesisExpression:
+                    return TryExtractInt32Constant(parenthesisExpression.Expression, out value);
                 default:
                     return false;
             }
@@ -3629,6 +4220,144 @@ namespace SqExpress.SqlTranspiler
             return result;
         }
 
+        private IReadOnlyList<SubQueryProjectedTableBinding> ExtractSubQueryProjectedTableBindings(
+            QueryExpression queryExpression,
+            TranspileContext context)
+        {
+            if (!TryUnwrapQuerySpecification(queryExpression, out var specification))
+            {
+                return Array.Empty<SubQueryProjectedTableBinding>();
+            }
+
+            var result = new List<SubQueryProjectedTableBinding>();
+            var exprIndex = 0;
+            foreach (var selectElement in specification.SelectElements)
+            {
+                if (selectElement is not SelectScalarExpression scalar)
+                {
+                    continue;
+                }
+
+                var outputName = TryGetSelectAlias(scalar.ColumnName);
+                if (string.IsNullOrWhiteSpace(outputName) && scalar.Expression is ColumnReferenceExpression outputColRef)
+                {
+                    var outputIds = outputColRef.MultiPartIdentifier?.Identifiers;
+                    outputName = outputIds != null && outputIds.Count > 0
+                        ? outputIds[outputIds.Count - 1].Value
+                        : null;
+                }
+
+                if (string.IsNullOrWhiteSpace(outputName))
+                {
+                    exprIndex++;
+                    outputName = "Expr" + exprIndex.ToString(CultureInfo.InvariantCulture);
+                }
+
+                if (scalar.Expression is not ColumnReferenceExpression sourceColumnReference)
+                {
+                    continue;
+                }
+
+                if (!context.TryResolveColumnSource(sourceColumnReference, out var source))
+                {
+                    continue;
+                }
+
+                if (source.Descriptor?.Kind != DescriptorKind.Table)
+                {
+                    continue;
+                }
+
+                var sourceIds = sourceColumnReference.MultiPartIdentifier?.Identifiers;
+                if (sourceIds == null || sourceIds.Count < 1)
+                {
+                    continue;
+                }
+
+                var sourceColumnName = sourceIds[sourceIds.Count - 1].Value;
+                if (string.IsNullOrWhiteSpace(sourceColumnName))
+                {
+                    continue;
+                }
+
+                if (!source.Descriptor.TryGetColumn(sourceColumnName!, out var sourceColumn))
+                {
+                    continue;
+                }
+
+                result.Add(new SubQueryProjectedTableBinding(outputName!, source.VariableName, sourceColumn));
+            }
+
+            return result;
+        }
+
+        private static bool TryUnwrapQuerySpecification(QueryExpression queryExpression, out QuerySpecification specification)
+        {
+            specification = null!;
+            try
+            {
+                specification = UnwrapQuerySpecification(queryExpression, "Query specification is expected.");
+                return true;
+            }
+            catch (SqExpressSqlTranspilerException)
+            {
+                return false;
+            }
+        }
+
+        private static ExpressionSyntax ReplaceAsStringAliasWithColumnProperty(
+            ExpressionSyntax expression,
+            IReadOnlyDictionary<string, string> aliasToPropertyMap)
+        {
+            if (aliasToPropertyMap.Count < 1)
+            {
+                return expression;
+            }
+
+            var targets = expression.DescendantNodesAndSelf()
+                .OfType<InvocationExpressionSyntax>()
+                .Where(i =>
+                    i.Expression is MemberAccessExpressionSyntax ma
+                    && ma.Name is IdentifierNameSyntax name
+                    && string.Equals(name.Identifier.ValueText, "As", StringComparison.Ordinal)
+                    && i.ArgumentList.Arguments.Count == 1
+                    && i.ArgumentList.Arguments[0].Expression is LiteralExpressionSyntax literal
+                    && literal.IsKind(SyntaxKind.StringLiteralExpression)
+                    && aliasToPropertyMap.ContainsKey(literal.Token.ValueText))
+                .ToList();
+
+            if (targets.Count < 1)
+            {
+                return expression;
+            }
+
+            return expression.ReplaceNodes(
+                targets,
+                (current, _) =>
+                {
+                    var literal = (LiteralExpressionSyntax)current.ArgumentList.Arguments[0].Expression;
+                    var propertyName = aliasToPropertyMap[literal.Token.ValueText];
+                    return current.WithArgumentList(
+                        ArgumentList(
+                            SingletonSeparatedList(
+                                Argument(
+                                    MemberAccessExpression(
+                                        SyntaxKind.SimpleMemberAccessExpression,
+                                        ThisExpression(),
+                                        IdentifierName(propertyName))))));
+                });
+        }
+
+        private static string? TryGetLocalDeclarationVariableName(LocalDeclarationStatementSyntax declaration)
+        {
+            if (declaration.Declaration.Variables.Count == 1)
+            {
+                return declaration.Declaration.Variables[0].Identifier.ValueText;
+            }
+
+            return null;
+        }
+
         private static ExpressionSyntax ParenthesizeIfNeeded(ExpressionSyntax expression)
             => expression is BinaryExpressionSyntax || expression is PrefixUnaryExpressionSyntax
                 ? ParenthesizedExpression(expression)
@@ -3747,6 +4476,23 @@ namespace SqExpress.SqlTranspiler
             return cleaned;
         }
 
+        private static string CreateUniqueIdentifier(string seed, ISet<string> reservedNames)
+        {
+            var normalized = NormalizeIdentifier(seed, "v");
+            normalized = char.ToLowerInvariant(normalized[0]) + normalized.Substring(1);
+
+            var candidate = normalized;
+            var index = 0;
+            while (reservedNames.Contains(candidate))
+            {
+                index++;
+                candidate = normalized + index.ToString(CultureInfo.InvariantCulture);
+            }
+
+            reservedNames.Add(candidate);
+            return candidate;
+        }
+
         private static string NormalizeTypeIdentifier(string name, string fallback)
         {
             var normalized = NormalizeIdentifier(name, fallback);
@@ -3756,6 +4502,33 @@ namespace SqExpress.SqlTranspiler
             }
 
             return char.ToUpperInvariant(normalized[0]) + normalized.Substring(1);
+        }
+
+        private sealed class SqQueryBuilderCallQualifier : CSharpSyntaxRewriter
+        {
+            private readonly HashSet<string> _excludedNames;
+            private static readonly ExpressionSyntax SqQueryBuilderExpression = IdentifierName("SqQueryBuilder");
+
+            public SqQueryBuilderCallQualifier(HashSet<string> excludedNames)
+            {
+                this._excludedNames = excludedNames;
+            }
+
+            public override SyntaxNode? VisitInvocationExpression(InvocationExpressionSyntax node)
+            {
+                var visited = (InvocationExpressionSyntax)base.VisitInvocationExpression(node)!;
+                if (visited.Expression is IdentifierNameSyntax identifierName
+                    && !this._excludedNames.Contains(identifierName.Identifier.ValueText))
+                {
+                    return visited.WithExpression(
+                        MemberAccessExpression(
+                            SyntaxKind.SimpleMemberAccessExpression,
+                            SqQueryBuilderExpression,
+                            IdentifierName(identifierName.Identifier.ValueText)));
+                }
+
+                return visited;
+            }
         }
 
         private sealed class TranspileContext
@@ -3774,17 +4547,35 @@ namespace SqExpress.SqlTranspiler
             private readonly Dictionary<string, TableSource> _sourceByAlias = new(StringComparer.OrdinalIgnoreCase);
             private readonly Dictionary<string, TableSource?> _sourceByObjectName = new(StringComparer.OrdinalIgnoreCase);
             private readonly HashSet<string> _variableNames;
+            private readonly string _tableDescriptorClassPrefix;
+            private readonly string _tableDescriptorClassSuffix;
+            private readonly string? _defaultSchemaName;
 
             public TranspileContext(SqExpressSqlTranspilerOptions options)
-                : this(new SharedDescriptorState(), new HashSet<string>(StringComparer.OrdinalIgnoreCase), parent: null)
+                : this(
+                    new SharedDescriptorState(),
+                    new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+                    parent: null,
+                    tableDescriptorClassPrefix: options.TableDescriptorClassPrefix ?? string.Empty,
+                    tableDescriptorClassSuffix: options.TableDescriptorClassSuffix ?? string.Empty,
+                    defaultSchemaName: options.EffectiveDefaultSchemaName)
             {
             }
 
-            private TranspileContext(SharedDescriptorState sharedState, HashSet<string> variableNames, TranspileContext? parent)
+            private TranspileContext(
+                SharedDescriptorState sharedState,
+                HashSet<string> variableNames,
+                TranspileContext? parent,
+                string tableDescriptorClassPrefix,
+                string tableDescriptorClassSuffix,
+                string? defaultSchemaName)
             {
                 this._sharedState = sharedState;
                 this._variableNames = variableNames;
                 this._parent = parent;
+                this._tableDescriptorClassPrefix = tableDescriptorClassPrefix;
+                this._tableDescriptorClassSuffix = tableDescriptorClassSuffix;
+                this._defaultSchemaName = defaultSchemaName;
             }
 
             public TranspileContext CreateChild(bool shareVariableNames = false, bool inheritSourceResolution = false)
@@ -3793,9 +4584,14 @@ namespace SqExpress.SqlTranspiler
                     shareVariableNames
                         ? this._variableNames
                         : new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-                    parent: inheritSourceResolution ? this : null);
+                    parent: inheritSourceResolution ? this : null,
+                    tableDescriptorClassPrefix: this._tableDescriptorClassPrefix,
+                    tableDescriptorClassSuffix: this._tableDescriptorClassSuffix,
+                    defaultSchemaName: this._defaultSchemaName);
 
             public IReadOnlyList<TableDescriptor> Descriptors => this._sharedState.Descriptors;
+
+            public IReadOnlyList<TableSource> Sources => this._sources;
 
             public IReadOnlyList<LocalDeclarationStatementSyntax> SourceDeclarations => this._sourceDeclarations;
 
@@ -3902,20 +4698,129 @@ namespace SqExpress.SqlTranspiler
                 }
                 else
                 {
-                    descriptor = new TableDescriptor(
-                        className: this.CreateClassName(objectName + "Table", "GeneratedTable"),
-                        kind: DescriptorKind.Table,
-                        objectName: objectName!,
-                        schemaName: tableReference.SchemaObject.SchemaIdentifier?.Value,
-                        databaseName: tableReference.SchemaObject.DatabaseIdentifier?.Value,
-                        queryExpression: null);
+                    var schemaName = tableReference.SchemaObject.SchemaIdentifier?.Value;
+                    var databaseName = tableReference.SchemaObject.DatabaseIdentifier?.Value;
 
-                    this._sharedState.Descriptors.Add(descriptor);
+                    if (schemaName == null && databaseName == null)
+                    {
+                        descriptor = this.GetOrAddUnqualifiedTableDescriptor(objectName!, this._defaultSchemaName);
+                    }
+                    else
+                    {
+                        descriptor = this.GetOrAddQualifiedTableDescriptor(databaseName, schemaName, objectName!);
+                    }
                 }
 
                 var source = this.RegisterSource(descriptor, alias ?? objectName!, alias, objectName!);
                 this._namedSourceMap[tableReference] = source;
                 return source;
+            }
+
+            private static string CreateTableDescriptorKey(string? databaseName, string? schemaName, string objectName)
+                => (databaseName ?? string.Empty)
+                   + "|"
+                   + (schemaName ?? string.Empty)
+                   + "|"
+                   + objectName;
+
+            private TableDescriptor GetOrAddUnqualifiedTableDescriptor(string objectName, string? defaultSchemaName)
+            {
+                var tableDescriptors = this.GetTableDescriptorsByObjectName(objectName);
+                if (!string.IsNullOrWhiteSpace(defaultSchemaName))
+                {
+                    var matchingDefaultSchema = tableDescriptors
+                        .Where(i =>
+                            i.DatabaseName == null
+                            && string.Equals(i.SchemaName, defaultSchemaName, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+
+                    if (matchingDefaultSchema.Count == 1)
+                    {
+                        return matchingDefaultSchema[0];
+                    }
+
+                    if (matchingDefaultSchema.Count > 1)
+                    {
+                        throw new SqExpressSqlTranspilerException(
+                            $"Ambiguous unqualified table reference '{objectName}'. " +
+                            $"Multiple descriptors found for default schema '{defaultSchemaName}'.");
+                    }
+
+                    return this.CreateAndRegisterTableDescriptor(objectName, schemaName: defaultSchemaName, databaseName: null);
+                }
+
+                if (tableDescriptors.Count > 1)
+                {
+                    throw new SqExpressSqlTranspilerException(
+                        $"Ambiguous unqualified table reference '{objectName}'. " +
+                        "Multiple schema-qualified descriptors are already present.");
+                }
+
+                if (tableDescriptors.Count == 1)
+                {
+                    return tableDescriptors[0];
+                }
+
+                return this.CreateAndRegisterTableDescriptor(objectName, schemaName: null, databaseName: null);
+            }
+
+            private TableDescriptor GetOrAddQualifiedTableDescriptor(string? databaseName, string? schemaName, string objectName)
+            {
+                var tableDescriptorKey = CreateTableDescriptorKey(databaseName, schemaName, objectName);
+                if (this._sharedState.TableDescriptors.TryGetValue(tableDescriptorKey, out var existingQualified))
+                {
+                    return existingQualified;
+                }
+
+                var tableDescriptors = this.GetTableDescriptorsByObjectName(objectName);
+                var unqualified = tableDescriptors
+                    .Where(i => i.SchemaName == null && i.DatabaseName == null)
+                    .ToList();
+
+                if (unqualified.Count == 1 && tableDescriptors.Count == 1)
+                {
+                    var descriptor = unqualified[0];
+                    var oldKey = CreateTableDescriptorKey(descriptor.DatabaseName, descriptor.SchemaName, descriptor.ObjectName);
+                    descriptor.SetQualification(schemaName, databaseName);
+                    this._sharedState.TableDescriptors.Remove(oldKey);
+                    this._sharedState.TableDescriptors[tableDescriptorKey] = descriptor;
+                    return descriptor;
+                }
+
+                return this.CreateAndRegisterTableDescriptor(objectName, schemaName, databaseName);
+            }
+
+            private TableDescriptor CreateAndRegisterTableDescriptor(string objectName, string? schemaName, string? databaseName)
+            {
+                var descriptor = new TableDescriptor(
+                    className: this.CreateTableClassName(objectName),
+                    kind: DescriptorKind.Table,
+                    objectName: objectName,
+                    schemaName: schemaName,
+                    databaseName: databaseName,
+                    queryExpression: null);
+
+                var tableDescriptorKey = CreateTableDescriptorKey(databaseName, schemaName, objectName);
+                this._sharedState.TableDescriptors[tableDescriptorKey] = descriptor;
+                if (!this._sharedState.TableDescriptorsByObjectName.TryGetValue(objectName, out var byObjectName))
+                {
+                    byObjectName = new List<TableDescriptor>();
+                    this._sharedState.TableDescriptorsByObjectName[objectName] = byObjectName;
+                }
+
+                byObjectName.Add(descriptor);
+                this._sharedState.Descriptors.Add(descriptor);
+                return descriptor;
+            }
+
+            private IReadOnlyList<TableDescriptor> GetTableDescriptorsByObjectName(string objectName)
+            {
+                if (this._sharedState.TableDescriptorsByObjectName.TryGetValue(objectName, out var byObjectName))
+                {
+                    return byObjectName;
+                }
+
+                return Array.Empty<TableDescriptor>();
             }
 
             public TableSource GetOrAddDerivedSource(QueryDerivedTable queryDerivedTable)
@@ -4128,6 +5033,15 @@ namespace SqExpress.SqlTranspiler
             public void MarkColumnAsKind(ColumnReferenceExpression columnReference, DescriptorColumnKind kind)
             {
                 this.RegisterColumnReference(columnReference, kind);
+            }
+
+            public void MarkColumnNullable(ColumnReferenceExpression columnReference)
+            {
+                var registered = this.RegisterColumnReference(columnReference, DescriptorColumnKind.Int32);
+                if (registered.HasValue)
+                {
+                    registered.Value.Column.IsNullable = true;
+                }
             }
 
             public RegisteredDescriptorColumn? RegisterColumnReference(ColumnReferenceExpression columnReference, DescriptorColumnKind typeHint)
@@ -4456,6 +5370,12 @@ namespace SqExpress.SqlTranspiler
                 return candidate;
             }
 
+            private string CreateTableClassName(string objectName)
+            {
+                var source = this._tableDescriptorClassPrefix + objectName + this._tableDescriptorClassSuffix;
+                return this.CreateClassName(source, "GeneratedTable");
+            }
+
             private string CreateClassName(string source, string fallback)
             {
                 var normalized = NormalizeTypeIdentifier(source, fallback);
@@ -4479,6 +5399,10 @@ namespace SqExpress.SqlTranspiler
 
             public Dictionary<string, TableDescriptor> CteDescriptors { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+            public Dictionary<string, TableDescriptor> TableDescriptors { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+            public Dictionary<string, List<TableDescriptor>> TableDescriptorsByObjectName { get; } = new(StringComparer.OrdinalIgnoreCase);
+
             public HashSet<string> ClassNames { get; } = new(StringComparer.OrdinalIgnoreCase);
         }
 
@@ -4493,6 +5417,22 @@ namespace SqExpress.SqlTranspiler
             public TableSource Source { get; }
 
             public TableDescriptorColumn Column { get; }
+        }
+
+        private readonly struct SubQueryProjectedTableBinding
+        {
+            public SubQueryProjectedTableBinding(string outputColumnSqlName, string sourceVariableName, TableDescriptorColumn sourceColumn)
+            {
+                this.OutputColumnSqlName = outputColumnSqlName;
+                this.SourceVariableName = sourceVariableName;
+                this.SourceColumn = sourceColumn;
+            }
+
+            public string OutputColumnSqlName { get; }
+
+            public string SourceVariableName { get; }
+
+            public TableDescriptorColumn SourceColumn { get; }
         }
 
         private sealed class TableSource
@@ -4552,9 +5492,9 @@ namespace SqExpress.SqlTranspiler
 
             public string ObjectName { get; }
 
-            public string? SchemaName { get; }
+            public string? SchemaName { get; private set; }
 
-            public string? DatabaseName { get; }
+            public string? DatabaseName { get; private set; }
 
             public QueryExpression? QueryExpression { get; }
 
@@ -4563,11 +5503,37 @@ namespace SqExpress.SqlTranspiler
             public bool TryGetColumn(string sqlName, out TableDescriptorColumn column)
                 => this._columnMap.TryGetValue(sqlName, out column!);
 
+            public void SetQualification(string? schemaName, string? databaseName)
+            {
+                if (this.SchemaName == null && this.DatabaseName == null)
+                {
+                    this.SchemaName = schemaName;
+                    this.DatabaseName = databaseName;
+                    return;
+                }
+
+                if (!string.Equals(this.SchemaName, schemaName, StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(this.DatabaseName, databaseName, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new SqExpressSqlTranspilerException(
+                        $"Conflicting schema/database qualification for table '{this.ObjectName}'.");
+                }
+            }
+
             public TableDescriptorColumn GetOrAddColumn(string sqlName, DescriptorColumnKind kind)
             {
+                var normalizedHint = ApplyNamingHeuristics(sqlName, kind, out var hintedStringLength);
                 if (this._columnMap.TryGetValue(sqlName, out var existing))
                 {
-                    existing.Kind = MergeDescriptorColumnKinds(existing.Kind, kind);
+                    existing.Kind = MergeDescriptorColumnKinds(existing.Kind, normalizedHint);
+                    if (existing.Kind == DescriptorColumnKind.NVarChar)
+                    {
+                        existing.StringLength = MergeStringLength(existing.StringLength, hintedStringLength);
+                    }
+                    else
+                    {
+                        existing.StringLength = null;
+                    }
 
                     return existing;
                 }
@@ -4583,10 +5549,101 @@ namespace SqExpress.SqlTranspiler
 
                 this._propertyNames.Add(propertyName);
 
-                var column = new TableDescriptorColumn(sqlName, propertyName, kind);
+                var column = new TableDescriptorColumn(
+                    sqlName,
+                    propertyName,
+                    normalizedHint,
+                    isNullable: false,
+                    stringLength: normalizedHint == DescriptorColumnKind.NVarChar ? hintedStringLength : null);
                 this._columnMap[sqlName] = column;
                 this._columns.Add(column);
                 return column;
+            }
+
+            private static DescriptorColumnKind ApplyNamingHeuristics(string sqlName, DescriptorColumnKind hint, out int? stringLength)
+            {
+                stringLength = null;
+                if (hint != DescriptorColumnKind.Int32)
+                {
+                    return hint;
+                }
+
+                var normalized = new string(
+                    sqlName
+                        .Where(ch => ch != '_' && ch != '-' && !char.IsWhiteSpace(ch))
+                        .ToArray())
+                    .ToUpperInvariant();
+
+                if (normalized.StartsWith("IS", StringComparison.Ordinal)
+                    || normalized.StartsWith("HAS", StringComparison.Ordinal)
+                    || normalized.StartsWith("CAN", StringComparison.Ordinal)
+                    || normalized.EndsWith("FLAG", StringComparison.Ordinal)
+                    || normalized.StartsWith("ENABLE", StringComparison.Ordinal)
+                    || normalized.StartsWith("DISABLE", StringComparison.Ordinal))
+                {
+                    return DescriptorColumnKind.Boolean;
+                }
+
+                if (normalized.EndsWith("NAME", StringComparison.Ordinal)
+                    || normalized.EndsWith("DESCRIPTION", StringComparison.Ordinal)
+                    || normalized.EndsWith("TITLE", StringComparison.Ordinal)
+                    || normalized.EndsWith("COMMENT", StringComparison.Ordinal)
+                    || normalized.EndsWith("NOTE", StringComparison.Ordinal)
+                    || normalized.EndsWith("TEXT", StringComparison.Ordinal))
+                {
+                    stringLength = 255;
+                    return DescriptorColumnKind.NVarChar;
+                }
+
+                if (normalized.EndsWith("DATE", StringComparison.Ordinal)
+                    || normalized.EndsWith("TIME", StringComparison.Ordinal)
+                    || normalized.EndsWith("AT", StringComparison.Ordinal)
+                    || normalized.IndexOf("UTC", StringComparison.Ordinal) >= 0
+                    || normalized.IndexOf("TIMESTAMP", StringComparison.Ordinal) >= 0
+                    || normalized.EndsWith("ON", StringComparison.Ordinal))
+                {
+                    return DescriptorColumnKind.DateTime;
+                }
+
+                if (normalized.EndsWith("GUID", StringComparison.Ordinal)
+                    || normalized.EndsWith("UUID", StringComparison.Ordinal)
+                    || normalized.EndsWith("UID", StringComparison.Ordinal))
+                {
+                    return DescriptorColumnKind.Guid;
+                }
+
+                if (normalized.EndsWith("AMOUNT", StringComparison.Ordinal)
+                    || normalized.EndsWith("PRICE", StringComparison.Ordinal)
+                    || normalized.EndsWith("COST", StringComparison.Ordinal)
+                    || normalized.EndsWith("RATE", StringComparison.Ordinal)
+                    || normalized.EndsWith("PERCENT", StringComparison.Ordinal)
+                    || normalized.EndsWith("BALANCE", StringComparison.Ordinal))
+                {
+                    return DescriptorColumnKind.Decimal;
+                }
+
+                if (normalized.EndsWith("COUNT", StringComparison.Ordinal)
+                    || normalized.EndsWith("QTY", StringComparison.Ordinal)
+                    || normalized.EndsWith("QUANTITY", StringComparison.Ordinal)
+                    || normalized.EndsWith("NUMBER", StringComparison.Ordinal)
+                    || normalized.EndsWith("INDEX", StringComparison.Ordinal)
+                    || normalized.EndsWith("ORDER", StringComparison.Ordinal)
+                    || normalized.EndsWith("ID", StringComparison.Ordinal))
+                {
+                    return DescriptorColumnKind.Int32;
+                }
+
+                return DescriptorColumnKind.Int32;
+            }
+
+            private static int? MergeStringLength(int? existing, int? hint)
+            {
+                if (existing.HasValue && hint.HasValue)
+                {
+                    return Math.Max(existing.Value, hint.Value);
+                }
+
+                return existing ?? hint;
             }
 
             private static DescriptorColumnKind MergeDescriptorColumnKinds(DescriptorColumnKind existing, DescriptorColumnKind hint)
@@ -4606,23 +5663,19 @@ namespace SqExpress.SqlTranspiler
                     return existing;
                 }
 
-                if (existing == DescriptorColumnKind.Decimal && hint == DescriptorColumnKind.Boolean
-                    || existing == DescriptorColumnKind.Boolean && hint == DescriptorColumnKind.Decimal)
-                {
-                    return DescriptorColumnKind.Decimal;
-                }
-
-                return existing;
+                return DescriptorColumnKind.NVarChar;
             }
         }
 
         private sealed class TableDescriptorColumn
         {
-            public TableDescriptorColumn(string sqlName, string propertyName, DescriptorColumnKind kind)
+            public TableDescriptorColumn(string sqlName, string propertyName, DescriptorColumnKind kind, bool isNullable, int? stringLength)
             {
                 this.SqlName = sqlName;
                 this.PropertyName = propertyName;
                 this.Kind = kind;
+                this.IsNullable = isNullable;
+                this.StringLength = stringLength;
             }
 
             public string SqlName { get; }
@@ -4630,6 +5683,10 @@ namespace SqExpress.SqlTranspiler
             public string PropertyName { get; }
 
             public DescriptorColumnKind Kind { get; set; }
+
+            public bool IsNullable { get; set; }
+
+            public int? StringLength { get; set; }
         }
 
         private enum DescriptorKind

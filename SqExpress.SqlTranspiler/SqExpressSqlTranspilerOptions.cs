@@ -12,9 +12,22 @@ namespace SqExpress.SqlTranspiler
 
         public string QueryVariableName { get; set; } = "query";
 
+        public string TableDescriptorClassPrefix { get; set; } = "Table";
+
+        public string TableDescriptorClassSuffix { get; set; } = string.Empty;
+
+        public string DefaultSchemaName { get; set; } = "dbo";
+
+        public bool UseStaticSqQueryBuilderUsing { get; set; } = true;
+
         internal string EffectiveDeclarationsNamespaceName =>
             string.IsNullOrWhiteSpace(this.DeclarationsNamespaceName)
                 ? this.NamespaceName + ".Declarations"
                 : this.DeclarationsNamespaceName!;
+
+        internal string? EffectiveDefaultSchemaName =>
+            string.IsNullOrWhiteSpace(this.DefaultSchemaName)
+                ? null
+                : this.DefaultSchemaName;
     }
 }

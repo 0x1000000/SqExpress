@@ -27,7 +27,11 @@ namespace SqExpress.SqlTranspiler.Test
         private const string SqlSubSimple = "SELECT [sq].[A] FROM (SELECT 1 [A])[sq]";
         private const string SqlSubWithTable = "SELECT [sq].[UserId] FROM (SELECT [u].[UserId] FROM [dbo].[Users] [u] WHERE [u].[Name]='A')[sq]";
         private const string SqlSubNested = "SELECT [sq].[A] FROM (SELECT [i].[Id] [A] FROM (SELECT 1 [Id])[i])[sq]";
+        private const string SqlSubRenamedFromSource = "SELECT [sq].[PatronymicName],[sq].[FirstName] FROM (SELECT [u].[LastName] [PatronymicName],[u].[FirstName] FROM [dbo].[Users] [u])[sq]";
+        private const string SqlHeuristicAndNullable = "SELECT [u].[CreatedAt],[u].[UpdatedUtc],[u].[IsDeleted],[u].[Description] FROM [dbo].[Users] [u] WHERE [u].[Description] IS NULL";
         private const string SqlRuntimeOptions = "SELECT [u].[UserId] FROM [dbo].[Users] [u] WHERE [u].[Name]='A' ORDER BY [u].[UserId]";
+        private const string SqlUnqualifiedUsersWithDefaultSchema = "SELECT [u].[UserId] FROM [dbo].[Users] [u]";
+        private const string SqlUnqualifiedUsersWithoutDefaultSchema = "SELECT [u].[UserId] FROM [Users] [u]";
         private const string SqlCaseWhen = "SELECT CASE WHEN [u].[IsActive]=1 THEN 'Y' ELSE 'N' END [ActiveMark] FROM [dbo].[Users] [u]";
         private const string SqlCaseSimple = "SELECT CASE WHEN [u].[Status]=1 THEN 'A' WHEN [u].[Status]=2 THEN 'B' ELSE 'C' END [StatusName] FROM [dbo].[Users] [u]";
         private const string SqlIsNull = "SELECT ISNULL([u].[Name],'NA') [Name2] FROM [dbo].[Users] [u]";
@@ -54,6 +58,8 @@ namespace SqExpress.SqlTranspiler.Test
         private const string SqlOffsetFetch = "SELECT [u].[UserId] FROM [dbo].[Users] [u] ORDER BY [u].[UserId] OFFSET 10 ROW FETCH NEXT 5 ROW ONLY";
         private const string SqlOffsetOnly = "SELECT [u].[UserId] FROM [dbo].[Users] [u] ORDER BY [u].[UserId] OFFSET 20 ROW";
         private const string SqlUnionAllOffsetFetch = "SELECT 1 [A] UNION ALL SELECT 2 [A] ORDER BY [A] OFFSET 1 ROW FETCH NEXT 1 ROW ONLY";
+        private const string SqlUnionAllSameTableTypeConflict = "SELECT [u1].[UserId] FROM [dbo].[Users] [u1] WHERE [u1].[UserId]=1 UNION ALL SELECT [u2].[UserId] FROM [dbo].[Users] [u2] WHERE [u2].[UserId]='A'";
+        private const string SqlOperatorInference = "SELECT ABS([u].[V1]) [Total],LEN([u].[V2]) [NameLen],DATEADD(d,1,[u].[V3]) [NextAt] FROM [dbo].[Users] [u]";
         private const string SqlInsertValues = "INSERT INTO [dbo].[Users]([UserId],[Name]) VALUES (1,'A'),(2,'B')";
         private const string SqlInsertFromSelect = "INSERT INTO [dbo].[Users]([UserId],[Name]) SELECT [o].[UserId],[o].[Title] FROM [dbo].[Orders] [o] WHERE [o].[IsDeleted]=0";
         private const string SqlUpdateWithJoin = "UPDATE [u] SET [u].[Name]=[o].[Title],[u].[IsActive]=1 FROM [dbo].[Users] [u] JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[UserId] WHERE [o].[Title] LIKE 'A%'";
@@ -81,12 +87,18 @@ namespace SqExpress.SqlTranspiler.Test
                 "SELECT u.UserId, u.Name AS UserName FROM dbo.Users u WHERE u.IsActive = 1 ORDER BY u.Name DESC");
 
             Assert.AreEqual("SELECT", result.StatementKind);
-            Assert.That(result.QueryCSharpCode, Does.Contain("var u = new UsersTable(\"u\");"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("public static IExprQuery Build(out TableUsers u)"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("u = new TableUsers(\"u\");"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("public static async Task Query(ISqDatabase database)"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("await foreach (var r in Build(out var u).Query(database))"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var userId = u.UserId.Read(r);"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var userName = u.Name.Read(r, \"UserName\");"));
             Assert.That(result.QueryCSharpCode, Does.Contain("Select(u.UserId, u.Name.As(\"UserName\"))"));
             Assert.That(result.QueryCSharpCode, Does.Contain(".Where(u.IsActive == 1)"));
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public sealed class UsersTable : TableBase"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public sealed class TableUsers : TableBase"));
             Assert.That(result.DeclarationsCSharpCode, Does.Contain("public Int32TableColumn UserId"));
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public Int32TableColumn Name"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public StringTableColumn Name"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public BooleanTableColumn IsActive"));
 
             AssertCompilesAndSql(result, SqlBasic);
         }
@@ -113,13 +125,14 @@ namespace SqExpress.SqlTranspiler.Test
 
             var result = transpiler.Transpile(sql);
 
-            Assert.That(result.QueryCSharpCode, Does.Contain("var u = new UsersTable(\"u\");"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("var o = new OrdersTable(\"o\");"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("public static IExprQuery Build(out TableUsers u, out TableOrders o)"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("u = new TableUsers(\"u\");"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("o = new TableOrders(\"o\");"));
             Assert.That(result.QueryCSharpCode, Does.Contain(".InnerJoin(o, o.UserId == u.UserId)"));
             Assert.That(result.QueryCSharpCode, Does.Contain("u.Status.In(1, 2, 3)"));
             Assert.That(result.QueryCSharpCode, Does.Contain("Like(o.Title, \"A%\")"));
             Assert.That(result.DeclarationsCSharpCode, Does.Contain("public StringTableColumn Title"));
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("CreateStringColumn(\"Title\", null, true)"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("CreateStringColumn(\"Title\", 255, true)"));
 
             AssertCompilesAndSql(result, SqlJoinPredicates);
         }
@@ -187,12 +200,12 @@ namespace SqExpress.SqlTranspiler.Test
 
             var stringVariable = transpiler.Transpile("SELECT u.UserId FROM dbo.Users u WHERE u.Name = @name");
             Assert.That(stringVariable.QueryCSharpCode, Does.Contain("var name = \"\";"));
-            Assert.That(stringVariable.QueryCSharpCode, Does.Contain("Where(u.Name == Literal(name))"));
+            Assert.That(stringVariable.QueryCSharpCode, Does.Contain("Where(u.Name == name)"));
             AssertCompilesAndSql(stringVariable, SqlVariableStringCompare);
 
             var intVariable = transpiler.Transpile("SELECT u.UserId FROM dbo.Users u WHERE u.UserId = @id AND @id > 0");
             Assert.That(intVariable.QueryCSharpCode, Does.Contain("var id = 0;"));
-            Assert.That(intVariable.QueryCSharpCode, Does.Contain("Where((u.UserId == Literal(id)) & (Literal(id) > 0))"));
+            Assert.That(intVariable.QueryCSharpCode, Does.Contain("Where((u.UserId == id) & (Literal(id) > 0))"));
             AssertCompilesAndSql(intVariable, SqlVariableIntCompare);
 
             var inVariable = transpiler.Transpile("SELECT u.UserId FROM dbo.Users u WHERE u.Name IN (@names)");
@@ -403,10 +416,83 @@ namespace SqExpress.SqlTranspiler.Test
             Assert.That(result.QueryCSharpCode, Does.Contain("namespace Demo.Generated"));
             Assert.That(result.QueryCSharpCode, Does.Contain("using Demo.Generated.Declarations;"));
             Assert.That(result.QueryCSharpCode, Does.Contain("public static IExprQuery BuildReport()"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("var reportQuery = Select(Literal(1))"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var reportQuery = SelectOne()"));
             Assert.That(result.QueryCSharpCode, Does.Contain("\r\n                .Done();"));
             Assert.That(result.DeclarationsCSharpCode, Does.Contain("namespace Demo.Generated.Declarations"));
             AssertCompilesAndSql(result, SqlSelect1, options);
+        }
+
+        [Test]
+        public void TranspileSelect_WithStaticSqQueryBuilderDisabled_GeneratesQualifiedCalls()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var options = new SqExpressSqlTranspilerOptions
+            {
+                UseStaticSqQueryBuilderUsing = false
+            };
+
+            var result = transpiler.Transpile("SELECT 1", options);
+
+            Assert.That(result.QueryCSharpCode, Does.Not.Contain("using static SqExpress.SqQueryBuilder;"));
+            Assert.That(result.QueryCSharpCode, Does.Not.Contain("using SqQueryBuilder = SqExpress.SqQueryBuilder;"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var query = SqQueryBuilder"));
+            Assert.That(result.QueryCSharpCode, Does.Contain(".SelectOne()"));
+            AssertCompilesAndSql(result, SqlSelect1, options);
+        }
+
+        [Test]
+        public void TranspileSelect_DefaultTableDescriptorNaming_UsesPrefixAndNoSuffix()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile("SELECT u.UserId FROM dbo.Users u");
+
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public sealed class TableUsers : TableBase"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("public static IExprQuery Build(out TableUsers u)"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("u = new TableUsers(\"u\");"));
+            AssertCompilesAndSql(result, SqlUnqualifiedUsersWithDefaultSchema);
+        }
+
+        [Test]
+        public void TranspileSelect_WithCustomTableDescriptorNaming_AppliesPrefixAndSuffix()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var options = new SqExpressSqlTranspilerOptions
+            {
+                TableDescriptorClassPrefix = "Tbl",
+                TableDescriptorClassSuffix = "Row"
+            };
+
+            var result = transpiler.Transpile("SELECT u.UserId FROM dbo.Users u", options);
+
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public sealed class TblUsersRow : TableBase"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("public static IExprQuery Build(out TblUsersRow u)"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("u = new TblUsersRow(\"u\");"));
+            AssertCompilesAndSql(result, SqlUnqualifiedUsersWithDefaultSchema, options);
+        }
+
+        [Test]
+        public void TranspileSelect_UnqualifiedTables_UseDefaultSchema()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile("SELECT u.UserId FROM Users u");
+
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("\"dbo\", \"Users\", alias"));
+            AssertCompilesAndSql(result, SqlUnqualifiedUsersWithDefaultSchema);
+        }
+
+        [Test]
+        public void TranspileSelect_UnqualifiedTables_CanDisableDefaultSchema()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var options = new SqExpressSqlTranspilerOptions
+            {
+                DefaultSchemaName = string.Empty
+            };
+
+            var result = transpiler.Transpile("SELECT u.UserId FROM Users u", options);
+
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("null, \"Users\", alias"));
+            AssertCompilesAndSql(result, SqlUnqualifiedUsersWithoutDefaultSchema, options);
         }
 
         [Test]
@@ -433,8 +519,8 @@ namespace SqExpress.SqlTranspiler.Test
             var result = transpiler.Transpile(sql);
 
             Assert.That(result.QueryCSharpCode, Does.Contain("public sealed class CUCte : CteBase"));
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public sealed class UsersTable : TableBase"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("var u = new UsersTable(\"u\");"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public sealed class TableUsers : TableBase"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var u = new TableUsers(\"u\");"));
             Assert.That(result.QueryCSharpCode, Does.Contain("Where(u.Name == \"A\")"));
             AssertCompilesAndSql(result, SqlCteWithTable);
         }
@@ -525,7 +611,7 @@ namespace SqExpress.SqlTranspiler.Test
 
             var idxCte = result.QueryCSharpCode.IndexOf("public sealed class CCte : CteBase", StringComparison.Ordinal);
             var idxSub = result.QueryCSharpCode.IndexOf("public sealed class SqSubQuery : DerivedTableBase", StringComparison.Ordinal);
-            var idxTable = result.DeclarationsCSharpCode.IndexOf("public sealed class UsersTable : TableBase", StringComparison.Ordinal);
+            var idxTable = result.DeclarationsCSharpCode.IndexOf("public sealed class TableUsers : TableBase", StringComparison.Ordinal);
 
             Assert.That(idxCte, Is.GreaterThanOrEqualTo(0));
             Assert.That(idxSub, Is.GreaterThanOrEqualTo(0));
@@ -545,8 +631,9 @@ namespace SqExpress.SqlTranspiler.Test
 
             Assert.That(result.QueryCSharpCode, Does.Contain("public sealed class SqSubQuery : DerivedTableBase"));
             Assert.That(result.QueryCSharpCode, Does.Contain("protected override IExprSubQuery CreateQuery()"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("return Select(Literal(1).As(\"A\")).Done();"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("var sq = new SqSubQuery(\"sq\");"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("return Select(Literal(1).As(this.A)).Done();"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("public static IExprQuery Build(out SqSubQuery sq)"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("sq = new SqSubQuery(\"sq\");"));
             AssertCompilesAndSql(result, SqlSubSimple);
         }
 
@@ -559,8 +646,8 @@ namespace SqExpress.SqlTranspiler.Test
             var result = transpiler.Transpile(sql);
 
             Assert.That(result.QueryCSharpCode, Does.Contain("public sealed class SqSubQuery : DerivedTableBase"));
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public sealed class UsersTable : TableBase"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("var u = new UsersTable(\"u\");"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public sealed class TableUsers : TableBase"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("private readonly TableUsers u = new TableUsers(\"u\");"));
             Assert.That(result.QueryCSharpCode, Does.Contain("Where(u.Name == \"A\")"));
             AssertCompilesAndSql(result, SqlSubWithTable);
         }
@@ -580,6 +667,23 @@ namespace SqExpress.SqlTranspiler.Test
         }
 
         [Test]
+        public void Transpile_SubQuery_UsesSourceTableFieldsForColumns_AndHandlesRename()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var sql =
+                "SELECT sq.PatronymicName, sq.FirstName " +
+                "FROM (SELECT u.LastName AS PatronymicName, u.FirstName FROM dbo.Users u) sq";
+
+            var result = transpiler.Transpile(sql);
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("private readonly TableUsers u = new TableUsers(\"u\");"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("this.FirstName = this.u.FirstName.AddToDerivedTable(this);"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("this.PatronymicName = this.u.LastName.WithColumnName(\"PatronymicName\").AddToDerivedTable(this);"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Select(u.LastName.As(this.PatronymicName), u.FirstName)"));
+            AssertCompilesAndSql(result, SqlSubRenamedFromSource);
+        }
+
+        [Test]
         public void Transpile_StringComparison_InfersNVarCharColumn()
         {
             var transpiler = new SqExpressSqlTranspiler();
@@ -588,9 +692,39 @@ namespace SqExpress.SqlTranspiler.Test
             var result = transpiler.Transpile(sql);
 
             Assert.That(result.DeclarationsCSharpCode, Does.Contain("public StringTableColumn Name"));
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("CreateStringColumn(\"Name\", null, true)"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("CreateStringColumn(\"Name\", 255, true)"));
             Assert.That(result.QueryCSharpCode, Does.Contain("u.Name == \"A\""));
             AssertCompilesAndSql(result, SqlStringComparison);
+        }
+
+        [Test]
+        public void Transpile_NameHeuristics_AndIsNullNullability_AreApplied()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var sql = "SELECT u.CreatedAt, u.UpdatedUtc, u.IsDeleted, u.Description FROM dbo.Users u WHERE u.Description IS NULL";
+
+            var result = transpiler.Transpile(sql);
+
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public DateTimeTableColumn CreatedAt"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public DateTimeTableColumn UpdatedUtc"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public BooleanTableColumn IsDeleted"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public NullableStringTableColumn Description"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("CreateNullableStringColumn(\"Description\", 255, true)"));
+            AssertCompilesAndSql(result, SqlHeuristicAndNullable);
+        }
+
+        [Test]
+        public void Transpile_OperatorAndFunctionUsage_InfersColumnKinds()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var sql = "SELECT ABS(u.V1) AS Total, LEN(u.V2) AS NameLen, DATEADD(day, 1, u.V3) AS NextAt FROM dbo.Users u";
+
+            var result = transpiler.Transpile(sql);
+
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public DecimalTableColumn V1"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public StringTableColumn V2"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public DateTimeTableColumn V3"));
+            AssertCompilesAndSql(result, SqlOperatorInference);
         }
 
         [Test]
@@ -646,6 +780,81 @@ namespace SqExpress.SqlTranspiler.Test
         }
 
         [Test]
+        public void TranspileSelect_SetOperations_ReuseSingleDescriptorAndPreferStringOnTypeConflict()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                "SELECT u1.UserId FROM dbo.Users u1 WHERE u1.UserId = 1 " +
+                "UNION ALL " +
+                "SELECT u2.UserId FROM dbo.Users u2 WHERE u2.UserId = 'A'");
+
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public sealed class TableUsers : TableBase"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Not.Contain("TableUsers1"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public StringTableColumn UserId"));
+            AssertCompilesAndSql(result, SqlUnionAllSameTableTypeConflict);
+        }
+
+        [Test]
+        public void TranspileSelect_SetOperations_MixedQualifiedAndUnqualified_UsesSingleQualifiedDescriptor()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                "SELECT u.UserId, u.Name AS UserName FROM dbo.Users u WHERE u.IsActive = 1 " +
+                "UNION " +
+                "SELECT u.UserId, u.Name AS UserName FROM Users u");
+
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public sealed class TableUsers : TableBase"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Not.Contain("TableUsers1"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("\"dbo\", \"Users\", alias"));
+
+            var assembly = AssertCompiles(result, "GeneratedTranspilerMixedSchemaSetOpsTests");
+            var query = InvokeGeneratedBuildMethod(assembly, new SqExpressSqlTranspilerOptions());
+            var generatedSql = query.ToSql(TSqlExporter.Default);
+
+            Assert.That(generatedSql, Does.Not.Contain("FROM [Users]"));
+            Assert.That(generatedSql.Split("FROM [dbo].[Users]", StringSplitOptions.None).Length - 1, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void TranspileSelect_SetOperations_MixedSchemasAndUnqualified_UsesDefaultSchema()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                "SELECT u.UserId FROM dbo.Users u " +
+                "UNION " +
+                "SELECT u.UserId FROM sales.Users u " +
+                "UNION " +
+                "SELECT u.UserId FROM Users u");
+
+            var assembly = AssertCompiles(result, "GeneratedTranspilerMixedSchemaDefaultSchemaTests");
+            var query = InvokeGeneratedBuildMethod(assembly, new SqExpressSqlTranspilerOptions());
+            var generatedSql = query.ToSql(TSqlExporter.Default);
+
+            Assert.That(generatedSql.Contains("FROM [dbo].[Users] [u]", StringComparison.Ordinal), Is.True);
+            Assert.That(generatedSql.Contains("FROM [sales].[Users] [u]", StringComparison.Ordinal), Is.True);
+        }
+
+        [Test]
+        public void TranspileSelect_SetOperations_MixedSchemasAndUnqualified_ThrowsAmbiguousError_WhenDefaultSchemaDisabled()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var options = new SqExpressSqlTranspilerOptions
+            {
+                DefaultSchemaName = string.Empty
+            };
+
+            var ex = Assert.Throws<SqExpressSqlTranspilerException>(() => transpiler.Transpile(
+                "SELECT u.UserId FROM dbo.Users u " +
+                "UNION " +
+                "SELECT u.UserId FROM sales.Users u " +
+                "UNION " +
+                "SELECT u.UserId FROM Users u",
+                options));
+
+            Assert.That(ex?.Message, Does.Contain("Ambiguous unqualified table reference 'Users'"));
+        }
+
+        [Test]
         public void TranspileSelect_OffsetFetch_IsSupported()
         {
             var transpiler = new SqExpressSqlTranspiler();
@@ -680,6 +889,21 @@ namespace SqExpress.SqlTranspiler.Test
             Assert.That(result.QueryCSharpCode, Does.Contain(".Set(u.Name, o.Title)"));
             Assert.That(result.QueryCSharpCode, Does.Contain(".Set(u.IsActive, 1)"));
             AssertCompilesAndSql(result, SqlUpdateWithJoin);
+        }
+
+        [Test]
+        public void TranspileUpdate_WhereVariableAgainstIdColumn_InfersInt32Variable()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                "UPDATE dbo.Users " +
+                "SET IsDeleted = 0 " +
+                "WHERE UserId = @userId");
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("var userId = 0;"));
+            Assert.That(result.QueryCSharpCode, Does.Not.Contain("var userId = \"\";"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Where(users.UserId == userId)"));
+            AssertCompiles(result);
         }
 
         [Test]
@@ -849,7 +1073,14 @@ namespace SqExpress.SqlTranspiler.Test
                 Assert.Fail("Generated method was not found: " + options.MethodName);
             }
 
-            var invocationResult = generatedMethod!.Invoke(null, Array.Empty<object>());
+            var methodParameters = generatedMethod!.GetParameters();
+            var invocationArgs = new object?[methodParameters.Length];
+            for (var i = 0; i < methodParameters.Length; i++)
+            {
+                invocationArgs[i] = null;
+            }
+
+            var invocationResult = generatedMethod.Invoke(null, invocationArgs);
             if (invocationResult is not IExpr)
             {
                 Assert.Fail("Generated method did not return IExpr.");
