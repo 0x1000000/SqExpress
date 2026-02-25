@@ -1,4 +1,5 @@
 ﻿# SqExpress
+
 ![Logo](https://github.com/0x1000000/SqExpress/blob/main/SqExpress/Icon.png)
 
 The library provides a generic SQL syntax tree with export to MS T-SQL, PostgreSQL, and MySQL text. It includes polyfills to compensate for features lacking in certain databases, such as the "MERGE" command. It also provides a set of builders and operators that will help you build complex SQL expressions.
@@ -11,76 +12,117 @@ You can use SqExpress together with the "Code First" concept when you declare SQ
 
 You can also use it in conjunction with the "Database First" concept using an included code modification utility. The utility can also be used to generate flexible DTO classes with all required database mappings.
 
-## Video Tutorial
-1. [Basics of SqExpress](https://www.youtube.com/watch?v=Zd-fCb8NimA)
-2. [Working with Database Metadata Using SqExpress](https://youtu.be/vGVpTCt4aqc?si=AWK8GzvoiVlX7vET) (NEW!!)
-
-## Articles
-1. ["Syntax Tree and Alternative to LINQ in Interaction with SQL Databases"](https://itnext.io/syntax-tree-and-alternative-to-linq-in-interaction-with-sql-databases-656b78fe00dc?source=friends_link&sk=f5f0587c08166d8824b96b48fe2cf33c) - explains the library principles;
-2. ["Filtering by Dynamic Attributes"](https://itnext.io/filtering-by-dynamic-attributes-90ada3504361?source=friends_link&sk=35e273a9f499e6b62bacbac75873a7d2) - shows how to create dynamic queries using the library.
-
-## Demo Application
-
-You can find a realistic usage of the library in this ASP.NET demo application - [SqGoods](https://github.com/0x1000000/SqGoods)
-
 # Content
+
+### Resources
+
+1. [Video Tutorials](#video-tutorials)
+2. [Articles](#articles)
+3. [T-SQL to SqExpress Transpiler (Web Tool) **NEW!!!**](#t-sql-to-sqexpress-transpiler-web-tool)
+4. [Demo Application](#demo-application)
+
+### Intro
+
 1. [Get Started](#get-started)
 2. [When to Use SqExpress (and When Not)](#when-to-use-sqexpress-and-when-not)
 
 ### Basics
 
-3. [Recreating Table](#recreating-table)
-4. [Inserting Data](#inserting-data)
-5. [Selecting Data](#selecting-data)
-6. [Updating Data](#updating-data)
-7. [Deleting Data](#deleting-data)
-8. [More Tables and foreign keys](#more-tables-and-foreign-keys)
-9. [Joining Tables](#joining-tables)
-10. [Aliasing](#aliasing)
-11. [Derived Tables](#derived-tables)
-12. [Subqueries](#subqueries)
-13. [CTE](#cte)
-14. [Analytic And Window Functions](#analytic-and-window-functions)
-15. [Set Operators](#set-operators)
+1. [Creating Table Descriptors](#creating-table-descriptors)
+2. [Inserting Data](#inserting-data)
+3. [Selecting Data](#selecting-data)
+4. [Updating Data](#updating-data)
+5. [Deleting Data](#deleting-data)
+6. [More Tables and foreign keys](#more-tables-and-foreign-keys)
+7. [Data Selection](#data-selection)
+8. [Joining Tables](#joining-tables)
+9. [Aliasing](#aliasing)
+10. [Derived Tables](#derived-tables)
+11. [Subqueries](#subqueries)
+12. [CTE](#cte)
+13. [Analytic And Window Functions](#analytic-and-window-functions)
+14. [Set Operators](#set-operators)
 
 ### Advanced Data Modification
 
-16. [Merge](#merge)
-17. [Temporary Tables](#temporary-tables)
-18. [Database Data Export/Import](#database-data-export-import)
-19. [Getting and Comparing Database Table Metadata](#getting-and-comparing-database-table-metadata)
+1. [Merge](#merge)
+2. [Temporary Tables](#temporary-tables)
+3. [Database Data Export/Import](#database-data-export-import)
+4. [Getting and Comparing Database Table Metadata](#getting-and-comparing-database-table-metadata)
 
 ### Database Table Metadata
 
-20. [Retrieving Database Table Metadata](#retrieving-database-table-metadata)
+1. [Retrieving Database Table Metadata](#retrieving-database-table-metadata)
 
 ### Working with Expressions
 
-21. [Syntax Tree](#syntax-tree) (Traversal and Modification)
-22. [Serialization to XML](#serialization-to-xml)
-23. [Serialization to JSON](#serialization-to-json)
-24. [Serialization to Plain List](#serialization-to-plain-list)
+1. [Syntax Tree](#syntax-tree) (Traversal and Modification)
+2. [Serialization to XML](#serialization-to-xml)
+3. [Serialization to JSON](#serialization-to-json)
+4. [Serialization to Plain List](#serialization-to-plain-list)
 
 ### Code-generation
 
-25. [Table Descriptors Scaffolding](#table-descriptors-scaffolding)
-26. [DTOs Scaffolding](#dtos-scaffolding)
-27. [Model Selection](#model-selection)
+1. [Table Descriptors Scaffolding](#table-descriptors-scaffolding)
+2. [DTOs Scaffolding](#dtos-scaffolding)
+3. [Model Selection](#model-selection)
 
 ### Usage
 
-28. [Using in ASP.NET](#using-in-aspnet)
-29. [PostgreSQL](#postgresql)
-30. [MySQL](#mysql)
-31. [AutoMapper](#automapper)
+1. [Using in ASP.NET](#using-in-aspnet)
+2. [PostgreSQL](#postgresql)
+3. [MySQL](#mysql)
+4. [AutoMapper](#automapper)
+
+---
+---
+
+
+# Video Tutorials
+
+1. [Basics of SqExpress](https://www.youtube.com/watch?v=Zd-fCb8NimA)
+2. [Working with Database Metadata Using SqExpress](https://youtu.be/vGVpTCt4aqc?si=AWK8GzvoiVlX7vET)
+
+# Articles
+
+1. ["Syntax Tree and Alternative to LINQ in Interaction with SQL Databases"](https://itnext.io/syntax-tree-and-alternative-to-linq-in-interaction-with-sql-databases-656b78fe00dc?source=friends_link&sk=f5f0587c08166d8824b96b48fe2cf33c) - explains the library principles;
+2. ["Filtering by Dynamic Attributes"](https://itnext.io/filtering-by-dynamic-attributes-90ada3504361?source=friends_link&sk=35e273a9f499e6b62bacbac75873a7d2) - shows how to create dynamic queries using the library.
+
+# T-SQL to SqExpress Transpiler (Web Tool)
+
+SqExpress includes a dedicated transpiler tool that converts T-SQL into ready-to-use SqExpress C# code:
+
+- **Open the tool**: [https://0x1000000.github.io/SqExpress/](https://0x1000000.github.io/SqExpress/)
+
+Why this tool is important:
+
+- It significantly reduces migration time from raw SQL or old stored-query code to SqExpress.
+- It generates both query code and declaration code (table descriptors and generated query helpers) so users can start from working scaffolding instead of a blank file.
+- It helps teams keep SQL-first workflows while still getting strongly typed C# output.
+
+How to use it effectively:
+
+- Paste T-SQL into the editor.
+- Review generated query code and descriptor code.
+- Adjust naming/options (descriptor prefix/suffix, default schema, static builder usage) from the option bar.
+- For best type accuracy, pair transpiled output with the SqExpress table descriptor scaffolding workflow.
+
+The tool runs entirely in the browser (WebAssembly). Your SQL is processed client-side.
+
+# Demo Application
+
+You can find a realistic usage of the library in this ASP.NET demo application - [SqGoods](https://github.com/0x1000000/SqGoods)
 
 # Get Started
 
-Add a reference to [the library package on Nuget.org](https://www.nuget.org/packages/SqExpress/): 
+Add a reference to [the library package on Nuget.org](https://www.nuget.org/packages/SqExpress/):
+
 ```
 Install-Package SqExpress
 ```
+
 and start with "Hello World":
+
 ```cs
 static void Main()
 {
@@ -89,7 +131,9 @@ static void Main()
     Console.WriteLine(TSqlExporter.Default.ToSql(query));
 }
 ```
-Now let's get rid of the necessity in writing __"SqQueryBuilder."__:
+
+Now let's get rid of the necessity in writing **"SqQueryBuilder."**:
+
 ```cs
 using static SqExpress.SqQueryBuilder;
 ...
@@ -98,15 +142,19 @@ using static SqExpress.SqQueryBuilder;
     Console.WriteLine(TSqlExporter.Default.ToSql(query));
 
 ```
+
 The result will be:
+
 ```
 SELECT 'Hello World!'
 ```
+
 ## When to Use SqExpress (and When Not)
 
 If your project is SQL-heavy, SqExpress is usually the strongest choice.
 
 Use SqExpress when:
+
 - SQL is core to your business logic, not just persistence plumbing.
 - You need complex queries (CTE, window functions, set operations, MERGE-style workflows).
 - You want code to stay close to SQL while still getting strong typing and IntelliSense.
@@ -114,12 +162,14 @@ Use SqExpress when:
 - You need one query model that can export to MS SQL, PostgreSQL, and MySQL.
 
 SqExpress shines the most in two areas:
+
 1. **Reports and analytics**: dynamic SQL generation with access to native SQL features (analytic/window functions, CTEs, set operators, db-specific functions).
 2. **Mass updates/upserts**: large set-based data modification with `MERGE` semantics, including cross-dialect polyfills where native `MERGE` is unavailable.
 
 ### SqExpress vs Entity Framework (EF Core)
 
 Choose **SqExpress** when:
+
 - You treat the database as a relational engine and optimize for set-based queries.
 - You care more about precise SQL shape than ORM abstractions.
 - You want full control over joins, projections, and query patterns.
@@ -129,6 +179,7 @@ Choose **SqExpress** when:
 - You need more flexibility than EF Core batch APIs for complex set-based writes (`UpdateData`, `MergeDataInto`, custom mappings, sync/upsert flows).
 
 Choose **EF Core** when:
+
 - You model your domain mainly as object graphs and treat the database primarily as persistence storage.
 - Your app is mostly CRUD with rich domain graph tracking.
 - You want unit-of-work/change tracking as the primary model.
@@ -137,38 +188,45 @@ Choose **EF Core** when:
 ### SqExpress vs SqlKata
 
 Choose **SqExpress** when:
+
 - You want a strongly typed SQL model (tables/columns as C# types), not mostly string-based query composition.
 - You need expression tree traversal/modification and deeper SQL tooling.
 - You want long-term maintainability in large SQL codebases.
 - You need robust dynamic query scenarios and `MERGE`-oriented update pipelines.
 
 Choose **SqlKata** when:
+
 - You prefer a lightweight fluent builder with minimal upfront structure.
 
 ### SqExpress vs Dapper
 
 Choose **SqExpress** when:
+
 - You want SQL power without maintaining large amounts of raw SQL strings.
 - You want compile-time help for schema-level refactoring.
 - You want higher-level SQL composition, metadata tooling, and codegen.
 - You need expressive set-based update/upsert logic and reusable dynamic query builders.
 
 Choose **Dapper** when:
+
 - You prefer manual SQL strings and the thinnest possible data access layer.
 
 ### SqExpress vs linq2db
 
 Choose **SqExpress** when:
+
 - Your team thinks in SQL first and prefers SQL-like C# over LINQ translation.
 - You want explicit SQL control and predictable output for every query.
 - You need to build/transform dynamic SQL expression trees and run large set-based data modifications.
 
 Choose **linq2db** when:
+
 - Your team prefers LINQ as the primary way of writing queries.
 
 ### When Not to Use SqExpress
 
 SqExpress is not the best default if:
+
 - Your project is mostly simple CRUD and low SQL complexity.
 - Your team is not comfortable owning SQL design decisions.
 - You primarily want full ORM behavior (tracked entities, relationship graph lifecycle, etc.).
@@ -179,7 +237,8 @@ SqExpress is not the best default if:
 If SQL is strategic in your system, SqExpress gives you the most leverage.  
 If SQL is incidental, a higher-level ORM can be simpler.
 
-## (Re)Creating Table 
+## Creating Table Descriptors
+
 Ok, let's try to select some data from a real table, but first we need to describe the table:
 
 *Note: Such classes can be auto-generated (updated) using information from an existing database. [See "Table Descriptors Scaffolding"](#table-descriptors-scaffolding)*
@@ -219,7 +278,9 @@ public class TableUser : TableBase
     }
 }
 ```
+
 and if the table does not exist let's create it:
+
 ```cs
 static async Task Main()
 {
@@ -238,9 +299,11 @@ static async Task Main()
     }
 }
 ```
+
 *Note: See [PostgreSQL](#postgresql) or [MySQL](#mysql)* sections if you need to work with these databases.
 
 *Actual T-SQL:*
+
 ```sql
 
 IF EXISTS
@@ -261,8 +324,11 @@ CREATE TABLE [dbo].[User]
     CONSTRAINT [PK_dbo_User] PRIMARY KEY ([UserId])
 );
 ```
+
 ## Inserting Data
+
 Now it is time to insert some data into the table:
+
 ```cs
 ...
 var data = new[]
@@ -282,7 +348,9 @@ await /*SqQueryBuilder.*/InsertDataInto(tUser, data)
     .Exec(database);
 ...
 ```
+
 *Actual T-SQL:*
+
 ```sql
 INSERT INTO [dbo].[User]([FirstName],[LastName],[Version],[ModifiedAt]) 
 SELECT [FirstName],[LastName],1,GETUTCDATE() 
@@ -293,8 +361,11 @@ FROM
     ,('Maye','Maloy')
 )[A0]([FirstName],[LastName])
 ```
+
 ## Selecting data
+
 and select it:
+
 ```cs
 var selectResult = await /*SqQueryBuilder.*/Select(tUser.UserId, tUser.FirstName, tUser.LastName)
     .From(tUser)
@@ -309,20 +380,27 @@ foreach (var record in selectResult)
     Console.WriteLine(record);
 }
 ```
+
 *Actual T-SQL:*
+
 ```sql
 SELECT [A0].[UserId],[A0].[FirstName],[A0].[LastName] 
 FROM [dbo].[User] [A0] 
 ORDER BY [A0].[FirstName],[A0].[LastName]
 ```
+
 *Result:*
+
 ```
 (2, Allina, Freeborne)
 (1, Francois, Sturman)
 (3, Maye, Maloy)
 ```
+
 ## Updating data
+
 Now let's fix the typo:
+
 ```cs
 await /*SqQueryBuilder.*/Update(tUser)
     .Set(tUser.LastName, "Malloy")
@@ -344,7 +422,9 @@ await /*SqQueryBuilder.*/Select(tUser.Columns)
         return agg;
     });
 ```
+
 *Actual T-SQL:*
+
 ```sql
 UPDATE [A0] SET 
     [A0].[LastName]='Malloy',
@@ -353,16 +433,21 @@ UPDATE [A0] SET
 FROM [dbo].[User] [A0] 
 WHERE [A0].[LastName]='Maloy'```
 ```
+
 *Result:*
+
 ```
 1,Francois Sturman,1,2020-10-12T11:32:16
 2,Allina Freeborne,1,2020-10-12T11:32:16
 3,Maye Malloy,2,2020-10-12T11:32:17
 ```
+
 *Note: In addition to **Update** the library also has **Insert** and **IdentityInsert** helpers (see [Database Data Export/Import](#database-data-export-import) to find an example)*
 
 ## Deleting data
+
 Unfortunately, regardless the fact the typo is fixed, we have to say "Good Bye" to May*:
+
 ```cs
 await /*SqQueryBuilder.*/Delete(tUser)
     .Where(tUser.FirstName.Like("May%"))
@@ -372,21 +457,28 @@ await /*SqQueryBuilder.*/Delete(tUser)
         Console.WriteLine("Removed user id: " + tUser.UserId.Read(record));
     });
 ```
+
 *Actual T-SQL:*
+
 ```sql
 DELETE [A0] 
 OUTPUT DELETED.[UserId] 
 FROM [dbo].[User] [A0] 
 WHERE [A0].[FirstName] LIKE 'May%'
 ```
+
 *Result:*
+
 ```
 Removed user id: 3
 ```
+
 ## More Tables and foreign keys
+
 To create more complex queries we need more than one table. Let's add a couple more:
 
 *dbo.Company*
+
 ```cs
 public class TableCompany : TableBase
 {
@@ -415,7 +507,9 @@ public class TableCompany : TableBase
     }
 }
 ```
+
 *dbo.Customer*
+
 ```cs
 public class TableCustomer : TableBase
 {
@@ -444,16 +538,22 @@ public class TableCustomer : TableBase
     }
 }
 ```
+
 Pay attention to the way how the foreign keys are defined:
+
 ```cs
 ColumnMeta.ForeignKey<TableUser>(u => u.UserId)
 ```
+
 And indexes:
+
 ```cs
 this.AddUniqueIndex(this.UserId, this.CompanyId);
 this.AddUniqueIndex(this.CompanyId, this.UserId);
 ```
+
 Since now we have the foreign keys we have to delete and create the table in the specific order:
+
 ```cs
 var tables = new TableBase[]{ new TableUser() , new TableCompany(), new TableCustomer() };
 
@@ -466,7 +566,9 @@ foreach (var table in tables)
     await database.Statement(table.Script.Create());
 }
 ```
+
 Now we can insert some companies:
+
 ```cs
 var tCompany = new TableCompany();
 
@@ -483,7 +585,9 @@ await /*SqQueryBuilder.*/InsertDataInto(tCompany, new[] {"Microsoft", "Google"})
         Console.WriteLine($"Id: {tCompany.CompanyId.Read(r)}, Name: {tCompany.CompanyName.Read(r)}");
     });
 ```
+
 and create "Customers":
+
 ```cs
 var tUser = new TableUser();
 var tCompany = new TableCompany();
@@ -512,7 +616,9 @@ await InsertInto(tCustomer, tCustomer.CompanyId)
                     .Where(tSubCustomer.CompanyId == tCompany.CompanyId))))
     .Exec(database);
 ```
+
 *Actual T-SQL:*
+
 ```sql
 INSERT INTO [dbo].[Customer]([UserId]) 
 SELECT [A0].[UserId] 
@@ -531,11 +637,21 @@ WHERE NOT EXISTS(
     WHERE [A1].[CompanyId]=[A0].[CompanyId]
 )
 ```
-_Note: SqExpress actively uses operator overloads. Therefore, operators >, >=, <, <=, ==, &, |, !, /, +, -, *, and % are overloaded when applied to SqExpress syntax nodes, resulting in new syntax nodes._
+
+_Note: SqExpress actively uses operator overloads. Therefore, operators >, >=, <, <=, ==, &, |, !, /, +, -, *, and % are overloaded when applied to SqExpress syntax nodes, resulting in new syntax nodes.*
+
 # Data Selection
 
+This chapter moves from straightforward reads to the query patterns that usually define real production workloads.
+Here, SqExpress shows its full power: composable joins, derived tables, subqueries, CTEs, analytic functions, and set operators.
+The section walks step by step through `Joining Tables`, `Aliasing`, `Derived Tables`, `Subqueries`, `CTE`, `Analytic And Window Functions`, and `Set Operators`.
+Each example is designed to keep intent obvious in C# while preserving tight control over the resulting SQL shape.
+Use these patterns when query complexity, performance tuning, and long-term maintainability matter.
+
 ## Joining Tables
+
 Now we can Join all the tables:
+
 ```cs
 var tUser = new TableUser();
 var tCompany = new TableCompany();
@@ -572,7 +688,9 @@ foreach (var customer in customers)
     Console.WriteLine($"Id: {customer.Id}, Name: {customer.Name}, Type: {customer.CustomerType}");
 }
 ```
+
 *Actual T-SQL:*
+
 ```sql
 SELECT 
     [A0].[CustomerId],
@@ -596,14 +714,18 @@ LEFT JOIN [dbo].[User] [A1]
 LEFT JOIN [dbo].[Company] [A2] 
     ON [A2].[CompanyId]=[A0].[CompanyId]
 ```
+
 *Result:*
+
 ```
 Id: 1, Name: Francois Sturman, Type: 1
 Id: 2, Name: Allina Freeborne, Type: 1
 Id: 3, Name: Microsoft, Type: 2
 Id: 4, Name: Google, Type: 2
 ```
+
 ## Aliasing
+
 Every time you create a table object, it is associated by default with an alias that will be used wherever you refer to the table. Each new instance will use a new alias. However you can explicitly specify your own alias or omit it:
 
 ```cs
@@ -613,7 +735,9 @@ var tUserNoAlias = new User(Alias.Empty);
 Select(tUser.UserId).From(tUser);
 Select(tUserNoAlias.UserId).From(tUserNoAlias);
 ```
+
 *Actual T-SQL:*
+
 ```sql
 --var tUser = new User("USR");
 SELECT [USR].[UserId] FROM [dbo].[user] [USR]
@@ -621,8 +745,11 @@ SELECT [USR].[UserId] FROM [dbo].[user] [USR]
 --var tUserNoAlias = new User(Alias.Empty);
 SELECT [UserId] FROM [dbo].[user]
 ```
+
 ## Derived Tables
+
 The previous query is quite complex so it makes sense to store it as a derived table and reuse it in future:
+
 ```cs
 public class DerivedTableCustomer : DerivedTableBase
 {
@@ -669,7 +796,9 @@ public class DerivedTableCustomer : DerivedTableBase
     }
 }
 ```
+
 and this is how it can be reused:
+
 ```cs
 var tCustomer = new DerivedTableCustomer("CUST");
 
@@ -687,7 +816,9 @@ foreach (var customer in customers)
 }
 
 ```
+
 *Actual T-SQL:*
+
 ```sql
 SELECT 
     [CUST].[CustomerId],
@@ -721,13 +852,18 @@ WHERE
 ORDER BY [CUST].[Name] DESC 
 OFFSET 1 ROW FETCH NEXT 2 ROW ONLY
 ```
+
 *Result:*
+
 ```
 Id: 4, Name: Google, Type: 2
 Id: 2, Name: Allina Freeborne, Type: 1
 ```
+
 ## Subqueries
+
 It is not necessary to create a new class when you need a subquery - it can be directly described in an original expression. It is enough just to predefine the aliases for columns and tables:
+
 ```cs
 var num = CustomColumnFactory.Int32("3");
 //Note: "3" (the first value) is for compatibility with MySql
@@ -751,7 +887,9 @@ var mostFrequentNum = (int) await
 
 Console.WriteLine("The most frequent number: "  + mostFrequentNum);
 ```
+
 *Actual T-SQL:*
+
 ```sql
 SELECT 
     TOP 1 [A0].[3] 
@@ -763,6 +901,7 @@ FROM
 ) [A0] 
 ORDER BY [A0].[Sum] DESC
 ```
+
 *Note: In this example you can see how to use **Table Value Constructor***
 
 ## CTE
@@ -834,7 +973,9 @@ WITH [CteTreeClosure] AS(
                 
 SELECT [A0].[Id],[A0].[ParentId],[A0].[Depth] FROM [CteTreeClosure] [A0]
 ```
+
 *MySql*
+
 ```sql
 WITH RECURSIVE `CteTreeClosure` AS(
         SELECT `A0`.`Id`,`A0`.`ParentId`,1 `Depth` 
@@ -850,7 +991,9 @@ SELECT `A3`.`Id`,`A3`.`ParentId`,`A3`.`Depth` FROM `CteTreeClosure` `A3````
 ```
 
 ## Analytic And Window Functions
+
 SqExpress supports common analytic and window functions like **ROW_NUMBER**, **RANK**, **FIRST_VALUE**, **LAST_VALUE** etc.
+
 ```cs
 var cUserName = CustomColumnFactory.String("Name");
 var cNum = CustomColumnFactory.Int64("Num");
@@ -884,7 +1027,9 @@ await /*SqQueryBuilder.*/Select(
             $"Num: {cNum.Read(r)}, Name: {cUserName.Read(r)}, " +
             $"First: {cFirst.Read(r)}, Last: {cLast.Read(r)}"));
 ```
+
 *Actual T-SQL:*
+
 ```sql
 SELECT 
     [A0].[FirstName]+' '+[A0].[LastName] 
@@ -902,8 +1047,11 @@ SELECT
         [Last] 
 FROM [dbo].[User] [A0]
 ```
+
 ## Set Operators
+
 The library supports all the SET operators:
+
 ```cs
 //If you need to repeat one query several times 
 // you can store it in a variable
@@ -920,7 +1068,9 @@ var result = await select1
 Console.WriteLine("Result Of Set Operators:");
 Console.WriteLine(result[0]);
 ```
+
 Ans actual SQL will be:
+
 ```sql
 (
     (
@@ -942,8 +1092,11 @@ INTERSECT
     SELECT 2
 )
 ```
+
 ## Merge
+
 As a bonus, if you use MS SQL Server, you can use **Merge** statement:
+
 ```cs
 var data = new[]
 {
@@ -978,7 +1131,9 @@ await /*SqQueryBuilder.*/MergeDataInto(tableUser, data)
             Console.WriteLine($"UserId Inserted: {inserted.Read(r)},UserId Deleted: {deleted.Read(r)} , Action: {action.Read(r)}");
         });
 ```
+
 *Actual T-SQL:*
+
 ```sql
 MERGE [dbo].[User] [A0] 
 USING (
@@ -994,7 +1149,9 @@ THEN INSERT([FirstName],[LastName],[Version],[ModifiedAt])
 VALUES([A1].[FirstName],[A1].[LastName],1,GETUTCDATE()) 
 OUTPUT INSERTED.[UserId] [Inserted],DELETED.[UserId] [Deleted],$ACTION [Actions];
 ```
+
 *Result:*
+
 ```
 UserId Inserted: 4,UserId Deleted:  , Action: INSERT
 UserId Inserted: 1,UserId Deleted: 1 , Action: UPDATE
@@ -1004,6 +1161,7 @@ UserId Inserted: 2,UserId Deleted: 2 , Action: UPDATE
 For PostgresSQL or MySQL the library generates polyfills that use a temporary table to store passed data. For example the previous query will be converted into the following statements (OUTPUT is not supported):
 
 *Actual MYSQL:*
+
 ```sql
 CREATE TEMPORARY TABLE `tmpMergeDataSource`(
     `FirstName` varchar(8) character set utf8,
@@ -1029,7 +1187,9 @@ DROP TABLE `tmpMergeDataSource`;
 ```
 
 ## Temporary Tables
+
 In some scenarios temporary tables might be very useful and you can create such table as follows:
+
 ```cs
 public class TempTable : TempTableBase
 {
@@ -1046,7 +1206,9 @@ public class TempTable : TempTableBase
     public readonly StringTableColumn Name;
 }
 ```
+
 and then use it:
+
 ```cs
 var tmp = new TempTable();
 
@@ -1081,16 +1243,20 @@ await /*SqQueryBuilder.*/Select(tmp.Columns)
 //the connection is closed
 await database.Statement(tmp.Script.Drop());
 ```
+
 The result will be:
+
 ```
 Id: 2, Name: Allina Freeborne
 Id: 1, Name: Francois Sturman
 Id: 4, Name: Google
 Id: 3, Name: Microsoft
 ```
+
 ## Database Data Export Import
 
 Having a list of table descriptors you can easily export all theirs data into any text format - JSON for example:
+
 ```cs
 static async Task<string> ToJsonString(ISqDatabase database, TableBase[] tableBases)
 {
@@ -1140,27 +1306,31 @@ static async Task ReadTableDataIntoJson(Utf8JsonWriter writer, ISqDatabase datab
     writer.WriteEndArray();
 }
 ```
+
 Result:
+
 ```json
 {
     "User": [
-	["UserId", "FirstName", "LastName", "Version", "ModifiedAt"], 
-	["1", "Francois", "Sturman2", "2", "2021-10-26T08:07:03.160"], 
-	["2", "Allina", "Freeborne2", "2", "2021-10-26T08:07:03.160"], 
-	["4", "Maye", "Malloy", "1", "2021-10-26T08:07:03.160"]],
+ ["UserId", "FirstName", "LastName", "Version", "ModifiedAt"], 
+ ["1", "Francois", "Sturman2", "2", "2021-10-26T08:07:03.160"], 
+ ["2", "Allina", "Freeborne2", "2", "2021-10-26T08:07:03.160"], 
+ ["4", "Maye", "Malloy", "1", "2021-10-26T08:07:03.160"]],
     "Company": [
-	["CompanyId", "CompanyName", "Version", "ModifiedAt"], 
-	["1", "Microsoft", "1", "2021-10-26T08:07:03.080"], 
-	["2", "Google", "1", "2021-10-26T08:07:03.080"]],
+ ["CompanyId", "CompanyName", "Version", "ModifiedAt"], 
+ ["1", "Microsoft", "1", "2021-10-26T08:07:03.080"], 
+ ["2", "Google", "1", "2021-10-26T08:07:03.080"]],
     "Customer": [
-	["CustomerId", "UserId", "CompanyId"], 
-	["3", null, "1"], 
-	["4", null, "2"], 
-	["1", "1", null], 
-	["2", "2", null]]
+ ["CustomerId", "UserId", "CompanyId"], 
+ ["3", null, "1"], 
+ ["4", null, "2"], 
+ ["1", "1", null], 
+ ["2", "2", null]]
 }
 ```
+
 Import from a text format is not difficult as well:
+
 ```cs
 static async Task InsertTableData(ISqDatabase database, TableBase table, JsonElement element)
 {
@@ -1184,7 +1354,9 @@ static async Task InsertTableData(ISqDatabase database, TableBase table, JsonEle
     }
 }
 ```
+
 ## Getting and Comparing Database Table Metadata
+
 You can a list of dynamic table descriptors directly from a database using ```GetTables()``` method of ```ISqDatabase``` object. For example, this how you can read a list of all tables with all columns:
 
 ```cs
@@ -1254,6 +1426,7 @@ async Task<bool> CheckDatabaseIsUpdated(ISqDatabase database, IReadOnlyList<Tabl
 ```
 
 You cane also create new table dynamic descriptors and modify existing ones:
+
 ```cs
 var tbl = SqTable.Create(
     "schema",
@@ -1279,7 +1452,9 @@ tbl = tbl.With(
 ```
 
 ## Syntax Tree
+
 You can go through an existing syntax tree object and modify if it is required:
+
 ```cs
 //Var some external filter..
 ExprBoolean filter = CustomColumnFactory.Int16("Type") == 2 /*Company*/;
@@ -1324,7 +1499,9 @@ await baseSelect!
             Console.WriteLine($"Id: {tableCustomer.CustomerId.Read(r)}");
         });
 ```
+
 For simpler scenarios, you can use `With...` functions:
+
 ```cs
 var tUser = new TableUser();
 
@@ -1348,7 +1525,9 @@ expression = expression
 Console.WriteLine("With joined table");
 await expression.QueryScalar(database);
 ```
+
 *Actual T-SQL:*
+
 ```sql
 --Original expression:
 SELECT TOP 1 
@@ -1376,8 +1555,11 @@ JOIN [dbo].[Customer]
 WHERE 
     [A0].[UserId]=7
 ```
+
 ## Serialization to XML
+
 Each expression can be exported to a xml string and then restored back. It can be useful to pass expressions over network:
+
 ```cs
 var tableUser = new TableUser(Alias.Empty);
 
@@ -1405,7 +1587,9 @@ foreach (var name in result)
     Console.WriteLine(name);
 }
 ```
+
 This an example of the XML text:
+
 ```xml
 <Expr typeTag="QuerySpecification">
    <SelectList>
@@ -1445,8 +1629,11 @@ This an example of the XML text:
    <Distinct>false</Distinct>
 </Expr>
 ```
+
 ## Serialization to JSON
+
 The similar functionality exists for JSON (.Net Core 3.1+)
+
 ```cs
 var tableUser = new TableUser(Alias.Empty);
 
@@ -1474,7 +1661,9 @@ foreach (var name in result)
     Console.WriteLine(name);
 }
 ```
+
 This an example of the JSON text:
+
 ```json
 {
    "$type":"QuerySpecification",
@@ -1528,7 +1717,9 @@ This an example of the JSON text:
    "Distinct":false
 }
 ```
+
 ## Serialization to Plain List
+
 Also an expression can be exported into a list of plain entities. It might be useful if you want to store some expressions (e.g. "Favorites Filters") in a plain structure:
 
 ```cs
@@ -1629,7 +1820,9 @@ foreach (var table in allTables)
 }
 
 ```
+
 Result:
+
 ```
 User
    *UserId int
@@ -1682,15 +1875,18 @@ if (comparison != null)
 ```
 
 ## Table Descriptors Scaffolding
+
 **SqExpress** comes with the code-gen utility (it is located in the nuget package cache). It can read metadata form a database and create table descriptor classes in your code. It requires .Net Core 3.1+
 
 ```Package Manager Console```
+
 ```
 SYNTAX
     Gen-Tables [-DbType] {mssql | mysql | pgsql} [-ConnectionString] <string> [-OutputDir <string>] [-TableClassPrefix <string>] [-Namespace <string>]
 ```
 
 ```GenerateTables.cmd```
+
 ```cmd
 @echo off
 set root=%userprofile%\.nuget\packages\sqexpress
@@ -1701,7 +1897,9 @@ set lib=%lib%\tools\codegen\SqExpress.CodeGenUtil.dll
 
 dotnet "%lib%" gentables mssql "MyConnectionString" --table-class-prefix "Tbl" -o ".\Tables" -n "MyCompany.MyProject.Tables"
 ```
+
 ```GenerateTables.sh```
+
 ```sh
 #!/bin/bash
 
@@ -1709,11 +1907,13 @@ lib=~/.nuget/packages/sqexpress/$(ls ~/.nuget/packages/sqexpress -r|head -n 1)/t
 
 dotnet $lib gentables mssql "MyConnectionString" --table-class-prefix "Tbl" -o "./Tables" -n "MyCompany.MyProject.Tables"
 ```
-###
+
 It uses Roslyn compiler so it does not overwrite existing files - it patched it with actual columns. All kind of changes like attributes, namespaces, interfaces will remain after next runs.
 
 ## DTOs Scaffolding
+
 You can add special attributes to column properties in table descriptors to provide information to the code-gen util to create (update) DTO classes with mappings:
+
 ```cs
 public class TableUser : TableBase
 {
@@ -1739,7 +1939,9 @@ public class TableUser : TableBase
     }
 }
 ```
+
 To run the code-gen util before a project building, just define the following property in the project file:
+
 ```
 <Project ..,>
   <PropertyGroup>
@@ -1748,17 +1950,20 @@ To run the code-gen util before a project building, just define the following pr
     ...
   </PropertyGroup>
 ```
+
 The list of all code-generation parameters can be found here: [SqExpress.props](https://github.com/0x1000000/SqExpress/blob/main/SqExpress/SqExpress.props).
 
 The code generation tool can also be run from the command line:
 
 ```Package Manager Console```
+
 ```
 SYNTAX
     Gen-Models [-InputDir <string>] [-OutputDir <string>] [-Namespace <string>] [-NoRwClasses] [-NullRefTypes] [-CleanOutput] [-ModelType {ImmutableClass | Record}]  [<CommonParameters>]
 ```
 
 ```GenerateModel.cmd```
+
 ```cmd
 @echo off
 set root=%userprofile%\.nuget\packages\sqexpress
@@ -1769,15 +1974,19 @@ set lib=%lib%\tools\codegen\SqExpress.CodeGenUtil.dll
 
 dotnet "%lib%" genmodels -i "." -o ".\Models" -n "SqExpress.GetStarted.Models" --null-ref-types
 ```
+
 ```generate-model.sh```
+
 ```
 #!/bin/bash
 lib=~/.nuget/packages/sqexpress/$(ls ~/.nuget/packages/sqexpress -r|head -n 1)/tools/codegen/SqExpress.CodeGenUtil.dll
 dotnet $lib genmodels -i "." -o "./Models" -n "SqExpress.GetStarted.Models"
 ```
+
 The result will be the following classes:
 
 ```UserName.cs```
+
 ```cs
 public class UserName
 {
@@ -1835,9 +2044,11 @@ public class UserName
     }
 }
 ```
+
 and [```AuditData.cs```](https://github.com/0x1000000/SqExpress/blob/main/SqExpress.GetStarted/Models/AuditData.cs)
 
 You can use them as follows:
+
 ```cs
 var tUser = new TableUser();
 
@@ -1850,11 +2061,13 @@ foreach (var userName in users)
     Console.WriteLine($"{userName.Id} {userName.FirstName} {userName.LastName}");
 }
 ```
+
 *Note: **SqModel** attribute can be also used for temporary and derived table descriptors.*
 
 ## Model Selection
 
 The library contains a fluent api that helps selecting tuples of models inner or left joined.
+
 ```
 SqModelSelectBuilder
     .Select(Model1.GetReader())
@@ -1920,15 +2133,20 @@ foreach (var name in page.Items)
 ```
 
 ## Using in ASP.NET
+
 There is a demo ASP.NET project that shows how [SqExpress](https://github.com/0x1000000/SqGoods/tree/main) can be used in a real web app.
 
 The ideas:
-1.	Each API request uses only one SQL connection which is stored in [a connection storage](https://github.com/0x1000000/SqGoods/blob/main/SqGoods.DomainLogic/DataAccess/MsSqlConnectionStorage.cs);
-2.	The connection storage [can create an instance of SqDatabase](https://github.com/0x1000000/SqGoods/blob/main/SqGoods.DomainLogic/DataAccess/MsSqlConnectionStorage.cs#L18);
-3.	The connection storage and SqDatabase [have "Scoped" lifecycle](https://github.com/0x1000000/SqGoods/blob/main/SqGoods.DomainLogic/DomainLogicRegistration.cs#L17);
-4.	SqDatabase is used in [entity repositories that are responsible for "Domain Logic"](https://github.com/0x1000000/SqGoods/blob/main/SqGoods.DomainLogic/Repositories/SgCategoryRepository.cs).
+
+1. Each API request uses only one SQL connection which is stored in [a connection storage](https://github.com/0x1000000/SqGoods/blob/main/SqGoods.DomainLogic/DataAccess/MsSqlConnectionStorage.cs);
+2. The connection storage [can create an instance of SqDatabase](https://github.com/0x1000000/SqGoods/blob/main/SqGoods.DomainLogic/DataAccess/MsSqlConnectionStorage.cs#L18);
+3. The connection storage and SqDatabase [have "Scoped" lifecycle](https://github.com/0x1000000/SqGoods/blob/main/SqGoods.DomainLogic/DomainLogicRegistration.cs#L17);
+4. SqDatabase is used in [entity repositories that are responsible for "Domain Logic"](https://github.com/0x1000000/SqGoods/blob/main/SqGoods.DomainLogic/Repositories/SgCategoryRepository.cs).
+
 ## PostgreSQL
+
 You can run all the scenarios using Postgres SQL (of course the actual sql will be different):
+
 ```Cs
 DbCommand NpgsqlCommandFactory(NpgsqlConnection connection, string sqlText)
 {
@@ -1951,9 +2169,13 @@ using (var connection = new NpgsqlConnection(connectionString))
     }
 }
 ```
+
 *Note: You need to add **Npgsql** package to your project.*
+
 ## MySQL
+
 You can also run all the scenarios using MySQL:
+
 ```Cs
 DbCommand MySqlCommandFactory(MySqlConnection connection, string sqlText)
 {
@@ -1975,10 +2197,13 @@ using (var connection = new MySqlConnection(connectionString))
     }
 }
 ```
+
 *Note: You need to add **MySql.Data** or **MySqlConnector** package to your project.*
 
 ## AutoMapper
+
 Since the DAL works on top of ADO.NET, you can use AutoMapper (if you like it):
+
 ```cs
 var mapper = new Mapper(new MapperConfiguration(cfg =>
 {
@@ -1997,5 +2222,5 @@ var result = await Select(table.Columns)
     .From(table)
     .QueryList(context.Database, r => mapper.Map<IDataRecord, AllColumnTypesDto>(r));
 ```
-[(taken from "Test/SqExpress.IntTest/Scenarios/ScAllColumnTypes.cs")](https://github.com/0x1000000/SqExpress/blob/main/Test/SqExpress.IntTest/Scenarios/ScAllColumnTypes.cs#L26)
 
+[(taken from "Test/SqExpress.IntTest/Scenarios/ScAllColumnTypes.cs")](https://github.com/0x1000000/SqExpress/blob/main/Test/SqExpress.IntTest/Scenarios/ScAllColumnTypes.cs#L26)
