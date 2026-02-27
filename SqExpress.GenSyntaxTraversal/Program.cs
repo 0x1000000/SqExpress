@@ -41,7 +41,10 @@ namespace SqExpress.GenSyntaxTraversal
 
             try
             {
+                Generate(projDir, @"Syntax\IExprVisitorNoArg.cs", buffer, GenerateVisitorInterfaceNoArg);
+                Generate(projDir, @"Syntax\ExprVisitorProxy.cs", buffer, GenerateVisitorProxy);
                 Generate(projDir, @"SyntaxTreeOperations\ExprDeserializer.cs", buffer, GenerateDeserializer);
+                Generate(projDir, @"SyntaxTreeOperations\ExprVisitorBase.cs", buffer, GenerateVisitorBaseNonGeneric);
                 Generate(projDir, @"SyntaxTreeOperations\Internal\ExprModifier.cs", buffer, GenerateModifier);
                 Generate(projDir, @"SyntaxTreeOperations\Internal\ExprWalker.cs", buffer, GenerateWalker);
                 Generate(projDir, @"SyntaxTreeOperations\Internal\ExprWalkerPull.cs", buffer, GenerateWalkerPull);
@@ -324,7 +327,69 @@ namespace SqExpress.GenSyntaxTraversal
                 builder.AppendLineStart(1, $"{pr}}}");
                 builder.AppendLineStart(0, $"{pr}}}");
             }
-        }        
+        }
+
+        private static void GenerateVisitorBaseNonGeneric(IReadOnlyList<NodeModel> models, StringBuilder stringBuilder)
+        {
+            CodeBuilder builder = new CodeBuilder(stringBuilder, 2);
+            foreach (var nodeModel in models)
+            {
+                string pr = null;
+                if (nodeModel.IsCustomTraversal)
+                {
+                    pr = "//";
+                    builder.AppendLineStart(0, "////Default implementation");
+                }
+
+                builder.AppendLineStart(0, $"{pr}public virtual void Visit{nodeModel.TypeName}({nodeModel.TypeName} expr)");
+                builder.AppendLineStart(0, $"{pr}{{");
+
+                if (nodeModel.SubNodes.Count == 0)
+                {
+                    builder.AppendLineStart(1, $"{pr}");
+                }
+                else
+                {
+                    for (var index = 0; index < nodeModel.SubNodes.Count; index++)
+                    {
+                        var subNode = nodeModel.SubNodes[index];
+                        builder.AppendLineStart(1, $"{pr}this.Accept(expr.{subNode.PropertyName});");
+                    }                    
+                }
+
+                builder.AppendLineStart(0, $"{pr}}}");
+            }
+        }
+
+        private static void GenerateVisitorInterfaceNoArg(IReadOnlyList<NodeModel> models, StringBuilder stringBuilder)
+        {
+            CodeBuilder builder = new CodeBuilder(stringBuilder, 2);
+            foreach (var nodeModel in models)
+            {
+                builder.AppendLineStart(0, $"void Visit{nodeModel.TypeName}({nodeModel.TypeName} expr);");
+            }
+        }
+
+        private static void GenerateVisitorProxy(IReadOnlyList<NodeModel> models, StringBuilder stringBuilder)
+        {
+            CodeBuilder builder = new CodeBuilder(stringBuilder, 2);
+            foreach (var nodeModel in models)
+            {
+                builder.AppendLineStart(0, $"public object? Visit{nodeModel.TypeName}({nodeModel.TypeName} expr, object? arg)");
+                builder.AppendLineStart(0, "{");
+                builder.AppendLineStart(1, "this._nodeHandler?.OnEnterNode(expr);");
+                builder.AppendLineStart(1, "try");
+                builder.AppendLineStart(1, "{");
+                builder.AppendLineStart(2, $"this._visitor.Visit{nodeModel.TypeName}(expr);");
+                builder.AppendLineStart(2, "return null;");
+                builder.AppendLineStart(1, "}");
+                builder.AppendLineStart(1, "finally");
+                builder.AppendLineStart(1, "{");
+                builder.AppendLineStart(2, "this._nodeHandler?.OnLeaveNode();");
+                builder.AppendLineStart(1, "}");
+                builder.AppendLineStart(0, "}");
+            }
+        }
         
         private static void GenerateSyntaxModify(IReadOnlyList<NodeModel> models, StringBuilder stringBuilder)
         {

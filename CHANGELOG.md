@@ -1,3 +1,8 @@
+# 1.2.0
+### New Features
+- Added non-generic syntax tree visitor support with `IExprVisitor` and `ExprVisitorBase`.
+- `ExprVisitorBase` now provides traversal context via `CurrentPath`, `CurrentNode`, and `Depth`.
+
 # 1.1.1
 ### Bugfix
 - Missed **CreateNullableStringColumn** in **DerivedTableBase**.

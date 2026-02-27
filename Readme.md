@@ -1526,6 +1526,28 @@ Console.WriteLine("With joined table");
 await expression.QueryScalar(database);
 ```
 
+For read-only traversal and analysis, `ExprVisitorBase` can be easier than `Modify(...)`:
+
+```cs
+public sealed class ColumnNameCollector : ExprVisitorBase
+{
+    public HashSet<string> ColumnNames { get; } = new HashSet<string>();
+
+    public override void VisitExprColumnName(ExprColumnName expr)
+    {
+        this.ColumnNames.Add(expr.Name);
+        base.VisitExprColumnName(expr); // keep default traversal
+    }
+}
+
+var collector = new ColumnNameCollector();
+baseSelect.Accept(collector);
+```
+
+Remarks:
+- During visitor callbacks you can inspect `CurrentPath`, `CurrentNode`, and `Depth`.
+- If you override a `Visit...` method and still need children traversal, call `base.Visit...(...)`.
+
 *Actual T-SQL:*
 
 ```sql

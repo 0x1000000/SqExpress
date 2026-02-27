@@ -7,7 +7,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <Authors>Dmitry Tikhonov</Authors>
     <Company />
-    <Version>1.1.1</Version>
+    <Version>1.2.0</Version>
     <Summary>SqExpress is a SQL query builder that allows you to create SQL expressions directly in C# code with strong typing and IntelliSense.</Summary>
     <PackageReleaseNotes>https://github.com/0x1000000/SqExpress/blob/main/CHANGELOG.md</PackageReleaseNotes>
     <Description>SqExpress is a SQL query builder that allows you to create SQL expressions directly in C# code with strong typing and IntelliSense (without LINQ!). The library provides a generic SQL syntax tree with export to MS T-SQL, PostgreSQL, and MySQL text. It includes polyfills to compensate for features lacking in certain databases, such as the "MERGE" command.  It also provides a set of builders and operators that will help you build complex SQL expressions.
@@ -16,9 +16,9 @@ It does not use LINQ, and your C# code will be as close to real SQL as possible.
 
 SqExpress comes with a simple but efficient data access mechanism that wraps ADO.Net DbConnection and can be used with MS SQL Client, Npgsql, or MySQL Connector.
 
-You can use SqExpress together with the “Code First” concept when you declare SQL tables as C# classes with the possibility to generate recreation scripts for a target platform (MS SQL or PostgreSQL or MySQL).
+You can use SqExpress together with the "Code First" concept when you declare SQL tables as C# classes with the possibility to generate recreation scripts for a target platform (MS SQL or PostgreSQL or MySQL).
 
-You can also use it in conjunction with the “Database First” concept using an included code modification utility. The utility can also be used to generate flexible DTO classes with all required database mappings.
+You can also use it in conjunction with the "Database First" concept using an included code modification utility. The utility can also be used to generate flexible DTO classes with all required database mappings.
 
 Here’s an article that explains the library principles: [“Syntax Tree and Alternative to LINQ in Interaction with SQL Databases”](https://itnext.io/syntax-tree-and-alternative-to-linq-in-interaction-with-sql-databases-656b78fe00dc?source=friends_link&amp;sk=f5f0587c08166d8824b96b48fe2cf33c)</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -26,8 +26,8 @@ Here’s an article that explains the library principles: [“Syntax Tree and Al
     <Copyright>Dmitry Tikhonov</Copyright>
     <PackageProjectUrl>https://github.com/0x1000000/SqExpress</PackageProjectUrl>
     <PackageTags>query postgresql  tsql mysql builder mssql dataaccess</PackageTags>
-    <AssemblyVersion>1.1.1</AssemblyVersion>
-    <FileVersion>1.1.1</FileVersion>
+    <AssemblyVersion>1.2.0</AssemblyVersion>
+    <FileVersion>1.2.0</FileVersion>
     <AssemblyOriginatorKeyFile>..\SqExpress.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>
     <DelaySign>false</DelaySign>
