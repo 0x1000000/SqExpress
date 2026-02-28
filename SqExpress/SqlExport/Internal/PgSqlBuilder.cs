@@ -10,6 +10,7 @@ using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Type;
@@ -644,6 +645,13 @@ namespace SqExpress.SqlExport.Internal
 
                 return true;
             }
+        }
+
+        protected override bool VisitExprParameter(ExprParameter exprParameter, int paramNumber, IExpr? parent)
+        {
+            this.Builder.Append('$');
+            this.Builder.Append(paramNumber);
+            return true;
         }
 
         public override void AppendName(string name, char? prefix = null)

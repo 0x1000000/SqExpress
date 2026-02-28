@@ -28,7 +28,8 @@ namespace SqExpress.DbMetadata.Internal.DbManagers.MySql
                 var database = new SqDatabase<DbConnection>(
                     connection,
                     CommandFactory,
-                    MySqlExporter.Default
+                    MySqlExporter.Default,
+                    ParametrizationMode.None
                 );
 
                 return new DbManager(new MySqlDbStrategy(database, connection.Database), connection, options);

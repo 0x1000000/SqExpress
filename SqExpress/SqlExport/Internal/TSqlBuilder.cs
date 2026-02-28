@@ -7,6 +7,7 @@ using SqExpress.Syntax;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Select.SelectItems;
@@ -704,6 +705,28 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprTableFullName(ExprTableFullName exprTableFullName, IExpr? parent) 
             => this.VisitExprTableFullNameCommon(exprTableFullName, parent);
+
+        protected override bool VisitExprParameter(ExprParameter exprParameter, int paramNumber, IExpr? parent)
+        {
+            if (!string.IsNullOrEmpty(exprParameter.TagName))
+            {
+                //TODO: validate tag name should valid SQL parameter name
+                this.Builder.Append('(');
+                this.Builder.Append('@');
+                this.Builder.Append(exprParameter.TagName);
+                this.Builder.Append(')');
+            }
+            else
+            {
+                this.Builder.Append('(');
+                this.Builder.Append('@');
+                this.Builder.Append("p");
+                this.Builder.Append(paramNumber);
+                this.Builder.Append(')');
+            }
+
+            return true;
+        }
 
         public override void AppendName(string name, char? prefix = null)
         {

@@ -6,6 +6,7 @@ using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Output;
 using SqExpress.Syntax.Select;
@@ -16,13 +17,9 @@ using SqExpress.Syntax.Value;
 
 namespace SqExpress.SyntaxTreeOperations.Internal
 {
-    internal class ExprModifier : IExprVisitor<IExpr?, Func<IExpr, IExpr?>>
+    internal class ExprModifier : IExprVisitorInternal<IExpr?, Func<IExpr, IExpr?>>
     {
         private HashSet<string>? _cteChecker;
-
-        public ExprModifier()
-        {
-        }
 
         private T AcceptItem<T>(T item, Func<IExpr, IExpr?> arg) where T : IExpr
         {
@@ -157,6 +154,16 @@ namespace SqExpress.SyntaxTreeOperations.Internal
                 return modifier.Invoke(originalRef.Original);
             }
 
+            return modifier.Invoke(exprIn);
+        }
+
+        IExpr? IExprVisitorInternal<IExpr?, Func<IExpr, IExpr?>>.VisitExprStatement(ExprStatement exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+
+        IExpr? IExprValueVisitorInternal<IExpr?, Func<IExpr, IExpr?>>.VisitExprParameter(ExprParameter exprIn, Func<IExpr, IExpr?> modifier)
+        {
             return modifier.Invoke(exprIn);
         }
 

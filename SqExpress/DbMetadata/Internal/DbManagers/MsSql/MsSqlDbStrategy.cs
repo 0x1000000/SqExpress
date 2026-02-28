@@ -29,7 +29,7 @@ internal class MsSqlDbStrategy : DbStrategyBase
     {
         try
         {
-            var database = new SqDatabase<DbConnection>(connection, CommandFactory, new TSqlExporter(SqlBuilderOptions.Default));
+            var database = new SqDatabase<DbConnection>(connection, CommandFactory, new TSqlExporter(SqlBuilderOptions.Default), ParametrizationMode.None);
 
             return new DbManager(new MsSqlDbStrategy(database, connection.Database), connection, options);
         }

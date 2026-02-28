@@ -8,7 +8,7 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         {
             return exprValue
                 .Accept(
-                    ExprValueTypeAnalyzer<ExprValueTypeDetails, object?>.Instance,
+                    ExprValueVisitorTypeAnalyzer<ExprValueTypeDetails, object?>.Instance,
                     new ExprValueTypeAnalyzerCtx<ExprValueTypeDetails, object?>(
                         null,
                         ExprValueTypeDetailsVisitor.Instance));
@@ -18,7 +18,7 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         {
             return exprValue
                 .Accept(
-                    ExprValueTypeAnalyzer<bool?, object?>.Instance,
+                    ExprValueVisitorTypeAnalyzer<bool?, object?>.Instance,
                     new ExprValueTypeAnalyzerCtx<bool?, object?>(
                         null,
                         ExprValueTypeIsNullVisitor.Instance));

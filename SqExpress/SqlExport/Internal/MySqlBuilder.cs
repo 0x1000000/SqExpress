@@ -9,6 +9,7 @@ using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Select.SelectItems;
@@ -882,6 +883,12 @@ namespace SqExpress.SqlExport.Internal
         public override bool VisitExprFuncIsNull(ExprFuncIsNull exprFuncIsNull, IExpr? parent)
         {
             SqQueryBuilder.Coalesce(exprFuncIsNull.Test, exprFuncIsNull.Alt).Accept(this, exprFuncIsNull);
+            return true;
+        }
+
+        protected override bool VisitExprParameter(ExprParameter exprParameter, int paramNumber, IExpr? parent)
+        {
+            this.Builder.Append('$');
             return true;
         }
 

@@ -59,15 +59,15 @@ namespace SqExpress.Syntax.Select
 
     public class ExprOffsetFetch : IExpr
     {
-        public ExprOffsetFetch(ExprInt32Literal offset, ExprInt32Literal? fetch)
+        public ExprOffsetFetch(ExprValue offset, ExprValue? fetch)
         {
             this.Offset = offset;
             this.Fetch = fetch;
         }
 
-        public ExprInt32Literal Offset { get; }
+        public ExprValue Offset { get; }
 
-        public ExprInt32Literal? Fetch { get; }
+        public ExprValue? Fetch { get; }
 
         public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprOffsetFetch(this, arg);

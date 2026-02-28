@@ -40,6 +40,8 @@ namespace SqExpress.SqlExport.Internal
 
         private Dictionary<string, ExprCte>? _uniqueCteCheck;
 
+        private List<DbParameterValue>? _parameters;
+
         protected SqlBuilderBase(SqlBuilderOptions? options, StringBuilder? externalBuilder, SqlAliasGenerator aliasGenerator, bool dismissCteInject)
         {
             this.Options = options ?? SqlBuilderOptions.Default;
@@ -47,6 +49,8 @@ namespace SqExpress.SqlExport.Internal
             this._dismissCteInject = dismissCteInject;
             this._aliasGenerator = aliasGenerator;
         }
+
+        public IReadOnlyList<DbParameterValue>? ParameterValues => this._parameters;
 
         protected abstract SqlBuilderBase CreateInstance(SqlAliasGenerator aliasGenerator, bool dismissCteInject);
 
@@ -685,9 +689,13 @@ namespace SqExpress.SqlExport.Internal
             {
                 if (!ReferenceEquals(specification.Top, null))
                 {
-                    if (!ReferenceEquals(exprSelectOffsetFetch.OrderBy.OffsetFetch.Fetch, null) && exprSelectOffsetFetch.OrderBy.OffsetFetch.Fetch.Value.HasValue)
+                    if (!ReferenceEquals(exprSelectOffsetFetch.OrderBy.OffsetFetch.Fetch, null))
                     {
-                        throw new SqExpressException("Query with \"FETCH\" cannot be limited");
+                        var fetchFetch = exprSelectOffsetFetch.OrderBy.OffsetFetch.Fetch as ExprInt32Literal;
+                        if (ReferenceEquals(fetchFetch, null) || fetchFetch.Value.HasValue)
+                        {
+                            throw new SqExpressException("Query with \"FETCH\" cannot be limited");
+                        }
                     }
 
                     this.AppendSelectLimit(specification.Top, exprSelectOffsetFetch);
@@ -1515,6 +1523,25 @@ namespace SqExpress.SqlExport.Internal
             statement.Statement.Accept(this.GetStatementSqlBuilder());
             return true;
         }
+
+        public bool VisitExprParameter(ExprParameter exprParameter, IExpr? parent)
+        {
+            if (exprParameter.ReplacedValue is null)
+            {
+                throw new SqExpressException("Could not process pure parameter");
+            }
+            this._parameters ??= new List<DbParameterValue>();
+            var dbParameterValue = exprParameter.ReplacedValue.Accept(DbParameterValueVisitorExtractor.Instance, DbParameterValueVisitorExtractorMode.Default);
+            if (!dbParameterValue.HasValue)
+            {
+                throw new SqExpressException("Unsupported parameter value");
+            }
+            this._parameters.Add(dbParameterValue.Value);
+
+            return this.VisitExprParameter(exprParameter, this._parameters.Count, parent);
+        }
+
+        protected abstract bool VisitExprParameter(ExprParameter exprParameter, int paramNumber, IExpr? parent);
 
         public abstract void AppendName(string name, char? prefix = null);
 

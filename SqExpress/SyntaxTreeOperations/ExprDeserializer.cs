@@ -168,7 +168,7 @@ namespace SqExpress.SyntaxTreeOperations
                 case "Modulo": return new ExprModulo(left: GetSubNode<TNode, ExprValue>(rootElement, reader, "Left"), right: GetSubNode<TNode, ExprValue>(rootElement, reader, "Right"));
                 case "Mul": return new ExprMul(left: GetSubNode<TNode, ExprValue>(rootElement, reader, "Left"), right: GetSubNode<TNode, ExprValue>(rootElement, reader, "Right"));
                 case "Null": return ExprNull.Instance;
-                case "OffsetFetch": return new ExprOffsetFetch(offset: GetSubNode<TNode, ExprInt32Literal>(rootElement, reader, "Offset"), fetch: GetNullableSubNode<TNode, ExprInt32Literal>(rootElement, reader, "Fetch"));
+                case "OffsetFetch": return new ExprOffsetFetch(offset: GetSubNode<TNode, ExprValue>(rootElement, reader, "Offset"), fetch: GetNullableSubNode<TNode, ExprValue>(rootElement, reader, "Fetch"));
                 case "OrderBy": return new ExprOrderBy(orderList: GetSubNodeList<TNode, ExprOrderByItem>(rootElement, reader, "OrderList"));
                 case "OrderByItem": return new ExprOrderByItem(value: GetSubNode<TNode, ExprValue>(rootElement, reader, "Value"), descendant: ReadBoolean(rootElement, reader, "Descendant"));
                 case "OrderByOffsetFetch": return new ExprOrderByOffsetFetch(orderList: GetSubNodeList<TNode, ExprOrderByItem>(rootElement, reader, "OrderList"), offsetFetch: GetSubNode<TNode, ExprOffsetFetch>(rootElement, reader, "OffsetFetch"));

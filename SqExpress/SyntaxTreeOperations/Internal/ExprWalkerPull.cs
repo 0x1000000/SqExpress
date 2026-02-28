@@ -7,6 +7,7 @@ using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Output;
 using SqExpress.Syntax.Select;
@@ -18,7 +19,7 @@ using SqExpress.Utils;
 
 namespace SqExpress.SyntaxTreeOperations.Internal
 {
-    internal class ExprWalkerPull : IExprVisitor<bool, object?>, IEnumerator<IExpr>
+    internal class ExprWalkerPull : IExprVisitorInternal<bool, object?>, IEnumerator<IExpr>
     {
         private const int MaxDeep = 1000000;
 
@@ -275,6 +276,29 @@ namespace SqExpress.SyntaxTreeOperations.Internal
                     throw new SqExpressException("Incorrect enumerator visitor state");
             }
         }
+
+        bool IExprVisitorInternal<bool, object?>.VisitExprStatement(ExprStatement expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
+
+        bool IExprValueVisitorInternal<bool, object?>.VisitExprParameter(ExprParameter expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
+
 
         //CodeGenStart
         public bool VisitExprAggregateFunction(ExprAggregateFunction expr, object? arg)

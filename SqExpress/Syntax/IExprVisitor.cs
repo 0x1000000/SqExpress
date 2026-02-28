@@ -11,7 +11,7 @@ using SqExpress.Syntax.Value;
 
 namespace SqExpress.Syntax
 {
-    internal interface IExprVisitorInternal<out TRes, in TArg> : IExprVisitor<TRes, TArg>
+    internal interface IExprVisitorInternal<out TRes, in TArg> : IExprVisitor<TRes, TArg>, IExprValueVisitorInternal<TRes, TArg>
     {
         TRes VisitExprStatement(ExprStatement statement, TArg arg);
     }

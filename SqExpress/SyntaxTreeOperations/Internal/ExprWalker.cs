@@ -6,6 +6,7 @@ using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Output;
 using SqExpress.Syntax.Select;
@@ -28,7 +29,7 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         public readonly TCtx Context;
     }
 
-    internal class ExprWalker<TCtx> : IExprVisitor<bool, WalkerContext<TCtx>>
+    internal class ExprWalker<TCtx> : IExprVisitorInternal<bool, WalkerContext<TCtx>>
     {
         private readonly IWalkerVisitorBase<TCtx> _visitor;
 
@@ -186,6 +187,20 @@ namespace SqExpress.SyntaxTreeOperations.Internal
 
             this.EndVisit(expr, argOut.Context);
             return res && walkResult != WalkResult.Stop;
+        }
+
+        bool IExprVisitorInternal<bool, WalkerContext<TCtx>>.VisitExprStatement(ExprStatement expr, WalkerContext<TCtx> arg)
+        {
+            var walkResult = this.Visit(expr, "Statement", arg, out var argOut);
+            this.EndVisit(expr, argOut.Context);
+            return walkResult != WalkResult.Stop;
+        }
+
+        bool IExprValueVisitorInternal<bool, WalkerContext<TCtx>>.VisitExprParameter(ExprParameter expr, WalkerContext<TCtx> arg)
+        {
+            var walkResult = this.Visit(expr, "Parameter", arg, out var argOut);
+            this.EndVisit(expr, argOut.Context);
+            return walkResult != WalkResult.Stop;
         }
 
         //CodeGenStart

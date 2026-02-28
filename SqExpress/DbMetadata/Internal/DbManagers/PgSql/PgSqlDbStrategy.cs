@@ -29,7 +29,8 @@ namespace SqExpress.DbMetadata.Internal.DbManagers.PgSql
                 var database = new SqDatabase<DbConnection>(
                     connection,
                     CommandFactory,
-                    new PgSqlExporter(SqlBuilderOptions.Default)
+                    new PgSqlExporter(SqlBuilderOptions.Default),
+                    ParametrizationMode.None
                 );
 
                 return new DbManager(new PgSqlDbStrategy(database, connection.Database), connection, options);

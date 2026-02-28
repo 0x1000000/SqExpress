@@ -1,15 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading.Tasks;
 using MySqlConnector;
 using Npgsql;
 using SqExpress.DataAccess;
 using SqExpress.IntTest.Context;
 using SqExpress.IntTest.Scenarios;
-using SqExpress.IntTest.Tables;
 using SqExpress.SqlExport;
 
 namespace SqExpress.IntTest
@@ -179,6 +176,7 @@ namespace SqExpress.IntTest
                 new SqlConnection(connectionString),
                 (conn, sql) => new SqlCommand(sql, conn),
                 sqlExporter,
+                ParametrizationMode.FullContinueWithLiteralsWhenLimitIsExceeded,
                 disposeConnection: true
             );
 
@@ -187,6 +185,7 @@ namespace SqExpress.IntTest
                 new NpgsqlConnection(connectionString),
                 (conn, sql) => new NpgsqlCommand(sql, conn),
                 sqlExporter,
+                ParametrizationMode.FullContinueWithLiteralsWhenLimitIsExceeded,
                 disposeConnection: true
             );
 
@@ -195,6 +194,7 @@ namespace SqExpress.IntTest
                 new MySqlConnection(connectionString),
                 (conn, sql) => new MySqlCommand(sql, conn),
                 sqlExporter,
+                ParametrizationMode.FullContinueWithLiteralsWhenLimitIsExceeded,
                 disposeConnection: true
             );
     }

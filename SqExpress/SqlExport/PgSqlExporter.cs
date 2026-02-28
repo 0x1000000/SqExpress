@@ -2,10 +2,11 @@
 using SqExpress.SqlExport.Statement.Internal;
 using SqExpress.StatementSyntax;
 using SqExpress.Syntax;
+using System.Collections.Generic;
 
 namespace SqExpress.SqlExport
 {
-    public class PgSqlExporter : ISqlExporter
+    public class PgSqlExporter : ISqlExporterInternal
     {
         public static readonly PgSqlExporter Default = new PgSqlExporter(SqlBuilderOptions.Default);
 
@@ -18,13 +19,7 @@ namespace SqExpress.SqlExport
 
         public string ToSql(IExpr expr)
         {
-            var sqlExporter = new PgSqlBuilder(this._builderOptions);
-            if (expr.Accept(sqlExporter, null))
-            {
-                return sqlExporter.ToString();
-            }
-
-            throw new SqExpressException("Could not build Sql");
+            return ((ISqlExporterInternal)this).ToSql(expr, out _);
         }
 
         public string ToSql(IStatement statement)
@@ -32,6 +27,18 @@ namespace SqExpress.SqlExport
             var builder = new PgSqlStatementBuilder(this._builderOptions, null);
             statement.Accept(builder);
             return builder.Build();
+        }
+
+        string ISqlExporterInternal.ToSql(IExpr expr, out IReadOnlyList<DbParameterValue>? parameters)
+        {
+            var sqlExporter = new PgSqlBuilder(this._builderOptions);
+            if (expr.Accept(sqlExporter, null))
+            {
+                parameters = sqlExporter.ParameterValues;
+                return sqlExporter.ToString();
+            }
+
+            throw new SqExpressException("Could not build Sql");
         }
     }
 }

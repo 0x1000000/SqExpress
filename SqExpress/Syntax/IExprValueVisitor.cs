@@ -1,12 +1,18 @@
 ﻿using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Value;
 
 namespace SqExpress.Syntax
 {
+    internal interface IExprValueVisitorInternal<out TRes, in TArg>: IExprValueVisitor<TRes, TArg>
+    {
+        TRes VisitExprParameter(ExprParameter exprParameter, TArg arg);
+    }
+
     public interface IExprValueVisitor<out TRes, in TArg>
     {
         //Value

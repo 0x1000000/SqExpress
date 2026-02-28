@@ -3,6 +3,7 @@ using SqExpress.Syntax;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Value;
@@ -22,11 +23,11 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         }
     }
 
-    internal class ExprValueTypeAnalyzer<TRes, TCtx> : IExprValueVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>, IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>
+    internal class ExprValueVisitorTypeAnalyzer<TRes, TCtx> : IExprValueVisitorInternal<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>, IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>
     {
-        public static readonly ExprValueTypeAnalyzer<TRes, TCtx> Instance = new ExprValueTypeAnalyzer<TRes, TCtx>();
+        public static readonly ExprValueVisitorTypeAnalyzer<TRes, TCtx> Instance = new ExprValueVisitorTypeAnalyzer<TRes, TCtx>();
 
-        private ExprValueTypeAnalyzer()
+        private ExprValueVisitorTypeAnalyzer()
         {
         }
 
@@ -298,6 +299,15 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeXml(ExprTypeXml exprTypeXml, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
         {
             return ctx.ValueVisitor.VisitXml(ctx.Ctx, null);
+        }
+
+        TRes IExprValueVisitorInternal<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprParameter(ExprParameter exprParameter, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            if (!ReferenceEquals(exprParameter.ReplacedValue,null))
+            {
+                return exprParameter.ReplacedValue.Accept(this, ctx);
+            }
+            return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
         }
     }
 }

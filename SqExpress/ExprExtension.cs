@@ -10,7 +10,9 @@ using SqExpress.QueryBuilders.Update;
 using SqExpress.SqlExport;
 using SqExpress.StatementSyntax;
 using SqExpress.Syntax;
+using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Select;
+using SqExpress.Syntax.Value;
 using SqExpress.SyntaxTreeOperations;
 using SqExpress.SyntaxTreeOperations.ExportImport;
 using SqExpress.SyntaxTreeOperations.ExportImport.Internal;
@@ -102,7 +104,9 @@ namespace SqExpress
                     return new KeyValuePair<List<T>, int?>(acc.Key, total);
                 });
 
-            return new DataPage<T>(res.Key, query.OrderBy.OffsetFetch.Offset.Value ?? 0, res.Value ?? 0);
+            var offsetLiteral = query.OrderBy.OffsetFetch.Offset as ExprInt32Literal;
+
+            return new DataPage<T>(res.Key, offsetLiteral?.Value ?? 0, res.Value ?? 0);
         }
 
         public static Task<object?> QueryScalar(this IExprQuery query, ISqDatabase database, CancellationToken cancellationToken = default)
@@ -263,6 +267,32 @@ namespace SqExpress
                 WalkThrough(walkerVisitor, jsonWriter);
             }
 #endif
+
+            internal IExpr ParametrizeLiterals(int? limit, out int numOfParams, out int numOfSkips)
+            {
+                var counter = 0;
+                var skipsCounter = 0;
+
+                var res = this._expr.SyntaxTree()
+                    .Modify(e =>
+                        {
+                            if (e is ExprLiteral v)
+                            {
+                                if (limit.HasValue && counter < limit.Value)
+                                {
+                                    counter++;
+                                    return new ExprParameter(v, null);
+                                }
+                                skipsCounter++;
+                            }
+
+                            return e;
+                        }
+                    );
+                numOfParams = counter;
+                numOfSkips = skipsCounter;
+                return res!;
+            }
         }
     }
 }

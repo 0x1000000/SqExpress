@@ -574,10 +574,10 @@ namespace SqExpress
         public static ExprMul WithRight(this ExprMul original, ExprValue newRight) 
             => new ExprMul(left: original.Left, right: newRight);
 
-        public static ExprOffsetFetch WithOffset(this ExprOffsetFetch original, ExprInt32Literal newOffset) 
+        public static ExprOffsetFetch WithOffset(this ExprOffsetFetch original, ExprValue newOffset) 
             => new ExprOffsetFetch(offset: newOffset, fetch: original.Fetch);
 
-        public static ExprOffsetFetch WithFetch(this ExprOffsetFetch original, ExprInt32Literal? newFetch) 
+        public static ExprOffsetFetch WithFetch(this ExprOffsetFetch original, ExprValue? newFetch) 
             => new ExprOffsetFetch(offset: original.Offset, fetch: newFetch);
 
         public static ExprOrderBy WithOrderList(this ExprOrderBy original, IReadOnlyList<ExprOrderByItem> newOrderList) 
