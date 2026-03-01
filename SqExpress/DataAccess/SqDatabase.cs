@@ -515,9 +515,9 @@ namespace SqExpress.DataAccess
             string sql;
             if (expr != null)
             {
-                expr = this.Parametrize(expr);
                 if (this._sqlExporter is ISqlExporterInternal iInternal)
                 {
+                    expr = this.Parametrize(expr, iInternal.ParametersLimit);
                     sql = iInternal.ToSql(expr, out parameters);
                 }
                 else
@@ -549,13 +549,12 @@ namespace SqExpress.DataAccess
 
                 if (parameters?.Count > 0)
                 {
-                    int parameterIndex = 0;
                     foreach (var parameter in parameters)
                     {
                         var p = command.CreateParameter();
                         p.Value = parameter.Value;
                         p.DbType = parameter.Type;
-                        p.ParameterName = $"p{++parameterIndex}";
+                        p.ParameterName = parameter.Name;
                         command.Parameters.Add(p);
                     }
                 }
@@ -582,18 +581,16 @@ namespace SqExpress.DataAccess
             return command;
         }
 
-        private IExpr Parametrize(IExpr expr)
+        private IExpr Parametrize(IExpr expr, int limit)
         {
             if (this._parametrizationMode == ParametrizationMode.None)
             {
                 return expr;
             }
 
-            const int limit = 2000;
-
             expr = expr.SyntaxTree().ParametrizeLiterals(limit, out var numOfParams, out var skips);
 
-            if (skips > 0 && this._parametrizationMode == ParametrizationMode.FullThrowExceptionWhenLimitIsExceeded)
+            if (skips > 0 && this._parametrizationMode == ParametrizationMode.ThrowOnLimit)
             {
                 throw new SqExpressException($"Number of parameters ({numOfParams + skips}) in the expression exceeds the limit {limit}");
             }

@@ -15,5 +15,7 @@ namespace SqExpress.SqlExport
     internal interface ISqlExporterInternal : ISqlExporter
     {
         internal string ToSql(IExpr expr, out IReadOnlyList<DbParameterValue>? parameters);
+
+        int ParametersLimit { get; }
     }
 }

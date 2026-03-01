@@ -34,11 +34,14 @@ namespace SqExpress.SqlExport
             var sqlExporter = new PgSqlBuilder(this._builderOptions);
             if (expr.Accept(sqlExporter, null))
             {
+                var sql = sqlExporter.ToString();
                 parameters = sqlExporter.ParameterValues;
-                return sqlExporter.ToString();
+                return sql;
             }
 
             throw new SqExpressException("Could not build Sql");
         }
+
+        int ISqlExporterInternal.ParametersLimit => 65535;
     }
 }

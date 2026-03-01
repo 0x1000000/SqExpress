@@ -706,27 +706,59 @@ namespace SqExpress.SqlExport.Internal
         public override bool VisitExprTableFullName(ExprTableFullName exprTableFullName, IExpr? parent) 
             => this.VisitExprTableFullNameCommon(exprTableFullName, parent);
 
-        protected override bool VisitExprParameter(ExprParameter exprParameter, int paramNumber, IExpr? parent)
+        protected override bool VisitExprParameter(ExprParameter exprParameter, int paramNumber, IExpr? parent, out string? name)
         {
+
             if (!string.IsNullOrEmpty(exprParameter.TagName))
             {
-                //TODO: validate tag name should valid SQL parameter name
+                var tagName = exprParameter.TagName!;
+                name = $"@{NormalizeParameterTagName(tagName)}";
+
                 this.Builder.Append('(');
-                this.Builder.Append('@');
-                this.Builder.Append(exprParameter.TagName);
+                this.Builder.Append(name);
                 this.Builder.Append(')');
             }
             else
             {
+                name = $"@{paramNumber}";
                 this.Builder.Append('(');
-                this.Builder.Append('@');
-                this.Builder.Append("p");
-                this.Builder.Append(paramNumber);
+                this.Builder.Append(name);
                 this.Builder.Append(')');
             }
 
             return true;
         }
+
+        private static string NormalizeParameterTagName(string tagName)
+        {
+            var normalized = tagName[0] == '@' ? tagName.Substring(1) : tagName;
+
+            if (normalized.Length < 1 || !IsValidFirstChar(normalized[0]))
+            {
+                throw BuildInvalidTagNameException(tagName);
+            }
+
+            for (var i = 1; i < normalized.Length; i++)
+            {
+                if (!IsValidNonFirstChar(normalized[i]))
+                {
+                    throw BuildInvalidTagNameException(tagName);
+                }
+            }
+
+            return normalized;
+
+            static bool IsValidFirstChar(char c) => char.IsLetter(c) || c == '_';
+
+            static bool IsValidNonFirstChar(char c) => char.IsLetterOrDigit(c) || c == '_';
+
+            static SqExpressException BuildInvalidTagNameException(string name) =>
+                new SqExpressException(
+                    $"Invalid SQL parameter tag name '{name}'. Expected '@' optional prefix and identifier pattern '[A-Za-z_][A-Za-z0-9_]*'.");
+        }
+
+        protected override DbParameterValueVisitorExtractor GetDbParameterValueVisitorExtractor()
+            => DbParameterValueVisitorExtractor.Instance;
 
         public override void AppendName(string name, char? prefix = null)
         {

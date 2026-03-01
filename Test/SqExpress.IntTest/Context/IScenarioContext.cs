@@ -1,4 +1,4 @@
-﻿using System;
+﻿using EnumVisitorGenerator;
 using SqExpress.DataAccess;
 using SqExpress.SqlExport;
 
@@ -10,6 +10,8 @@ namespace SqExpress.IntTest.Context
 
         public SqlDialect Dialect { get; }
 
+        public ParametrizationMode ParametrizationMode { get; }
+
         void Write(string? line);
 
         void WriteLine(string? line);
@@ -19,6 +21,7 @@ namespace SqExpress.IntTest.Context
         ISqDatabase CreteConnection();
     }
 
+    [VisitorGenerator]
     public enum SqlDialect
     {
         TSql,
@@ -26,21 +29,13 @@ namespace SqExpress.IntTest.Context
         MySql
     }
 
-    public static class SqlDialectExtension
+    [VisitorToMethod("GetExporter")]
+    public readonly struct ExporterSwitcher: ISqlDialectVisitor<ISqlExporter>
     {
-        public static ISqlExporter GetExporter(this SqlDialect dialect)
-        {
-            switch (dialect)
-            {
-                case SqlDialect.TSql:
-                    return TSqlExporter.Default;
-                case SqlDialect.PgSql:
-                    return PgSqlExporter.Default;
-                case SqlDialect.MySql:
-                    return MySqlExporter.Default;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(dialect), dialect, null);
-            }
-        }
+        public ISqlExporter CaseTSql() => TSqlExporter.Default;
+
+        public ISqlExporter CasePgSql() => PgSqlExporter.Default;
+
+        public ISqlExporter CaseMySql() => MySqlExporter.Default;
     }
 }

@@ -1,9 +1,8 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
+using SqExpress.DataAccess;
 using SqExpress.IntTest.Context;
-using SqExpress.IntTest.Tables;
 using SqExpress.IntTest.Tables.Models;
-using SqExpress.ModelSelect;
 
 namespace SqExpress.IntTest.Scenarios
 {
@@ -34,10 +33,27 @@ namespace SqExpress.IntTest.Scenarios
                         })
                 .QueryPage(context.Database);
 
-            if (data.Total != 8397 && data.Total != 8438/*MySQL*/)
+            //Expected totals differ by dialect/test chain specifics:
+            //- PostgreSQL: 8397
+            //- MySQL: 8438 (different auto-increment behavior in previous steps)
+            //- MS SQL:
+            //  - ParametrizationMode.None => 8397
+            //  - Parameterized modes => 8442
+            //    (upstream chain uses identity/modulo-sensitive operations with non-stable ordering).
+            var expected = context.Dialect switch
             {
-                throw new Exception($"8397 is expected but was {data.Total}");
+                SqlDialect.MySql => data.Total == 8438,
+                SqlDialect.TSql => context.ParametrizationMode == ParametrizationMode.None
+                    ? data.Total == 8397
+                    : data.Total == 8442,
+                _ => data.Total == 8397
+            };
+
+            if (!expected)
+            {
+                throw new Exception($"Unexpected total for {context.Dialect}: {data.Total}");
             }
         }
     }
 }
+

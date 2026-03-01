@@ -886,11 +886,15 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
-        protected override bool VisitExprParameter(ExprParameter exprParameter, int paramNumber, IExpr? parent)
+        protected override bool VisitExprParameter(ExprParameter exprParameter, int paramNumber, IExpr? parent, out string? name)
         {
-            this.Builder.Append('$');
+            name = null;
+            this.Builder.Append('?');
             return true;
         }
+
+        protected override DbParameterValueVisitorExtractor GetDbParameterValueVisitorExtractor()
+            => MySqlDbParameterValueVisitorExtractor.Instance;
 
         public override void AppendName(string name, char? prefix = null)
         {

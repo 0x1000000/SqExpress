@@ -8,17 +8,20 @@ namespace SqExpress.IntTest.Context
     {
         private readonly Func<ISqDatabase> _dbFactory;
 
-        public ScenarioContext(ISqDatabase database, SqlDialect dialect, Func<ISqDatabase> dbFactory, ISqlExporter sqlExporter)
+        public ScenarioContext(ISqDatabase database, SqlDialect dialect, Func<ISqDatabase> dbFactory, ISqlExporter sqlExporter, ParametrizationMode parametrizationMode)
         {
             this.Database = database;
             this.Dialect = dialect;
             this._dbFactory = dbFactory;
             this.SqlExporter = sqlExporter;
+            this.ParametrizationMode = parametrizationMode;
         }
 
         public ISqDatabase Database { get; }
 
         public SqlDialect Dialect { get; }
+
+        public ParametrizationMode ParametrizationMode { get; }
 
         public void Write(string? line)
         {
@@ -30,7 +33,7 @@ namespace SqExpress.IntTest.Context
             Console.WriteLine(line);
         }
 
-        public ISqlExporter SqlExporter { get; private set;  }
+        public ISqlExporter SqlExporter { get; }
 
         public ISqDatabase CreteConnection()
         {

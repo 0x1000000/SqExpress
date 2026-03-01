@@ -1,13 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using SqExpress.Syntax.Names;
+using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Value;
 
 namespace SqExpress.QueryBuilders.RecordSetter.Internal
 {
     internal abstract class RecordSetterBase<TNext> : IRecordSetter<TNext>
     {
-        protected abstract TNext SetGeneric(ExprColumn column, ExprLiteral value);
+        protected abstract TNext SetGeneric(ExprColumn column, ExprValue value);
 
         public TNext Set(BooleanTableColumn column, bool value)
         {
@@ -66,6 +67,10 @@ namespace SqExpress.QueryBuilders.RecordSetter.Internal
 
         public TNext Set(StringTableColumn column, string value)
         {
+            if (column.SqlType is ExprTypeXml)
+            {
+                return this.SetGeneric(column, SqQueryBuilder.Cast(SqQueryBuilder.Literal(value), ExprTypeXml.Instance));
+            }
             return this.SetGeneric(column, SqQueryBuilder.Literal(value));
         }
 
@@ -126,6 +131,10 @@ namespace SqExpress.QueryBuilders.RecordSetter.Internal
 
         public TNext Set(NullableStringTableColumn column, string? value)
         {
+            if (column.SqlType is ExprTypeXml)
+            {
+                return this.SetGeneric(column, SqQueryBuilder.Cast(SqQueryBuilder.Literal(value), ExprTypeXml.Instance));
+            }
             return this.SetGeneric(column, SqQueryBuilder.Literal(value));
         }
 

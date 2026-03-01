@@ -2,6 +2,14 @@
 ### New Features
 - Added non-generic syntax tree visitor support with `IExprVisitor` and `ExprVisitorBase`.
 - `ExprVisitorBase` now provides traversal context via `CurrentPath`, `CurrentNode`, and `Depth`.
+- Added parametrization modes to `SqDatabase`:
+  - `None`
+  - `ThrowOnLimit`
+  - `LiteralFallback`
+- Added exporter parameter limits used by parametrization:
+  - `TSqlExporter`: `2000`
+  - `PgSqlExporter`: `65535`
+  - `MySqlExporter`: `65535`
 
 # 1.1.1
 ### Bugfix

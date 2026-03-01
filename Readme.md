@@ -69,10 +69,11 @@ You can also use it in conjunction with the "Database First" concept using an in
 
 ### Usage
 
-1. [Using in ASP.NET](#using-in-aspnet)
-2. [PostgreSQL](#postgresql)
-3. [MySQL](#mysql)
-4. [AutoMapper](#automapper)
+1. [Parametrization Modes](#parametrization-modes)
+2. [Using in ASP.NET](#using-in-aspnet)
+3. [PostgreSQL](#postgresql)
+4. [MySQL](#mysql)
+5. [AutoMapper](#automapper)
 
 ---
 ---
@@ -290,7 +291,8 @@ static async Task Main()
             connection: connection,
             commandFactory: (conn, sql) 
                 => new SqlCommand(cmdText: sql, connection: conn),
-            sqlExporter: TSqlExporter.Default))
+            sqlExporter: TSqlExporter.Default,
+            parametrizationMode: ParametrizationMode.LiteralFallback))
         {
             var tUser = new TableUser();
 
@@ -2154,6 +2156,40 @@ foreach (var name in page.Items)
 
 ```
 
+## Parametrization Modes
+
+`SqDatabase` supports parametrization modes for expression execution:
+
+```cs
+using var database = new SqDatabase<SqlConnection>(
+    connection: connection,
+    commandFactory: (conn, sql) => new SqlCommand(sql, conn),
+    sqlExporter: TSqlExporter.Default,
+    parametrizationMode: ParametrizationMode.LiteralFallback
+);
+```
+
+Modes:
+
+- `ParametrizationMode.None` - keep all literals inline.
+- `ParametrizationMode.ThrowOnLimit` - parametrize literals and throw if parameter limit is exceeded.
+- `ParametrizationMode.LiteralFallback` - parametrize literals, and when limit is exceeded keep remaining values as literals.
+
+Current exporter parameter limits:
+
+- MS SQL (`TSqlExporter`): `2000`
+- PostgreSQL (`PgSqlExporter`): `65535`
+- MySQL (`MySqlExporter`): `65535`
+
+Performance notes:
+
+- Parametrization usually improves plan cache reuse and can reduce SQL text size for repeated queries.
+- It also adds overhead to create/bind parameters, so very small one-off queries can be slightly faster with inline literals.
+- Large parameter lists increase client and server work (binding/parsing), and can hit dialect parameter limits.
+- On MS SQL, heavy parametrization can expose parameter-sniffing behavior on some workloads.
+- Cached plans can also hurt performance when first-execution parameters are not representative (for example, highly variable input size/cardinality such as TVP-like workloads), because the same plan is reused for very different cases.
+- `LiteralFallback` is a practical default because it keeps most cache benefits while avoiding hard failures when a limit is exceeded.
+
 ## Using in ASP.NET
 
 There is a demo ASP.NET project that shows how [SqExpress](https://github.com/0x1000000/SqGoods/tree/main) can be used in a real web app.
@@ -2185,7 +2221,8 @@ using (var connection = new NpgsqlConnection(connectionString))
         commandFactory: NpgsqlCommandFactory,
         sqlExporter: new PgSqlExporter(builderOptions: SqlBuilderOptions.Default
             .WithSchemaMap(schemaMap: new[] {
-                new SchemaMap(@from: "dbo", to: "public")}))))
+                new SchemaMap(@from: "dbo", to: "public")})),
+        parametrizationMode: ParametrizationMode.LiteralFallback))
     {
         ...
     }
@@ -2213,7 +2250,8 @@ using (var connection = new MySqlConnection(connectionString))
         connection: connection,
         commandFactory: MySqlCommandFactory,
         sqlExporter: new MySqlExporter(
-            builderOptions: SqlBuilderOptions.Default)))
+            builderOptions: SqlBuilderOptions.Default),
+        parametrizationMode: ParametrizationMode.LiteralFallback))
     {
         ...
     }

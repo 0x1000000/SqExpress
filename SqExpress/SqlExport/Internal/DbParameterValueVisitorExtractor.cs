@@ -10,205 +10,200 @@ using SqExpress.Syntax.Value;
 
 namespace SqExpress.SqlExport.Internal;
 
-internal enum DbParameterValueVisitorExtractorMode
-{
-    Default,
-}
-
-internal class DbParameterValueVisitorExtractor: IExprValueVisitorInternal<DbParameterValue?, DbParameterValueVisitorExtractorMode>
+internal class DbParameterValueVisitorExtractor: IExprValueVisitorInternal<DbParameterValue?, string?>
 {
     public static readonly DbParameterValueVisitorExtractor Instance = new DbParameterValueVisitorExtractor();
 
-    private static object ToDbValue(object? value)
+    protected static object ToDbValue(object? value)
     {
         return value ?? System.DBNull.Value;
     }
 
-    public DbParameterValue? VisitExprInt32Literal(ExprInt32Literal exprInt32Literal, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprInt32Literal(ExprInt32Literal exprInt32Literal, string? name)
     {
-        return new DbParameterValue(ToDbValue(exprInt32Literal.Value), DbType.Int32);
+        return new DbParameterValue(ToDbValue(exprInt32Literal.Value), DbType.Int32, name);
     }
 
-    public DbParameterValue? VisitExprGuidLiteral(ExprGuidLiteral exprGuidLiteral, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprGuidLiteral(ExprGuidLiteral exprGuidLiteral, string? name)
     {
-        return new DbParameterValue(ToDbValue(exprGuidLiteral.Value), DbType.Guid);
+        return new DbParameterValue(ToDbValue(exprGuidLiteral.Value), DbType.Guid, name);
     }
 
-    public DbParameterValue? VisitExprStringLiteral(ExprStringLiteral stringLiteral, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprStringLiteral(ExprStringLiteral stringLiteral, string? name)
     {
-        return new DbParameterValue(ToDbValue(stringLiteral.Value), DbType.String);
+        return new DbParameterValue(ToDbValue(stringLiteral.Value), DbType.String, name);
     }
 
-    public DbParameterValue? VisitExprDateTimeLiteral(ExprDateTimeLiteral dateTimeLiteral, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprDateTimeLiteral(ExprDateTimeLiteral dateTimeLiteral, string? name)
     {
-        return new DbParameterValue(ToDbValue(dateTimeLiteral.Value), DbType.DateTime);
+        return new DbParameterValue(ToDbValue(dateTimeLiteral.Value), DbType.DateTime, name);
     }
 
-    public DbParameterValue? VisitExprDateTimeOffsetLiteral(ExprDateTimeOffsetLiteral dateTimeLiteral, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprDateTimeOffsetLiteral(ExprDateTimeOffsetLiteral dateTimeLiteral, string? name)
     {
-        return new DbParameterValue(ToDbValue(dateTimeLiteral.Value), DbType.DateTimeOffset);
+        return new DbParameterValue(ToDbValue(dateTimeLiteral.Value), DbType.DateTimeOffset, name);
     }
 
-    public DbParameterValue? VisitExprBoolLiteral(ExprBoolLiteral boolLiteral, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprBoolLiteral(ExprBoolLiteral boolLiteral, string? name)
     {
-        return new DbParameterValue(ToDbValue(boolLiteral.Value), DbType.Boolean);
+        return new DbParameterValue(ToDbValue(boolLiteral.Value), DbType.Boolean, name);
     }
 
-    public DbParameterValue? VisitExprInt64Literal(ExprInt64Literal int64Literal, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprInt64Literal(ExprInt64Literal int64Literal, string? name)
     {
-        return new DbParameterValue(ToDbValue(int64Literal.Value), DbType.Int64);
+        return new DbParameterValue(ToDbValue(int64Literal.Value), DbType.Int64, name);
     }
 
-    public DbParameterValue? VisitExprByteLiteral(ExprByteLiteral byteLiteral, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprByteLiteral(ExprByteLiteral byteLiteral, string? name)
     {
-        return new DbParameterValue(ToDbValue(byteLiteral.Value), DbType.Byte);
+        return new DbParameterValue(ToDbValue(byteLiteral.Value), DbType.Byte, name);
     }
 
-    public DbParameterValue? VisitExprInt16Literal(ExprInt16Literal int16Literal, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprInt16Literal(ExprInt16Literal int16Literal, string? name)
     {
-        return new DbParameterValue(ToDbValue(int16Literal.Value), DbType.Int16);
+        return new DbParameterValue(ToDbValue(int16Literal.Value), DbType.Int16, name);
     }
 
-    public DbParameterValue? VisitExprDecimalLiteral(ExprDecimalLiteral decimalLiteral, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprDecimalLiteral(ExprDecimalLiteral decimalLiteral, string? name)
     {
-        return new DbParameterValue(ToDbValue(decimalLiteral.Value), DbType.Decimal);
+        return new DbParameterValue(ToDbValue(decimalLiteral.Value), DbType.Decimal, name);
     }
 
-    public DbParameterValue? VisitExprDoubleLiteral(ExprDoubleLiteral doubleLiteral, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprDoubleLiteral(ExprDoubleLiteral doubleLiteral, string? name)
     {
-        return new DbParameterValue(ToDbValue(doubleLiteral.Value), DbType.Double);
+        return new DbParameterValue(ToDbValue(doubleLiteral.Value), DbType.Double, name);
     }
 
-    public DbParameterValue? VisitExprByteArrayLiteral(ExprByteArrayLiteral byteArrayLiteral, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprByteArrayLiteral(ExprByteArrayLiteral byteArrayLiteral, string? name)
     {
-        return new DbParameterValue(ToDbValue(byteArrayLiteral.Value), DbType.Binary);
+        return new DbParameterValue(ToDbValue(byteArrayLiteral.Value), DbType.Binary, name);
     }
 
-    public DbParameterValue? VisitExprNull(ExprNull exprNull, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprNull(ExprNull exprNull, string? name)
     {
-        return new DbParameterValue(System.DBNull.Value, DbType.Object);
+        return new DbParameterValue(System.DBNull.Value, DbType.Object, name);
     }
 
-    public DbParameterValue? VisitExprUnsafeValue(ExprUnsafeValue exprUnsafeValue, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprUnsafeValue(ExprUnsafeValue exprUnsafeValue, string? name)
     {
-        return new DbParameterValue(ToDbValue(exprUnsafeValue.UnsafeValue), DbType.String);
+        return new DbParameterValue(ToDbValue(exprUnsafeValue.UnsafeValue), DbType.String, name);
     }
 
-    public DbParameterValue? VisitExprValueQuery(ExprValueQuery exprValueQuery, DbParameterValueVisitorExtractorMode mode)
-    {
-        return null;
-    }
-
-    public DbParameterValue? VisitExprSum(ExprSum exprSum, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprValueQuery(ExprValueQuery exprValueQuery, string? name)
     {
         return null;
     }
 
-    public DbParameterValue? VisitExprSub(ExprSub exprSub, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprSum(ExprSum exprSum, string? name)
     {
         return null;
     }
 
-    public DbParameterValue? VisitExprMul(ExprMul exprMul, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprSub(ExprSub exprSub, string? name)
     {
         return null;
     }
 
-    public DbParameterValue? VisitExprDiv(ExprDiv exprDiv, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprMul(ExprMul exprMul, string? name)
     {
         return null;
     }
 
-    public DbParameterValue? VisitExprModulo(ExprModulo exprModulo, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprDiv(ExprDiv exprDiv, string? name)
     {
         return null;
     }
 
-    public DbParameterValue? VisitExprStringConcat(ExprStringConcat exprStringConcat, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprModulo(ExprModulo exprModulo, string? name)
     {
         return null;
     }
 
-    public DbParameterValue? VisitExprBitwiseNot(ExprBitwiseNot exprBitwiseNot, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprStringConcat(ExprStringConcat exprStringConcat, string? name)
     {
         return null;
     }
 
-    public DbParameterValue? VisitExprBitwiseAnd(ExprBitwiseAnd exprBitwiseAnd, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprBitwiseNot(ExprBitwiseNot exprBitwiseNot, string? name)
     {
         return null;
     }
 
-    public DbParameterValue? VisitExprBitwiseXor(ExprBitwiseXor exprBitwiseXor, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprBitwiseAnd(ExprBitwiseAnd exprBitwiseAnd, string? name)
     {
         return null;
     }
 
-    public DbParameterValue? VisitExprBitwiseOr(ExprBitwiseOr exprBitwiseOr, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprBitwiseXor(ExprBitwiseXor exprBitwiseXor, string? name)
     {
         return null;
     }
 
-    public DbParameterValue? VisitExprScalarFunction(ExprScalarFunction exprScalarFunction, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprBitwiseOr(ExprBitwiseOr exprBitwiseOr, string? name)
     {
         return null;
     }
 
-    public DbParameterValue? VisitExprCase(ExprCase exprCase, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprScalarFunction(ExprScalarFunction exprScalarFunction, string? name)
     {
         return null;
     }
 
-    public DbParameterValue? VisitExprCaseWhenThen(ExprCaseWhenThen exprCaseWhenThen, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprCase(ExprCase exprCase, string? name)
     {
         return null;
     }
 
-    public DbParameterValue? VisitExprFuncIsNull(ExprFuncIsNull exprFuncIsNull, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprCaseWhenThen(ExprCaseWhenThen exprCaseWhenThen, string? name)
     {
         return null;
     }
 
-    public DbParameterValue? VisitExprFuncCoalesce(ExprFuncCoalesce exprFuncCoalesce, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprFuncIsNull(ExprFuncIsNull exprFuncIsNull, string? name)
     {
         return null;
     }
 
-    public DbParameterValue? VisitExprGetDate(ExprGetDate exprGetDate, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprFuncCoalesce(ExprFuncCoalesce exprFuncCoalesce, string? name)
     {
         return null;
     }
 
-    public DbParameterValue? VisitExprGetUtcDate(ExprGetUtcDate exprGetUtcDate, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprGetDate(ExprGetDate exprGetDate, string? name)
     {
         return null;
     }
 
-    public DbParameterValue? VisitExprDateAdd(ExprDateAdd exprDateAdd, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprGetUtcDate(ExprGetUtcDate exprGetUtcDate, string? name)
     {
         return null;
     }
 
-    public DbParameterValue? VisitExprDateDiff(ExprDateDiff exprDateDiff, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprDateAdd(ExprDateAdd exprDateAdd, string? name)
     {
         return null;
     }
 
-    public DbParameterValue? VisitExprColumn(ExprColumn exprColumn, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprDateDiff(ExprDateDiff exprDateDiff, string? name)
     {
         return null;
     }
 
-    public DbParameterValue? VisitExprCast(ExprCast exprCast, DbParameterValueVisitorExtractorMode mode)
+    public virtual DbParameterValue? VisitExprColumn(ExprColumn exprColumn, string? name)
     {
         return null;
     }
 
-    public DbParameterValue? VisitExprParameter(ExprParameter exprParameter, DbParameterValueVisitorExtractorMode arg)
+    public virtual DbParameterValue? VisitExprCast(ExprCast exprCast, string? name)
+    {
+        return null;
+    }
+
+    public virtual DbParameterValue? VisitExprParameter(ExprParameter exprParameter, string? name)
     {
         if (!ReferenceEquals(exprParameter.ReplacedValue, null))
         {
-            return exprParameter.ReplacedValue.Accept(this, arg);
+            return exprParameter.ReplacedValue.Accept(this, name);
         }
 
         return null;

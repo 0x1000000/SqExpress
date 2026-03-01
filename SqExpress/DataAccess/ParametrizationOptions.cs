@@ -3,6 +3,6 @@
 public enum ParametrizationMode
 {
     None,
-    FullThrowExceptionWhenLimitIsExceeded,
-    FullContinueWithLiteralsWhenLimitIsExceeded,
+    ThrowOnLimit,
+    LiteralFallback,
 }

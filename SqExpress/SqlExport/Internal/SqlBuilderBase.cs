@@ -42,6 +42,10 @@ namespace SqExpress.SqlExport.Internal
 
         private List<DbParameterValue>? _parameters;
 
+        private int _parameterNumberOffset;
+
+        private string? _renderedSql;
+
         protected SqlBuilderBase(SqlBuilderOptions? options, StringBuilder? externalBuilder, SqlAliasGenerator aliasGenerator, bool dismissCteInject)
         {
             this.Options = options ?? SqlBuilderOptions.Default;
@@ -1531,17 +1535,30 @@ namespace SqExpress.SqlExport.Internal
                 throw new SqExpressException("Could not process pure parameter");
             }
             this._parameters ??= new List<DbParameterValue>();
-            var dbParameterValue = exprParameter.ReplacedValue.Accept(DbParameterValueVisitorExtractor.Instance, DbParameterValueVisitorExtractorMode.Default);
-            if (!dbParameterValue.HasValue)
-            {
-                throw new SqExpressException("Unsupported parameter value");
-            }
-            this._parameters.Add(dbParameterValue.Value);
 
-            return this.VisitExprParameter(exprParameter, this._parameters.Count, parent);
+            if (this.VisitExprParameter(
+                    exprParameter,
+                    this._parameterNumberOffset + this._parameters.Count + 1,
+                    parent,
+                    out var paramName
+                ))
+            {
+                var dbParameterValue = exprParameter.ReplacedValue.Accept(this.GetDbParameterValueVisitorExtractor(), paramName);
+                if (!dbParameterValue.HasValue)
+                {
+                    throw new SqExpressException("Unsupported parameter value");
+                }
+
+                this._parameters.Add(dbParameterValue.Value);
+                return true;
+            }
+
+            return false;
         }
 
-        protected abstract bool VisitExprParameter(ExprParameter exprParameter, int paramNumber, IExpr? parent);
+        protected abstract bool VisitExprParameter(ExprParameter exprParameter, int paramNumber, IExpr? parent, out string? name);
+
+        protected abstract DbParameterValueVisitorExtractor GetDbParameterValueVisitorExtractor();
 
         public abstract void AppendName(string name, char? prefix = null);
 
@@ -1749,16 +1766,27 @@ namespace SqExpress.SqlExport.Internal
             position = this._cteSlot.Value;
 
             var cteBuilder = this.CreateInstance(this._aliasGenerator, true);
+            cteBuilder._parameterNumberOffset = this._parameters?.Count ?? 0;
 
             var list = this._uniqueCteCheck.Values.ToList();
 
             cteBuilder.AcceptCteExpressions(list);
+            if (cteBuilder.ParameterValues?.Count > 0)
+            {
+                this._parameters ??= new List<DbParameterValue>();
+                this._parameters.AddRange(cteBuilder.ParameterValues);
+            }
 
             return cteBuilder.ToString();
         }
 
         public override string ToString()
         {
+            if (this._renderedSql != null)
+            {
+                return this._renderedSql;
+            }
+
             var result = this.Builder.ToString();
             if (!this._dismissCteInject)
             {
@@ -1768,7 +1796,9 @@ namespace SqExpress.SqlExport.Internal
                     result = result.Insert(ctePosition, cteResult);
                 }
             }
+            this._renderedSql = result;
             return result;
         }
+
     }
 }

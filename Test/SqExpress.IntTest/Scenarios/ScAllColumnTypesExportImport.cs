@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using SqExpress.IntTest.Context;
 using SqExpress.IntTest.Tables;
+using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Update;
 using SqExpress.Syntax.Value;
 
@@ -51,10 +52,20 @@ namespace SqExpress.IntTest.Scenarios
                     {
                         int colIndex = 0;
                         var row = new ExprValue[table.Columns.Count];
+
                         foreach (var cell in rowArray.EnumerateArray())
                         {
-                            row[colIndex] = table.Columns[colIndex]
+                            var tableColumn = table.Columns[colIndex];
+
+                            ExprValue exprLiteral = tableColumn
                                 .FromString(cell.ValueKind == JsonValueKind.Null ? null : cell.GetString());
+
+                            if (tableColumn.SqlType is ExprTypeXml)
+                            {
+                                exprLiteral = SqQueryBuilder.Cast(exprLiteral, ExprTypeXml.Instance);
+                            }
+
+                            row[colIndex] = exprLiteral;
                             colIndex++;
                         }
 

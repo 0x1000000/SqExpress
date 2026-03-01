@@ -1,12 +1,14 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using SqExpress.SqlExport.Statement.Internal;
 using SqExpress.StatementSyntax;
 using SqExpress.Syntax;
 using SqExpress.Syntax.Boolean;
+using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
@@ -184,24 +186,59 @@ namespace SqExpress.SqlExport.Internal
             {
                 return exprIdentityInsert.Insert.Accept(this, exprIdentityInsert);
             }
-            this.AddCteSlot(parent);
-            this.GenericInsert(exprIdentityInsert.Insert,()=>this.Builder.Append(" OVERRIDING SYSTEM VALUE"), null);
 
-            this.Builder.Append(';');
+            const string insertCteName = "__sqexpress_identity_insert";
+
+            this.Builder.Append("WITH ");
+            this.AppendName(insertCteName);
+            this.Builder.Append(" AS (");
+
+            this.AddCteSlot(parent);
+            this.GenericInsert(
+                exprIdentityInsert.Insert,
+                () => this.Builder.Append(" OVERRIDING SYSTEM VALUE"),
+                () =>
+                {
+                    this.Builder.Append(" RETURNING ");
+                    this.AcceptListComaSeparated(exprIdentityInsert.IdentityColumns, exprIdentityInsert);
+                }
+            );
+
+            this.Builder.Append(") SELECT ");
+
             var exprTableSource = new ExprTable(exprIdentityInsert.Insert.Target, null);
-            foreach (var column in exprIdentityInsert.IdentityColumns)
+            var exprInsertedSource = new ExprTable(
+                new ExprTableFullName(null, new ExprTableName(insertCteName)),
+                null
+            );
+            for (var i = 0; i < exprIdentityInsert.IdentityColumns.Count; i++)
             {
-                this.Builder.Append("select setval(pg_get_serial_sequence('");
+                if (i != 0)
+                {
+                    this.Builder.Append(',');
+                }
+
+                var column = exprIdentityInsert.IdentityColumns[i];
+                this.Builder.Append("setval(pg_get_serial_sequence('");
                 exprIdentityInsert.Insert.Target.Accept(this, exprIdentityInsert.Insert);
                 this.Builder.Append("','");
                 this.EscapeStringLiteral(this.Builder, column.Name);
-                this.Builder.Append("'),(");
+                this.Builder.Append("'),GREATEST((");
                 SqQueryBuilder.Select(SqQueryBuilder.Max(column.WithSource(null)))
                     .From(exprTableSource)
                     .Done()
                     .Accept(this, exprIdentityInsert);
-                this.Builder.Append("));");
+                this.Builder.Append("),(");
+                SqQueryBuilder.Select(SqQueryBuilder.Max(column.WithSource(null)))
+                    .From(exprInsertedSource)
+                    .Done()
+                    .Accept(this, exprIdentityInsert);
+                this.Builder.Append(")))");
             }
+
+            this.Builder.Append(" FROM ");
+            this.AppendName(insertCteName);
+            this.Builder.Append(" LIMIT 1");
 
             return true;
         }
@@ -647,12 +684,16 @@ namespace SqExpress.SqlExport.Internal
             }
         }
 
-        protected override bool VisitExprParameter(ExprParameter exprParameter, int paramNumber, IExpr? parent)
+        protected override bool VisitExprParameter(ExprParameter exprParameter, int paramNumber, IExpr? parent, out string? name)
         {
+            name = null;
             this.Builder.Append('$');
             this.Builder.Append(paramNumber);
             return true;
         }
+
+        protected override DbParameterValueVisitorExtractor GetDbParameterValueVisitorExtractor()
+            => PgDbParameterValueVisitorExtractor.Instance;
 
         public override void AppendName(string name, char? prefix = null)
         {
@@ -677,7 +718,74 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprMerge(ExprMerge merge, IExpr? parent)
         {
-            MergeSimulation.ConvertMerge(merge, "tmpMergeDataSource").Accept(this, parent);
+            if (merge.Source is not ExprDerivedTableValues sourceValues)
+            {
+                throw new SqExpressException("Only derived table values can be used as a source in MERGE simulation");
+            }
+
+            var sourceCteName = "__sqexpress_merge_source";
+            var sourceTable = new ExprTable(
+                new ExprTableFullName(null, new ExprTableName(sourceCteName)),
+                sourceValues.Alias
+            );
+
+            var actionCtes = new List<(string CteName, IExprExec Statement)>();
+
+            var matchedAction = BuildWhenMatchedAction(merge, sourceTable);
+            if (matchedAction != null)
+            {
+                actionCtes.Add(("__sqexpress_merge_matched", matchedAction));
+            }
+
+            var notMatchedByTargetAction = BuildNotMatchedByTargetAction(merge, sourceValues, sourceTable);
+            if (notMatchedByTargetAction != null)
+            {
+                actionCtes.Add(("__sqexpress_merge_not_matched_by_target", notMatchedByTargetAction));
+            }
+
+            var notMatchedBySourceAction = BuildNotMatchedBySourceAction(merge, sourceTable);
+            if (notMatchedBySourceAction != null)
+            {
+                actionCtes.Add(("__sqexpress_merge_not_matched_by_source", notMatchedBySourceAction));
+            }
+
+            this.Builder.Append("WITH ");
+            this.AppendName(sourceCteName);
+            this.AcceptListComaSeparatedPar('(', sourceValues.Columns, ')', sourceValues);
+            this.Builder.Append(" AS(");
+            sourceValues.Values.Accept(this, sourceValues);
+            this.Builder.Append(')');
+
+            for (var i = 0; i < actionCtes.Count; i++)
+            {
+                var action = actionCtes[i];
+                this.Builder.Append(',');
+                this.AppendName(action.CteName);
+                this.Builder.Append(" AS(");
+                action.Statement.Accept(this, merge);
+                this.Builder.Append(" RETURNING 1)");
+            }
+
+            this.Builder.Append(" SELECT ");
+            if (actionCtes.Count < 1)
+            {
+                this.Builder.Append('1');
+            }
+            else
+            {
+                for (var i = 0; i < actionCtes.Count; i++)
+                {
+                    if (i != 0)
+                    {
+                        this.Builder.Append(',');
+                    }
+
+                    this.Builder.Append("(SELECT COUNT(*) FROM ");
+                    this.AppendName(actionCtes[i].CteName);
+                    this.Builder.Append(')');
+                }
+            }
+
             return true;
         }
 
@@ -695,6 +803,186 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprExprMergeNotMatchedInsertDefault(ExprExprMergeNotMatchedInsertDefault exprExprMergeNotMatchedInsertDefault, IExpr? parent)
             => VisitMergeNotSupported();
+
+        private static IExprExec? BuildWhenMatchedAction(ExprMerge merge, ExprTable sourceTable)
+        {
+            if (merge.WhenMatched == null)
+            {
+                return null;
+            }
+
+            if (merge.WhenMatched is ExprMergeMatchedUpdate update)
+            {
+                return SqQueryBuilder
+                    .Update(merge.TargetTable)
+                    .Set(update.Set)
+                    .From(merge.TargetTable)
+                    .InnerJoin(sourceTable, merge.On)
+                    .Where(update.And);
+            }
+
+            if (merge.WhenMatched is ExprMergeMatchedDelete delete)
+            {
+                ExprBoolean filter = SqQueryBuilder.Exists(
+                    SqQueryBuilder.SelectOne()
+                        .From(sourceTable)
+                        .Where(merge.On)
+                );
+
+                if (delete.And != null)
+                {
+                    filter = filter & delete.And;
+                }
+
+                return SqQueryBuilder.Delete(merge.TargetTable).From(merge.TargetTable).Where(filter);
+            }
+
+            throw new SqExpressException($"Unknown type: '{merge.WhenMatched.GetType().Name}'");
+        }
+
+        private static IExprExec? BuildNotMatchedByTargetAction(ExprMerge merge, ExprDerivedTableValues sourceValues, ExprTable sourceTable)
+        {
+            if (merge.WhenNotMatchedByTarget == null)
+            {
+                return null;
+            }
+
+            if (merge.WhenNotMatchedByTarget is ExprExprMergeNotMatchedInsert insert)
+            {
+                var filter = !SqQueryBuilder.Exists(
+                    SqQueryBuilder.SelectOne()
+                        .From(merge.TargetTable)
+                        .Where(merge.On)
+                );
+
+                if (insert.And != null)
+                {
+                    filter = filter & insert.And;
+                }
+
+                var sourceValuesList = insert.Values.SelectToReadOnlyList(i =>
+                    i is ExprValue v
+                        ? v
+                        : throw new SqExpressException("DEFAULT value cannot be used in MERGE polyfill"));
+
+                return SqQueryBuilder.InsertInto(merge.TargetTable, insert.Columns)
+                    .From(
+                        SqQueryBuilder.Select(sourceValuesList)
+                            .From(sourceTable)
+                            .Where(filter)
+                    );
+            }
+
+            if (merge.WhenNotMatchedByTarget is ExprExprMergeNotMatchedInsertDefault insertDefault)
+            {
+                var keys = ExtractKeys(merge, sourceValues.Alias.Alias);
+
+                var filter = !SqQueryBuilder.Exists(
+                    SqQueryBuilder.SelectOne()
+                        .From(merge.TargetTable)
+                        .Where(merge.On)
+                );
+
+                if (insertDefault.And != null)
+                {
+                    filter = filter & insertDefault.And;
+                }
+
+                return SqQueryBuilder.InsertInto(merge.TargetTable, keys.TargetKeys)
+                    .From(
+                        SqQueryBuilder.Select(keys.SourceKeys)
+                            .From(sourceTable)
+                            .Where(filter)
+                    );
+            }
+
+            throw new SqExpressException($"Unknown type: '{merge.WhenNotMatchedByTarget.GetType().Name}'");
+        }
+
+        private static IExprExec? BuildNotMatchedBySourceAction(ExprMerge merge, ExprTable sourceTable)
+        {
+            if (merge.WhenNotMatchedBySource == null)
+            {
+                return null;
+            }
+
+            if (merge.WhenNotMatchedBySource is ExprMergeMatchedDelete delete)
+            {
+                ExprBoolean filter = !SqQueryBuilder.Exists(
+                    SqQueryBuilder.SelectOne()
+                        .From(sourceTable)
+                        .Where(merge.On)
+                );
+
+                if (delete.And != null)
+                {
+                    filter = filter & delete.And;
+                }
+
+                return SqQueryBuilder.Delete(merge.TargetTable).From(merge.TargetTable).Where(filter);
+            }
+
+            if (merge.WhenNotMatchedBySource is ExprMergeMatchedUpdate update)
+            {
+                ExprBoolean filter = !SqQueryBuilder.Exists(
+                    SqQueryBuilder.SelectOne()
+                        .From(sourceTable)
+                        .Where(merge.On)
+                );
+
+                if (update.And != null)
+                {
+                    filter = filter & update.And;
+                }
+
+                return SqQueryBuilder.Update(merge.TargetTable).Set(update.Set).Where(filter);
+            }
+
+            throw new SqExpressException($"Unknown type: '{merge.WhenNotMatchedBySource.GetType().Name}'");
+        }
+
+        private static ExtractKeysResult ExtractKeys(ExprMerge merge, IExprAlias sourceAlias)
+        {
+            var targetAlias = merge.TargetTable.Alias?.Alias ?? throw new SqExpressException("Target table should have an alias");
+
+            var sourceColumns = new List<ExprColumnName>();
+            var targetColumns = new List<ExprColumnName>();
+
+            var eqs = merge.On.SyntaxTree().DescendantsAndSelf().OfType<ExprBooleanEq>();
+            foreach (var eq in eqs)
+            {
+                if (eq.Left is ExprColumn left
+                    && eq.Right is ExprColumn right
+                    && left.Source is ExprTableAlias leftAlias
+                    && right.Source is ExprTableAlias rightAlias)
+                {
+                    if (rightAlias.Alias.Equals(sourceAlias) && leftAlias.Alias.Equals(targetAlias))
+                    {
+                        targetColumns.Add(left.ColumnName);
+                        sourceColumns.Add(right.ColumnName);
+                    }
+                    else if (leftAlias.Alias.Equals(sourceAlias) && rightAlias.Alias.Equals(targetAlias))
+                    {
+                        targetColumns.Add(right.ColumnName);
+                        sourceColumns.Add(left.ColumnName);
+                    }
+                }
+            }
+
+            return new ExtractKeysResult(targetColumns, sourceColumns);
+        }
+
+        private readonly struct ExtractKeysResult
+        {
+            public readonly IReadOnlyList<ExprColumnName> TargetKeys;
+            public readonly IReadOnlyList<ExprColumnName> SourceKeys;
+
+            public ExtractKeysResult(IReadOnlyList<ExprColumnName> targetKeys, IReadOnlyList<ExprColumnName> sourceKeys)
+            {
+                this.TargetKeys = targetKeys;
+                this.SourceKeys = sourceKeys;
+            }
+        }
 
         private static bool VisitMergeNotSupported() =>
             throw new SqExpressException("Pg SQL does not support MERGE expression");
