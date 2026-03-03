@@ -266,6 +266,21 @@ namespace SqExpress.Test.Syntax
 
             Assert.AreEqual(selectExpr.ToSql(), deserialized.ToSql());
         }
+
+#endif
+
+#if NETCOREAPP
+        [Test]
+        public void TestImportPortableScalarFunctionJson()
+        {
+            const string json = "{\"$type\":\"PortableScalarFunction\",\"PortableFunction\":\"Len\",\"Arguments\":[{\"$type\":\"StringLiteral\",\"Value\":\"abc\"}]}";
+
+            var doc = System.Text.Json.JsonDocument.Parse(json);
+
+            var deserialized = ExprDeserializer.DeserializeFormJson(doc.RootElement);
+
+            Assert.AreEqual("LEN('abc')", deserialized.ToSql());
+        }
 #endif
 
         [Test]

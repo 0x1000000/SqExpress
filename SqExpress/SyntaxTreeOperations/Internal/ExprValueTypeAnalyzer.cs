@@ -1,4 +1,4 @@
-﻿using System.Data.SqlTypes;
+using System.Data.SqlTypes;
 using SqExpress.Syntax;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
@@ -23,7 +23,7 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         }
     }
 
-    internal class ExprValueVisitorTypeAnalyzer<TRes, TCtx> : IExprValueVisitorInternal<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>, IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>
+    internal class ExprValueVisitorTypeAnalyzer<TRes, TCtx> : IExprValueVisitorInternal<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>, IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>, IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>
     {
         public static readonly ExprValueVisitorTypeAnalyzer<TRes, TCtx> Instance = new ExprValueVisitorTypeAnalyzer<TRes, TCtx>();
 
@@ -169,6 +169,11 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
         }
 
+        public TRes VisitExprPortableScalarFunction(ExprPortableScalarFunction exprPortableScalarFunction, ExprValueTypeAnalyzerCtx<TRes, TCtx> arg)
+        {
+           return exprPortableScalarFunction.PortableFunction.Accept(this, arg);
+        }
+
         public TRes VisitExprCase(ExprCase exprCase, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
         {
             return exprCase.DefaultValue.Accept(this, ctx);
@@ -308,6 +313,81 @@ namespace SqExpress.SyntaxTreeOperations.Internal
                 return exprParameter.ReplacedValue.Accept(this, ctx);
             }
             return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseLen(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseDataLen(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseYear(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseMonth(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseDay(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseHour(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseMinute(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseSecond(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseCurrentDate(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitDateTime(ctx.Ctx, false);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseCurrentTime(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitDateTime(ctx.Ctx, false);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseCurrentTimestamp(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitDateTime(ctx.Ctx, false);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseIndexOf(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseLeft(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseRight(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseRepeat(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
         }
     }
 }

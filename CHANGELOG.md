@@ -10,6 +10,13 @@
   - `TSqlExporter`: `2000`
   - `PgSqlExporter`: `65535`
   - `MySqlExporter`: `65535`
+- Added `ExprPortableScalarFunction` / `PortableScalarFunction` and portable helpers in `SqQueryBuilder` (T-SQL-first names):
+  - `Len`, `DataLength`
+  - `Year`, `Month`, `Day`, `Hour`, `Minute`, `Second`
+  - `CurrentDate`, `CurrentTime`, `CurrentTimestamp`
+  - `IndexOf`, `Left`, `Right`, `Repeat`
+- Added dialect mappings for portable scalar functions in `TSqlBuilder`, `PgSqlBuilder`, and `MySqlBuilder`.
+- Added `TSqlParser` mapping for common function names (`LEN`, `DATALENGTH`, `CHARINDEX`, `LEFT`, `RIGHT`, `REPLICATE`, date-part functions, and current date/time functions) to portable AST nodes, enabling consistent export to PostgreSQL/MySQL.
 
 # 1.1.1
 ### Bugfix

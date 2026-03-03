@@ -1,4 +1,4 @@
-﻿using SqExpress.Syntax.Expressions;
+using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
 using SqExpress.Syntax.Internal;
@@ -72,6 +72,8 @@ namespace SqExpress.Syntax
 
         //Functions
         TRes VisitExprScalarFunction(ExprScalarFunction exprScalarFunction, TArg arg);
+
+        TRes VisitExprPortableScalarFunction(ExprPortableScalarFunction exprPortableScalarFunction, TArg arg);
 
         TRes VisitExprCase(ExprCase exprCase, TArg arg);
 

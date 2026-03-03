@@ -109,6 +109,11 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             this._visitor.VisitPlainProperty(name, value.ToString(), ctx);
         }
 
+        void VisitPlainProperty(string name, PortableScalarFunction value, TCtx ctx)
+        {
+            this._visitor.VisitPlainProperty(name, value.ToString(), ctx);
+        }
+
         private bool Accept(string name, IExpr? expr, WalkerContext<TCtx> context)
         {
             this._visitor.VisitProperty(name, false, expr == null, context.Context);
@@ -1143,6 +1148,18 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             {
                 res = this.Accept("Partitions",expr.Partitions, argOut) && this.Accept("OrderBy",expr.OrderBy, argOut) && this.Accept("FrameClause",expr.FrameClause, argOut);
             }
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
+        public bool VisitExprPortableScalarFunction(ExprPortableScalarFunction expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "PortableScalarFunction", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("Arguments",expr.Arguments, argOut);
+            }
+            this.VisitPlainProperty("PortableFunction",expr.PortableFunction, argOut.Context);
             this.EndVisit(expr, argOut.Context);
             return res && walkResult != WalkResult.Stop;
         }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -251,7 +251,7 @@ namespace SqExpress.SqlExport.Internal
 
         protected abstract void EscapeStringLiteral(StringBuilder builder, string literal);
 
-        public bool VisitExprDateTimeLiteral(ExprDateTimeLiteral dateTimeLiteral, IExpr? parent)
+        public virtual bool VisitExprDateTimeLiteral(ExprDateTimeLiteral dateTimeLiteral, IExpr? parent)
         {
             if (!dateTimeLiteral.Value.HasValue)
             {
@@ -829,6 +829,7 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public abstract bool VisitExprPortableScalarFunction(ExprPortableScalarFunction exprPortableScalarFunction, IExpr? arg);
 
         public bool VisitExprTableFunction(ExprTableFunction exprTableFunction, IExpr? arg)
         {
@@ -1561,6 +1562,38 @@ namespace SqExpress.SqlExport.Internal
         protected abstract DbParameterValueVisitorExtractor GetDbParameterValueVisitorExtractor();
 
         public abstract void AppendName(string name, char? prefix = null);
+
+        protected void AppendFunctionSingleArg(string name, IReadOnlyList<ExprValue>? arguments, ExprPortableScalarFunction expr)
+        {
+            this.AssertArgumentsCount(arguments, 1, expr.PortableFunction);
+
+            this.Builder.Append(name);
+            this.Builder.Append('(');
+            arguments![0].Accept(this, expr);
+            this.Builder.Append(')');
+        }
+
+        protected void AppendFunctionTwoArgs(string name, IReadOnlyList<ExprValue>? arguments, ExprPortableScalarFunction expr)
+        {
+            this.AssertArgumentsCount(arguments, 2, expr.PortableFunction);
+
+            this.Builder.Append(name);
+            this.Builder.Append('(');
+            arguments![0].Accept(this, expr);
+            this.Builder.Append(',');
+            arguments![1].Accept(this, expr);
+            this.Builder.Append(')');
+        }
+
+        protected void AssertArgumentsCount(IReadOnlyList<ExprValue>? arguments, int expected, PortableScalarFunction function)
+        {
+            var actual = arguments?.Count ?? 0;
+
+            if (actual != expected)
+            {
+                throw new SqExpressException($"Function \"{function}\" expects {expected} argument(s), but got {actual}.");
+            }
+        }
 
         protected void AppendNull()
         {

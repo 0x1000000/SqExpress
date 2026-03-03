@@ -22,7 +22,7 @@ using SqExpress.Utils;
 
 namespace SqExpress.SqlExport.Internal
 {
-    internal class PgSqlBuilder : SqlBuilderBase
+    internal class PgSqlBuilder : SqlBuilderBase, IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>
     {
         private const string InformationSchemaLowerInvariant = "information_schema";
 
@@ -62,7 +62,41 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprDateTimeOffsetLiteral(ExprDateTimeOffsetLiteral dateTimeLiteral, IExpr? arg)
         {
-            return this.VisitExprDateTimeOffsetLiteralCommon(dateTimeLiteral, arg);
+            if (!dateTimeLiteral.Value.HasValue)
+            {
+                this.AppendNull();
+            }
+            else
+            {
+                this.Builder.Append('\'');
+                this.Builder.Append(dateTimeLiteral.Value.Value.ToString("O"));
+                this.Builder.Append("'::timestamptz");
+            }
+
+            return true;
+        }
+
+        public override bool VisitExprDateTimeLiteral(ExprDateTimeLiteral dateTimeLiteral, IExpr? parent)
+        {
+            if (!dateTimeLiteral.Value.HasValue)
+            {
+                this.AppendNull();
+            }
+            else
+            {
+                this.Builder.Append('\'');
+                if (dateTimeLiteral.Value.Value.TimeOfDay != TimeSpan.Zero)
+                {
+                    this.Builder.Append(dateTimeLiteral.Value.Value.ToString("yyyy-MM-ddTHH:mm:ss.fff"));
+                }
+                else
+                {
+                    this.Builder.Append(dateTimeLiteral.Value.Value.ToString("yyyy-MM-dd"));
+                }
+                this.Builder.Append("'::timestamp");
+            }
+
+            return true;
         }
 
         public override bool VisitExprBoolLiteral(ExprBoolLiteral boolLiteral, IExpr? parent)
@@ -500,6 +534,130 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public override bool VisitExprPortableScalarFunction(ExprPortableScalarFunction exprPortableScalarFunction, IExpr? arg)
+        {
+            return exprPortableScalarFunction.PortableFunction.Accept(this, exprPortableScalarFunction);
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseLen(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("CHAR_LENGTH", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseDataLen(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("OCTET_LENGTH", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseYear(ExprPortableScalarFunction ctx)
+        {
+            this.AppendExtractSingleArg("YEAR", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseMonth(ExprPortableScalarFunction ctx)
+        {
+            this.AppendExtractSingleArg("MONTH", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseDay(ExprPortableScalarFunction ctx)
+        {
+            this.AppendExtractSingleArg("DAY", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseHour(ExprPortableScalarFunction ctx)
+        {
+            this.AppendExtractSingleArg("HOUR", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseMinute(ExprPortableScalarFunction ctx)
+        {
+            this.AppendExtractSingleArg("MINUTE", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseSecond(ExprPortableScalarFunction ctx)
+        {
+            this.AppendExtractSingleArg("SECOND", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseCurrentDate(ExprPortableScalarFunction ctx)
+        {
+            this.AssertArgumentsCount(ctx.Arguments, 0, ctx.PortableFunction);
+            this.Builder.Append("CURRENT_DATE");
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseCurrentTime(ExprPortableScalarFunction ctx)
+        {
+            this.AssertArgumentsCount(ctx.Arguments, 0, ctx.PortableFunction);
+            this.Builder.Append("CURRENT_TIME");
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseCurrentTimestamp(ExprPortableScalarFunction ctx)
+        {
+            this.AssertArgumentsCount(ctx.Arguments, 0, ctx.PortableFunction);
+            this.Builder.Append("CURRENT_TIMESTAMP");
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseIndexOf(ExprPortableScalarFunction ctx)
+        {
+            this.AssertArgumentsCount(ctx.Arguments, 2, ctx.PortableFunction);
+            this.Builder.Append("STRPOS(");
+            ctx.Arguments![1].Accept(this, ctx);
+            this.Builder.Append(',');
+            ctx.Arguments[0].Accept(this, ctx);
+            this.Builder.Append(')');
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseLeft(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionTwoArgs("LEFT", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseRight(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionTwoArgs("RIGHT", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseRepeat(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionTwoArgs("REPEAT", ctx.Arguments, ctx);
+            return true;
+        }
+
+        private void AppendExtractSingleArg(string part, IReadOnlyList<ExprValue>? arguments, ExprPortableScalarFunction expr)
+        {
+            this.AssertArgumentsCount(arguments, 1, expr.PortableFunction);
+
+            var value = arguments![0];
+            if (value is ExprDateTimeLiteral)
+            {
+                value = SqQueryBuilder.Cast(value, SqQueryBuilder.SqlType.DateTime());
+            }
+            else if (value is ExprDateTimeOffsetLiteral)
+            {
+                value = SqQueryBuilder.Cast(value, SqQueryBuilder.SqlType.DateTimeOffset);
+            }
+
+            this.Builder.Append("EXTRACT(");
+            this.Builder.Append(part);
+            this.Builder.Append(" FROM ");
+            value.Accept(this, expr);
+            this.Builder.Append(')');
+        }
+
         public override bool VisitExprFuncIsNull(ExprFuncIsNull exprFuncIsNull, IExpr? parent)
         {
             SqQueryBuilder.Coalesce(exprFuncIsNull.Test, exprFuncIsNull.Alt).Accept(this, exprFuncIsNull);
@@ -621,10 +779,13 @@ namespace SqExpress.SqlExport.Internal
                 => DateTrunc(interval, end) - DateTrunc(interval, start);
 
             static ExprValue DateTrunc(string interval, ExprValue value)
-                => SqQueryBuilder.ScalarFunctionSys("DATE_TRUNC", interval, EnsureLiteral(value));
+                => SqQueryBuilder.ScalarFunctionSys("DATE_TRUNC", IntervalLiteral(interval), EnsureLiteral(value));
 
             static ExprValue DatePart(string interval, ExprValue value)
-                => SqQueryBuilder.ScalarFunctionSys("DATE_PART", interval, EnsureLiteral(value));
+                => SqQueryBuilder.ScalarFunctionSys("DATE_PART", IntervalLiteral(interval), EnsureLiteral(value));
+
+            static ExprValue IntervalLiteral(string interval)
+                => SqQueryBuilder.UnsafeValue($"'{interval}'");
 
             static ExprValue EnsureLiteral(ExprValue value)
             {

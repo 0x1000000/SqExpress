@@ -368,7 +368,7 @@ namespace SqExpress.Test.SqlParser
             new PgSample(
                 "Select_KnownFunctions",
                 @"SELECT ABS([u].[V1]) [Total],LEN([u].[V2]) [NameLen],DATEADD(d,1,[u].[V3]) [NextAt] FROM [dbo].[Users] [u]",
-                @"SELECT ABS(""u"".""V1"") ""Total"",LEN(""u"".""V2"") ""NameLen"",DATEADD(""d"",1,""u"".""V3"") ""NextAt"" FROM ""dbo"".""Users"" ""u""",
+                @"SELECT ABS(""u"".""V1"") ""Total"",CHAR_LENGTH(""u"".""V2"") ""NameLen"",DATEADD(""d"",1,""u"".""V3"") ""NextAt"" FROM ""dbo"".""Users"" ""u""",
                 null
             ),
             new PgSample(
@@ -464,7 +464,7 @@ namespace SqExpress.Test.SqlParser
             new PgSample(
                 "Select_LenFunction",
                 @"SELECT LEN([u].[Name]) [NameLength] FROM [dbo].[Users] [u]",
-                @"SELECT LEN(""u"".""Name"") ""NameLength"" FROM ""dbo"".""Users"" ""u""",
+                @"SELECT CHAR_LENGTH(""u"".""Name"") ""NameLength"" FROM ""dbo"".""Users"" ""u""",
                 null
             ),
             new PgSample(

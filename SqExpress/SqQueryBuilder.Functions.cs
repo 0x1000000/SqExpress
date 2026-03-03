@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
@@ -155,11 +155,131 @@ namespace SqExpress
 
         public static ExprGetUtcDate GetUtcDate()=> ExprGetUtcDate.Instance;
 
+        public static ExprScalarFunction NullIf(ExprValue left, ExprValue right)
+            => ScalarFunctionSys("NULLIF", left, right);
+
+        public static ExprScalarFunction Abs(ExprValue value)
+            => ScalarFunctionSys("ABS", value);
+
+        public static ExprScalarFunction Lower(ExprValue value)
+            => ScalarFunctionSys("LOWER", value);
+
+        public static ExprScalarFunction Upper(ExprValue value)
+            => ScalarFunctionSys("UPPER", value);
+
+        public static ExprScalarFunction Trim(ExprValue value)
+            => ScalarFunctionSys("TRIM", value);
+
+        public static ExprScalarFunction LTrim(ExprValue value)
+            => ScalarFunctionSys("LTRIM", value);
+
+        public static ExprScalarFunction RTrim(ExprValue value)
+            => ScalarFunctionSys("RTRIM", value);
+
+        public static ExprScalarFunction Replace(ExprValue value, ExprValue search, ExprValue replacement)
+            => ScalarFunctionSys("REPLACE", value, search, replacement);
+
+        public static ExprScalarFunction Substring(ExprValue value, ExprValue start, ExprValue length)
+            => ScalarFunctionSys("SUBSTRING", value, start, length);
+
+        public static ExprScalarFunction Round(ExprValue value, ExprValue precision)
+            => ScalarFunctionSys("ROUND", value, precision);
+
+        public static ExprScalarFunction Floor(ExprValue value)
+            => ScalarFunctionSys("FLOOR", value);
+
+        public static ExprScalarFunction Ceiling(ExprValue value)
+            => ScalarFunctionSys("CEILING", value);
+
+        public static ExprScalarFunction Concat(ExprValue first, params ExprValue[] rest)
+            => ScalarFunctionSys("CONCAT", first, rest);
+
+        public static ExprPortableScalarFunction Len(ExprValue value)
+            => new ExprPortableScalarFunction(PortableScalarFunction.Len, new[] { value });
+
+        public static ExprPortableScalarFunction DataLength(ExprValue value)
+            => new ExprPortableScalarFunction(PortableScalarFunction.DataLen, new[] { value });
+
+        public static ExprPortableScalarFunction Year(ExprValue value)
+            => new ExprPortableScalarFunction(PortableScalarFunction.Year, new[] { value });
+
+        public static ExprPortableScalarFunction Month(ExprValue value)
+            => new ExprPortableScalarFunction(PortableScalarFunction.Month, new[] { value });
+
+        public static ExprPortableScalarFunction Day(ExprValue value)
+            => new ExprPortableScalarFunction(PortableScalarFunction.Day, new[] { value });
+
+        public static ExprPortableScalarFunction Hour(ExprValue value)
+            => new ExprPortableScalarFunction(PortableScalarFunction.Hour, new[] { value });
+
+        public static ExprPortableScalarFunction Minute(ExprValue value)
+            => new ExprPortableScalarFunction(PortableScalarFunction.Minute, new[] { value });
+
+        public static ExprPortableScalarFunction Second(ExprValue value)
+            => new ExprPortableScalarFunction(PortableScalarFunction.Second, new[] { value });
+
+        public static ExprPortableScalarFunction CurrentDate()
+            => new ExprPortableScalarFunction(PortableScalarFunction.CurrentDate, null);
+
+        public static ExprPortableScalarFunction CurrentTime()
+            => new ExprPortableScalarFunction(PortableScalarFunction.CurrentTime, null);
+
+        public static ExprPortableScalarFunction CurrentTimestamp()
+            => new ExprPortableScalarFunction(PortableScalarFunction.CurrentTimestamp, null);
+
+        public static ExprPortableScalarFunction IndexOf(ExprValue searchValue, ExprValue value)
+            => new ExprPortableScalarFunction(PortableScalarFunction.IndexOf, new[] { searchValue, value });
+
+        public static ExprPortableScalarFunction Left(ExprValue value, ExprValue length)
+            => new ExprPortableScalarFunction(PortableScalarFunction.Left, new[] { value, length });
+
+        public static ExprPortableScalarFunction Right(ExprValue value, ExprValue length)
+            => new ExprPortableScalarFunction(PortableScalarFunction.Right, new[] { value, length });
+
+        public static ExprPortableScalarFunction Repeat(ExprValue value, ExprValue count)
+            => new ExprPortableScalarFunction(PortableScalarFunction.Repeat, new[] { value, count });
+
         public static ExprDateAdd DateAdd(DateAddDatePart datePart, int number, ExprValue date) 
             => new ExprDateAdd(datePart, number, date);
 
         public static ExprDateDiff DateDiff(DateDiffDatePart datePart, ExprValue startDate, ExprValue endDate)
             => new ExprDateDiff(datePart, startDate, endDate);
+
+        public static ExprDateAdd AddYears(int number, ExprValue date)
+            => DateAdd(DateAddDatePart.Year, number, date);
+
+        public static ExprDateAdd AddMonths(int number, ExprValue date)
+            => DateAdd(DateAddDatePart.Month, number, date);
+
+        public static ExprDateAdd AddDays(int number, ExprValue date)
+            => DateAdd(DateAddDatePart.Day, number, date);
+
+        public static ExprDateAdd AddHours(int number, ExprValue date)
+            => DateAdd(DateAddDatePart.Hour, number, date);
+
+        public static ExprDateAdd AddMinutes(int number, ExprValue date)
+            => DateAdd(DateAddDatePart.Minute, number, date);
+
+        public static ExprDateAdd AddSeconds(int number, ExprValue date)
+            => DateAdd(DateAddDatePart.Second, number, date);
+
+        public static ExprDateDiff DiffYears(ExprValue startDate, ExprValue endDate)
+            => DateDiff(DateDiffDatePart.Year, startDate, endDate);
+
+        public static ExprDateDiff DiffMonths(ExprValue startDate, ExprValue endDate)
+            => DateDiff(DateDiffDatePart.Month, startDate, endDate);
+
+        public static ExprDateDiff DiffDays(ExprValue startDate, ExprValue endDate)
+            => DateDiff(DateDiffDatePart.Day, startDate, endDate);
+
+        public static ExprDateDiff DiffHours(ExprValue startDate, ExprValue endDate)
+            => DateDiff(DateDiffDatePart.Hour, startDate, endDate);
+
+        public static ExprDateDiff DiffMinutes(ExprValue startDate, ExprValue endDate)
+            => DateDiff(DateDiffDatePart.Minute, startDate, endDate);
+
+        public static ExprDateDiff DiffSeconds(ExprValue startDate, ExprValue endDate)
+            => DateDiff(DateDiffDatePart.Second, startDate, endDate);
 
         public readonly struct AnalyticFunctionOverPartitionsBuilder
         {

@@ -1240,6 +1240,19 @@ namespace SqExpress.Syntax
                 this._nodeHandler?.OnLeaveNode();
             }
         }
+        public object? VisitExprPortableScalarFunction(ExprPortableScalarFunction expr, object? arg)
+        {
+            this._nodeHandler?.OnEnterNode(expr);
+            try
+            {
+                this._visitor.VisitExprPortableScalarFunction(expr);
+                return null;
+            }
+            finally
+            {
+                this._nodeHandler?.OnLeaveNode();
+            }
+        }
         public object? VisitExprQueryExpression(ExprQueryExpression expr, object? arg)
         {
             this._nodeHandler?.OnEnterNode(expr);

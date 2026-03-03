@@ -2297,17 +2297,22 @@ namespace SqExpress.SqlParser.Internal.Mapping
                         parts.Add(this.NextIdentifier());
                     }
 
-                    if (this.TryType(SqlTokenType.OpenParen))
-                    {
-                        var argsTokens = this.ReadBalancedInner();
-                        var args = argsTokens.Count == 0
-                            ? null
-                            : SplitComma(argsTokens).Select(i => new ExprParser(string.Join(" ", i.Select(t => t.Text)), this._context).ParseValue()).ToList();
+	                    if (this.TryType(SqlTokenType.OpenParen))
+	                    {
+	                        var argsTokens = this.ReadBalancedInner();
+	                        var args = argsTokens.Count == 0
+	                            ? null
+	                            : SplitComma(argsTokens).Select(i => new ExprParser(string.Join(" ", i.Select(t => t.Text)), this._context).ParseValue()).ToList();
 
-                        if (parts.Count == 1)
-                        {
-                            return new ExprScalarFunction(null, new ExprFunctionName(true, parts[0]), args);
-                        }
+	                        if (parts.Count == 1)
+	                        {
+	                            if (TryMapPortableScalarFunction(parts[0], args, out var portable))
+	                            {
+	                                return portable;
+	                            }
+
+	                            return new ExprScalarFunction(null, new ExprFunctionName(true, parts[0]), args);
+	                        }
 
                         if (parts.Count == 2)
                         {
@@ -2325,11 +2330,116 @@ namespace SqExpress.SqlParser.Internal.Mapping
                         return new ExprColumn(null, new ExprColumnName(parts[0]));
                     }
 
-                    return new ExprColumn(new ExprTableAlias(new ExprAlias(parts[parts.Count - 2])), new ExprColumnName(parts[parts.Count - 1]));
-                }
+	                    return new ExprColumn(new ExprTableAlias(new ExprAlias(parts[parts.Count - 2])), new ExprColumnName(parts[parts.Count - 1]));
+	                }
 
-                throw new MapException("Value token is not supported: " + current.Text + " in [" + this._sourceSql + "]");
-            }
+	                throw new MapException("Value token is not supported: " + current.Text + " in [" + this._sourceSql + "]");
+	            }
+
+	            private static bool TryMapPortableScalarFunction(string name, IReadOnlyList<ExprValue>? args, [NotNullWhen(true)] out ExprPortableScalarFunction? result)
+	            {
+	                result = null;
+	                var normalized = name.ToUpperInvariant();
+
+	                switch (normalized)
+	                {
+	                    case "LEN":
+	                    case "CHAR_LENGTH":
+	                        return TryCreateSingleArg(PortableScalarFunction.Len, args, out result);
+
+	                    case "DATALENGTH":
+	                    case "OCTET_LENGTH":
+	                        return TryCreateSingleArg(PortableScalarFunction.DataLen, args, out result);
+
+	                    case "YEAR":
+	                        return TryCreateSingleArg(PortableScalarFunction.Year, args, out result);
+
+	                    case "MONTH":
+	                        return TryCreateSingleArg(PortableScalarFunction.Month, args, out result);
+
+	                    case "DAY":
+	                        return TryCreateSingleArg(PortableScalarFunction.Day, args, out result);
+
+	                    case "HOUR":
+	                        return TryCreateSingleArg(PortableScalarFunction.Hour, args, out result);
+
+	                    case "MINUTE":
+	                        return TryCreateSingleArg(PortableScalarFunction.Minute, args, out result);
+
+	                    case "SECOND":
+	                        return TryCreateSingleArg(PortableScalarFunction.Second, args, out result);
+
+	                    case "LEFT":
+	                        return TryCreateTwoArgs(PortableScalarFunction.Left, args, out result);
+
+	                    case "RIGHT":
+	                        return TryCreateTwoArgs(PortableScalarFunction.Right, args, out result);
+
+	                    case "REPLICATE":
+	                    case "REPEAT":
+	                        return TryCreateTwoArgs(PortableScalarFunction.Repeat, args, out result);
+
+	                    case "CHARINDEX":
+	                    case "LOCATE":
+	                        return TryCreateTwoArgs(PortableScalarFunction.IndexOf, args, out result);
+
+	                    case "STRPOS":
+	                        if (args?.Count == 2)
+	                        {
+	                            result = new ExprPortableScalarFunction(PortableScalarFunction.IndexOf, new[] { args[1], args[0] });
+	                            return true;
+	                        }
+	                        return false;
+
+	                    case "CURRENT_DATE":
+	                        return TryCreateNoArg(PortableScalarFunction.CurrentDate, args, out result);
+
+	                    case "CURRENT_TIME":
+	                        return TryCreateNoArg(PortableScalarFunction.CurrentTime, args, out result);
+
+	                    case "CURRENT_TIMESTAMP":
+	                        return TryCreateNoArg(PortableScalarFunction.CurrentTimestamp, args, out result);
+
+	                    default:
+	                        return false;
+	                }
+
+	                static bool TryCreateNoArg(PortableScalarFunction function, IReadOnlyList<ExprValue>? args0, [NotNullWhen(true)] out ExprPortableScalarFunction? res0)
+	                {
+	                    if (args0 == null || args0.Count == 0)
+	                    {
+	                        res0 = new ExprPortableScalarFunction(function, null);
+	                        return true;
+	                    }
+
+	                    res0 = null;
+	                    return false;
+	                }
+
+	                static bool TryCreateSingleArg(PortableScalarFunction function, IReadOnlyList<ExprValue>? args1, [NotNullWhen(true)] out ExprPortableScalarFunction? res1)
+	                {
+	                    if (args1?.Count == 1)
+	                    {
+	                        res1 = new ExprPortableScalarFunction(function, args1);
+	                        return true;
+	                    }
+
+	                    res1 = null;
+	                    return false;
+	                }
+
+	                static bool TryCreateTwoArgs(PortableScalarFunction function, IReadOnlyList<ExprValue>? args2, [NotNullWhen(true)] out ExprPortableScalarFunction? res2)
+	                {
+	                    if (args2?.Count == 2)
+	                    {
+	                        res2 = new ExprPortableScalarFunction(function, args2);
+	                        return true;
+	                    }
+
+	                    res2 = null;
+	                    return false;
+	                }
+	            }
 
             private string NextIdentifier()
             {

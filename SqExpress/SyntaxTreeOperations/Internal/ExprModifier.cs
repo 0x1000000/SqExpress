@@ -966,6 +966,15 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprPortableScalarFunction(ExprPortableScalarFunction exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newArguments = this.AcceptNullCollection(exprIn.Arguments, modifier);
+            if(!ReferenceEquals(exprIn.Arguments, newArguments))
+            {
+                exprIn = new ExprPortableScalarFunction(arguments: newArguments, PortableFunction: exprIn.PortableFunction);
+            }
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprQueryExpression(ExprQueryExpression exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newLeft = this.AcceptItem(exprIn.Left, modifier);

@@ -138,7 +138,7 @@ namespace SqExpress.SqlParser
                 var tableDiff = BuildTableDifferenceMessage(expected, parsed);
                 if (!string.IsNullOrEmpty(tableDiff))
                 {
-                    tableDifferences.Add(tableDiff);
+                    tableDifferences.Add(tableDiff!);
                 }
             }
 

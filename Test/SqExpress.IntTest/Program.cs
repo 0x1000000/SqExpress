@@ -65,7 +65,7 @@ namespace SqExpress.IntTest
                         .Then(new ScGetTables())
                         .Then(new ScDateDiff())
                         .Then(new ScCreateDynamicTable())
-                    ;
+                        .Then(new ScPortableScalarFunctions());
 
                 //scenario = new ScPlayground();
 

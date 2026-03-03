@@ -159,7 +159,7 @@ namespace SqExpress.SyntaxTreeOperations
                 case "IsNull": return new ExprIsNull(test: GetSubNode<TNode, ExprValue>(rootElement, reader, "Test"), not: ReadBoolean(rootElement, reader, "Not"));
                 case "JoinedTable": return new ExprJoinedTable(left: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Left"), right: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Right"), searchCondition: GetSubNode<TNode, ExprBoolean>(rootElement, reader, "SearchCondition"), joinType: ReadExprJoinType(rootElement, reader, "JoinType"));
                 case "LateralCrossedTable": return new ExprLateralCrossedTable(left: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Left"), right: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Right"), outer: ReadBoolean(rootElement, reader, "Outer"));
-                case "Like": return new ExprLike(test: GetSubNode<TNode, ExprValue>(rootElement, reader, "Test"), pattern: GetSubNode<TNode, ExprStringLiteral>(rootElement, reader, "Pattern"));
+                case "Like": return new ExprLike(test: GetSubNode<TNode, ExprValue>(rootElement, reader, "Test"), pattern: GetSubNode<TNode, ExprValue>(rootElement, reader, "Pattern"));
                 case "List": return new ExprList(expressions: GetSubNodeList<TNode, IExprExec>(rootElement, reader, "Expressions"));
                 case "Merge": return new ExprMerge(targetTable: GetSubNode<TNode, ExprTable>(rootElement, reader, "TargetTable"), source: GetSubNode<TNode, IExprTableSource>(rootElement, reader, "Source"), on: GetSubNode<TNode, ExprBoolean>(rootElement, reader, "On"), whenMatched: GetNullableSubNode<TNode, IExprMergeMatched>(rootElement, reader, "WhenMatched"), whenNotMatchedByTarget: GetNullableSubNode<TNode, IExprMergeNotMatched>(rootElement, reader, "WhenNotMatchedByTarget"), whenNotMatchedBySource: GetNullableSubNode<TNode, IExprMergeMatched>(rootElement, reader, "WhenNotMatchedBySource"));
                 case "MergeMatchedDelete": return new ExprMergeMatchedDelete(and: GetNullableSubNode<TNode, ExprBoolean>(rootElement, reader, "And"));
@@ -178,6 +178,7 @@ namespace SqExpress.SyntaxTreeOperations
                 case "OutputColumnDeleted": return new ExprOutputColumnDeleted(columnName: GetSubNode<TNode, ExprAliasedColumnName>(rootElement, reader, "ColumnName"));
                 case "OutputColumnInserted": return new ExprOutputColumnInserted(columnName: GetSubNode<TNode, ExprAliasedColumnName>(rootElement, reader, "ColumnName"));
                 case "Over": return new ExprOver(partitions: GetNullableSubNodeList<TNode, ExprValue>(rootElement, reader, "Partitions"), orderBy: GetNullableSubNode<TNode, ExprOrderBy>(rootElement, reader, "OrderBy"), frameClause: GetNullableSubNode<TNode, ExprFrameClause>(rootElement, reader, "FrameClause"));
+                case "PortableScalarFunction": return new ExprPortableScalarFunction(arguments: GetNullableSubNodeList<TNode, ExprValue>(rootElement, reader, "Arguments"), PortableFunction: ReadPortableScalarFunction(rootElement, reader, "PortableFunction"));
                 case "QueryExpression": return new ExprQueryExpression(left: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "Left"), right: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "Right"), queryExpressionType: ReadExprQueryExpressionType(rootElement, reader, "QueryExpressionType"));
                 case "QueryList": return new ExprQueryList(expressions: GetSubNodeList<TNode, IExprComplete>(rootElement, reader, "Expressions"));
                 case "QuerySpecification": return new ExprQuerySpecification(selectList: GetSubNodeList<TNode, IExprSelecting>(rootElement, reader, "SelectList"), top: GetNullableSubNode<TNode, ExprValue>(rootElement, reader, "Top"), from: GetNullableSubNode<TNode, IExprTableSource>(rootElement, reader, "From"), where: GetNullableSubNode<TNode, ExprBoolean>(rootElement, reader, "Where"), groupBy: GetNullableSubNodeList<TNode, ExprColumn>(rootElement, reader, "GroupBy"), distinct: ReadBoolean(rootElement, reader, "Distinct"));
@@ -517,6 +518,23 @@ namespace SqExpress.SyntaxTreeOperations
             if (!Enum.TryParse(str, false, out FrameBorderDirection result))
             {
                 throw new SqExpressException($"Could not recognize \"{str}\" as \"{nameof(FrameBorderDirection)}\"");
+            }
+
+            return result;
+        }
+
+
+        private static PortableScalarFunction ReadPortableScalarFunction<TNode>(TNode rootElement, IExprReader<TNode> reader, string name)
+        {
+            var str = ReadNullableString(rootElement, reader, name);
+            if (str == null)
+            {
+                throw new SqExpressException($"Property \"{name}\" is mandatory");
+            }
+
+            if (!Enum.TryParse(str, false, out PortableScalarFunction result))
+            {
+                throw new SqExpressException($"Could not recognize \"{str}\" as \"{nameof(PortableScalarFunction)}\"");
             }
 
             return result;

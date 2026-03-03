@@ -532,6 +532,10 @@ namespace SqExpress.SyntaxTreeOperations
             this.Accept(expr.OrderBy);
             this.Accept(expr.FrameClause);
         }
+        public virtual void VisitExprPortableScalarFunction(ExprPortableScalarFunction expr)
+        {
+            this.Accept(expr.Arguments);
+        }
         public virtual void VisitExprQueryExpression(ExprQueryExpression expr)
         {
             this.Accept(expr.Left);

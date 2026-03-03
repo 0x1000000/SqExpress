@@ -1513,6 +1513,18 @@ namespace SqExpress.SyntaxTreeOperations.Internal
                     throw new SqExpressException("Incorrect enumerator visitor state");
             }
         }
+        public bool VisitExprPortableScalarFunction(ExprPortableScalarFunction expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.Arguments);
+                case 2:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
         public bool VisitExprQueryExpression(ExprQueryExpression expr, object? arg)
         {
             switch (this.Peek().State)

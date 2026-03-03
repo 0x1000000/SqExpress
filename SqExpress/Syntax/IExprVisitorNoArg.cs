@@ -109,6 +109,7 @@ namespace SqExpress.Syntax
         void VisitExprOutputColumnDeleted(ExprOutputColumnDeleted expr);
         void VisitExprOutputColumnInserted(ExprOutputColumnInserted expr);
         void VisitExprOver(ExprOver expr);
+        void VisitExprPortableScalarFunction(ExprPortableScalarFunction expr);
         void VisitExprQueryExpression(ExprQueryExpression expr);
         void VisitExprQueryList(ExprQueryList expr);
         void VisitExprQuerySpecification(ExprQuerySpecification expr);

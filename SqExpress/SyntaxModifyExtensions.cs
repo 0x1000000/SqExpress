@@ -508,7 +508,7 @@ namespace SqExpress
         public static ExprLike WithTest(this ExprLike original, ExprValue newTest) 
             => new ExprLike(test: newTest, pattern: original.Pattern);
 
-        public static ExprLike WithPattern(this ExprLike original, ExprStringLiteral newPattern) 
+        public static ExprLike WithPattern(this ExprLike original, ExprValue newPattern) 
             => new ExprLike(test: original.Test, pattern: newPattern);
 
         public static ExprList WithExpressions(this ExprList original, IReadOnlyList<IExprExec> newExpressions) 
@@ -618,6 +618,12 @@ namespace SqExpress
 
         public static ExprOver WithFrameClause(this ExprOver original, ExprFrameClause? newFrameClause) 
             => new ExprOver(partitions: original.Partitions, orderBy: original.OrderBy, frameClause: newFrameClause);
+
+        public static ExprPortableScalarFunction WithArguments(this ExprPortableScalarFunction original, IReadOnlyList<ExprValue>? newArguments) 
+            => new ExprPortableScalarFunction(arguments: newArguments, PortableFunction: original.PortableFunction);
+
+        public static ExprPortableScalarFunction WithPortableFunction(this ExprPortableScalarFunction original, PortableScalarFunction newPortableFunction) 
+            => new ExprPortableScalarFunction(arguments: original.Arguments, PortableFunction: newPortableFunction);
 
         public static ExprQueryExpression WithLeft(this ExprQueryExpression original, IExprSubQuery newLeft) 
             => new ExprQueryExpression(left: newLeft, right: original.Right, queryExpressionType: original.QueryExpressionType);

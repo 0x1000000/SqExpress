@@ -1,4 +1,4 @@
-﻿using System.Data;
+using System.Data;
 using SqExpress.Syntax;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
@@ -145,6 +145,11 @@ internal class DbParameterValueVisitorExtractor: IExprValueVisitorInternal<DbPar
     }
 
     public virtual DbParameterValue? VisitExprScalarFunction(ExprScalarFunction exprScalarFunction, string? name)
+    {
+        return null;
+    }
+
+    public DbParameterValue? VisitExprPortableScalarFunction(ExprPortableScalarFunction exprPortableScalarFunction, string? arg)
     {
         return null;
     }
