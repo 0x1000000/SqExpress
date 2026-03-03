@@ -4,7 +4,6 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <SqModelGenEnable>true</SqModelGenEnable>
-    <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
@@ -12,7 +11,7 @@
   <ItemGroup>
     <PackageReference Include="MySqlConnector" Version="2.3.7" />
     <PackageReference Include="Npgsql" Version="8.0.3" />
-    <PackageReference Include="SqExpress" Version="1.1.0" />
+    <PackageReference Include="SqExpress" Version="1.2.0-beta" />
     <PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
   </ItemGroup>
 </Project>
