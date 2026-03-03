@@ -136,6 +136,139 @@ namespace SqExpress
         public static string ToSql(this IStatement expr, ISqlExporter exporter)
             => exporter.ToSql(expr);
 
+        public static T WithParams<T>(this T expr, IReadOnlyDictionary<string, ExprValue> values) where T : IExpr
+        {
+            return expr.SyntaxTree()
+                .ModifyDescendants(e =>
+                    {
+                        if (e is ExprParameter parameter)
+                        {
+                            var tagName = parameter.TagName;
+                            if (tagName != null && tagName.Length > 0 && values.TryGetValue(tagName, out var value))
+                            {
+                                return value;
+                            }
+
+                            if (tagName != null && tagName.Length > 0)
+                            {
+                                throw new SqExpressException($"Could not find parameter {tagName}");
+                            }
+                        }
+
+                        return e;
+                    }
+                );
+        }
+
+#if NET8_0_OR_GREATER
+        public static T WithParams<T>(this T expr, params ReadOnlySpan<(string paramName, ExprValue paramExprValue)> values) where T: IExpr
+        {
+            if (values.Length == 0)
+            {
+                return expr;
+            }
+
+            if (values.Length <= 4)
+            {
+                string? n0 = null;
+                string? n1 = null;
+                string? n2 = null;
+                string? n3 = null;
+                ExprValue? v0 = null;
+                ExprValue? v1 = null;
+                ExprValue? v2 = null;
+                ExprValue? v3 = null;
+
+                for (int i = 0; i < values.Length; i++)
+                {
+                    var (paramName, paramExprValue) = values[i];
+                    if (string.IsNullOrEmpty(paramName))
+                    {
+                        throw new SqExpressException("Parameter name cannot be null or empty");
+                    }
+
+                    if ((n0 != null && StringComparer.Ordinal.Equals(paramName, n0))
+                        || (n1 != null && StringComparer.Ordinal.Equals(paramName, n1))
+                        || (n2 != null && StringComparer.Ordinal.Equals(paramName, n2))
+                        || (n3 != null && StringComparer.Ordinal.Equals(paramName, n3)))
+                    {
+                        throw new SqExpressException($"Duplicate parameter name '{paramName}'");
+                    }
+
+                    switch (i)
+                    {
+                        case 0:
+                            n0 = paramName;
+                            v0 = paramExprValue;
+                            break;
+                        case 1:
+                            n1 = paramName;
+                            v1 = paramExprValue;
+                            break;
+                        case 2:
+                            n2 = paramName;
+                            v2 = paramExprValue;
+                            break;
+                        case 3:
+                            n3 = paramName;
+                            v3 = paramExprValue;
+                            break;
+                    }
+                }
+
+                return expr.SyntaxTree()
+                    .ModifyDescendants(e =>
+                        {
+                            if (e is ExprParameter parameter)
+                            {
+                                var tagName = parameter.TagName;
+                                if (tagName != null && tagName.Length > 0)
+                                {
+                                    if (n0 != null && StringComparer.Ordinal.Equals(tagName, n0))
+                                    {
+                                        return v0!;
+                                    }
+                                    if (n1 != null && StringComparer.Ordinal.Equals(tagName, n1))
+                                    {
+                                        return v1!;
+                                    }
+                                    if (n2 != null && StringComparer.Ordinal.Equals(tagName, n2))
+                                    {
+                                        return v2!;
+                                    }
+                                    if (n3 != null && StringComparer.Ordinal.Equals(tagName, n3))
+                                    {
+                                        return v3!;
+                                    }
+
+                                    throw new SqExpressException($"Could not find parameter {tagName}");
+                                }
+                            }
+
+                            return e;
+                        }
+                    );
+            }
+
+            var dictionary = new Dictionary<string, ExprValue>(values.Length, StringComparer.Ordinal);
+            for (int i = 0; i < values.Length; i++)
+            {
+                var (paramName, paramExprValue) = values[i];
+                if (string.IsNullOrEmpty(paramName))
+                {
+                    throw new SqExpressException("Parameter name cannot be null or empty");
+                }
+
+                if (!dictionary.TryAdd(paramName, paramExprValue))
+                {
+                    throw new SqExpressException($"Duplicate parameter name '{paramName}'");
+                }
+            }
+
+            return expr.WithParams(dictionary);
+        }
+#endif
+
         public static Task Exec(this IStatement expr, ISqDatabase database, CancellationToken cancellationToken = default)
             => database.Statement(expr, cancellationToken);
 

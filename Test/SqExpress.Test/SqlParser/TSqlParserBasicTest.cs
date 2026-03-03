@@ -29,7 +29,7 @@ namespace SqExpress.Test.SqlParser
             var inputSql = "SELECT U.Id, U.Name, U2.Email, U2.Address FROM Users U CROSS JOIN Users U2";
             var outputSql = "SELECT [U].[Id],[U].[Name],[U2].[Email],[U2].[Address] FROM [dbo].[Users] [U] CROSS JOIN [dbo].[Users] [U2]";
 
-            if (TSqlParser.TryParse(inputSql, out IExpr? expr, out var tables, out var errors))
+            if (SqTSqlParser.TryParse(inputSql, out IExpr? expr, out var tables, out var errors))
             {
                 Assert.That(expr, Is.TypeOf<ExprQuerySpecification>());
                 var query = (ExprQuerySpecification)expr!;
@@ -102,7 +102,7 @@ namespace SqExpress.Test.SqlParser
 
             var inputSql = "UPDATE u SET u.[Name]=[o].[Title],[u].[IsActive]=1 FROM [dbo].[Users] [u] JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[UserId] WHERE [o].[Title] LIKE 'A%'";
 
-            if (TSqlParser.TryParse(inputSql, out var exp, out var errors))
+            if (SqTSqlParser.TryParse(inputSql, out var exp, out var errors))
             {
                 Assert.That(exp, Is.Not.Null);
                 Assert.That(exp, Is.TypeOf<ExprUpdate>());
@@ -173,7 +173,7 @@ namespace SqExpress.Test.SqlParser
 
             var inputSql = "WITH R AS(SELECT 1 UNION ALL SELECT [r].[N]+1 FROM [R] [r] WHERE [r].[N]<3)SELECT [u].[UserId],ISNULL([u].[Name],'NA') [UserName],LEN([u].[Name]) [NameLen],ROW_NUMBER()OVER(ORDER BY [u].[UserId]) [Rn],(SELECT COUNT(1) FROM (SELECT [l2].[UserId] FROM (SELECT [o3].[UserId] FROM [dbo].[Orders] [o3] WHERE [o3].[Amount]>0)[l2])[l1]) [NestedCnt],(SELECT COUNT(1) FROM [R] [rr] WHERE [rr].[N]<=2) [DepthCnt] FROM [dbo].[Users] [u] OUTER APPLY (SELECT [o].[OrderId] FROM [dbo].[Orders] [o] ORDER BY [o].[OrderId] DESC OFFSET 0 ROW FETCH NEXT 1 ROW ONLY)[oa] WHERE [u].[UserId] IN(SELECT [x].[UserId] FROM (SELECT [y].[UserId] FROM (SELECT [o2].[UserId] FROM [dbo].[Orders] [o2] WHERE [o2].[Amount]>0)[y])[x]) AND EXISTS(SELECT 1 FROM [R] [rx] WHERE [rx].[N]=1) ORDER BY [u].[UserId] OFFSET 0 ROW FETCH NEXT 20 ROW ONLY";
 
-            if (TSqlParser.TryParse(inputSql, out var exp, out var errors))
+            if (SqTSqlParser.TryParse(inputSql, out var exp, out var errors))
             {
                 Assert.That(exp, Is.Not.Null);
                 Assert.That(exp, Is.TypeOf<ExprSelectOffsetFetch>());
@@ -208,7 +208,7 @@ namespace SqExpress.Test.SqlParser
                 Assert.That(descendants.OfType<ExprTable>().Any(), Is.True);
 
                 var sql1 = exp.ToSql(TSqlExporter.Default);
-                var roundTripOk = TSqlParser.TryParse(sql1, out IExpr? reparsed, out var roundTripError);
+                var roundTripOk = SqTSqlParser.TryParse(sql1, out IExpr? reparsed, out var roundTripError);
                 Assert.That(roundTripOk, Is.True, roundTripError);
                 Assert.That(reparsed, Is.Not.Null);
                 var reparsedExpr = reparsed!;
@@ -265,7 +265,7 @@ namespace SqExpress.Test.SqlParser
 
             var inputSql = "WITH Customers AS (SELECT c.CustomerID,c.CustomerName,c.Region FROM dbo.Customers c WHERE c.IsActive=1), OrdersBase AS (SELECT o.OrderID,o.CustomerID,o.OrderDate,o.TotalAmount,o.Status FROM dbo.Orders o WHERE o.OrderDate>=DATEADD(day,-90,CONVERT(date,GETDATE()))), LineAgg AS (SELECT ol.OrderID,SUM(ol.Quantity*ol.UnitPrice) AS LineTotal,COUNT(*) AS LineCount,MAX(ol.UnitPrice) AS MaxUnitPrice FROM dbo.OrderLines ol GROUP BY ol.OrderID), OrdersEnriched AS (SELECT ob.OrderID,ob.CustomerID,ob.OrderDate,ob.TotalAmount,ob.Status,la.LineTotal,la.LineCount,la.MaxUnitPrice,CASE WHEN la.LineTotal IS NULL THEN 0 ELSE la.LineTotal END AS SafeLineTotal FROM OrdersBase ob LEFT JOIN LineAgg la ON la.OrderID=ob.OrderID), Ranked AS (SELECT oe.*,ROW_NUMBER() OVER (PARTITION BY oe.CustomerID ORDER BY oe.TotalAmount DESC,oe.OrderDate DESC) AS rn,DENSE_RANK() OVER (ORDER BY oe.TotalAmount DESC) AS global_rank FROM OrdersEnriched oe), FilteredOrders AS (SELECT r.* FROM Ranked r WHERE r.Status IN ('Paid','Shipped') AND r.CustomerID IN (SELECT x.CustomerID FROM (SELECT y.CustomerID FROM (SELECT z.CustomerID FROM (SELECT ob.CustomerID,COUNT(*) AS Cnt FROM OrdersBase ob WHERE ob.TotalAmount>50 GROUP BY ob.CustomerID) z WHERE z.Cnt>=2) y WHERE EXISTS (SELECT 1 FROM Customers c WHERE c.CustomerID=y.CustomerID AND c.Region IN ('NA','EU'))) x) ), Final AS (SELECT fo.CustomerID,COUNT(*) AS OrdersCount,SUM(fo.TotalAmount) AS SumAmount,AVG(fo.TotalAmount) AS AvgAmount,MAX(fo.TotalAmount) AS MaxAmount,MIN(fo.OrderDate) AS FirstOrderDate,MAX(fo.OrderDate) AS LastOrderDate,MAX(CASE WHEN fo.rn=1 THEN fo.OrderID END) AS TopOrderId FROM FilteredOrders fo GROUP BY fo.CustomerID) SELECT c.CustomerID,c.CustomerName,c.Region,f.OrdersCount,f.SumAmount,f.AvgAmount,f.MaxAmount,f.FirstOrderDate,f.LastOrderDate,f.TopOrderId FROM Final f INNER JOIN Customers c ON c.CustomerID=f.CustomerID WHERE f.OrdersCount>=1 ORDER BY f.SumAmount DESC,c.CustomerName ASC;";
 
-            if (TSqlParser.TryParse(inputSql, out var exp, out var errors))
+            if (SqTSqlParser.TryParse(inputSql, out var exp, out var errors))
             {
                 Assert.That(exp, Is.Not.Null);
                 Assert.That(exp, Is.TypeOf<ExprSelect>());
@@ -321,7 +321,7 @@ namespace SqExpress.Test.SqlParser
             var inputSql =
                 "SELECT [u].[UserId],[o].[OrderId],[u2].[Name] FROM [dbo].[Users] [u] JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[UserId] LEFT JOIN [dbo].[Users] [u2] ON [u2].[UserId]=[o].[UserId] WHERE [u2].[IsActive]=1";
 
-            if (TSqlParser.TryParse(inputSql, out IExpr? _, out var tables, out var errors))
+            if (SqTSqlParser.TryParse(inputSql, out IExpr? _, out var tables, out var errors))
             {
                 Assert.That(tables, Is.Not.Null);
                 Assert.That(tables!.Count, Is.EqualTo(2));

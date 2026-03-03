@@ -16,7 +16,7 @@ namespace SqExpress.Test.SqlParser
         public void RoundTripSamples(string name, string sql, string? expectedUnsupportedReason)
         {
 
-            var ok = TSqlParser.TryParse(sql, out IExpr? expr, out var error);
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var error);
             var expectedParseFailure = !string.IsNullOrWhiteSpace(expectedUnsupportedReason)
                                        && !expectedUnsupportedReason!.StartsWith("EXPORT: ", StringComparison.Ordinal);
 
@@ -36,7 +36,7 @@ namespace SqExpress.Test.SqlParser
         public void StructuredMappingSamples(string feature, string sql)
         {
 
-            var ok = TSqlParser.TryParse(sql, out IExpr? expr, out var error);
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var error);
 
             Assert.That(ok, Is.True, $"Feature '{feature}' should be mapped to structured SqExpress AST, but parser returned: {error}");
             Assert.That(expr, Is.Not.Null, $"Feature '{feature}' should produce non-null expression.");
@@ -46,7 +46,7 @@ namespace SqExpress.Test.SqlParser
         [TestCaseSource(nameof(PgSqlCases))]
         public void ExportToPgSqlSamples(string name, string sql, string? expectedPgSql, string? expectedUnsupportedReason)
         {
-            var ok = TSqlParser.TryParse(sql, out IExpr? expr, out var error);
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var error);
 
             if (!string.IsNullOrWhiteSpace(expectedUnsupportedReason))
             {

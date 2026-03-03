@@ -13,7 +13,7 @@ namespace SqExpress.Test.SqlParser
         [TestCase("select UserId from Users wHeRe userId=@id and [Name]=@name")]
         public void ExtractParameters(string sql)
         {
-            if (TSqlParser.TryParse(sql, out var expr, out var tables, out var error))
+            if (SqTSqlParser.TryParse(sql, out var expr, out var tables, out var error))
             {
                 var parameters = expr.SyntaxTree().Descendants().OfType<ExprParameter>().ToList();
 
@@ -32,7 +32,7 @@ namespace SqExpress.Test.SqlParser
         {
             const string sql = "SELECT [u].[UserId] FROM [dbo].[Users] [u] WHERE [u].[UserId]=@id AND [u].[Name]=@name";
 
-            var ok = TSqlParser.TryParse(sql, out IExpr? expr, out var errors);
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var errors);
 
             Assert.That(ok, Is.True, errors == null ? null : string.Join("\n", errors));
             var parameters = expr!.SyntaxTree().Descendants().OfType<ExprParameter>().ToList();
@@ -46,7 +46,7 @@ namespace SqExpress.Test.SqlParser
         {
             const string sql = "SELECT [u].[UserId] FROM [dbo].[Users] [u] WHERE [u].[UserId]=@id AND [u].[Name]=@name";
 
-            var ok = TSqlParser.TryParse(sql, out IExpr? expr, out var error);
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var error);
 
             Assert.That(ok, Is.True, error);
             Assert.That(expr, Is.Not.Null);
@@ -61,7 +61,7 @@ namespace SqExpress.Test.SqlParser
         {
             const string sql = "SELECT [u].[UserId] FROM [dbo].[Users] [u] WHERE [u].[Name]='@id'";
 
-            var ok = TSqlParser.TryParse(sql, out IExpr? expr, out var errors);
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var errors);
 
             Assert.That(ok, Is.True, errors == null ? null : string.Join("\n", errors));
             Assert.That(expr, Is.Not.Null);
@@ -73,7 +73,7 @@ namespace SqExpress.Test.SqlParser
         {
             const string sql = "SELECT @@ROWCOUNT [Cnt]";
 
-            var ok = TSqlParser.TryParse(sql, out IExpr? expr, out var errors);
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var errors);
 
             Assert.That(ok, Is.True, errors == null ? null : string.Join("\n", errors));
             Assert.That(expr, Is.Not.Null);

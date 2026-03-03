@@ -11,7 +11,7 @@ namespace SqExpress.Test.SqlParser
         public void UnsupportedFeaturesReturnErrors(string sql, string expectedError)
         {
 
-            var ok = TSqlParser.TryParse(sql, out IExpr? _, out var error);
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? _, out var error);
 
             Assert.That(ok, Is.False);
             Assert.That(error, Is.EqualTo(expectedError));

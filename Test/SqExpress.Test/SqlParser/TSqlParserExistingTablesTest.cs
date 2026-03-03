@@ -18,7 +18,7 @@ namespace SqExpress.Test.SqlParser
                 CreateTable("dbo", "Orders", a => a.AppendInt32Column("OrderId").AppendInt32Column("UserId"))
             };
 
-            var ok = TSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
+            var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
 
             Assert.That(ok, Is.True, error);
             Assert.That(expr, Is.Not.Null);
@@ -34,7 +34,7 @@ namespace SqExpress.Test.SqlParser
                 CreateTable("dbo", "Users", a => a.AppendInt32Column("Id"))
             };
 
-            var ok = TSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
+            var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
 
             Assert.That(ok, Is.False);
             Assert.That(expr, Is.Null);
@@ -51,7 +51,7 @@ namespace SqExpress.Test.SqlParser
                 CreateTable("dbo", "Orders", a => a.AppendInt32Column("OrderId"))
             };
 
-            var ok = TSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
+            var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
 
             Assert.That(ok, Is.False);
             Assert.That(expr, Is.Null);
@@ -67,7 +67,7 @@ namespace SqExpress.Test.SqlParser
                 CreateTable("dbo", "Users", a => a.AppendInt32Column("Id"))
             };
 
-            var ok = TSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
+            var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
 
             Assert.That(ok, Is.False);
             Assert.That(expr, Is.Null);
@@ -86,7 +86,7 @@ namespace SqExpress.Test.SqlParser
                     .AppendStringColumn("Email", 255, isUnicode: true))
             };
 
-            var ok = TSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
+            var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
 
             Assert.That(ok, Is.False);
             Assert.That(expr, Is.Null);
@@ -102,7 +102,7 @@ namespace SqExpress.Test.SqlParser
                 CreateTable("dbo", "Users", a => a.AppendInt32Column("Id"))
             };
 
-            var ok = TSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
+            var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
 
             Assert.That(ok, Is.False);
             Assert.That(expr, Is.Null);
@@ -118,7 +118,7 @@ namespace SqExpress.Test.SqlParser
                 CreateTable("dbo", "Users", a => a.AppendStringColumn("Id", 255, isUnicode: true))
             };
 
-            var ok = TSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
+            var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
 
             Assert.That(ok, Is.False);
             Assert.That(expr, Is.Null);
@@ -134,7 +134,7 @@ namespace SqExpress.Test.SqlParser
                 CreateTable("dbo", "Users", a => a.AppendInt32Column("Id"))
             };
 
-            var ok = TSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
+            var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
 
             Assert.That(ok, Is.False);
             Assert.That(expr, Is.Null);
@@ -151,7 +151,7 @@ namespace SqExpress.Test.SqlParser
                 CreateTable("sales", "Orders", a => a.AppendInt32Column("OrderId").AppendInt32Column("UserId"))
             };
 
-            var ok = TSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
+            var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
 
             Assert.That(ok, Is.True, error);
             Assert.That(expr, Is.Not.Null);
@@ -168,7 +168,7 @@ namespace SqExpress.Test.SqlParser
                 CreateTable("dbo", "orders", a => a.AppendInt32Column("orderid").AppendInt32Column("userid"))
             };
 
-            var ok = TSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
+            var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
 
             Assert.That(ok, Is.False);
             Assert.That(expr, Is.Null);
@@ -181,7 +181,7 @@ namespace SqExpress.Test.SqlParser
             var sql = "SELECT 1";
             var existing = Array.Empty<TableBase>();
 
-            var ok = TSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
+            var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
 
             Assert.That(ok, Is.True, error);
             Assert.That(expr, Is.Not.Null);
@@ -197,7 +197,7 @@ namespace SqExpress.Test.SqlParser
                 CreateTable("dbo", "Users", a => a.AppendInt32Column("Id"))
             };
 
-            var ok = TSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
+            var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
 
             Assert.That(ok, Is.False);
             Assert.That(expr, Is.Null);
@@ -213,7 +213,7 @@ namespace SqExpress.Test.SqlParser
 
             Assert.Throws<ArgumentNullException>(() =>
             {
-                TSqlParser.TryParse(sql, null!, out expr, out error);
+                SqTSqlParser.TryParse(sql, null!, out expr, out error);
             });
         }
 
@@ -226,7 +226,7 @@ namespace SqExpress.Test.SqlParser
                 CreateTable("dbo", "Users", a => a.AppendInt32Column("Id"))
             };
 
-            var ex = Assert.Throws<SqExpressTSqlParserException>(() => TSqlParser.Parse(sql, existing));
+            var ex = Assert.Throws<SqExpressTSqlParserException>(() => SqTSqlParser.Parse(sql, existing));
             Assert.That(ex!.Message, Does.Contain("SELECT list is missing"));
         }
 
@@ -240,7 +240,7 @@ namespace SqExpress.Test.SqlParser
                 CreateTable("dbo", "Orders", a => a.AppendInt32Column("OrderId"))
             };
 
-            var ex = Assert.Throws<SqExpressTSqlParserException>(() => TSqlParser.Parse(sql, existing));
+            var ex = Assert.Throws<SqExpressTSqlParserException>(() => SqTSqlParser.Parse(sql, existing));
             Assert.That(ex!.Message, Does.Contain("Missing tables: [dbo].[Orders]"));
         }
 

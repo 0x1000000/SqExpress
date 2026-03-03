@@ -20,7 +20,7 @@ namespace SqExpress.Test.SqlParser
                 "JoIn (SeLeCt x.UserId,x.Amount FrOm C x) c On c.UserId=u.UserId " +
                 "wHeRe u.CreatedAt>='2025-01-01' aNd u.IsActive=1";
 
-            var ok = TSqlParser.TryParse(sql, out IExpr? _, out var tables, out var error);
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? _, out var tables, out var error);
 
             Assert.That(ok, Is.True, error);
             Assert.That(tables, Is.Not.Null);
@@ -50,7 +50,7 @@ namespace SqExpress.Test.SqlParser
                 "wHeN mAtChEd tHeN uPdAtE sEt t.Name=src.Name,t.UpdatedAt='2025-01-02' " +
                 "wHeN nOt mAtChEd tHeN iNsErT(UserId,Name,Balance) vAlUeS(src.UserId,src.Name,src.Balance);";
 
-            var ok = TSqlParser.TryParse(sql, out IExpr? _, out var tables, out var error);
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? _, out var tables, out var error);
 
             Assert.That(ok, Is.True, error);
             Assert.That(tables, Is.Not.Null);
@@ -77,7 +77,7 @@ namespace SqExpress.Test.SqlParser
                 "jOiN dbo.Orders o On o.UserId=u.UserId " +
                 "wHeRe o.Title LiKe 'A%' aNd u.IsDeleted iS nUlL;";
 
-            var ok = TSqlParser.TryParse(sql, out IExpr? _, out var tables, out var error);
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? _, out var tables, out var error);
 
             Assert.That(ok, Is.True, error);
             Assert.That(tables, Is.Not.Null);
@@ -103,7 +103,7 @@ namespace SqExpress.Test.SqlParser
                 "wHeRe u.Email='a@b.com' " +
                 "aNd eXiStS(sElEcT 1 FrOm dbo.Orders o wHeRe o.UserId=u.UserId aNd o.Amount>1.25);";
 
-            var ok = TSqlParser.TryParse(sql, out IExpr? _, out var tables, out var error);
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? _, out var tables, out var error);
 
             Assert.That(ok, Is.True, error);
             Assert.That(tables, Is.Not.Null);

@@ -17,7 +17,7 @@ namespace SqExpress.Test.SqlParser
         public void EmptySqlReturnsError()
         {
 
-            var ok = TSqlParser.TryParse("   ", out IExpr? _, out var error);
+            var ok = SqTSqlParser.TryParse("   ", out IExpr? _, out var error);
 
             Assert.That(ok, Is.False);
             Assert.That(error, Is.EqualTo("SQL text cannot be empty."));
@@ -27,7 +27,7 @@ namespace SqExpress.Test.SqlParser
         public void MultipleStatementsReturnError()
         {
 
-            var ok = TSqlParser.TryParse("SELECT 1; SELECT 2", out IExpr? _, out var error);
+            var ok = SqTSqlParser.TryParse("SELECT 1; SELECT 2", out IExpr? _, out var error);
 
             Assert.That(ok, Is.False);
             Assert.That(error, Is.EqualTo("Only one SQL statement is supported."));
@@ -38,7 +38,7 @@ namespace SqExpress.Test.SqlParser
         {
             var sql = "SELECT 1;";
 
-            var ok = TSqlParser.TryParse(sql, out var expr, out var errors);
+            var ok = SqTSqlParser.TryParse(sql, out var expr, out var errors);
 
             Assert.That(ok, Is.True, errors == null ? null : string.Join("\n", errors));
             Assert.That(expr, Is.Not.Null);
@@ -49,7 +49,7 @@ namespace SqExpress.Test.SqlParser
         {
             var sql = "UPDATE u SET u.[Name]=[o].[Title] FROM [dbo].[Users] [u] JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[UserId]";
 
-            var ok = TSqlParser.TryParse(sql, out var expr, out var errors);
+            var ok = SqTSqlParser.TryParse(sql, out var expr, out var errors);
 
             Assert.That(ok, Is.True, errors == null ? null : string.Join("\n", errors));
             Assert.That(expr, Is.Not.Null);
@@ -61,7 +61,7 @@ namespace SqExpress.Test.SqlParser
         {
             var sql = "WITH R AS(SELECT 1) SELECT [R].[A] FROM [R]";
 
-            var ok = TSqlParser.TryParse(sql, out var expr, out var errors);
+            var ok = SqTSqlParser.TryParse(sql, out var expr, out var errors);
 
             Assert.That(ok, Is.True, errors == null ? null : string.Join("\n", errors));
             Assert.That(expr, Is.Not.Null);
@@ -75,7 +75,7 @@ namespace SqExpress.Test.SqlParser
         {
             var sql = "SELECT [s].[value] FROM STRING_SPLIT('a,b',',') [s]";
 
-            var ok = TSqlParser.TryParse(sql, out IExpr? _, out var tables, out var errors);
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? _, out var tables, out var errors);
 
             Assert.That(ok, Is.True, errors);
             Assert.That(tables, Is.Not.Null);
@@ -87,7 +87,7 @@ namespace SqExpress.Test.SqlParser
         {
             var sql = "SELECT [v].[Id] FROM (VALUES (1),(2))[v]([Id])";
 
-            var ok = TSqlParser.TryParse(sql, out IExpr? _, out var tables, out var errors);
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? _, out var tables, out var errors);
 
             Assert.That(ok, Is.True, errors);
             Assert.That(tables, Is.Not.Null);
@@ -99,7 +99,7 @@ namespace SqExpress.Test.SqlParser
         {
             var sql = "MERGE [dbo].[Users] [t] USING [dbo].[UsersStaging] [s] ON [t].[UserId]=[s].[UserId] WHEN MATCHED THEN UPDATE SET [t].[Name]=[s].[Name];";
 
-            var ok = TSqlParser.TryParse(sql, out IExpr? _, out var tables, out var errors);
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? _, out var tables, out var errors);
 
             Assert.That(ok, Is.True, errors);
             Assert.That(tables, Is.Not.Null);
@@ -112,7 +112,7 @@ namespace SqExpress.Test.SqlParser
         {
             var sql = "/*head*/ SELECT [u].[UserId] -- tail\nFROM [dbo].[Users] [u]";
 
-            var ok = TSqlParser.TryParse(sql, out IExpr? _, out var tables, out var errors);
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? _, out var tables, out var errors);
 
             Assert.That(ok, Is.True, errors);
             Assert.That(tables, Is.Not.Null);
@@ -125,7 +125,7 @@ namespace SqExpress.Test.SqlParser
         {
             var sql = "SELECT U.Id,U2.Name FROM Users U CROSS JOIN Users U2";
 
-            var ok = TSqlParser.TryParse(sql, out var expr, out var error);
+            var ok = SqTSqlParser.TryParse(sql, out var expr, out var error);
 
             Assert.That(ok, Is.True, error);
             Assert.That(expr!.ToSql(TSqlExporter.Default), Is.EqualTo("SELECT [U].[Id],[U2].[Name] FROM [dbo].[Users] [U] CROSS JOIN [dbo].[Users] [U2]"));
@@ -137,7 +137,7 @@ namespace SqExpress.Test.SqlParser
         {
             var sql = "UPDATE [u] SET [u].[Name]=[o].[Title] FROM [dbo].[Users] [u] JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[UserId] WHERE [o].[Title] LIKE 'A%'";
 
-            var ok = TSqlParser.TryParse(sql, out var expr, out var error);
+            var ok = SqTSqlParser.TryParse(sql, out var expr, out var error);
 
             Assert.That(ok, Is.True, error);
             Assert.That(expr, Is.TypeOf<ExprUpdate>());
@@ -166,7 +166,7 @@ namespace SqExpress.Test.SqlParser
         {
             var sql = "SELECT CASE WHEN [u].[IsActive]=1 THEN 'Y' ELSE 'N' END FROM [dbo].[Users] [u]";
 
-            var ok = TSqlParser.TryParse(sql, out var expr, out var error);
+            var ok = SqTSqlParser.TryParse(sql, out var expr, out var error);
 
             Assert.That(ok, Is.True, error);
             Assert.That(expr, Is.TypeOf<ExprQuerySpecification>());
@@ -185,7 +185,7 @@ namespace SqExpress.Test.SqlParser
         {
             var sql = "SELECT COUNT(1) [Total] FROM [dbo].[Users]";
 
-            var parseOk = TSqlParser.TryParse(sql, out var expr, out var tables, out var parseError);
+            var parseOk = SqTSqlParser.TryParse(sql, out var expr, out var tables, out var parseError);
 
             Assert.That(parseOk, Is.True, parseError);
             Assert.That(tables, Is.Not.Null);

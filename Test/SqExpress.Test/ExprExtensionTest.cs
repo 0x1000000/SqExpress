@@ -1,10 +1,16 @@
 ﻿#nullable enable
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using SqExpress.DataAccess;
 using SqExpress.QueryBuilders.Select;
+using SqExpress.SqlParser;
+using SqExpress.Syntax;
+using SqExpress.Syntax.Internal;
+using ExprValue = SqExpress.Syntax.Value.ExprValue;
+using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.Test
 {
@@ -99,6 +105,97 @@ namespace SqExpress.Test
             });
 
         }
+
+        [Test]
+        public void WithParams_Dictionary_ReplacesParameters()
+        {
+            const string sql = "SELECT @id [Id], @name [Name]";
+            Assert.That(SqTSqlParser.TryParse(sql, out IExpr? expr, out var error), Is.True, error);
+
+            var replaced = expr!.WithParams(new Dictionary<string, ExprValue>
+            {
+                {"id", Literal(1)},
+                {"name", Literal("John")}
+            });
+
+            Assert.That(replaced.SyntaxTree().Descendants().OfType<ExprParameter>().Any(), Is.False);
+            var exported = replaced.ToSql();
+            Assert.That(exported, Does.Not.Contain("@id"));
+            Assert.That(exported, Does.Not.Contain("@name"));
+            Assert.That(exported, Does.Contain("'John'"));
+        }
+
+        [Test]
+        public void WithParams_Dictionary_ThrowsWhenParameterMissing()
+        {
+            const string sql = "SELECT @id [Id], @name [Name]";
+            Assert.That(SqTSqlParser.TryParse(sql, out IExpr? expr, out var error), Is.True, error);
+
+            var ex = Assert.Throws<SqExpressException>(() => expr!.WithParams(new Dictionary<string, ExprValue>
+            {
+                {"id", Literal(1)}
+            }));
+
+            Assert.That(ex!.Message, Does.Contain("Could not find parameter name"));
+        }
+
+        [Test]
+        public void WithParams_Dictionary_UsesExactNameMatching()
+        {
+            const string sql = "SELECT @id [Id]";
+            Assert.That(SqTSqlParser.TryParse(sql, out IExpr? expr, out var error), Is.True, error);
+
+            var ex = Assert.Throws<SqExpressException>(() => expr!.WithParams(new Dictionary<string, ExprValue>
+            {
+                {"@id", Literal(1)}
+            }));
+
+            Assert.That(ex!.Message, Does.Contain("Could not find parameter id"));
+        }
+
+#if NET8_0_OR_GREATER
+        [Test]
+        public void WithParams_Span_ReplacesParameters()
+        {
+            const string sql = "SELECT @id [Id], @name [Name]";
+            Assert.That(SqTSqlParser.TryParse(sql, out IExpr? expr, out var error), Is.True, error);
+
+            var replaced = expr!.WithParams(
+                ("id", 1),
+                ("name", "John"));
+
+            Assert.That(replaced.SyntaxTree().Descendants().OfType<ExprParameter>().Any(), Is.False);
+            var exported = replaced.ToSql();
+            Assert.That(exported, Does.Not.Contain("@id"));
+            Assert.That(exported, Does.Not.Contain("@name"));
+            Assert.That(exported, Does.Contain("'John'"));
+        }
+
+        [Test]
+        public void WithParams_Span_ThrowsOnDuplicateName()
+        {
+            const string sql = "SELECT @id [Id]";
+            Assert.That(SqTSqlParser.TryParse(sql, out IExpr? expr, out var error), Is.True, error);
+
+            var ex = Assert.Throws<SqExpressException>(() => expr!.WithParams(
+                ("id", 1),
+                ("id", 2)));
+
+            Assert.That(ex!.Message, Does.Contain("Duplicate parameter name 'id'"));
+        }
+
+        [Test]
+        public void WithParams_Span_ThrowsOnEmptyName()
+        {
+            const string sql = "SELECT @id [Id]";
+            Assert.That(SqTSqlParser.TryParse(sql, out IExpr? expr, out var error), Is.True, error);
+
+            var ex = Assert.Throws<SqExpressException>(() => expr!.WithParams(
+                ("", 1)));
+
+            Assert.That(ex!.Message, Does.Contain("Parameter name cannot be null or empty"));
+        }
+#endif
 
         private static TestSqDatabase.QueryDelegate<object> BuildQueryDelegate(IQuerySpecificationBuilderInitial? query, Tuple<int, string>[] testData)
         {

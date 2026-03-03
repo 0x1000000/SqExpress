@@ -11,7 +11,7 @@ namespace SqExpress.Test.SqlParser
         public void InvalidSyntaxReturnsError(string sql, string expectedError)
         {
 
-            var ok = TSqlParser.TryParse(sql, out IExpr? _, out var error);
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? _, out var error);
 
             Assert.That(ok, Is.False);
             Assert.That(error, Is.EqualTo(expectedError));
@@ -22,7 +22,7 @@ namespace SqExpress.Test.SqlParser
         {
             var sql = "SELECT [u].[UserId] FROM [dbo].[Users] [u] WHERE [u].[Name]='x'; DROP TABLE [dbo].[Users]";
 
-            var ok = TSqlParser.TryParse(sql, out IExpr? _, out var error);
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? _, out var error);
 
             Assert.That(ok, Is.False);
             Assert.That(error, Is.EqualTo("Only one SQL statement is supported."));
@@ -33,7 +33,7 @@ namespace SqExpress.Test.SqlParser
         {
             var sql = "SELECT [u].[UserId] FROM [dbo].[Users] [u] WHERE [u].[Name]='x''; DROP TABLE [dbo].[Users]'";
 
-            var ok = TSqlParser.TryParse(sql, out IExpr? expr, out var errors);
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var errors);
 
             Assert.That(ok, Is.True, errors == null ? null : string.Join("\n", errors));
             Assert.That(expr, Is.Not.Null);

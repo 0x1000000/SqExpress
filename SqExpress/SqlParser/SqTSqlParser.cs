@@ -10,7 +10,7 @@ using SqExpress.Syntax;
 
 namespace SqExpress.SqlParser
 {
-    public static class TSqlParser
+    public static class SqTSqlParser
     {
         public static IExpr Parse(string sql, IReadOnlyList<TableBase> existingTables)
         {

@@ -15,7 +15,7 @@ namespace SqExpress.Test.SqlParser
             const string sql =
                 @"SELECT LEN([u].[Name]) [NameLen],DATALENGTH([u].[Name]) [NameBytes],CHARINDEX('bc',[u].[Name]) [Idx],LEFT([u].[Name],3) [L],RIGHT([u].[Name],2) [R],REPLICATE('ab',3) [Rep] FROM [dbo].[Users] [u]";
 
-            var ok = TSqlParser.TryParse(sql, out IExpr? expr, out var error);
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var error);
 
             Assert.That(ok, Is.True, error);
             Assert.That(expr, Is.Not.Null);
@@ -47,7 +47,7 @@ namespace SqExpress.Test.SqlParser
             const string sql =
                 @"SELECT YEAR([u].[CreatedAt]) [Y],MONTH([u].[CreatedAt]) [M],DAY([u].[CreatedAt]) [D] FROM [dbo].[Users] [u]";
 
-            var ok = TSqlParser.TryParse(sql, out IExpr? expr, out var error);
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var error);
 
             Assert.That(ok, Is.True, error);
             Assert.That(expr, Is.Not.Null);
