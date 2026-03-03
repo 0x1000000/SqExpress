@@ -2,7 +2,7 @@
 
 ![Logo](https://github.com/0x1000000/SqExpress/blob/main/SqExpress/Icon.png)
 
-The library provides a generic SQL syntax tree with export to MS T-SQL, PostgreSQL, and MySQL text. It includes polyfills to compensate for features lacking in certain databases, such as the "MERGE" command. It also provides a set of builders and operators that will help you build complex SQL expressions.
+The library provides a generic SQL syntax tree with export to MS T-SQL, PostgreSQL, and MySQL text. It includes polyfills to compensate for features lacking in certain databases, such as the "MERGE" command. It also provides a set of builders and operators that will help you build complex SQL expressions. It also includes a T-SQL parser (`SqTSqlParser`) for converting existing SQL text into SqExpress AST.
 
 It does not use LINQ, and your C# code will be as close to real SQL as possible. This makes it ideal when you need full SQL flexibility to create efficient DB requests.
 
@@ -56,10 +56,11 @@ You can also use it in conjunction with the "Database First" concept using an in
 
 ### Working with Expressions
 
-1. [Syntax Tree](#syntax-tree) (Traversal and Modification)
-2. [Serialization to XML](#serialization-to-xml)
-3. [Serialization to JSON](#serialization-to-json)
-4. [Serialization to Plain List](#serialization-to-plain-list)
+1. [T-SQL Parser (SqTSqlParser)](#t-sql-parser-sqtsqlparser)
+2. [Syntax Tree](#syntax-tree) (Traversal and Modification)
+3. [Serialization to XML](#serialization-to-xml)
+4. [Serialization to JSON](#serialization-to-json)
+5. [Serialization to Plain List](#serialization-to-plain-list)
 
 ### Code-generation
 
@@ -131,6 +132,25 @@ static void Main()
 
     Console.WriteLine(TSqlExporter.Default.ToSql(query));
 }
+```
+
+As a second quick example, you can parse existing T-SQL and then modify/export it:
+
+```cs
+using SqExpress.SqlParser;
+
+static void Main()
+{
+    var expr = SqTSqlParser.Parse("SELECT 'Hi,' + @userName + '!'", []).WithParams(("userName", "John"));
+
+    Console.WriteLine(expr.ToSql(TSqlExporter.Default));
+}
+```
+
+The result will be:
+
+```
+SELECT 'Hi,'+'John'+'!'
 ```
 
 Now let's get rid of the necessity in writing **"SqQueryBuilder."**:
@@ -1452,6 +1472,80 @@ tbl = tbl.With(
         .AddUniqueIndex(app.Desc("modifyDate"))
 );
 ```
+
+## T-SQL Parser (SqTSqlParser)
+
+SqExpress can parse a T-SQL statement into `IExpr` and then you can export it to any supported dialect or modify the AST.
+
+```cs
+using SqExpress.SqlParser;
+
+var expr = SqTSqlParser.Parse(
+    "SELECT 'Hi,' + @userName + '!'",
+    existingTables: []);
+
+var query = expr.WithParams(("userName", "John"));
+
+Console.WriteLine(query.ToSql(TSqlExporter.Default));
+// SELECT 'Hi,'+'John'+'!'
+```
+
+Validation overloads are also available:
+
+```cs
+if (SqTSqlParser.TryParse(sqlText, out IExpr? expr, out var tables, out var error))
+{
+    Console.WriteLine($"Parsed tables: {tables.Count}");
+}
+else
+{
+    Console.WriteLine(error);
+}
+```
+
+`tables` (the `out` argument) contains table artifacts extracted from the parsed SQL.  
+You can use it for diagnostics, metadata checks, or custom validation.
+
+If you already know which tables should be present, use the overload with `existingTables` (`in`) for strict validation.
+In practice, these known table descriptors usually come from the `Gen-Tables` utility output:
+
+```cs
+IReadOnlyList<TableBase> expectedTables = new TableBase[]
+{
+    new TableUser(),
+    new TableCustomer()
+};
+
+if (SqTSqlParser.TryParse(sqlText, expectedTables, out IExpr? expr, out var error))
+{
+    Console.WriteLine("SQL tables match expected descriptors");
+}
+else
+{
+    // error includes details about missing/extra tables and column differences
+    Console.WriteLine(error);
+}
+```
+
+If you prefer exception-based flow, use `Parse(sqlText, expectedTables)`.  
+It throws `SqExpressTSqlParserException` when SQL references missing tables/columns (relative to provided descriptors):
+
+```cs
+try
+{
+    var expr = SqTSqlParser.Parse(sqlText, expectedTables);
+    Console.WriteLine("Parsed successfully");
+}
+catch (SqExpressTSqlParserException ex)
+{
+    Console.WriteLine(ex.Message);
+}
+```
+
+Notes:
+- `SqTSqlParser` parses one statement at a time.
+- Named parameters like `@userName` are represented as `ExprParameter` and can be replaced with `WithParams(...)`.
+- In `WithParams(...)`, use parameter names without `@` (for example, `"userName"`).
 
 ## Syntax Tree
 

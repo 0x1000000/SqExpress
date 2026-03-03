@@ -16,7 +16,9 @@
   - `CurrentDate`, `CurrentTime`, `CurrentTimestamp`
   - `IndexOf`, `Left`, `Right`, `Repeat`
 - Added dialect mappings for portable scalar functions in `TSqlBuilder`, `PgSqlBuilder`, and `MySqlBuilder`.
-- Added `TSqlParser` mapping for common function names (`LEN`, `DATALENGTH`, `CHARINDEX`, `LEFT`, `RIGHT`, `REPLICATE`, date-part functions, and current date/time functions) to portable AST nodes, enabling consistent export to PostgreSQL/MySQL.
+- Added an optional SQL-import workflow via `SqTSqlParser.Parse(...)`, including:
+  - support for T-SQL named parameters (`@name`) mapped to `ExprParameter` with `WithParams(...)` replacement helpers
+  - mapping for common T-SQL functions (`LEN`, `DATALENGTH`, `CHARINDEX`, `LEFT`, `RIGHT`, `REPLICATE`, date-part/current date-time functions) to portable AST nodes for PostgreSQL/MySQL export
 
 # 1.1.1
 ### Bugfix
