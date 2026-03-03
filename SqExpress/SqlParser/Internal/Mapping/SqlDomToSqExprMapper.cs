@@ -15,6 +15,7 @@ using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Select.SelectItems;
+using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Update;
 using SqExpress.Syntax.Value;
 
@@ -1537,10 +1538,15 @@ namespace SqExpress.SqlParser.Internal.Mapping
             {
                 var functionName = fnParts[fnParts.Count - 1];
                 var upperName = functionName.ToUpperInvariant();
-                var args = ParseFunctionArgs(argTokens, context);
+
+                if (upperName == "CAST")
+                {
+                    return ParseValue(sql, context);
+                }
 
                 if (tailTokens.Count > 0 && tailTokens[0].IsKeyword("OVER"))
                 {
+                    var args = ParseFunctionArgs(argTokens, context);
                     var overTokens = ExtractOverTokens(tailTokens);
                     var over = ParseOverClause(overTokens, context);
                     return new ExprAnalyticFunction(new ExprFunctionName(true, functionName), args, over);
@@ -1548,6 +1554,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
 
                 if (tailTokens.Count == 0 && (upperName == "COUNT" || upperName == "SUM" || upperName == "AVG" || upperName == "MIN" || upperName == "MAX"))
                 {
+                    var args = ParseFunctionArgs(argTokens, context);
                     var distinct = false;
                     ExprValue argument;
                     if (args == null || args.Count < 1)
@@ -2250,6 +2257,11 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     return this.ParseCase();
                 }
 
+                if (current.IsKeyword("CAST"))
+                {
+                    return this.ParseCast();
+                }
+
                 if (current.Type == SqlTokenType.StringLiteral)
                 {
                     this._index++;
@@ -2335,6 +2347,342 @@ namespace SqExpress.SqlParser.Internal.Mapping
 
 	                throw new MapException("Value token is not supported: " + current.Text + " in [" + this._sourceSql + "]");
 	            }
+
+            private ExprCast ParseCast()
+            {
+                this.ExpectKeyword("CAST", "CAST expression should start with CAST keyword.");
+                this.ExpectType(SqlTokenType.OpenParen, "CAST expression should contain '(' after CAST.");
+                var inner = this.ReadBalancedInner();
+                if (inner.Count < 3)
+                {
+                    throw new MapException("CAST expression is invalid.");
+                }
+
+                var asIndex = FindTopLevelAsIndex(inner);
+                if (asIndex <= 0 || asIndex >= inner.Count - 1)
+                {
+                    throw new MapException("CAST expression should contain 'AS <type>'.");
+                }
+
+                var valueSql = string.Join(" ", inner.Take(asIndex).Select(i => i.Text));
+                var valueExpr = new ExprParser(valueSql, this._context).ParseValue();
+                var typeTokens = inner.Skip(asIndex + 1).ToList();
+                var type = ParseCastType(typeTokens);
+
+                return new ExprCast(valueExpr, type);
+            }
+
+            private static int FindTopLevelAsIndex(IReadOnlyList<SqlToken> tokens)
+            {
+                var depth = 0;
+                for (var i = 0; i < tokens.Count; i++)
+                {
+                    if (tokens[i].Type == SqlTokenType.OpenParen)
+                    {
+                        depth++;
+                        continue;
+                    }
+
+                    if (tokens[i].Type == SqlTokenType.CloseParen)
+                    {
+                        if (depth > 0)
+                        {
+                            depth--;
+                        }
+
+                        continue;
+                    }
+
+                    if (depth == 0 && tokens[i].IsKeyword("AS"))
+                    {
+                        return i;
+                    }
+                }
+
+                return -1;
+            }
+
+            private static ExprType ParseCastType(IReadOnlyList<SqlToken> tokens)
+            {
+                if (tokens.Count < 1 || !tokens[0].IsIdentifierLike)
+                {
+                    throw new MapException("CAST target type is invalid.");
+                }
+
+                var index = 0;
+                var typeName = tokens[index].IdentifierValue;
+                index++;
+
+                while (index + 1 < tokens.Count
+                       && tokens[index].Type == SqlTokenType.Dot
+                       && tokens[index + 1].IsIdentifierLike)
+                {
+                    typeName = tokens[index + 1].IdentifierValue;
+                    index += 2;
+                }
+
+                IReadOnlyList<SqlToken>? argTokens = null;
+                if (index < tokens.Count)
+                {
+                    if (tokens[index].Type != SqlTokenType.OpenParen)
+                    {
+                        throw new MapException("CAST target type is invalid.");
+                    }
+
+                    argTokens = ReadParenthesizedTokens(tokens, ref index);
+                }
+
+                if (index != tokens.Count)
+                {
+                    throw new MapException("CAST target type is invalid.");
+                }
+
+                var normalized = typeName.ToUpperInvariant();
+                switch (normalized)
+                {
+                    case "BIT":
+                        AssertNoArguments(argTokens, typeName);
+                        return ExprTypeBoolean.Instance;
+
+                    case "TINYINT":
+                        AssertNoArguments(argTokens, typeName);
+                        return ExprTypeByte.Instance;
+
+                    case "SMALLINT":
+                        AssertNoArguments(argTokens, typeName);
+                        return ExprTypeInt16.Instance;
+
+                    case "INT":
+                    case "INTEGER":
+                        AssertNoArguments(argTokens, typeName);
+                        return ExprTypeInt32.Instance;
+
+                    case "BIGINT":
+                        AssertNoArguments(argTokens, typeName);
+                        return ExprTypeInt64.Instance;
+
+                    case "DECIMAL":
+                    case "NUMERIC":
+                        return new ExprTypeDecimal(ParseDecimalPrecisionScale(argTokens, typeName));
+
+                    case "FLOAT":
+                    case "REAL":
+                        AssertNoArguments(argTokens, typeName);
+                        return ExprTypeDouble.Instance;
+
+                    case "DATE":
+                        AssertNoArguments(argTokens, typeName);
+                        return new ExprTypeDateTime(isDate: true);
+
+                    case "DATETIME":
+                    case "SMALLDATETIME":
+                        AssertNoArguments(argTokens, typeName);
+                        return new ExprTypeDateTime(isDate: false);
+
+                    case "DATETIME2":
+                        AssertOptionalSingleIntArgument(argTokens, typeName, minInclusive: 0, maxInclusive: 7);
+                        return new ExprTypeDateTime(isDate: false);
+
+                    case "DATETIMEOFFSET":
+                        AssertOptionalSingleIntArgument(argTokens, typeName, minInclusive: 0, maxInclusive: 7);
+                        return ExprTypeDateTimeOffset.Instance;
+
+                    case "UNIQUEIDENTIFIER":
+                        AssertNoArguments(argTokens, typeName);
+                        return ExprTypeGuid.Instance;
+
+                    case "VARCHAR":
+                        return new ExprTypeString(ParseLengthOrMax(argTokens, typeName, allowMax: true, defaultLength: 30), isUnicode: false, isText: false);
+
+                    case "NVARCHAR":
+                        return new ExprTypeString(ParseLengthOrMax(argTokens, typeName, allowMax: true, defaultLength: 30), isUnicode: true, isText: false);
+
+                    case "CHAR":
+                        return new ExprTypeFixSizeString(ParseRequiredLength(argTokens, typeName, defaultLength: 30), isUnicode: false);
+
+                    case "NCHAR":
+                        return new ExprTypeFixSizeString(ParseRequiredLength(argTokens, typeName, defaultLength: 30), isUnicode: true);
+
+                    case "TEXT":
+                        AssertNoArguments(argTokens, typeName);
+                        return new ExprTypeString(size: null, isUnicode: false, isText: true);
+
+                    case "NTEXT":
+                        AssertNoArguments(argTokens, typeName);
+                        return new ExprTypeString(size: null, isUnicode: true, isText: true);
+
+                    case "BINARY":
+                        return new ExprTypeFixSizeByteArray(ParseRequiredLength(argTokens, typeName, defaultLength: 30));
+
+                    case "VARBINARY":
+                        return new ExprTypeByteArray(ParseLengthOrMax(argTokens, typeName, allowMax: true, defaultLength: 30));
+
+                    case "XML":
+                        AssertNoArguments(argTokens, typeName);
+                        return ExprTypeXml.Instance;
+
+                    default:
+                        throw new MapException("CAST type '" + typeName + "' is not supported by SqExpress parser.");
+                }
+            }
+
+            private static IReadOnlyList<SqlToken> ReadParenthesizedTokens(IReadOnlyList<SqlToken> tokens, ref int index)
+            {
+                index++;
+                var depth = 1;
+                var result = new List<SqlToken>();
+
+                while (index < tokens.Count)
+                {
+                    var token = tokens[index];
+                    index++;
+
+                    if (token.Type == SqlTokenType.OpenParen)
+                    {
+                        depth++;
+                        result.Add(token);
+                        continue;
+                    }
+
+                    if (token.Type == SqlTokenType.CloseParen)
+                    {
+                        depth--;
+                        if (depth == 0)
+                        {
+                            return result;
+                        }
+
+                        result.Add(token);
+                        continue;
+                    }
+
+                    result.Add(token);
+                }
+
+                throw new MapException("CAST target type arguments are invalid.");
+            }
+
+            private static DecimalPrecisionScale? ParseDecimalPrecisionScale(IReadOnlyList<SqlToken>? argTokens, string typeName)
+            {
+                if (argTokens == null || argTokens.Count < 1)
+                {
+                    return null;
+                }
+
+                var args = SplitComma(argTokens);
+                if (args.Count != 1 && args.Count != 2)
+                {
+                    throw new MapException("Type '" + typeName + "' expects one or two numeric arguments.");
+                }
+
+                var precision = ParseSingleIntToken(args[0], typeName, minInclusive: 1);
+                int? scale = null;
+                if (args.Count == 2)
+                {
+                    scale = ParseSingleIntToken(args[1], typeName, minInclusive: 0);
+                    if (scale.Value > precision)
+                    {
+                        throw new MapException("Type '" + typeName + "' scale cannot be greater than precision.");
+                    }
+                }
+
+                return new DecimalPrecisionScale(precision, scale);
+            }
+
+            private static int ParseRequiredLength(IReadOnlyList<SqlToken>? argTokens, string typeName, int defaultLength)
+            {
+                return ParseLengthOrMax(argTokens, typeName, allowMax: false, defaultLength)
+                       ?? throw new MapException("Type '" + typeName + "' cannot use MAX length.");
+            }
+
+            private static int? ParseLengthOrMax(IReadOnlyList<SqlToken>? argTokens, string typeName, bool allowMax, int defaultLength)
+            {
+                if (argTokens == null || argTokens.Count < 1)
+                {
+                    return defaultLength;
+                }
+
+                var args = SplitComma(argTokens);
+                if (args.Count != 1)
+                {
+                    throw new MapException("Type '" + typeName + "' expects a single length argument.");
+                }
+
+                var valueToken = args[0];
+                if (valueToken.Count != 1)
+                {
+                    throw new MapException("Type '" + typeName + "' length argument is invalid.");
+                }
+
+                var single = valueToken[0];
+                if (single.IsKeyword("MAX"))
+                {
+                    if (!allowMax)
+                    {
+                        throw new MapException("Type '" + typeName + "' cannot use MAX length.");
+                    }
+
+                    return null;
+                }
+
+                if (single.Type != SqlTokenType.NumberLiteral
+                    || !int.TryParse(single.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var size)
+                    || size < 1)
+                {
+                    throw new MapException("Type '" + typeName + "' length argument is invalid.");
+                }
+
+                return size;
+            }
+
+            private static void AssertNoArguments(IReadOnlyList<SqlToken>? argTokens, string typeName)
+            {
+                if (argTokens != null && argTokens.Count > 0)
+                {
+                    throw new MapException("Type '" + typeName + "' does not accept arguments.");
+                }
+            }
+
+            private static void AssertOptionalSingleIntArgument(
+                IReadOnlyList<SqlToken>? argTokens,
+                string typeName,
+                int minInclusive,
+                int maxInclusive)
+            {
+                if (argTokens == null || argTokens.Count < 1)
+                {
+                    return;
+                }
+
+                var args = SplitComma(argTokens);
+                if (args.Count != 1)
+                {
+                    throw new MapException("Type '" + typeName + "' expects a single numeric argument.");
+                }
+
+                _ = ParseSingleIntToken(args[0], typeName, minInclusive, maxInclusive);
+            }
+
+            private static int ParseSingleIntToken(
+                IReadOnlyList<SqlToken> arg,
+                string typeName,
+                int minInclusive,
+                int? maxInclusive = null)
+            {
+                if (arg.Count != 1
+                    || arg[0].Type != SqlTokenType.NumberLiteral
+                    || !int.TryParse(arg[0].Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
+                {
+                    throw new MapException("Type '" + typeName + "' numeric argument is invalid.");
+                }
+
+                if (value < minInclusive || (maxInclusive.HasValue && value > maxInclusive.Value))
+                {
+                    throw new MapException("Type '" + typeName + "' numeric argument is out of range.");
+                }
+
+                return value;
+            }
 
 	            private static bool TryMapPortableScalarFunction(string name, IReadOnlyList<ExprValue>? args, [NotNullWhen(true)] out ExprPortableScalarFunction? result)
 	            {
