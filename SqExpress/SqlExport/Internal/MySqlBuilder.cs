@@ -933,27 +933,6 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseCurrentDate(ExprPortableScalarFunction ctx)
-        {
-            this.AssertArgumentsCount(ctx.Arguments, 0, ctx.PortableFunction);
-            this.Builder.Append("CURRENT_DATE()");
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseCurrentTime(ExprPortableScalarFunction ctx)
-        {
-            this.AssertArgumentsCount(ctx.Arguments, 0, ctx.PortableFunction);
-            this.Builder.Append("CURRENT_TIME()");
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseCurrentTimestamp(ExprPortableScalarFunction ctx)
-        {
-            this.AssertArgumentsCount(ctx.Arguments, 0, ctx.PortableFunction);
-            this.Builder.Append("CURRENT_TIMESTAMP()");
-            return true;
-        }
-
         bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseIndexOf(ExprPortableScalarFunction ctx)
         {
             this.AppendFunctionTwoArgs("LOCATE", ctx.Arguments, ctx);

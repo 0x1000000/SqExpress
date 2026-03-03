@@ -354,21 +354,6 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
         }
 
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseCurrentDate(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitDateTime(ctx.Ctx, false);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseCurrentTime(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitDateTime(ctx.Ctx, false);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseCurrentTimestamp(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitDateTime(ctx.Ctx, false);
-        }
-
         TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseIndexOf(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
         {
             return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);

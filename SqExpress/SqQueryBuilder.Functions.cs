@@ -218,15 +218,6 @@ namespace SqExpress
         public static ExprPortableScalarFunction Second(ExprValue value)
             => new ExprPortableScalarFunction(PortableScalarFunction.Second, new[] { value });
 
-        public static ExprPortableScalarFunction CurrentDate()
-            => new ExprPortableScalarFunction(PortableScalarFunction.CurrentDate, null);
-
-        public static ExprPortableScalarFunction CurrentTime()
-            => new ExprPortableScalarFunction(PortableScalarFunction.CurrentTime, null);
-
-        public static ExprPortableScalarFunction CurrentTimestamp()
-            => new ExprPortableScalarFunction(PortableScalarFunction.CurrentTimestamp, null);
-
         public static ExprPortableScalarFunction IndexOf(ExprValue searchValue, ExprValue value)
             => new ExprPortableScalarFunction(PortableScalarFunction.IndexOf, new[] { searchValue, value });
 

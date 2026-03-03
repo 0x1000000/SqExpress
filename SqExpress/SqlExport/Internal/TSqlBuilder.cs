@@ -679,27 +679,6 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseCurrentDate(ExprPortableScalarFunction ctx)
-        {
-            this.AssertArgumentsCount(ctx.Arguments, 0, ctx.PortableFunction);
-            this.Builder.Append("CAST(GETDATE() AS date)");
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseCurrentTime(ExprPortableScalarFunction ctx)
-        {
-            this.AssertArgumentsCount(ctx.Arguments, 0, ctx.PortableFunction);
-            this.Builder.Append("CAST(GETDATE() AS time)");
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseCurrentTimestamp(ExprPortableScalarFunction ctx)
-        {
-            this.AssertArgumentsCount(ctx.Arguments, 0, ctx.PortableFunction);
-            this.Builder.Append("GETDATE()");
-            return true;
-        }
-
         bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseIndexOf(ExprPortableScalarFunction ctx)
         {
             this.AppendFunctionTwoArgs("CHARINDEX", ctx.Arguments, ctx);

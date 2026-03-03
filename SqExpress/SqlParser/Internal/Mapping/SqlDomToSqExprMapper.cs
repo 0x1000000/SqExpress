@@ -11,6 +11,7 @@ using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
+using SqExpress.Syntax.Functions.Known;
 using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
@@ -2312,12 +2313,20 @@ namespace SqExpress.SqlParser.Internal.Mapping
 	                    if (this.TryType(SqlTokenType.OpenParen))
 	                    {
 	                        var argsTokens = this.ReadBalancedInner();
-	                        var args = argsTokens.Count == 0
+	                        var argSegments = argsTokens.Count == 0
 	                            ? null
-	                            : SplitComma(argsTokens).Select(i => new ExprParser(string.Join(" ", i.Select(t => t.Text)), this._context).ParseValue()).ToList();
+	                            : SplitComma(argsTokens);
+	                        var args = argSegments == null
+	                            ? null
+	                            : argSegments.Select(i => new ExprParser(string.Join(" ", i.Select(t => t.Text)), this._context).ParseValue()).ToList();
 
 	                        if (parts.Count == 1)
 	                        {
+	                            if (TryMapKnownScalarFunction(parts[0], argSegments, args, out var known))
+	                            {
+	                                return known;
+	                            }
+
 	                            if (TryMapPortableScalarFunction(parts[0], args, out var portable))
 	                            {
 	                                return portable;
@@ -2684,6 +2693,294 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 return value;
             }
 
+            private static bool TryMapKnownScalarFunction(
+                string name,
+                IReadOnlyList<IReadOnlyList<SqlToken>>? argSegments,
+                IReadOnlyList<ExprValue>? args,
+                [NotNullWhen(true)] out ExprValue? result)
+            {
+                result = null;
+                var normalized = name.ToUpperInvariant();
+
+                switch (normalized)
+                {
+                    case "GETDATE":
+                    case "SYSDATETIME":
+                    case "CURRENT_TIMESTAMP":
+                        if (argSegments == null || argSegments.Count == 0)
+                        {
+                            result = ExprGetDate.Instance;
+                            return true;
+                        }
+
+                        return false;
+
+                    case "GETUTCDATE":
+                    case "SYSUTCDATETIME":
+                    case "GETUTCNOW":
+                        if (argSegments == null || argSegments.Count == 0)
+                        {
+                            result = ExprGetUtcDate.Instance;
+                            return true;
+                        }
+
+                        return false;
+
+                    case "DATEADD":
+                        return TryMapDateAdd(argSegments, args, out result);
+
+                    case "DATEDIFF":
+                        return TryMapDateDiff(argSegments, args, out result);
+
+                    case "ISNULL":
+                        return TryMapIsNull(args, out result);
+
+                    case "COALESCE":
+                        return TryMapCoalesce(args, out result);
+
+                    default:
+                        return false;
+                }
+            }
+
+            private static bool TryMapDateAdd(
+                IReadOnlyList<IReadOnlyList<SqlToken>>? argSegments,
+                IReadOnlyList<ExprValue>? args,
+                [NotNullWhen(true)] out ExprValue? result)
+            {
+                result = null;
+                if (argSegments == null || args == null || argSegments.Count != 3 || args.Count != 3)
+                {
+                    return false;
+                }
+
+                if (!TryParseDateAddPart(argSegments[0], out var part))
+                {
+                    return false;
+                }
+
+                if (!TryParseIntConstant(argSegments[1], out var number))
+                {
+                    return false;
+                }
+
+                result = new ExprDateAdd(part, number, args[2]);
+                return true;
+            }
+
+            private static bool TryMapDateDiff(
+                IReadOnlyList<IReadOnlyList<SqlToken>>? argSegments,
+                IReadOnlyList<ExprValue>? args,
+                [NotNullWhen(true)] out ExprValue? result)
+            {
+                result = null;
+                if (argSegments == null || args == null || argSegments.Count != 3 || args.Count != 3)
+                {
+                    return false;
+                }
+
+                if (!TryParseDateDiffPart(argSegments[0], out var part))
+                {
+                    return false;
+                }
+
+                result = new ExprDateDiff(part, args[1], args[2]);
+                return true;
+            }
+
+            private static bool TryMapIsNull(
+                IReadOnlyList<ExprValue>? args,
+                [NotNullWhen(true)] out ExprValue? result)
+            {
+                result = null;
+                if (args == null || args.Count != 2)
+                {
+                    return false;
+                }
+
+                result = new ExprFuncIsNull(args[0], args[1]);
+                return true;
+            }
+
+            private static bool TryMapCoalesce(
+                IReadOnlyList<ExprValue>? args,
+                [NotNullWhen(true)] out ExprValue? result)
+            {
+                result = null;
+                if (args == null || args.Count < 2)
+                {
+                    return false;
+                }
+
+                result = new ExprFuncCoalesce(args[0], args.Skip(1).ToList());
+                return true;
+            }
+
+            private static bool TryParseDateAddPart(IReadOnlyList<SqlToken> tokens, out DateAddDatePart part)
+            {
+                if (!TryGetDatePartTokenValue(tokens, out var value))
+                {
+                    part = default;
+                    return false;
+                }
+
+                switch (value.ToUpperInvariant())
+                {
+                    case "YEAR":
+                    case "YY":
+                    case "YYYY":
+                        part = DateAddDatePart.Year;
+                        return true;
+
+                    case "MONTH":
+                    case "MM":
+                    case "M":
+                        part = DateAddDatePart.Month;
+                        return true;
+
+                    case "DAY":
+                    case "DD":
+                    case "D":
+                        part = DateAddDatePart.Day;
+                        return true;
+
+                    case "WEEK":
+                    case "WK":
+                    case "WW":
+                        part = DateAddDatePart.Week;
+                        return true;
+
+                    case "HOUR":
+                    case "HH":
+                        part = DateAddDatePart.Hour;
+                        return true;
+
+                    case "MINUTE":
+                    case "MI":
+                    case "N":
+                        part = DateAddDatePart.Minute;
+                        return true;
+
+                    case "SECOND":
+                    case "SS":
+                    case "S":
+                        part = DateAddDatePart.Second;
+                        return true;
+
+                    case "MILLISECOND":
+                    case "MS":
+                        part = DateAddDatePart.Millisecond;
+                        return true;
+
+                    default:
+                        part = default;
+                        return false;
+                }
+            }
+
+            private static bool TryParseDateDiffPart(IReadOnlyList<SqlToken> tokens, out DateDiffDatePart part)
+            {
+                if (!TryGetDatePartTokenValue(tokens, out var value))
+                {
+                    part = default;
+                    return false;
+                }
+
+                switch (value.ToUpperInvariant())
+                {
+                    case "YEAR":
+                    case "YY":
+                    case "YYYY":
+                        part = DateDiffDatePart.Year;
+                        return true;
+
+                    case "MONTH":
+                    case "MM":
+                    case "M":
+                        part = DateDiffDatePart.Month;
+                        return true;
+
+                    case "DAY":
+                    case "DD":
+                    case "D":
+                        part = DateDiffDatePart.Day;
+                        return true;
+
+                    case "HOUR":
+                    case "HH":
+                        part = DateDiffDatePart.Hour;
+                        return true;
+
+                    case "MINUTE":
+                    case "MI":
+                    case "N":
+                        part = DateDiffDatePart.Minute;
+                        return true;
+
+                    case "SECOND":
+                    case "SS":
+                    case "S":
+                        part = DateDiffDatePart.Second;
+                        return true;
+
+                    case "MILLISECOND":
+                    case "MS":
+                        part = DateDiffDatePart.Millisecond;
+                        return true;
+
+                    default:
+                        part = default;
+                        return false;
+                }
+            }
+
+            private static bool TryGetDatePartTokenValue(IReadOnlyList<SqlToken> tokens, [NotNullWhen(true)] out string? value)
+            {
+                value = null;
+                if (tokens.Count != 1)
+                {
+                    return false;
+                }
+
+                var token = tokens[0];
+                if (token.IsIdentifierLike)
+                {
+                    value = token.IdentifierValue;
+                    return true;
+                }
+
+                if (token.Type == SqlTokenType.StringLiteral)
+                {
+                    value = token.Text.Length >= 2 ? token.Text.Substring(1, token.Text.Length - 2).Replace("''", "'") : string.Empty;
+                    return true;
+                }
+
+                return false;
+            }
+
+            private static bool TryParseIntConstant(IReadOnlyList<SqlToken> tokens, out int value)
+            {
+                value = 0;
+                if (tokens.Count == 1
+                    && tokens[0].Type == SqlTokenType.NumberLiteral
+                    && int.TryParse(tokens[0].Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
+                {
+                    return true;
+                }
+
+                if (tokens.Count == 2
+                    && tokens[0].Type == SqlTokenType.Operator
+                    && (tokens[0].Text == "-" || tokens[0].Text == "+")
+                    && tokens[1].Type == SqlTokenType.NumberLiteral
+                    && int.TryParse(tokens[1].Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n))
+                {
+                    value = tokens[0].Text == "-" ? -n : n;
+                    return true;
+                }
+
+                return false;
+            }
+
 	            private static bool TryMapPortableScalarFunction(string name, IReadOnlyList<ExprValue>? args, [NotNullWhen(true)] out ExprPortableScalarFunction? result)
 	            {
 	                result = null;
@@ -2739,29 +3036,8 @@ namespace SqExpress.SqlParser.Internal.Mapping
 	                        }
 	                        return false;
 
-	                    case "CURRENT_DATE":
-	                        return TryCreateNoArg(PortableScalarFunction.CurrentDate, args, out result);
-
-	                    case "CURRENT_TIME":
-	                        return TryCreateNoArg(PortableScalarFunction.CurrentTime, args, out result);
-
-	                    case "CURRENT_TIMESTAMP":
-	                        return TryCreateNoArg(PortableScalarFunction.CurrentTimestamp, args, out result);
-
 	                    default:
 	                        return false;
-	                }
-
-	                static bool TryCreateNoArg(PortableScalarFunction function, IReadOnlyList<ExprValue>? args0, [NotNullWhen(true)] out ExprPortableScalarFunction? res0)
-	                {
-	                    if (args0 == null || args0.Count == 0)
-	                    {
-	                        res0 = new ExprPortableScalarFunction(function, null);
-	                        return true;
-	                    }
-
-	                    res0 = null;
-	                    return false;
 	                }
 
 	                static bool TryCreateSingleArg(PortableScalarFunction function, IReadOnlyList<ExprValue>? args1, [NotNullWhen(true)] out ExprPortableScalarFunction? res1)

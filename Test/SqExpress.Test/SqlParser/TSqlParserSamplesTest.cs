@@ -368,7 +368,7 @@ namespace SqExpress.Test.SqlParser
             new PgSample(
                 "Select_KnownFunctions",
                 @"SELECT ABS([u].[V1]) [Total],LEN([u].[V2]) [NameLen],DATEADD(d,1,[u].[V3]) [NextAt] FROM [dbo].[Users] [u]",
-                @"SELECT ABS(""u"".""V1"") ""Total"",CHAR_LENGTH(""u"".""V2"") ""NameLen"",DATEADD(""d"",1,""u"".""V3"") ""NextAt"" FROM ""dbo"".""Users"" ""u""",
+                @"SELECT ABS(""u"".""V1"") ""Total"",CHAR_LENGTH(""u"".""V2"") ""NameLen"",""u"".""V3""+INTERVAL'1d' ""NextAt"" FROM ""dbo"".""Users"" ""u""",
                 null
             ),
             new PgSample(
@@ -422,13 +422,13 @@ namespace SqExpress.Test.SqlParser
             new PgSample(
                 "Select_DateAddAlias",
                 @"SELECT DATEADD(d,1,[u].[CreatedAt]) [NextDate] FROM [dbo].[Users] [u]",
-                @"SELECT DATEADD(""d"",1,""u"".""CreatedAt"") ""NextDate"" FROM ""dbo"".""Users"" ""u""",
+                @"SELECT ""u"".""CreatedAt""+INTERVAL'1d' ""NextDate"" FROM ""dbo"".""Users"" ""u""",
                 null
             ),
             new PgSample(
                 "Select_DateDiff",
                 @"SELECT DATEDIFF(DAY,[u].[CreatedAt],[u].[UpdatedAt]) [Days] FROM [dbo].[Users] [u]",
-                @"SELECT DATEDIFF(""DAY"",""u"".""CreatedAt"",""u"".""UpdatedAt"") ""Days"" FROM ""dbo"".""Users"" ""u""",
+                @"SELECT CAST(DATE_PART('DAY',DATE_TRUNC('DAY',""u"".""UpdatedAt"")-DATE_TRUNC('DAY',""u"".""CreatedAt"")) AS int4) ""Days"" FROM ""dbo"".""Users"" ""u""",
                 null
             ),
             new PgSample(
@@ -446,19 +446,19 @@ namespace SqExpress.Test.SqlParser
             new PgSample(
                 "Select_GetDate",
                 @"SELECT GETDATE() [Now]",
-                @"SELECT GETDATE() ""Now""",
+                @"SELECT now() ""Now""",
                 null
             ),
             new PgSample(
                 "Select_GetUtcDate",
                 @"SELECT GETUTCDATE() [NowUtc]",
-                @"SELECT GETUTCDATE() ""NowUtc""",
+                @"SELECT now() at time zone 'utc' ""NowUtc""",
                 null
             ),
             new PgSample(
                 "Select_IsNullFunction",
                 @"SELECT ISNULL([u].[Name],'NA') [Name2] FROM [dbo].[Users] [u]",
-                @"SELECT ISNULL(""u"".""Name"",'NA') ""Name2"" FROM ""dbo"".""Users"" ""u""",
+                @"SELECT COALESCE(""u"".""Name"",'NA') ""Name2"" FROM ""dbo"".""Users"" ""u""",
                 null
             ),
             new PgSample(
