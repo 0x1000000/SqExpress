@@ -619,6 +619,12 @@ namespace SqExpress
         public static ExprOver WithFrameClause(this ExprOver original, ExprFrameClause? newFrameClause) 
             => new ExprOver(partitions: original.Partitions, orderBy: original.OrderBy, frameClause: newFrameClause);
 
+        public static ExprParameter WithReplacedValue(this ExprParameter original, ExprValue? newReplacedValue) 
+            => new ExprParameter(replacedValue: newReplacedValue, tagName: original.TagName);
+
+        public static ExprParameter WithTagName(this ExprParameter original, String? newTagName) 
+            => new ExprParameter(replacedValue: original.ReplacedValue, tagName: newTagName);
+
         public static ExprPortableScalarFunction WithArguments(this ExprPortableScalarFunction original, IReadOnlyList<ExprValue>? newArguments) 
             => new ExprPortableScalarFunction(arguments: newArguments, PortableFunction: original.PortableFunction);
 

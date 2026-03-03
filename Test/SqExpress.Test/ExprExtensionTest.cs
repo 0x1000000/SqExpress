@@ -8,9 +8,9 @@ using SqExpress.DataAccess;
 using SqExpress.QueryBuilders.Select;
 using SqExpress.SqlParser;
 using SqExpress.Syntax;
-using SqExpress.Syntax.Internal;
 using ExprValue = SqExpress.Syntax.Value.ExprValue;
 using static SqExpress.SqQueryBuilder;
+using SqExpress.Syntax.Value;
 
 namespace SqExpress.Test
 {

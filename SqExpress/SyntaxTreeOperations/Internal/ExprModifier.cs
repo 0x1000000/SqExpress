@@ -162,11 +162,6 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             return modifier.Invoke(exprIn);
         }
 
-        IExpr? IExprValueVisitorInternal<IExpr?, Func<IExpr, IExpr?>>.VisitExprParameter(ExprParameter exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-
         //CodeGenStart
         public IExpr? VisitExprAggregateFunction(ExprAggregateFunction exprIn, Func<IExpr, IExpr?> modifier)
         {
@@ -963,6 +958,15 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             if(!ReferenceEquals(exprIn.Partitions, newPartitions) || !ReferenceEquals(exprIn.OrderBy, newOrderBy) || !ReferenceEquals(exprIn.FrameClause, newFrameClause))
             {
                 exprIn = new ExprOver(partitions: newPartitions, orderBy: newOrderBy, frameClause: newFrameClause);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprParameter(ExprParameter exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newReplacedValue = this.AcceptNullableItem(exprIn.ReplacedValue, modifier);
+            if(!ReferenceEquals(exprIn.ReplacedValue, newReplacedValue))
+            {
+                exprIn = new ExprParameter(replacedValue: newReplacedValue, tagName: exprIn.TagName);
             }
             return modifier.Invoke(exprIn);
         }

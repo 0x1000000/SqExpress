@@ -10,7 +10,6 @@ using SqExpress.QueryBuilders.Update;
 using SqExpress.SqlExport;
 using SqExpress.StatementSyntax;
 using SqExpress.Syntax;
-using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Value;
 using SqExpress.SyntaxTreeOperations;

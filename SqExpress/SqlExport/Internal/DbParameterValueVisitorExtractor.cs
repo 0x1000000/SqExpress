@@ -3,14 +3,13 @@ using SqExpress.Syntax;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
-using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Value;
 
 namespace SqExpress.SqlExport.Internal;
 
-internal class DbParameterValueVisitorExtractor: IExprValueVisitorInternal<DbParameterValue?, string?>
+internal class DbParameterValueVisitorExtractor: IExprValueVisitor<DbParameterValue?, string?>
 {
     public static readonly DbParameterValueVisitorExtractor Instance = new DbParameterValueVisitorExtractor();
 
