@@ -1,11 +1,12 @@
-﻿using SqExpress.SqlExport.Internal;
+﻿using System.Collections.Generic;
+using SqExpress.SqlExport.Internal;
 using SqExpress.SqlExport.Statement.Internal;
 using SqExpress.StatementSyntax;
 using SqExpress.Syntax;
 
 namespace SqExpress.SqlExport
 {
-    public class TSqlExporter : ISqlExporter
+    public class TSqlExporter : ISqlExporterInternal
     {
         public static readonly TSqlExporter Default = new TSqlExporter(SqlBuilderOptions.Default);
 
@@ -18,13 +19,7 @@ namespace SqExpress.SqlExport
 
         public string ToSql(IExpr expr)
         {
-            var sqlExporter = new TSqlBuilder(this._builderOptions);
-            if (expr.Accept(sqlExporter, null))
-            {
-                return sqlExporter.ToString();
-            }
-
-            throw new SqExpressException("Could not build Sql");
+            return ((ISqlExporterInternal)this).ToSql(expr, out _);
         }
 
         public string ToSql(IStatement statement)
@@ -33,5 +28,20 @@ namespace SqExpress.SqlExport
             statement.Accept(builder);
             return builder.Build();
         }
+
+        string ISqlExporterInternal.ToSql(IExpr expr, out IReadOnlyList<DbParameterValue>? parameters)
+        {
+            var sqlExporter = new TSqlBuilder(this._builderOptions);
+            if (expr.Accept(sqlExporter, null))
+            {
+                var sql = sqlExporter.ToString();
+                parameters = sqlExporter.ParameterValues;
+                return sql;
+            }
+
+            throw new SqExpressException("Could not build Sql");
+        }
+
+        int ISqlExporterInternal.ParametersLimit => 2000;
     }
 }

@@ -118,7 +118,7 @@ namespace SqExpress.Test.QueryBuilder
                 .IdentityInsert()
                 .Done();
 
-            string expected = "INSERT INTO \"public\".\"user\"(\"UserId\",\"FirstName\") OVERRIDING SYSTEM VALUE VALUES (0,'First0');select setval(pg_get_serial_sequence('\"public\".\"user\"','UserId'),(SELECT MAX(\"UserId\") FROM \"public\".\"user\"));";
+            string expected = "WITH \"__sqexpress_identity_insert\" AS (INSERT INTO \"public\".\"user\"(\"UserId\",\"FirstName\") OVERRIDING SYSTEM VALUE VALUES (0,'First0')  RETURNING \"UserId\") SELECT setval(pg_get_serial_sequence('\"public\".\"user\"','UserId'),GREATEST((SELECT MAX(\"UserId\") FROM \"public\".\"user\"),(SELECT MAX(\"UserId\") FROM \"__sqexpress_identity_insert\"))) FROM \"__sqexpress_identity_insert\" LIMIT 1";
             Assert.AreEqual(expected, expr.ToPgSql());
         }
 

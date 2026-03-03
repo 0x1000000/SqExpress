@@ -4,7 +4,7 @@ namespace SqExpress.Syntax.Boolean.Predicate
 {
     public class ExprLike : ExprPredicate
     {
-        public ExprLike(ExprValue test, ExprStringLiteral pattern)
+        public ExprLike(ExprValue test, ExprValue pattern)
         {
             this.Test = test;
             this.Pattern = pattern;
@@ -12,7 +12,7 @@ namespace SqExpress.Syntax.Boolean.Predicate
 
         public ExprValue Test { get; }
 
-        public ExprStringLiteral Pattern { get; }
+        public ExprValue Pattern { get; }
 
         public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprLike(this, arg);

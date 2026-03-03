@@ -11,7 +11,7 @@ namespace SqExpress.QueryBuilders.RecordSetter.Internal
 
         private int? _capacity;
 
-        private List<ExprLiteral>? _record;
+        private List<ExprValue>? _record;
 
         public int Index { get; private set; } = -1;
 
@@ -19,7 +19,7 @@ namespace SqExpress.QueryBuilders.RecordSetter.Internal
 
         public TItem Source { get; private set; }
 
-        public IReadOnlyList<ExprLiteral>? Record => this._record;
+        public IReadOnlyList<ExprValue>? Record => this._record;
 
         public IReadOnlyList<ExprColumnName> Columns => this._columns;
 
@@ -34,7 +34,7 @@ namespace SqExpress.QueryBuilders.RecordSetter.Internal
             this.Index++;
             this.Source = item;
             this._capacity = length;
-            this._record = length.HasValue ? new List<ExprLiteral>(length.Value) : new List<ExprLiteral>();
+            this._record = length.HasValue ? new List<ExprValue>(length.Value) : new List<ExprValue>();
         }
 
         public void EnsureRecordLength()
@@ -48,7 +48,7 @@ namespace SqExpress.QueryBuilders.RecordSetter.Internal
             }
         }
 
-        protected override IRecordSetterNext SetGeneric(ExprColumn column, ExprLiteral value)
+        protected override IRecordSetterNext SetGeneric(ExprColumn column, ExprValue value)
         {
             var record = this._record.AssertFatalNotNull(nameof(this._record));
             if (this._capacity.HasValue && record.Count == this._capacity)

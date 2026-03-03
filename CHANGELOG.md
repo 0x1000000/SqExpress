@@ -1,3 +1,25 @@
+# 1.2.0
+### New Features
+- Added non-generic syntax tree visitor support with `IExprVisitor` and `ExprVisitorBase`.
+- `ExprVisitorBase` now provides traversal context via `CurrentPath`, `CurrentNode`, and `Depth`.
+- Added parametrization modes to `SqDatabase`:
+  - `None`
+  - `ThrowOnLimit`
+  - `LiteralFallback`
+- Added exporter parameter limits used by parametrization:
+  - `TSqlExporter`: `2000`
+  - `PgSqlExporter`: `65535`
+  - `MySqlExporter`: `65535`
+- Added `ExprPortableScalarFunction` / `PortableScalarFunction` and portable helpers in `SqQueryBuilder` (T-SQL-first names):
+  - `Len`, `DataLength`
+  - `Year`, `Month`, `Day`, `Hour`, `Minute`, `Second`
+  - `CurrentDate`, `CurrentTime`, `CurrentTimestamp`
+  - `IndexOf`, `Left`, `Right`, `Repeat`
+- Added dialect mappings for portable scalar functions in `TSqlBuilder`, `PgSqlBuilder`, and `MySqlBuilder`.
+- Added an optional SQL-import workflow via `SqTSqlParser.Parse(...)`, including:
+  - support for T-SQL named parameters (`@name`) mapped to `ExprParameter` with `WithParams(...)` replacement helpers
+  - mapping for common T-SQL functions (`LEN`, `DATALENGTH`, `CHARINDEX`, `LEFT`, `RIGHT`, `REPLICATE`, date-part/current date-time functions) to portable AST nodes for PostgreSQL/MySQL export
+
 # 1.1.1
 ### Bugfix
 - Missed **CreateNullableStringColumn** in **DerivedTableBase**.

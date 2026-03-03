@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Data.Common;
-using System.Runtime.CompilerServices;
-using System.Threading;
-using System.Threading.Tasks;
-using SqExpress.DataAccess.Internal;
+﻿using SqExpress.DataAccess.Internal;
 using SqExpress.DbMetadata;
 using SqExpress.DbMetadata.Internal;
 using SqExpress.DbMetadata.Internal.DbManagers;
@@ -15,6 +8,16 @@ using SqExpress.DbMetadata.Internal.DbManagers.PgSql;
 using SqExpress.DbMetadata.Internal.Model;
 using SqExpress.SqlExport;
 using SqExpress.StatementSyntax;
+using SqExpress.Syntax;
+using SqExpress.SyntaxTreeOperations.Internal;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.Common;
+using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
+using SqExpress.SqlExport.Internal;
 
 namespace SqExpress.DataAccess
 {
@@ -86,10 +89,29 @@ namespace SqExpress.DataAccess
 
         private readonly bool _disposeConnection;
 
+        private readonly ParametrizationMode _parametrizationMode;
+
         private SqTransaction? _currentTransaction;
 
         private int _isDisposed;
 
+        public SqDatabase(
+            TConnection connection,
+            Func<TConnection, string, DbCommand> commandFactory,
+            ISqlExporter sqlExporter,
+            ParametrizationMode parametrizationMode,
+            bool disposeConnection = false)
+        {
+            this._connection = connection;
+            this._commandFactory = commandFactory;
+            this._sqlExporter = sqlExporter;
+            this._disposeConnection = disposeConnection;
+            this._parametrizationMode = parametrizationMode;
+            this._wasClosed = this._connection.State == ConnectionState.Closed;
+        }
+
+
+        [Obsolete("Specify parametrization mode")]
         public SqDatabase(
             TConnection connection, 
             Func<TConnection, string, DbCommand> commandFactory, 
@@ -100,6 +122,7 @@ namespace SqExpress.DataAccess
             this._commandFactory = commandFactory;
             this._sqlExporter = sqlExporter;
             this._disposeConnection = disposeConnection;
+            this._parametrizationMode = ParametrizationMode.None;
             this._wasClosed = this._connection.State == ConnectionState.Closed;
         }
 
@@ -199,9 +222,8 @@ namespace SqExpress.DataAccess
         public async Task<object?> QueryScalar(IExprQuery query, CancellationToken cancellationToken = default)
         {
             this.CheckDisposed();
-            var sql = this._sqlExporter.ToSql(query);
 
-            var command = await this.CreateCommand(sql, cancellationToken);
+            var command = await this.CreateCommand(query, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
             object? result;
@@ -211,7 +233,7 @@ namespace SqExpress.DataAccess
             }
             catch (Exception e)
             {
-                throw new SqDatabaseCommandException(sql, e.Message, e);
+                throw new SqDatabaseCommandException(command.CommandText, e.Message, e);
             }
             return result;
         }
@@ -220,9 +242,8 @@ namespace SqExpress.DataAccess
         {
             this.CheckDisposed();
             var result = seed;
-            var sql = this._sqlExporter.ToSql(query);
 
-            var command = await this.CreateCommand(sql, cancellationToken);
+            var command = await this.CreateCommand(query, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
             DbDataReader? reader;
@@ -232,7 +253,7 @@ namespace SqExpress.DataAccess
             }
             catch (Exception e)
             {
-                throw new SqDatabaseCommandException(sql, e.Message, e);
+                throw new SqDatabaseCommandException(command.CommandText, e.Message, e);
             }
 
 #if !NETSTANDARD
@@ -261,9 +282,8 @@ namespace SqExpress.DataAccess
         {
             this.CheckDisposed();
             var result = seed;
-            var sql = this._sqlExporter.ToSql(query);
 
-            var command = await this.CreateCommand(sql, cancellationToken);
+            var command = await this.CreateCommand(query, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
             DbDataReader? reader;
@@ -273,7 +293,7 @@ namespace SqExpress.DataAccess
             }
             catch (Exception e)
             {
-                throw new SqDatabaseCommandException(sql, e.Message, e);
+                throw new SqDatabaseCommandException(command.CommandText, e.Message, e);
             }
 
 #if !NETSTANDARD
@@ -303,9 +323,8 @@ namespace SqExpress.DataAccess
         public async IAsyncEnumerable<ISqDataRecordReader> Query(IExprQuery query, [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             this.CheckDisposed();
-            var sql = this._sqlExporter.ToSql(query);
 
-            var command = await this.CreateCommand(sql, cancellationToken);
+            var command = await this.CreateCommand(query, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
             DbDataReader? reader;
@@ -315,7 +334,7 @@ namespace SqExpress.DataAccess
             }
             catch (Exception e)
             {
-                throw new SqDatabaseCommandException(sql, e.Message, e);
+                throw new SqDatabaseCommandException(command.CommandText, e.Message, e);
             }
 
             await using (reader)
@@ -335,9 +354,8 @@ namespace SqExpress.DataAccess
         public async Task Exec(IExprExec statement, CancellationToken cancellationToken = default)
         {
             this.CheckDisposed();
-            var sql = this._sqlExporter.ToSql(statement);
 
-            var command = await this.CreateCommand(sql, cancellationToken);
+            var command = await this.CreateCommand(statement, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
             try
@@ -346,16 +364,15 @@ namespace SqExpress.DataAccess
             }
             catch (Exception e)
             {
-                throw new SqDatabaseCommandException(sql, e.Message, e);
+                throw new SqDatabaseCommandException(command.CommandText, e.Message, e);
             }
         }
 
         public async Task Statement(IStatement statement, CancellationToken cancellationToken = default)
         {
             this.CheckDisposed();
-            var sql = this._sqlExporter.ToSql(statement);
 
-            var command = await this.CreateCommand(sql, cancellationToken);
+            var command = await this.CreateCommand(null, cancellationToken, statement);
             cancellationToken.ThrowIfCancellationRequested();
 
             try
@@ -364,7 +381,7 @@ namespace SqExpress.DataAccess
             }
             catch (Exception e)
             {
-                throw new SqDatabaseCommandException(sql, e.Message, e);
+                throw new SqDatabaseCommandException(command.CommandText, e.Message, e);
             }
         }
 
@@ -492,8 +509,32 @@ namespace SqExpress.DataAccess
             }
         }
 
-        private async Task<DbCommand> CreateCommand(string sql, CancellationToken cancellationToken)
+        private async Task<DbCommand> CreateCommand(IExpr? expr, CancellationToken cancellationToken, IStatement? statement = null)
         {
+            IReadOnlyList<DbParameterValue>? parameters = null;
+            string sql;
+            if (expr != null)
+            {
+                if (this._sqlExporter is ISqlExporterInternal iInternal)
+                {
+                    expr = this.Parametrize(expr, iInternal.ParametersLimit);
+                    sql = iInternal.ToSql(expr, out parameters);
+                }
+                else
+                {
+                    sql = this._sqlExporter.ToSql(expr);
+                }
+                    
+            }
+            else if(statement != null)
+            {
+                sql = this._sqlExporter.ToSql(statement);
+            }
+            else
+            {
+                throw new InvalidOperationException("Either expr or statement should be provided");
+            }
+
             DbCommand command;
             await this._tranSyncSemaphore.WaitAsync(cancellationToken);
             try
@@ -505,6 +546,18 @@ namespace SqExpress.DataAccess
                 }
 
                 command = this._commandFactory.Invoke(this._connection, sql);
+
+                if (parameters?.Count > 0)
+                {
+                    foreach (var parameter in parameters)
+                    {
+                        var p = command.CreateParameter();
+                        p.Value = parameter.Value;
+                        p.DbType = parameter.Type;
+                        p.ParameterName = parameter.Name;
+                        command.Parameters.Add(p);
+                    }
+                }
 
                 if (command.Transaction != null && this._currentTransaction != null)
                 {
@@ -526,6 +579,23 @@ namespace SqExpress.DataAccess
             }
 
             return command;
+        }
+
+        private IExpr Parametrize(IExpr expr, int limit)
+        {
+            if (this._parametrizationMode == ParametrizationMode.None)
+            {
+                return expr;
+            }
+
+            expr = expr.SyntaxTree().ParametrizeLiterals(limit, out var numOfParams, out var skips);
+
+            if (skips > 0 && this._parametrizationMode == ParametrizationMode.ThrowOnLimit)
+            {
+                throw new SqExpressException($"Number of parameters ({numOfParams + skips}) in the expression exceeds the limit {limit}");
+            }
+
+            return expr;
         }
 
         private void ReleaseTransaction()

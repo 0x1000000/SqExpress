@@ -11,7 +11,6 @@ using SqExpress.IntTest.Context;
 using SqExpress.IntTest.Tables;
 using SqExpress.IntTest.Tables.Models;
 using SqExpress.QueryBuilders.RecordSetter;
-using SqExpress.SqlExport;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.IntTest.Scenarios
@@ -229,7 +228,6 @@ namespace SqExpress.IntTest.Scenarios
                 .Set(s.Target.ColXml, s.Source.ColXml)
                 .Set(s.Target.ColNullableXml, s.Source.ColNullableXml)
                 ;
-
             return recordSetterNext;
         }
 

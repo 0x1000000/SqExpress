@@ -92,7 +92,7 @@ namespace SqExpress.Utils
                         var value = row.Items[valueIndex];
                         var previousColumn = tableColumns[valueIndex];
                         var res = value.Accept(
-                            ExprValueTypeAnalyzer<TableColumn?, TempTableBuilderCtx>.Instance,
+                            ExprValueVisitorTypeAnalyzer<TableColumn?, TempTableBuilderCtx>.Instance,
                             new ExprValueTypeAnalyzerCtx<TableColumn?, TempTableBuilderCtx>(
                                 new TempTableBuilderCtx(
                                     currentColumnName,

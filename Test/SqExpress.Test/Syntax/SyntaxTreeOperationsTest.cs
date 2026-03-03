@@ -54,6 +54,33 @@ namespace SqExpress.Test.Syntax
         }
 
         [Test]
+        public void NonGenericExprVisitorBaseTest()
+        {
+            IExpr expr = Literal(1) + Literal(2);
+            var visitor = new IntLiteralCounterNoArgVisitor();
+
+            expr.Accept(visitor);
+            Assert.AreEqual(2, visitor.Count);
+        }
+
+        [Test]
+        public void NonGenericExprVisitorBasePathTest()
+        {
+            IExpr expr = Literal(1) + Literal(2);
+            var visitor = new PathTrackingVisitor();
+
+            expr.Accept(visitor);
+
+            CollectionAssert.AreEqual(
+                new[] { "ExprSum>ExprInt32Literal", "ExprSum>ExprInt32Literal" },
+                visitor.Paths);
+            CollectionAssert.AreEqual(new[] { 1, 1 }, visitor.Depths);
+            Assert.AreEqual(0, visitor.CurrentPath.Count);
+            Assert.AreEqual(-1, visitor.Depth);
+            Assert.IsNull(visitor.CurrentNode);
+        }
+
+        [Test]
         public void WalkThroughParentTest()
         {
             var tUser = Tables.User();
@@ -239,6 +266,21 @@ namespace SqExpress.Test.Syntax
 
             Assert.AreEqual(selectExpr.ToSql(), deserialized.ToSql());
         }
+
+#endif
+
+#if NETCOREAPP
+        [Test]
+        public void TestImportPortableScalarFunctionJson()
+        {
+            const string json = "{\"$type\":\"PortableScalarFunction\",\"PortableFunction\":\"Len\",\"Arguments\":[{\"$type\":\"StringLiteral\",\"Value\":\"abc\"}]}";
+
+            var doc = System.Text.Json.JsonDocument.Parse(json);
+
+            var deserialized = ExprDeserializer.DeserializeFormJson(doc.RootElement);
+
+            Assert.AreEqual("LEN('abc')", deserialized.ToSql());
+        }
 #endif
 
         [Test]
@@ -288,5 +330,30 @@ namespace SqExpress.Test.Syntax
             var res = ExprDeserializer.DeserializeFormXml(doc.DocumentElement!);
             Assert.AreEqual(selectExpr.ToSql(), res.ToSql());
         }
+
+        private class IntLiteralCounterNoArgVisitor : ExprVisitorBase
+        {
+            public int Count { get; private set; }
+
+            public override void VisitExprInt32Literal(ExprInt32Literal expr)
+            {
+                this.Count++;
+                base.VisitExprInt32Literal(expr);
+            }
+        }
+
+        private class PathTrackingVisitor : ExprVisitorBase
+        {
+            public readonly List<string> Paths = new List<string>();
+            public readonly List<int> Depths = new List<int>();
+
+            public override void VisitExprInt32Literal(ExprInt32Literal expr)
+            {
+                this.Paths.Add(string.Join(">", this.CurrentPath.Select(i => i.GetType().Name)));
+                this.Depths.Add(this.Depth);
+                base.VisitExprInt32Literal(expr);
+            }
+        }
+
     }
 }

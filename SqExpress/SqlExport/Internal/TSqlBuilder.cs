@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using SqExpress.SqlExport.Statement.Internal;
@@ -6,7 +6,9 @@ using SqExpress.StatementSyntax;
 using SqExpress.Syntax;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Expressions;
+using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Select.SelectItems;
@@ -17,7 +19,7 @@ using SqExpress.Utils;
 
 namespace SqExpress.SqlExport.Internal
 {
-    internal class TSqlBuilder : SqlBuilderBase
+    internal class TSqlBuilder : SqlBuilderBase, IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>
     {
         public TSqlBuilder(SqlBuilderOptions? options = null, StringBuilder? externalBuilder = null) : base(options, externalBuilder, new SqlAliasGenerator(), false)
         {
@@ -625,6 +627,115 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public override bool VisitExprPortableScalarFunction(ExprPortableScalarFunction exprPortableScalarFunction, IExpr? arg)
+        {
+            return exprPortableScalarFunction.PortableFunction.Accept(this, exprPortableScalarFunction);
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseLen(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("LEN", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseDataLen(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("DATALENGTH", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseYear(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("YEAR", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseMonth(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("MONTH", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseDay(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("DAY", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseHour(ExprPortableScalarFunction ctx)
+        {
+            this.AppendDatePart("HOUR", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseMinute(ExprPortableScalarFunction ctx)
+        {
+            this.AppendDatePart("MINUTE", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseSecond(ExprPortableScalarFunction ctx)
+        {
+            this.AppendDatePart("SECOND", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseCurrentDate(ExprPortableScalarFunction ctx)
+        {
+            this.AssertArgumentsCount(ctx.Arguments, 0, ctx.PortableFunction);
+            this.Builder.Append("CAST(GETDATE() AS date)");
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseCurrentTime(ExprPortableScalarFunction ctx)
+        {
+            this.AssertArgumentsCount(ctx.Arguments, 0, ctx.PortableFunction);
+            this.Builder.Append("CAST(GETDATE() AS time)");
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseCurrentTimestamp(ExprPortableScalarFunction ctx)
+        {
+            this.AssertArgumentsCount(ctx.Arguments, 0, ctx.PortableFunction);
+            this.Builder.Append("GETDATE()");
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseIndexOf(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionTwoArgs("CHARINDEX", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseLeft(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionTwoArgs("LEFT", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseRight(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionTwoArgs("RIGHT", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseRepeat(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionTwoArgs("REPLICATE", ctx.Arguments, ctx);
+            return true;
+        }
+
+        private void AppendDatePart(string datePart, IReadOnlyList<ExprValue>? arguments, ExprPortableScalarFunction expr)
+        {
+            this.AssertArgumentsCount(arguments, 1, expr.PortableFunction);
+
+            this.Builder.Append("DATEPART(");
+            this.Builder.Append(datePart);
+            this.Builder.Append(',');
+            arguments![0].Accept(this, expr);
+            this.Builder.Append(')');
+        }
+
         public override bool VisitExprFuncIsNull(ExprFuncIsNull exprFuncIsNull, IExpr? parent)
         {
             this.Builder.Append("ISNULL(");
@@ -704,6 +815,60 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprTableFullName(ExprTableFullName exprTableFullName, IExpr? parent) 
             => this.VisitExprTableFullNameCommon(exprTableFullName, parent);
+
+        protected override bool VisitExprParameter(ExprParameter exprParameter, int paramNumber, IExpr? parent, out string? name)
+        {
+
+            if (!string.IsNullOrEmpty(exprParameter.TagName))
+            {
+                var tagName = exprParameter.TagName!;
+                name = $"@{NormalizeParameterTagName(tagName)}";
+
+                this.Builder.Append('(');
+                this.Builder.Append(name);
+                this.Builder.Append(')');
+            }
+            else
+            {
+                name = $"@{paramNumber}";
+                this.Builder.Append('(');
+                this.Builder.Append(name);
+                this.Builder.Append(')');
+            }
+
+            return true;
+        }
+
+        private static string NormalizeParameterTagName(string tagName)
+        {
+            var normalized = tagName[0] == '@' ? tagName.Substring(1) : tagName;
+
+            if (normalized.Length < 1 || !IsValidFirstChar(normalized[0]))
+            {
+                throw BuildInvalidTagNameException(tagName);
+            }
+
+            for (var i = 1; i < normalized.Length; i++)
+            {
+                if (!IsValidNonFirstChar(normalized[i]))
+                {
+                    throw BuildInvalidTagNameException(tagName);
+                }
+            }
+
+            return normalized;
+
+            static bool IsValidFirstChar(char c) => char.IsLetter(c) || c == '_';
+
+            static bool IsValidNonFirstChar(char c) => char.IsLetterOrDigit(c) || c == '_';
+
+            static SqExpressException BuildInvalidTagNameException(string name) =>
+                new SqExpressException(
+                    $"Invalid SQL parameter tag name '{name}'. Expected '@' optional prefix and identifier pattern '[A-Za-z_][A-Za-z0-9_]*'.");
+        }
+
+        protected override DbParameterValueVisitorExtractor GetDbParameterValueVisitorExtractor()
+            => DbParameterValueVisitorExtractor.Instance;
 
         public override void AppendName(string name, char? prefix = null)
         {

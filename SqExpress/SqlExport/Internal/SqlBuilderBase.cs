@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -40,6 +40,12 @@ namespace SqExpress.SqlExport.Internal
 
         private Dictionary<string, ExprCte>? _uniqueCteCheck;
 
+        private List<DbParameterValue>? _parameters;
+
+        private int _parameterNumberOffset;
+
+        private string? _renderedSql;
+
         protected SqlBuilderBase(SqlBuilderOptions? options, StringBuilder? externalBuilder, SqlAliasGenerator aliasGenerator, bool dismissCteInject)
         {
             this.Options = options ?? SqlBuilderOptions.Default;
@@ -47,6 +53,8 @@ namespace SqExpress.SqlExport.Internal
             this._dismissCteInject = dismissCteInject;
             this._aliasGenerator = aliasGenerator;
         }
+
+        public IReadOnlyList<DbParameterValue>? ParameterValues => this._parameters;
 
         protected abstract SqlBuilderBase CreateInstance(SqlAliasGenerator aliasGenerator, bool dismissCteInject);
 
@@ -243,7 +251,7 @@ namespace SqExpress.SqlExport.Internal
 
         protected abstract void EscapeStringLiteral(StringBuilder builder, string literal);
 
-        public bool VisitExprDateTimeLiteral(ExprDateTimeLiteral dateTimeLiteral, IExpr? parent)
+        public virtual bool VisitExprDateTimeLiteral(ExprDateTimeLiteral dateTimeLiteral, IExpr? parent)
         {
             if (!dateTimeLiteral.Value.HasValue)
             {
@@ -685,9 +693,13 @@ namespace SqExpress.SqlExport.Internal
             {
                 if (!ReferenceEquals(specification.Top, null))
                 {
-                    if (!ReferenceEquals(exprSelectOffsetFetch.OrderBy.OffsetFetch.Fetch, null) && exprSelectOffsetFetch.OrderBy.OffsetFetch.Fetch.Value.HasValue)
+                    if (!ReferenceEquals(exprSelectOffsetFetch.OrderBy.OffsetFetch.Fetch, null))
                     {
-                        throw new SqExpressException("Query with \"FETCH\" cannot be limited");
+                        var fetchFetch = exprSelectOffsetFetch.OrderBy.OffsetFetch.Fetch as ExprInt32Literal;
+                        if (ReferenceEquals(fetchFetch, null) || fetchFetch.Value.HasValue)
+                        {
+                            throw new SqExpressException("Query with \"FETCH\" cannot be limited");
+                        }
                     }
 
                     this.AppendSelectLimit(specification.Top, exprSelectOffsetFetch);
@@ -817,6 +829,7 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public abstract bool VisitExprPortableScalarFunction(ExprPortableScalarFunction exprPortableScalarFunction, IExpr? arg);
 
         public bool VisitExprTableFunction(ExprTableFunction exprTableFunction, IExpr? arg)
         {
@@ -1516,7 +1529,71 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public bool VisitExprParameter(ExprParameter exprParameter, IExpr? parent)
+        {
+            if (exprParameter.ReplacedValue is null)
+            {
+                throw new SqExpressException("Could not process pure parameter");
+            }
+            this._parameters ??= new List<DbParameterValue>();
+
+            if (this.VisitExprParameter(
+                    exprParameter,
+                    this._parameterNumberOffset + this._parameters.Count + 1,
+                    parent,
+                    out var paramName
+                ))
+            {
+                var dbParameterValue = exprParameter.ReplacedValue.Accept(this.GetDbParameterValueVisitorExtractor(), paramName);
+                if (!dbParameterValue.HasValue)
+                {
+                    throw new SqExpressException("Unsupported parameter value");
+                }
+
+                this._parameters.Add(dbParameterValue.Value);
+                return true;
+            }
+
+            return false;
+        }
+
+        protected abstract bool VisitExprParameter(ExprParameter exprParameter, int paramNumber, IExpr? parent, out string? name);
+
+        protected abstract DbParameterValueVisitorExtractor GetDbParameterValueVisitorExtractor();
+
         public abstract void AppendName(string name, char? prefix = null);
+
+        protected void AppendFunctionSingleArg(string name, IReadOnlyList<ExprValue>? arguments, ExprPortableScalarFunction expr)
+        {
+            this.AssertArgumentsCount(arguments, 1, expr.PortableFunction);
+
+            this.Builder.Append(name);
+            this.Builder.Append('(');
+            arguments![0].Accept(this, expr);
+            this.Builder.Append(')');
+        }
+
+        protected void AppendFunctionTwoArgs(string name, IReadOnlyList<ExprValue>? arguments, ExprPortableScalarFunction expr)
+        {
+            this.AssertArgumentsCount(arguments, 2, expr.PortableFunction);
+
+            this.Builder.Append(name);
+            this.Builder.Append('(');
+            arguments![0].Accept(this, expr);
+            this.Builder.Append(',');
+            arguments![1].Accept(this, expr);
+            this.Builder.Append(')');
+        }
+
+        protected void AssertArgumentsCount(IReadOnlyList<ExprValue>? arguments, int expected, PortableScalarFunction function)
+        {
+            var actual = arguments?.Count ?? 0;
+
+            if (actual != expected)
+            {
+                throw new SqExpressException($"Function \"{function}\" expects {expected} argument(s), but got {actual}.");
+            }
+        }
 
         protected void AppendNull()
         {
@@ -1722,16 +1799,27 @@ namespace SqExpress.SqlExport.Internal
             position = this._cteSlot.Value;
 
             var cteBuilder = this.CreateInstance(this._aliasGenerator, true);
+            cteBuilder._parameterNumberOffset = this._parameters?.Count ?? 0;
 
             var list = this._uniqueCteCheck.Values.ToList();
 
             cteBuilder.AcceptCteExpressions(list);
+            if (cteBuilder.ParameterValues?.Count > 0)
+            {
+                this._parameters ??= new List<DbParameterValue>();
+                this._parameters.AddRange(cteBuilder.ParameterValues);
+            }
 
             return cteBuilder.ToString();
         }
 
         public override string ToString()
         {
+            if (this._renderedSql != null)
+            {
+                return this._renderedSql;
+            }
+
             var result = this.Builder.ToString();
             if (!this._dismissCteInject)
             {
@@ -1741,7 +1829,9 @@ namespace SqExpress.SqlExport.Internal
                     result = result.Insert(ctePosition, cteResult);
                 }
             }
+            this._renderedSql = result;
             return result;
         }
+
     }
 }

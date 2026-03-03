@@ -66,7 +66,8 @@ namespace SqExpress.GetStarted
                 using (var database = new SqDatabase<SqlConnection>(
                     connection: connection,
                     commandFactory: SqlCommandFactory,
-                    sqlExporter: TSqlExporter.Default))
+                    sqlExporter: TSqlExporter.Default,
+                    ParametrizationMode.LiteralFallback))
                 {
                     await Script(database, isMsSql: true);
                 }
@@ -95,10 +96,14 @@ namespace SqExpress.GetStarted
                 }
 
                 using (var database = new SqDatabase<NpgsqlConnection>(
-                    connection: connection,
-                    commandFactory: NpgsqlCommandFactory,
-                    sqlExporter: new PgSqlExporter(builderOptions: SqlBuilderOptions.Default
-                        .WithSchemaMap(schemaMap: new[] { new SchemaMap(@from: "dbo", to: "public") }))))
+                           connection: connection,
+                           commandFactory: NpgsqlCommandFactory,
+                           sqlExporter: new PgSqlExporter(
+                               builderOptions: SqlBuilderOptions.Default
+                                   .WithSchemaMap(schemaMap: new[] { new SchemaMap(@from: "dbo", to: "public") })
+                           ),
+                           parametrizationMode: ParametrizationMode.LiteralFallback
+                       ))
                 {
                     await Script(database: database, isMsSql: false);
                 }
@@ -126,9 +131,11 @@ namespace SqExpress.GetStarted
                 }
 
                 using (var database = new SqDatabase<MySqlConnection>(
-                    connection: connection,
-                    commandFactory: MySqlCommandFactory,
-                    sqlExporter: new MySqlExporter(builderOptions: SqlBuilderOptions.Default)))
+                           connection: connection,
+                           commandFactory: MySqlCommandFactory,
+                           sqlExporter: new MySqlExporter(builderOptions: SqlBuilderOptions.Default),
+                           parametrizationMode: ParametrizationMode.LiteralFallback
+                       ))
                 {
                     await Script(database: database, isMsSql: false);
                 }
