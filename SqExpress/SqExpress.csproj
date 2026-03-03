@@ -66,7 +66,7 @@ Here’s an article that explains the library principles: [“Syntax Tree and Al
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="EnumVisitorGenerator" Version="1.1.0" />
+    <PackageReference Include="EnumVisitorGenerator" Version="1.1.0" PrivateAssets="all" />
   </ItemGroup>
 
   <Target Name="PreventPackInDebug" BeforeTargets="Pack" Condition="'$(Configuration)|$(Platform)'!='Release|AnyCPU'">
