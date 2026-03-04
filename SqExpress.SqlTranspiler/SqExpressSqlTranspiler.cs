@@ -104,6 +104,11 @@ namespace SqExpress.SqlTranspiler
                 throw new SqExpressSqlTranspilerException("Database-qualified scalar function calls are not supported yet.");
             }
 
+            if (ContainsEmptyGroupBy(sourceSql))
+            {
+                throw new SqExpressSqlTranspilerException("GROUP BY clause must contain at least one expression.");
+            }
+
             sourceSql = NormalizeBetween(sourceSql);
             sourceSql = NormalizeMergeAliasInSource(sourceSql);
 
@@ -1065,7 +1070,7 @@ namespace SqExpress.SqlTranspiler
             {
                 if (!string.IsNullOrWhiteSpace(p.TagName))
                 {
-                    kinds[p.TagName!] = ParamKind.String;
+                    kinds[p.TagName!] = InferKindFromColumnToken(p.TagName!);
                 }
             }
             if (kinds.Count < 1)
@@ -1172,10 +1177,332 @@ namespace SqExpress.SqlTranspiler
             }
         }
 
-        private static bool ContainsKeyword(string sql, string keyword) => sql.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0;
-        private static bool IsSelectInto(string sql) => Regex.IsMatch(sql, @"^\s*SELECT\b[\s\S]*\bINTO\b", RegexOptions.IgnoreCase);
-        private static bool ContainsRangeWindowFrame(string sql) => Regex.IsMatch(sql, @"\bOVER\s*\(.*\bRANGE\b", RegexOptions.IgnoreCase | RegexOptions.Singleline);
-        private static bool ContainsDatabaseQualifiedScalarFunction(string sql) => RxDbQualifiedFn.IsMatch(sql);
+        private static bool ContainsKeyword(string sql, string keyword)
+        {
+            var tokens = TokenizeSqlForValidation(sql);
+            return tokens.Any(t => t.IsWord(keyword));
+        }
+
+        private static bool IsSelectInto(string sql)
+        {
+            var tokens = TokenizeSqlForValidation(sql);
+            var depth = 0;
+            var seenSelect = false;
+
+            for (var i = 0; i < tokens.Count; i++)
+            {
+                var token = tokens[i];
+                if (token.IsSeparator("("))
+                {
+                    depth++;
+                    continue;
+                }
+
+                if (token.IsSeparator(")"))
+                {
+                    depth = Math.Max(0, depth - 1);
+                    continue;
+                }
+
+                if (depth != 0 || token.Kind != SqlTokenKind.Word)
+                {
+                    continue;
+                }
+
+                if (!seenSelect)
+                {
+                    if (token.IsWord("SELECT"))
+                    {
+                        seenSelect = true;
+                    }
+
+                    continue;
+                }
+
+                if (token.IsWord("INTO"))
+                {
+                    return true;
+                }
+
+                if (token.IsWord("FROM"))
+                {
+                    return false;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool ContainsRangeWindowFrame(string sql)
+        {
+            var tokens = TokenizeSqlForValidation(sql);
+            for (var i = 0; i < tokens.Count; i++)
+            {
+                if (!tokens[i].IsWord("OVER"))
+                {
+                    continue;
+                }
+
+                var open = i + 1;
+                if (open >= tokens.Count || !tokens[open].IsSeparator("("))
+                {
+                    continue;
+                }
+
+                var depth = 1;
+                for (var j = open + 1; j < tokens.Count; j++)
+                {
+                    if (tokens[j].IsSeparator("("))
+                    {
+                        depth++;
+                        continue;
+                    }
+
+                    if (tokens[j].IsSeparator(")"))
+                    {
+                        depth--;
+                        if (depth == 0)
+                        {
+                            break;
+                        }
+
+                        continue;
+                    }
+
+                    if (depth == 1 && tokens[j].IsWord("RANGE"))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private static bool ContainsDatabaseQualifiedScalarFunction(string sql)
+        {
+            var tokens = TokenizeSqlForValidation(sql);
+            for (var i = 0; i + 5 < tokens.Count; i++)
+            {
+                if (!IsIdentifierToken(tokens[i]) || !tokens[i + 1].IsSeparator("."))
+                {
+                    continue;
+                }
+
+                if (!IsIdentifierToken(tokens[i + 2]) || !tokens[i + 3].IsSeparator("."))
+                {
+                    continue;
+                }
+
+                if (!IsIdentifierToken(tokens[i + 4]))
+                {
+                    continue;
+                }
+
+                if (tokens[i + 5].IsSeparator("("))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        private static bool ContainsEmptyGroupBy(string sql)
+        {
+            var tokens = TokenizeSqlForValidation(sql);
+            for (var i = 0; i + 1 < tokens.Count; i++)
+            {
+                if (!tokens[i].IsWord("GROUP") || !tokens[i + 1].IsWord("BY"))
+                {
+                    continue;
+                }
+
+                var nextIndex = i + 2;
+                while (nextIndex < tokens.Count && tokens[nextIndex].Kind == SqlTokenKind.Separator)
+                {
+                    nextIndex++;
+                }
+
+                if (nextIndex >= tokens.Count || IsClauseStarter(tokens, nextIndex))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsClauseStarter(IReadOnlyList<SqlToken> tokens, int index)
+        {
+            if (tokens[index].IsWord("ORDER") && index + 1 < tokens.Count && tokens[index + 1].IsWord("BY")) { return true; }
+            if (tokens[index].IsWord("GROUP") && index + 1 < tokens.Count && tokens[index + 1].IsWord("BY")) { return true; }
+            if (tokens[index].IsWord("HAVING")) { return true; }
+            if (tokens[index].IsWord("WHERE")) { return true; }
+            if (tokens[index].IsWord("FROM")) { return true; }
+            if (tokens[index].IsWord("JOIN")) { return true; }
+            if (tokens[index].IsWord("INNER")) { return true; }
+            if (tokens[index].IsWord("LEFT")) { return true; }
+            if (tokens[index].IsWord("RIGHT")) { return true; }
+            if (tokens[index].IsWord("FULL")) { return true; }
+            if (tokens[index].IsWord("CROSS")) { return true; }
+            if (tokens[index].IsWord("OUTER")) { return true; }
+            if (tokens[index].IsWord("UNION")) { return true; }
+            if (tokens[index].IsWord("INTERSECT")) { return true; }
+            if (tokens[index].IsWord("EXCEPT")) { return true; }
+            if (tokens[index].IsWord("OFFSET")) { return true; }
+            if (tokens[index].IsWord("FETCH")) { return true; }
+            if (tokens[index].IsWord("FOR")) { return true; }
+            if (tokens[index].IsWord("OPTION")) { return true; }
+            return false;
+        }
+
+        private static bool IsIdentifierToken(SqlToken token)
+        {
+            return token.Kind == SqlTokenKind.Word || token.Kind == SqlTokenKind.Identifier;
+        }
+
+        private static List<SqlToken> TokenizeSqlForValidation(string sql)
+        {
+            var result = new List<SqlToken>(Math.Max(8, sql.Length / 3));
+            for (var i = 0; i < sql.Length;)
+            {
+                var ch = sql[i];
+                var next = i + 1 < sql.Length ? sql[i + 1] : '\0';
+
+                if (char.IsWhiteSpace(ch))
+                {
+                    i++;
+                    continue;
+                }
+
+                if (ch == '-' && next == '-')
+                {
+                    i += 2;
+                    while (i < sql.Length && sql[i] != '\n')
+                    {
+                        i++;
+                    }
+
+                    continue;
+                }
+
+                if (ch == '/' && next == '*')
+                {
+                    i += 2;
+                    while (i + 1 < sql.Length && !(sql[i] == '*' && sql[i + 1] == '/'))
+                    {
+                        i++;
+                    }
+
+                    if (i + 1 < sql.Length)
+                    {
+                        i += 2;
+                    }
+
+                    continue;
+                }
+
+                if (ch == '\'')
+                {
+                    var start = i++;
+                    while (i < sql.Length)
+                    {
+                        if (sql[i] == '\'' && i + 1 < sql.Length && sql[i + 1] == '\'')
+                        {
+                            i += 2;
+                            continue;
+                        }
+
+                        if (sql[i] == '\'')
+                        {
+                            i++;
+                            break;
+                        }
+
+                        i++;
+                    }
+
+                    result.Add(new SqlToken(SqlTokenKind.Literal, sql.Substring(start, i - start)));
+                    continue;
+                }
+
+                if (ch == '[')
+                {
+                    var start = i++;
+                    while (i < sql.Length && sql[i] != ']')
+                    {
+                        i++;
+                    }
+
+                    if (i < sql.Length)
+                    {
+                        i++;
+                    }
+
+                    result.Add(new SqlToken(SqlTokenKind.Identifier, sql.Substring(start, i - start)));
+                    continue;
+                }
+
+                if (ch == '"')
+                {
+                    var start = i++;
+                    while (i < sql.Length)
+                    {
+                        if (sql[i] == '"' && i + 1 < sql.Length && sql[i + 1] == '"')
+                        {
+                            i += 2;
+                            continue;
+                        }
+
+                        if (sql[i] == '"')
+                        {
+                            i++;
+                            break;
+                        }
+
+                        i++;
+                    }
+
+                    result.Add(new SqlToken(SqlTokenKind.Identifier, sql.Substring(start, i - start)));
+                    continue;
+                }
+
+                if (IsSqlWordStart(ch))
+                {
+                    var start = i++;
+                    while (i < sql.Length && IsSqlWordPart(sql[i]))
+                    {
+                        i++;
+                    }
+
+                    result.Add(new SqlToken(SqlTokenKind.Word, sql.Substring(start, i - start)));
+                    continue;
+                }
+
+                if (ch == ',' || ch == ';' || ch == ')' || ch == '(' || ch == '.')
+                {
+                    result.Add(new SqlToken(SqlTokenKind.Separator, ch.ToString()));
+                    i++;
+                    continue;
+                }
+
+                result.Add(new SqlToken(SqlTokenKind.Other, ch.ToString()));
+                i++;
+            }
+
+            return result;
+        }
+
+        private static bool IsSqlWordStart(char ch)
+        {
+            return char.IsLetter(ch) || ch == '_' || ch == '@' || ch == '#';
+        }
+
+        private static bool IsSqlWordPart(char ch)
+        {
+            return char.IsLetterOrDigit(ch) || ch == '_' || ch == '@' || ch == '#';
+        }
+
         private static string NormalizeBetween(string sql) => RxBetweenSimple.Replace(sql, m => "(" + m.Groups["l"].Value + " >= " + m.Groups["a"].Value + " AND " + m.Groups["l"].Value + " <= " + m.Groups["b"].Value + ")");
 
         private static string AddSyntheticSelectAliases(string sql)
@@ -1225,7 +1552,7 @@ namespace SqExpress.SqlTranspiler
             }
             foreach (var table in unqualifiedOnly)
             {
-                sql = Regex.Replace(sql, @"\[dbo\]\.\[" + Regex.Escape(table) + @"\]", "[" + table + "]", RegexOptions.IgnoreCase);
+                sql = Regex.Replace(sql, @"\[[^\]]+\]\.\[" + Regex.Escape(table) + @"\]", "[" + table + "]", RegexOptions.IgnoreCase);
             }
             return sql;
         }
@@ -1785,6 +2112,40 @@ namespace SqExpress.SqlTranspiler
 
             public string? SchemaName { get; }
             public string TableName { get; }
+        }
+
+        private enum SqlTokenKind
+        {
+            Word,
+            Identifier,
+            Literal,
+            Separator,
+            Other
+        }
+
+        private readonly struct SqlToken
+        {
+            public SqlToken(SqlTokenKind kind, string value)
+            {
+                this.Kind = kind;
+                this.Value = value;
+            }
+
+            public SqlTokenKind Kind { get; }
+
+            public string Value { get; }
+
+            public bool IsWord(string value)
+            {
+                return this.Kind == SqlTokenKind.Word
+                       && string.Equals(this.Value, value, StringComparison.OrdinalIgnoreCase);
+            }
+
+            public bool IsSeparator(string value)
+            {
+                return this.Kind == SqlTokenKind.Separator
+                       && string.Equals(this.Value, value, StringComparison.Ordinal);
+            }
         }
 
         private enum ParamKind

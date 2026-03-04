@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
 using System.Text;
 using SqExpress.SqlExport;
 using SqExpress.SqlParser;
@@ -30,33 +29,266 @@ namespace SqExpress.SqlTranspiler
                     throw new SqExpressSqlTranspilerException($"Could not parse SQL:{Environment.NewLine}{error}");
                 }
 
-                var sqlText = NormalizeKeywords(statement.Trim());
-                if (string.IsNullOrWhiteSpace(sqlText))
-                {
-                    sqlText = expr!.ToSql(TSqlExporter.Default);
-                }
-
+                var sqlText = expr!.ToSql(TSqlExporter.Default);
+                sqlText = PrettyFormat(sqlText);
                 formatted.Add(sqlText);
             }
 
             return string.Join(";" + Environment.NewLine, formatted);
         }
 
-        private static string NormalizeKeywords(string statement)
+        private static string PrettyFormat(string sql)
         {
-            var sql = statement;
-            sql = Regex.Replace(sql, @"\s+", " ");
-            sql = Regex.Replace(sql, @"\bselect\b", "SELECT", RegexOptions.IgnoreCase);
-            sql = Regex.Replace(sql, @"\bfrom\b", "FROM", RegexOptions.IgnoreCase);
-            sql = Regex.Replace(sql, @"\bwhere\b", "WHERE", RegexOptions.IgnoreCase);
-            sql = Regex.Replace(sql, @"\border\s+by\b", "ORDER BY", RegexOptions.IgnoreCase);
-            sql = Regex.Replace(sql, @"\bas\b", "AS", RegexOptions.IgnoreCase);
+            var tokens = Tokenize(sql);
+            if (tokens.Count == 0)
+            {
+                return string.Empty;
+            }
 
-            sql = Regex.Replace(sql, @"\s+FROM\s+", Environment.NewLine + "FROM ", RegexOptions.IgnoreCase);
-            sql = Regex.Replace(sql, @"\s+WHERE\s+", Environment.NewLine + "WHERE ", RegexOptions.IgnoreCase);
-            sql = Regex.Replace(sql, @"\s+ORDER BY\s+", Environment.NewLine + "ORDER BY ", RegexOptions.IgnoreCase);
+            var sb = new StringBuilder(sql.Length + 32);
+            string? previousToken = null;
+            var depth = 0;
+            var i = 0;
+            var lineStart = true;
+            while (i < tokens.Count)
+            {
+                var breakLen = depth == 0 ? ClauseBreakLength(tokens, i) : 0;
+                if (breakLen > 0)
+                {
+                    if (sb.Length > 0 && sb[sb.Length - 1] != '\n')
+                    {
+                        sb.AppendLine();
+                        lineStart = true;
+                    }
 
-            return sql.Trim();
+                    for (var j = 0; j < breakLen; j++)
+                    {
+                        var current = tokens[i + j];
+                        if (!lineStart && NeedSpace(previousToken, current))
+                        {
+                            sb.Append(' ');
+                        }
+
+                        sb.Append(current);
+                        previousToken = current;
+                        lineStart = false;
+                    }
+
+                    i += breakLen;
+                    continue;
+                }
+
+                var token = tokens[i];
+                if (!lineStart && NeedSpace(previousToken, token))
+                {
+                    sb.Append(' ');
+                }
+
+                sb.Append(token);
+                if (token == "(")
+                {
+                    depth++;
+                }
+                else if (token == ")")
+                {
+                    depth = Math.Max(0, depth - 1);
+                }
+
+                previousToken = token;
+                lineStart = false;
+                i++;
+            }
+
+            return sb.ToString().Trim();
+        }
+
+        private static int ClauseBreakLength(IReadOnlyList<string> tokens, int index)
+        {
+            if (Match(tokens, index, "SELECT")) return 1;
+            if (Match(tokens, index, "FROM")) return 1;
+            if (Match(tokens, index, "WHERE")) return 1;
+            if (Match(tokens, index, "GROUP", "BY")) return 2;
+            if (Match(tokens, index, "HAVING")) return 1;
+            if (Match(tokens, index, "ORDER", "BY")) return 2;
+            if (Match(tokens, index, "OFFSET")) return 1;
+            if (Match(tokens, index, "FETCH")) return 1;
+            if (Match(tokens, index, "UNION", "ALL")) return 2;
+            if (Match(tokens, index, "UNION")) return 1;
+            if (Match(tokens, index, "EXCEPT")) return 1;
+            if (Match(tokens, index, "INTERSECT")) return 1;
+            if (Match(tokens, index, "INNER", "JOIN")) return 2;
+            if (Match(tokens, index, "LEFT", "JOIN")) return 2;
+            if (Match(tokens, index, "RIGHT", "JOIN")) return 2;
+            if (Match(tokens, index, "FULL", "JOIN")) return 2;
+            if (Match(tokens, index, "CROSS", "JOIN")) return 2;
+            if (Match(tokens, index, "CROSS", "APPLY")) return 2;
+            if (Match(tokens, index, "OUTER", "APPLY")) return 2;
+            if (Match(tokens, index, "ON")) return 1;
+            if (Match(tokens, index, "WHEN", "MATCHED")) return 2;
+            if (Match(tokens, index, "WHEN", "NOT", "MATCHED")) return 3;
+            if (Match(tokens, index, "THEN")) return 1;
+            if (Match(tokens, index, "VALUES")) return 1;
+            if (Match(tokens, index, "SET")) return 1;
+
+            return 0;
+        }
+
+        private static bool Match(IReadOnlyList<string> tokens, int index, params string[] words)
+        {
+            if (index + words.Length > tokens.Count)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < words.Length; i++)
+            {
+                if (!string.Equals(tokens[index + i], words[i], StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static List<string> Tokenize(string sql)
+        {
+            var tokens = new List<string>(sql.Length / 2);
+            for (var i = 0; i < sql.Length;)
+            {
+                var ch = sql[i];
+                if (char.IsWhiteSpace(ch))
+                {
+                    i++;
+                    continue;
+                }
+
+                if (ch == '\'')
+                {
+                    var start = i++;
+                    while (i < sql.Length)
+                    {
+                        if (sql[i] == '\'' && i + 1 < sql.Length && sql[i + 1] == '\'')
+                        {
+                            i += 2;
+                            continue;
+                        }
+
+                        if (sql[i] == '\'')
+                        {
+                            i++;
+                            break;
+                        }
+
+                        i++;
+                    }
+
+                    tokens.Add(sql.Substring(start, i - start));
+                    continue;
+                }
+
+                if (ch == '[')
+                {
+                    var start = i++;
+                    while (i < sql.Length && sql[i] != ']')
+                    {
+                        i++;
+                    }
+
+                    if (i < sql.Length)
+                    {
+                        i++;
+                    }
+
+                    tokens.Add(sql.Substring(start, i - start));
+                    continue;
+                }
+
+                if (ch == '"')
+                {
+                    var start = i++;
+                    while (i < sql.Length)
+                    {
+                        if (sql[i] == '"' && i + 1 < sql.Length && sql[i + 1] == '"')
+                        {
+                            i += 2;
+                            continue;
+                        }
+
+                        if (sql[i] == '"')
+                        {
+                            i++;
+                            break;
+                        }
+
+                        i++;
+                    }
+
+                    tokens.Add(sql.Substring(start, i - start));
+                    continue;
+                }
+
+                if (IsWordStart(ch))
+                {
+                    var start = i++;
+                    while (i < sql.Length && IsWordPart(sql[i]))
+                    {
+                        i++;
+                    }
+
+                    tokens.Add(sql.Substring(start, i - start));
+                    continue;
+                }
+
+                if ((ch == '<' || ch == '>' || ch == '!') && i + 1 < sql.Length && sql[i + 1] == '=')
+                {
+                    tokens.Add(sql.Substring(i, 2));
+                    i += 2;
+                    continue;
+                }
+
+                if (ch == '<' && i + 1 < sql.Length && sql[i + 1] == '>')
+                {
+                    tokens.Add("<>");
+                    i += 2;
+                    continue;
+                }
+
+                tokens.Add(ch.ToString());
+                i++;
+            }
+
+            return tokens;
+        }
+
+        private static bool NeedSpace(string? previousToken, string currentToken)
+        {
+            if (string.IsNullOrEmpty(previousToken))
+            {
+                return false;
+            }
+
+            if (currentToken == "," || currentToken == ")" || currentToken == "." || currentToken == ";")
+            {
+                return false;
+            }
+
+            if (previousToken == "(" || previousToken == "." || previousToken == ",")
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private static bool IsWordStart(char ch)
+        {
+            return char.IsLetterOrDigit(ch) || ch == '_' || ch == '@' || ch == '#';
+        }
+
+        private static bool IsWordPart(char ch)
+        {
+            return char.IsLetterOrDigit(ch) || ch == '_' || ch == '@' || ch == '#';
         }
 
         private static List<string> SplitStatements(string sql)

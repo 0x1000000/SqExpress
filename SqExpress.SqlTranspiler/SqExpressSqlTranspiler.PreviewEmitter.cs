@@ -503,9 +503,91 @@ namespace SqExpress.SqlTranspiler
                         var varName = ToCamelCaseIdentifier(outputName ?? "c" + (i + 1).ToString(CultureInfo.InvariantCulture), "c");
                         result.Add(CreateReadVarStatement(varName, CreateFallbackReadExpression(anyAliasedSelecting.Alias.Name)));
                     }
+                    else
+                    {
+                        var varName = this.ResolveReadVariableName(list[i], i);
+                        if (this.TryCreatePositionalTypedReadExpression(list[i], i, out var typedPositionalRead))
+                        {
+                            result.Add(CreateReadVarStatement(varName, typedPositionalRead!));
+                        }
+                        else
+                        {
+                            result.Add(CreateReadVarStatement(varName, CreatePositionalReadExpression(i)));
+                        }
+                    }
                 }
 
                 return result;
+            }
+
+            private string ResolveReadVariableName(IExprSelecting selecting, int index)
+            {
+                if (selecting is ExprParameter parameter && !string.IsNullOrWhiteSpace(parameter.TagName))
+                {
+                    return ToCamelCaseIdentifier(parameter.TagName!, "c" + (index + 1).ToString(CultureInfo.InvariantCulture));
+                }
+
+                if (selecting is IExprNamedSelecting named && !string.IsNullOrWhiteSpace(named.OutputName))
+                {
+                    return ToCamelCaseIdentifier(named.OutputName!, "c" + (index + 1).ToString(CultureInfo.InvariantCulture));
+                }
+
+                return "c" + (index + 1).ToString(CultureInfo.InvariantCulture);
+            }
+
+            private bool TryCreatePositionalTypedReadExpression(IExprSelecting selecting, int ordinal, out RoslynExpressionSyntax? expression)
+            {
+                expression = null;
+                if (selecting is not ExprParameter parameter || string.IsNullOrWhiteSpace(parameter.TagName))
+                {
+                    return false;
+                }
+
+                if (!this.TryGetParameterKind(parameter.TagName!, out var kind))
+                {
+                    kind = InferKindFromColumnToken(parameter.TagName!);
+                }
+
+                expression = kind switch
+                {
+                    ParamKind.Boolean => CreatePositionalReaderCall("GetBoolean", ordinal),
+                    ParamKind.Int32 => CreatePositionalReaderCall("GetInt32", ordinal),
+                    ParamKind.Decimal => CreatePositionalReaderCall("GetDecimal", ordinal),
+                    ParamKind.Guid => CreatePositionalReaderCall("GetGuid", ordinal),
+                    ParamKind.DateTime => CreatePositionalReaderCall("GetDateTime", ordinal),
+                    ParamKind.DateTimeOffset => CreatePositionalGenericReadCall("global::System.DateTimeOffset", ordinal),
+                    ParamKind.ByteArray => CreatePositionalGenericReadCall("global::System.Byte[]", ordinal),
+                    ParamKind.String => CreatePositionalReaderCall("GetString", ordinal),
+                    _ => CreatePositionalReadExpression(ordinal)
+                };
+
+                return true;
+            }
+
+            private bool TryGetParameterKind(string parameterName, out ParamKind kind)
+            {
+                kind = ParamKind.String;
+                if (!this._parameterDefaults.TryGetValue(parameterName, out var defaultValue))
+                {
+                    return false;
+                }
+
+                kind = defaultValue switch
+                {
+                    ExprBoolLiteral => ParamKind.Boolean,
+                    ExprInt16Literal => ParamKind.Int32,
+                    ExprInt32Literal => ParamKind.Int32,
+                    ExprInt64Literal => ParamKind.Int32,
+                    ExprDecimalLiteral => ParamKind.Decimal,
+                    ExprDoubleLiteral => ParamKind.Decimal,
+                    ExprGuidLiteral => ParamKind.Guid,
+                    ExprDateTimeLiteral => ParamKind.DateTime,
+                    ExprDateTimeOffsetLiteral => ParamKind.DateTimeOffset,
+                    ExprByteArrayLiteral => ParamKind.ByteArray,
+                    ExprStringLiteral => ParamKind.String,
+                    _ => ParamKind.String
+                };
+                return true;
             }
 
             private static RoslynStatementSyntax CreateReadVarStatement(string variableName, RoslynExpressionSyntax valueExpression)
@@ -543,6 +625,58 @@ namespace SqExpress.SqlTranspiler
                         ArgumentList(
                             SingletonSeparatedList(
                                 Argument(getOrdinalCall))));
+            }
+
+            private static RoslynExpressionSyntax CreatePositionalReadExpression(int ordinal)
+            {
+                return InvocationExpression(
+                        MemberAccessExpression(
+                            SyntaxKind.SimpleMemberAccessExpression,
+                            IdentifierName("r"),
+                            IdentifierName("GetValue")))
+                    .WithArgumentList(
+                        ArgumentList(
+                            SingletonSeparatedList(
+                                Argument(
+                                    LiteralExpression(
+                                        SyntaxKind.NumericLiteralExpression,
+                                        Literal(ordinal))))));
+            }
+
+            private static RoslynExpressionSyntax CreatePositionalReaderCall(string methodName, int ordinal)
+            {
+                return InvocationExpression(
+                        MemberAccessExpression(
+                            SyntaxKind.SimpleMemberAccessExpression,
+                            IdentifierName("r"),
+                            IdentifierName(methodName)))
+                    .WithArgumentList(
+                        ArgumentList(
+                            SingletonSeparatedList(
+                                Argument(
+                                    LiteralExpression(
+                                        SyntaxKind.NumericLiteralExpression,
+                                        Literal(ordinal))))));
+            }
+
+            private static RoslynExpressionSyntax CreatePositionalGenericReadCall(string typeName, int ordinal)
+            {
+                return InvocationExpression(
+                        MemberAccessExpression(
+                            SyntaxKind.SimpleMemberAccessExpression,
+                            IdentifierName("r"),
+                            GenericName(Identifier("GetFieldValue"))
+                                .WithTypeArgumentList(
+                                    TypeArgumentList(
+                                        SingletonSeparatedList<TypeSyntax>(
+                                            ParseTypeName(typeName))))))
+                    .WithArgumentList(
+                        ArgumentList(
+                            SingletonSeparatedList(
+                                Argument(
+                                    LiteralExpression(
+                                        SyntaxKind.NumericLiteralExpression,
+                                        Literal(ordinal))))));
             }
 
             private RoslynExpressionSyntax? TryRenderTypedRead(ExprColumn column, RenderContext context, string? aliasedName)
@@ -1420,8 +1554,14 @@ namespace SqExpress.SqlTranspiler
                 var key = GetTableKey(fullName.AsExprTableFullName());
                 if (!this._tableClassByKey.TryGetValue(key, out var className))
                 {
-                    var fallbackByDefaultSchema = "dbo." + fullName.AsExprTableFullName().TableName.Name;
-                    if (!this._tableClassByKey.TryGetValue(fallbackByDefaultSchema, out className))
+                    var configuredDefaultSchema = this._options.EffectiveDefaultSchemaName;
+                    if (!string.IsNullOrWhiteSpace(configuredDefaultSchema))
+                    {
+                        var fallbackByDefaultSchema = configuredDefaultSchema + "." + fullName.AsExprTableFullName().TableName.Name;
+                        this._tableClassByKey.TryGetValue(fallbackByDefaultSchema, out className);
+                    }
+
+                    if (className == null)
                     {
                         className = this._tableClassByKey
                             .Where(i => TryParseTableKey(i.Key, out _, out var tableName) && string.Equals(tableName, fullName.AsExprTableFullName().TableName.Name, StringComparison.OrdinalIgnoreCase))
@@ -1594,8 +1734,14 @@ namespace SqExpress.SqlTranspiler
                 var key = GetTableKey(fullName.AsExprTableFullName());
                 if (!this._tableClassByKey.TryGetValue(key, out var className))
                 {
-                    var fallbackByDefaultSchema = "dbo." + fullName.AsExprTableFullName().TableName.Name;
-                    if (!this._tableClassByKey.TryGetValue(fallbackByDefaultSchema, out className))
+                    var configuredDefaultSchema = this._options.EffectiveDefaultSchemaName;
+                    if (!string.IsNullOrWhiteSpace(configuredDefaultSchema))
+                    {
+                        var fallbackByDefaultSchema = configuredDefaultSchema + "." + fullName.AsExprTableFullName().TableName.Name;
+                        this._tableClassByKey.TryGetValue(fallbackByDefaultSchema, out className);
+                    }
+
+                    if (className == null)
                     {
                         className = this._tableClassByKey
                             .Where(i => TryParseTableKey(i.Key, out _, out var tableName) && string.Equals(tableName, fullName.AsExprTableFullName().TableName.Name, StringComparison.OrdinalIgnoreCase))

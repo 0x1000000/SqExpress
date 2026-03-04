@@ -37,8 +37,10 @@ namespace SqExpress.SqlTranspiler.Test
 
             var formatted = formatter.Format("select 1 as A; select 2 as B");
 
-            Assert.That(formatted, Does.Contain("SELECT 1 AS A"));
-            Assert.That(formatted, Does.Contain("SELECT 2 AS B"));
+            Assert.That(formatted, Does.Contain("SELECT 1"));
+            Assert.That(formatted, Does.Contain("[A]"));
+            Assert.That(formatted, Does.Contain("SELECT 2"));
+            Assert.That(formatted, Does.Contain("[B]"));
         }
     }
 }

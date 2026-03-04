@@ -217,6 +217,19 @@ namespace SqExpress.SqlTranspiler.Test
         }
 
         [Test]
+        public void TranspileSelect_OnlySqlVariables_UsesPositionalReads()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile("SELECT @id, @name");
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("var id = 0;"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var name = \"\";"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var id = r.GetInt32(0);"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var name = r.GetString(1);"));
+            AssertCompiles(result, "GeneratedTranspilerSelectOnlyVariablesReadsTests");
+        }
+
+        [Test]
         public void TranspileSelect_DescriptorAndVariableTyping_SupportsExtendedTypes()
         {
             var transpiler = new SqExpressSqlTranspiler();
@@ -1123,6 +1136,15 @@ namespace SqExpress.SqlTranspiler.Test
         }
 
         [Test]
+        public void Transpile_DoesNotRejectHavingInsideStringOrComment()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+
+            Assert.DoesNotThrow(() => transpiler.Transpile("SELECT 'HAVING' AS Marker"));
+            Assert.DoesNotThrow(() => transpiler.Transpile("SELECT u.UserId FROM dbo.Users u -- HAVING\r\nWHERE u.UserId = 1"));
+        }
+
+        [Test]
         public void Transpile_RejectsSelectInto()
         {
             var transpiler = new SqExpressSqlTranspiler();
@@ -1132,12 +1154,44 @@ namespace SqExpress.SqlTranspiler.Test
         }
 
         [Test]
+        public void Transpile_DoesNotRejectSelectIntoInsideString()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+
+            Assert.DoesNotThrow(() => transpiler.Transpile("SELECT 'INTO' AS Marker"));
+        }
+
+        [Test]
+        public void Transpile_DoesNotRejectRangeOrDbQualifiedPatternInsideString()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+
+            Assert.DoesNotThrow(() => transpiler.Transpile("SELECT 'RANGE' AS Marker"));
+            Assert.DoesNotThrow(() => transpiler.Transpile("SELECT 'Db1.dbo.NormalizeUserName(' AS Marker"));
+        }
+
+        [Test]
         public void Transpile_ReportsParseErrors()
         {
             var transpiler = new SqExpressSqlTranspiler();
 
             var ex = Assert.Throws<SqExpressSqlTranspilerException>(() => transpiler.Transpile("SELECT FROM"));
             Assert.That(ex?.Message, Does.Contain("Could not parse SQL"));
+        }
+
+        [Test]
+        public void Transpile_RejectsEmptyGroupBy()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var sql = "SELECT [u].[UserId],[u].[Name] [UserName] " +
+                      "FROM [dbo].[Users] [u] JOIN [dbo].[Orders] [O] " +
+                      "ON [O].[UserId] = [U].[UserId] " +
+                      "WHERE [u].[IsActive] = 1 " +
+                      "GROUP BY " +
+                      "ORDER BY [u].[Name] DESC";
+
+            var ex = Assert.Throws<SqExpressSqlTranspilerException>(() => transpiler.Transpile(sql));
+            Assert.That(ex?.Message, Does.Contain("GROUP BY clause must contain at least one expression"));
         }
 
         [Test]
