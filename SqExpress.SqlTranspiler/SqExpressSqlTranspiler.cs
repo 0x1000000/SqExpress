@@ -269,7 +269,8 @@ namespace SqExpress.SqlTranspiler
                     UsingDirective(ParseName("SqExpress.Syntax.Type")))
                 .AddMembers(namespaceDeclaration);
 
-            return compilationUnit.NormalizeWhitespace().ToFullString();
+            var csharpCode = compilationUnit.NormalizeWhitespace().ToFullString();
+            return ApplyFluentMethodLineBreaks(csharpCode);
         }
 
         private static DeclarationsBuildResult BuildDeclarationsCode(
@@ -485,6 +486,376 @@ namespace SqExpress.SqlTranspiler
                 .AddModifiers(Token(SyntaxKind.PublicKeyword), Token(SyntaxKind.StaticKeyword))
                 .WithParameterList(ParameterList(SeparatedList(parameters)))
                 .WithBody(Block(statements));
+        }
+
+        private static string ApplyFluentMethodLineBreaks(string code)
+        {
+            var lines = code.Replace("\r\n", "\n").Split('\n');
+            var sb = new StringBuilder(code.Length + 256);
+            for (var i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i];
+                var rewritten = TryRewriteFluentLine(line, minLength: 120);
+                sb.Append(rewritten ?? line);
+                if (i < lines.Length - 1)
+                {
+                    sb.Append("\r\n");
+                }
+            }
+
+            return sb.ToString();
+        }
+
+        private static string? TryRewriteFluentLine(string line, int minLength)
+        {
+            if (line.Length < minLength)
+            {
+                return null;
+            }
+
+            var trimmed = line.TrimStart();
+            if (trimmed.Length == 0)
+            {
+                return null;
+            }
+
+            var lineStartIndent = line.Length - trimmed.Length;
+            int expressionStart;
+            string prefix;
+
+            var assignIndex = line.IndexOf('=', lineStartIndent);
+            if (assignIndex > 0)
+            {
+                expressionStart = assignIndex + 1;
+                while (expressionStart < line.Length && line[expressionStart] == ' ')
+                {
+                    expressionStart++;
+                }
+
+                prefix = line.Substring(0, expressionStart);
+            }
+            else if (trimmed.StartsWith("return ", StringComparison.Ordinal))
+            {
+                expressionStart = lineStartIndent + "return ".Length;
+                prefix = line.Substring(0, expressionStart);
+            }
+            else if (trimmed.Contains(").", StringComparison.Ordinal))
+            {
+                expressionStart = lineStartIndent;
+                prefix = line.Substring(0, expressionStart);
+            }
+            else
+            {
+                return null;
+            }
+
+            if (expressionStart >= line.Length)
+            {
+                return null;
+            }
+
+            var expression = line.Substring(expressionStart);
+            var splitPositions = FindTopLevelFluentSplitPositions(expression);
+            var segments = new List<string>(splitPositions.Count + 1);
+            if (splitPositions.Count == 0)
+            {
+                segments.Add(expression);
+            }
+            else
+            {
+                var cursor = 0;
+                foreach (var pos in splitPositions)
+                {
+                    segments.Add(expression.Substring(cursor, pos + 1 - cursor));
+                    cursor = pos + 1;
+                }
+
+                segments.Add(expression.Substring(cursor));
+            }
+
+            var continuationIndent = new string(' ', lineStartIndent + 4);
+            var anySegmentChanged = splitPositions.Count > 0;
+            for (var i = 0; i < segments.Count; i++)
+            {
+                var rewrittenSegment = RewriteLongInvocationArguments(segments[i], prefix.Length, minLength);
+                if (rewrittenSegment != null)
+                {
+                    segments[i] = rewrittenSegment;
+                    anySegmentChanged = true;
+                }
+            }
+
+            if (!anySegmentChanged)
+            {
+                return null;
+            }
+
+            var result = new StringBuilder(line.Length + splitPositions.Count * (continuationIndent.Length + 2));
+            result.Append(prefix);
+            result.Append(segments[0]);
+            for (var i = 1; i < segments.Count; i++)
+            {
+                result.Append("\r\n");
+                result.Append(continuationIndent);
+                result.Append(segments[i]);
+            }
+
+            return result.ToString();
+        }
+
+        private static List<int> FindTopLevelFluentSplitPositions(string expression)
+        {
+            var positions = new List<int>();
+            var depth = 0;
+            var inString = false;
+            for (var i = 0; i < expression.Length - 1; i++)
+            {
+                var ch = expression[i];
+                if (inString)
+                {
+                    if (ch == '"' && expression[i + 1] == '"')
+                    {
+                        i++;
+                        continue;
+                    }
+
+                    if (ch == '"')
+                    {
+                        inString = false;
+                    }
+
+                    continue;
+                }
+
+                if (ch == '"')
+                {
+                    inString = true;
+                    continue;
+                }
+
+                if (ch == '(')
+                {
+                    depth++;
+                    continue;
+                }
+
+                if (ch == ')')
+                {
+                    depth = Math.Max(0, depth - 1);
+                    if (depth == 0 && expression[i + 1] == '.')
+                    {
+                        positions.Add(i);
+                    }
+                }
+            }
+
+            return positions;
+        }
+
+        private static string? RewriteLongInvocationArguments(string segment, int lineIndentLength, int minLength)
+        {
+            var openIndex = segment.IndexOf('(');
+            if (openIndex < 0)
+            {
+                return null;
+            }
+
+            var closeIndex = FindMatchingParen(segment, openIndex);
+            if (closeIndex < 0 || closeIndex <= openIndex + 1)
+            {
+                return null;
+            }
+
+            var args = SplitTopLevelArguments(segment, openIndex + 1, closeIndex);
+            var methodName = GetInvocationMethodName(segment, openIndex);
+            if (!ShouldWrapInvocationArguments(segment, methodName, args, minLength))
+            {
+                return null;
+            }
+
+            var methodPrefix = segment.Substring(0, openIndex + 1);
+            var afterClose = segment.Substring(closeIndex + 1);
+            var indent = new string(' ', lineIndentLength);
+            var argIndent = new string(' ', lineIndentLength + 4);
+
+            var sb = new StringBuilder(segment.Length + (args.Count * (lineIndentLength + 8)));
+            sb.Append(methodPrefix);
+            sb.Append(args[0].Trim());
+            for (var i = 1; i < args.Count; i++)
+            {
+                sb.Append(",\r\n");
+                sb.Append(argIndent);
+                sb.Append(args[i].Trim());
+            }
+
+            sb.Append("\r\n");
+            sb.Append(indent);
+            sb.Append(')');
+            sb.Append(afterClose);
+            return sb.ToString();
+        }
+
+        private static bool ShouldWrapInvocationArguments(string segment, string? methodName, IReadOnlyList<string> args, int minLength)
+        {
+            if (args.Count < 2)
+            {
+                return false;
+            }
+
+            if (string.Equals(methodName, "Select", StringComparison.Ordinal))
+            {
+                return args.Count >= 3 || segment.Length >= minLength;
+            }
+
+            if (args.Count >= 3 && segment.Length >= 80)
+            {
+                return true;
+            }
+
+            if (segment.Length >= minLength)
+            {
+                return true;
+            }
+
+            for (var i = 0; i < args.Count; i++)
+            {
+                if (args[i].Trim().Length >= 48)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static string? GetInvocationMethodName(string segment, int openIndex)
+        {
+            var end = openIndex - 1;
+            while (end >= 0 && char.IsWhiteSpace(segment[end]))
+            {
+                end--;
+            }
+
+            if (end < 0)
+            {
+                return null;
+            }
+
+            var start = end;
+            while (start >= 0 && (char.IsLetterOrDigit(segment[start]) || segment[start] == '_'))
+            {
+                start--;
+            }
+
+            start++;
+            if (start > end)
+            {
+                return null;
+            }
+
+            return segment.Substring(start, end - start + 1);
+        }
+
+        private static int FindMatchingParen(string text, int openIndex)
+        {
+            var depth = 0;
+            var inString = false;
+            for (var i = openIndex; i < text.Length; i++)
+            {
+                var ch = text[i];
+                if (inString)
+                {
+                    if (ch == '"' && i + 1 < text.Length && text[i + 1] == '"')
+                    {
+                        i++;
+                        continue;
+                    }
+
+                    if (ch == '"')
+                    {
+                        inString = false;
+                    }
+
+                    continue;
+                }
+
+                if (ch == '"')
+                {
+                    inString = true;
+                    continue;
+                }
+
+                if (ch == '(')
+                {
+                    depth++;
+                    continue;
+                }
+
+                if (ch == ')')
+                {
+                    depth--;
+                    if (depth == 0)
+                    {
+                        return i;
+                    }
+                }
+            }
+
+            return -1;
+        }
+
+        private static List<string> SplitTopLevelArguments(string text, int start, int end)
+        {
+            var args = new List<string>();
+            var depth = 0;
+            var inString = false;
+            var segmentStart = start;
+            for (var i = start; i < end; i++)
+            {
+                var ch = text[i];
+                if (inString)
+                {
+                    if (ch == '"' && i + 1 < end && text[i + 1] == '"')
+                    {
+                        i++;
+                        continue;
+                    }
+
+                    if (ch == '"')
+                    {
+                        inString = false;
+                    }
+
+                    continue;
+                }
+
+                if (ch == '"')
+                {
+                    inString = true;
+                    continue;
+                }
+
+                if (ch == '(')
+                {
+                    depth++;
+                    continue;
+                }
+
+                if (ch == ')')
+                {
+                    depth = Math.Max(0, depth - 1);
+                    continue;
+                }
+
+                if (ch == ',' && depth == 0)
+                {
+                    args.Add(text.Substring(segmentStart, i - segmentStart));
+                    segmentStart = i + 1;
+                }
+            }
+
+            args.Add(text.Substring(segmentStart, end - segmentStart));
+            return args;
         }
 
         private static MethodDeclarationSyntax BuildQueryMethod(

@@ -2288,11 +2288,26 @@ namespace SqExpress.SqlTranspiler
                     }
                 }
 
-                var properties = string.Join("\r\n", outputColumns.Select(i => "        public ExprColumn " + ToPascalCaseIdentifier(i, "Column") + " { get; }"));
-                var ctorAssignments = string.Join("\r\n", outputColumns.Select(i => "            this." + ToPascalCaseIdentifier(i, "Column") + " = this.CreateStringColumn(" + ToCSharpStringLiteral(i) + ");"));
-
                 var createQueryContext = new RenderContext();
                 var queryExpr = this.RenderSubQueryFinal(cte.Query, createQueryContext, useDerivedPropertyAliases: false, derivedPropertyMap: null);
+                var selectingList = GetTopSelectList(cte.Query);
+
+                var propertyNames = outputColumns.ToDictionary(i => i, i => ToPascalCaseIdentifier(i, "Column"), StringComparer.OrdinalIgnoreCase);
+                var propertyTypesByColumn = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                for (var index = 0; index < outputColumns.Count; index++)
+                {
+                    var outColumn = outputColumns[index];
+                    var resolvedType = this.ResolveDerivedOutputColumnType(selectingList, index, outColumn, createQueryContext);
+                    propertyTypesByColumn[outColumn] = resolvedType ?? "ExprColumn";
+                }
+
+                var properties = string.Join(
+                    "\r\n",
+                    outputColumns.Select(i => "        public " + propertyTypesByColumn[i] + " " + propertyNames[i] + " { get; }"));
+                var ctorAssignments = string.Join(
+                    "\r\n",
+                    outputColumns.Select(i => "            this." + propertyNames[i] + " = " + RenderCreateDerivedColumnExpression(propertyTypesByColumn[i], i) + ";"));
+
                 var localDecl = string.Join("\r\n", createQueryContext.LocalSources.Select(i => "            var " + i.VariableName + " = " + i.InitializationExpression + ";"));
                 if (localDecl.Length > 0)
                 {
@@ -2316,12 +2331,7 @@ namespace SqExpress.SqlTranspiler
 
                 var member = ParseMemberDeclaration(classCode) ?? throw new SqExpressSqlTranspilerException("Could not parse generated CTE class.");
                 this._nestedTypes.Add(member);
-                var cteColumnTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var outputColumn in outputColumns)
-                {
-                    cteColumnTypes[outputColumn] = "ExprColumn";
-                }
-                this._columnTypesByClassName[className] = cteColumnTypes;
+                this._columnTypesByClassName[className] = propertyTypesByColumn;
                 return className;
             }
 
@@ -2615,6 +2625,10 @@ namespace SqExpress.SqlTranspiler
                 {
                     sourceColumn = aliasedColumnValue;
                 }
+                else if (this.TryResolveExpressionSelectingType(selecting, outputColumn, context, out var expressionType))
+                {
+                    return expressionType;
+                }
                 else if (selecting is ExprAllColumns allColumns)
                 {
                     if (this.TryResolveAllColumnsDerivedType(allColumns, outputColumn, context, out var allColumnsType))
@@ -2635,7 +2649,200 @@ namespace SqExpress.SqlTranspiler
                     return ConvertToCustomColumnType(sourceType);
                 }
 
+                var inferredByName = InferKindFromColumnToken(outputColumn);
+                if (inferredByName != ParamKind.String && TryMapParamKindToCustomColumnType(inferredByName, out var inferredType))
+                {
+                    return inferredType;
+                }
+
                 return null;
+            }
+
+            private bool TryResolveExpressionSelectingType(
+                IExprSelecting selecting,
+                string outputColumn,
+                RenderContext context,
+                out string type)
+            {
+                type = string.Empty;
+                switch (selecting)
+                {
+                    case ExprAliasedSelecting aliasedSelecting:
+                        return this.TryResolveExpressionSelectingType(aliasedSelecting.Value, outputColumn, context, out type);
+                    case ExprAggregateFunction aggregateFunction:
+                        return this.TryResolveAggregateSelectingType(aggregateFunction, outputColumn, context, out type);
+                    case ExprAggregateOverFunction aggregateOverFunction:
+                        return this.TryResolveAggregateSelectingType(aggregateOverFunction.Function, outputColumn, context, out type);
+                    case ExprAnalyticFunction analyticFunction:
+                        return TryResolveAnalyticSelectingType(analyticFunction, outputColumn, out type);
+                    case ExprValue value:
+                        return TryResolveValueSelectingType(value, outputColumn, out type);
+                    default:
+                        return false;
+                }
+            }
+
+            private bool TryResolveAggregateSelectingType(
+                ExprAggregateFunction aggregateFunction,
+                string outputColumn,
+                RenderContext context,
+                out string type)
+            {
+                type = string.Empty;
+                var name = aggregateFunction.Name.Name.ToUpperInvariant();
+                if (name == "COUNT")
+                {
+                    type = "Int32CustomColumn";
+                    return true;
+                }
+
+                if (aggregateFunction.Expression is ExprColumn sourceColumn
+                    && this.TryGetColumnType(sourceColumn, context, out var sourceType))
+                {
+                    var customSourceType = ConvertToCustomColumnType(sourceType);
+                    if (name == "MIN" || name == "MAX")
+                    {
+                        type = customSourceType;
+                        return true;
+                    }
+
+                    if (name == "SUM" || name == "AVG")
+                    {
+                        if (string.Equals(customSourceType, "DoubleCustomColumn", StringComparison.Ordinal))
+                        {
+                            type = "DoubleCustomColumn";
+                            return true;
+                        }
+
+                        if (string.Equals(customSourceType, "NullableDoubleCustomColumn", StringComparison.Ordinal))
+                        {
+                            type = "NullableDoubleCustomColumn";
+                            return true;
+                        }
+
+                        type = "DecimalCustomColumn";
+                        return true;
+                    }
+                }
+
+                var inferredByName = InferKindFromColumnToken(outputColumn);
+                if (TryMapParamKindToCustomColumnType(inferredByName, out var inferredType))
+                {
+                    type = inferredType;
+                    return true;
+                }
+
+                return false;
+            }
+
+            private static bool TryResolveAnalyticSelectingType(ExprAnalyticFunction analyticFunction, string outputColumn, out string type)
+            {
+                type = string.Empty;
+                var name = analyticFunction.Name.Name.ToUpperInvariant();
+                if (name is "ROW_NUMBER" or "RANK" or "DENSE_RANK" or "NTILE" or "COUNT")
+                {
+                    type = "Int32CustomColumn";
+                    return true;
+                }
+
+                if (name is "PERCENT_RANK" or "CUME_DIST")
+                {
+                    type = "DoubleCustomColumn";
+                    return true;
+                }
+
+                var inferredByName = InferKindFromColumnToken(outputColumn);
+                return TryMapParamKindToCustomColumnType(inferredByName, out type);
+            }
+
+            private static bool TryResolveValueSelectingType(ExprValue value, string outputColumn, out string type)
+            {
+                type = string.Empty;
+                var inferredByValue = InferKindFromValueForSelecting(value);
+                if (inferredByValue.HasValue)
+                {
+                    if (TryMapParamKindToCustomColumnType(inferredByValue.Value, out var mappedFromValue))
+                    {
+                        type = mappedFromValue;
+                        return true;
+                    }
+                }
+
+                if (value is ExprCast cast)
+                {
+                    var inferredByCast = InferKindFromSqlTypeForSelecting(cast.SqlType);
+                    if (inferredByCast.HasValue)
+                    {
+                        if (TryMapParamKindToCustomColumnType(inferredByCast.Value, out var mappedFromCast))
+                        {
+                            type = mappedFromCast;
+                            return true;
+                        }
+                    }
+                }
+
+                var inferredByName = InferKindFromColumnToken(outputColumn);
+                return TryMapParamKindToCustomColumnType(inferredByName, out type);
+            }
+
+            private static bool TryMapParamKindToCustomColumnType(ParamKind kind, out string type)
+            {
+                type = kind switch
+                {
+                    ParamKind.Boolean => "BooleanCustomColumn",
+                    ParamKind.Int32 => "Int32CustomColumn",
+                    ParamKind.Decimal => "DecimalCustomColumn",
+                    ParamKind.Guid => "GuidCustomColumn",
+                    ParamKind.DateTime => "DateTimeCustomColumn",
+                    ParamKind.DateTimeOffset => "DateTimeOffsetCustomColumn",
+                    ParamKind.ByteArray => "ByteArrayCustomColumn",
+                    _ => string.Empty
+                };
+
+                return type.Length > 0;
+            }
+
+            private static ParamKind? InferKindFromValueForSelecting(ExprValue value)
+            {
+                return value switch
+                {
+                    ExprBoolLiteral => ParamKind.Boolean,
+                    ExprInt16Literal => ParamKind.Int32,
+                    ExprInt32Literal => ParamKind.Int32,
+                    ExprInt64Literal => ParamKind.Int32,
+                    ExprByteLiteral => ParamKind.Int32,
+                    ExprDecimalLiteral => ParamKind.Decimal,
+                    ExprDoubleLiteral => ParamKind.Decimal,
+                    ExprGuidLiteral => ParamKind.Guid,
+                    ExprDateTimeLiteral => ParamKind.DateTime,
+                    ExprDateTimeOffsetLiteral => ParamKind.DateTimeOffset,
+                    ExprByteArrayLiteral => ParamKind.ByteArray,
+                    ExprStringLiteral => ParamKind.String,
+                    _ => null
+                };
+            }
+
+            private static ParamKind? InferKindFromSqlTypeForSelecting(ExprType sqlType)
+            {
+                return sqlType switch
+                {
+                    ExprTypeBoolean => ParamKind.Boolean,
+                    ExprTypeByte => ParamKind.Int32,
+                    ExprTypeInt16 => ParamKind.Int32,
+                    ExprTypeInt32 => ParamKind.Int32,
+                    ExprTypeInt64 => ParamKind.Int32,
+                    ExprTypeDecimal => ParamKind.Decimal,
+                    ExprTypeDouble => ParamKind.Decimal,
+                    ExprTypeGuid => ParamKind.Guid,
+                    ExprTypeDateTime => ParamKind.DateTime,
+                    ExprTypeDateTimeOffset => ParamKind.DateTimeOffset,
+                    ExprTypeByteArray => ParamKind.ByteArray,
+                    ExprTypeFixSizeByteArray => ParamKind.ByteArray,
+                    ExprTypeString => ParamKind.String,
+                    ExprTypeFixSizeString => ParamKind.String,
+                    ExprTypeXml => ParamKind.String,
+                    _ => null
+                };
             }
 
             private bool TryResolveAllColumnsDerivedType(ExprAllColumns allColumns, string outputColumn, RenderContext context, out string type)

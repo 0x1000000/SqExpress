@@ -7,6 +7,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using NUnit.Framework;
 using SqExpress.SqlExport;
+using SqExpress.SqlParser;
 using SqExpress.Syntax;
 using SqExpress.Syntax.Select;
 using SqExpress.SqlTranspiler;
@@ -139,6 +140,21 @@ namespace SqExpress.SqlTranspiler.Test
         }
 
         [Test]
+        public void TranspileSelect_LongSelectProjection_IsWrappedAfterCommas()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var sql =
+                "WITH QualifiedUsers AS (" +
+                "SELECT u.UserId, u.Name, u.OrderCount30d, u.TotalAmount30d, u.AvgAmount30d, u.TopCategoryId, u.TopCategoryAmount " +
+                "FROM dbo.Users u) " +
+                "SELECT qu.UserId, qu.Name, qu.OrderCount30d, qu.TotalAmount30d, qu.AvgAmount30d, qu.TopCategoryId, qu.TopCategoryAmount " +
+                "FROM QualifiedUsers qu";
+
+            var result = transpiler.Transpile(sql);
+            Assert.That(result.QueryCSharpCode, Does.Contain("return Select(u.UserId,\r\n"));
+        }
+
+        [Test]
         public void TranspileSelect_SubQueriesInPredicatesAndProjection_AreSupported()
         {
             var transpiler = new SqExpressSqlTranspiler();
@@ -177,6 +193,72 @@ namespace SqExpress.SqlTranspiler.Test
                 "OUTER APPLY (SELECT o.OrderId FROM dbo.Orders o ORDER BY o.OrderId DESC OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY) oa");
             Assert.That(outerApply.QueryCSharpCode, Does.Contain(".OuterApply("));
             AssertCompilesAndSql(outerApply, SqlOuterApply);
+        }
+
+        [Test]
+        public void TranspileSelect_MultipleCtesAndSubqueries_GeneratedSqlMatchesRawSqlCanonical()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var rawSql =
+                "WITH " +
+                "BaseUsers AS (" +
+                "SELECT u.UserId, u.Name FROM dbo.Users u WHERE u.IsActive = 1" +
+                "), " +
+                "RecentOrders AS (" +
+                "SELECT o.UserId, o.OrderId, o.Amount, o.CreatedAt FROM dbo.Orders o WHERE o.CreatedAt >= DATEADD(day, -30, GETUTCDATE())" +
+                "), " +
+                "UserOrderAgg AS (" +
+                "SELECT bu.UserId, bu.Name, COUNT(ro.OrderId) AS OrderCount30d, SUM(ro.Amount) AS TotalAmount30d " +
+                "FROM BaseUsers bu LEFT JOIN RecentOrders ro ON ro.UserId = bu.UserId " +
+                "GROUP BY bu.UserId, bu.Name" +
+                ") " +
+                "SELECT " +
+                "uoa.UserId, " +
+                "uoa.Name, " +
+                "uoa.OrderCount30d, " +
+                "uoa.TotalAmount30d, " +
+                "(SELECT COUNT(*) FROM dbo.OrderItems oi WHERE oi.UserId = uoa.UserId) AS ItemsCount30d, " +
+                "(SELECT TOP 1 o2.OrderId FROM dbo.Orders o2 WHERE o2.UserId = uoa.UserId ORDER BY o2.CreatedAt DESC) AS LastOrderId " +
+                "FROM UserOrderAgg uoa " +
+                "WHERE EXISTS (SELECT 1 FROM dbo.UserFlags f WHERE f.UserId = uoa.UserId AND f.IsVip = 1) " +
+                "ORDER BY uoa.UserId";
+
+            var result = transpiler.Transpile(rawSql);
+
+            Assert.That(result.StatementKind, Is.EqualTo("SELECT"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("public sealed class BaseUsersCte : CteBase"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("public sealed class RecentOrdersCte : CteBase"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("public sealed class UserOrderAggCte : CteBase"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("ValueQuery(Select"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Where(Exists(Select"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var orderCount30d = uoa.OrderCount30d.Read(r);"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var totalAmount30d = uoa.TotalAmount30d.Read(r);"));
+            Assert.That(result.QueryCSharpCode, Does.Not.Contain("GetOrdinal(\"OrderCount30d\")"));
+            Assert.That(result.QueryCSharpCode, Does.Not.Contain("GetOrdinal(\"TotalAmount30d\")"));
+            Assert.That(result.QueryCSharpCode, Does.Not.Contain("TopCategoryAmount\")).From(u).InnerJoin("));
+
+            var options = new SqExpressSqlTranspilerOptions();
+            var assembly = AssertCompiles(result, assemblyName: "GeneratedTranspilerComplexCtesAndSubqueriesTests");
+            var generatedExpr = InvokeGeneratedBuildMethod(assembly, options);
+            var generatedSql = generatedExpr.ToSql(TSqlExporter.Default);
+
+            var parsed = SqTSqlParser.TryParse(rawSql, out var rawExpr, out _, out var rawError);
+            if (!parsed || rawExpr == null)
+            {
+                Assert.Fail("Raw SQL could not be parsed for parity assertion: " + rawError);
+            }
+
+            var rawCanonicalSql = rawExpr!.ToSql(TSqlExporter.Default);
+            TestContext.WriteLine("Raw canonical SQL:");
+            TestContext.WriteLine(rawCanonicalSql);
+            TestContext.WriteLine("Generated SQL:");
+            TestContext.WriteLine(generatedSql);
+
+            const string ExpectedCanonicalSql =
+                "WITH [BaseUsers] AS(SELECT [u].[UserId],[u].[Name] FROM [dbo].[Users] [u] WHERE [u].[IsActive]=1),[RecentOrders] AS(SELECT [o].[UserId],[o].[OrderId],[o].[Amount],[o].[CreatedAt] FROM [dbo].[Orders] [o] WHERE [o].[CreatedAt]>=DATEADD(d,-30,GETUTCDATE())),[UserOrderAgg] AS(SELECT [bu].[UserId],[bu].[Name],COUNT([ro].[OrderId]) [OrderCount30d],SUM([ro].[Amount]) [TotalAmount30d] FROM [BaseUsers] [bu] LEFT JOIN [RecentOrders] [ro] ON [ro].[UserId]=[bu].[UserId] GROUP BY [bu].[UserId],[bu].[Name])SELECT [uoa].[UserId],[uoa].[Name],[uoa].[OrderCount30d],[uoa].[TotalAmount30d],(SELECT COUNT(1) FROM [dbo].[OrderItems] [oi] WHERE [oi].[UserId]=[uoa].[UserId]) [ItemsCount30d],(SELECT [o2].[OrderId] FROM [dbo].[Orders] [o2] WHERE [o2].[UserId]=[uoa].[UserId] ORDER BY [o2].[CreatedAt] DESC OFFSET 0 ROW FETCH NEXT 1 ROW ONLY) [LastOrderId] FROM [UserOrderAgg] [uoa] WHERE EXISTS(SELECT 1 FROM [dbo].[UserFlags] [f] WHERE [f].[UserId]=[uoa].[UserId] AND [f].[IsVip]=1) ORDER BY [uoa].[UserId]";
+
+            Assert.AreEqual(ExpectedCanonicalSql, rawCanonicalSql, "Raw SQL canonicalization changed.");
+            Assert.AreEqual(ExpectedCanonicalSql, generatedSql, "Generated SQL does not match expected canonical SQL.");
         }
 
         [Test]
@@ -503,14 +585,14 @@ namespace SqExpress.SqlTranspiler.Test
         }
 
         [Test]
-        public void TranspileSelect_DerivedComputedOnlyProjection_UsesSafeFallbackRead()
+        public void TranspileSelect_DerivedComputedOnlyProjection_UsesTypedReadWhenTypeCanBeInferred()
         {
             var transpiler = new SqExpressSqlTranspiler();
             var result = transpiler.Transpile(
                 "SELECT X.Rn FROM (SELECT ROW_NUMBER() OVER(ORDER BY u.UserId) AS Rn FROM dbo.Users u) X");
 
-            Assert.That(result.QueryCSharpCode, Does.Contain("public ExprColumn Rn"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("var rn = r.GetValue(r.GetOrdinal(\"Rn\"));"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("public Int32CustomColumn Rn"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var rn = x.Rn.Read(r);"));
             AssertCompiles(result, "GeneratedTranspilerDerivedComputedReadTests");
         }
 
@@ -1036,6 +1118,25 @@ namespace SqExpress.SqlTranspiler.Test
         }
 
         [Test]
+        public void TranspileUpdate_WithDerivedJoinAndTop_IsSupported()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+
+            var result = transpiler.Transpile(
+                "UPDATE U " +
+                "SET U.IsActive = 1 " +
+                "FROM Users U " +
+                "INNER JOIN (" +
+                "SELECT TOP 1 c.UserId FROM Users c ORDER BY c.Updated" +
+                ") S ON S.UserId = U.UserId");
+
+            Assert.AreEqual("UPDATE", result.StatementKind);
+            Assert.That(result.QueryCSharpCode, Does.Contain("Update(u)"));
+            Assert.That(result.QueryCSharpCode, Does.Contain(".InnerJoin("));
+            AssertCompiles(result, "GeneratedTranspilerUpdateDerivedJoinTopTests");
+        }
+
+        [Test]
         public void TranspileUpdate_WhereVariableAgainstIdColumn_InfersInt32Variable()
         {
             var transpiler = new SqExpressSqlTranspiler();
@@ -1240,7 +1341,36 @@ namespace SqExpress.SqlTranspiler.Test
             var assembly = AssertCompiles(result, assemblyName);
             var expr = InvokeGeneratedBuildMethod(assembly, effectiveOptions);
             var sql = expr.ToSql(TSqlExporter.Default);
+            TestContext.WriteLine("Expected SQL:");
+            TestContext.WriteLine(expectedSql);
+            TestContext.WriteLine("Generated SQL:");
+            TestContext.WriteLine(sql);
             Assert.AreEqual(expectedSql, sql);
+        }
+
+        private static void AssertCompilesAndSqlMatchesRaw(
+            SqExpressTranspileResult result,
+            string rawSql,
+            SqExpressSqlTranspilerOptions? options = null,
+            string assemblyName = "GeneratedTranspilerRawSqlParityTests")
+        {
+            var effectiveOptions = options ?? new SqExpressSqlTranspilerOptions();
+            var assembly = AssertCompiles(result, assemblyName);
+            var generatedExpr = InvokeGeneratedBuildMethod(assembly, effectiveOptions);
+            var generatedSql = generatedExpr.ToSql(TSqlExporter.Default);
+            TestContext.WriteLine("Generated SQL:");
+            TestContext.WriteLine(generatedSql);
+
+            var parsed = SqTSqlParser.TryParse(rawSql, out var rawExpr, out _, out var rawError);
+            if (!parsed || rawExpr == null)
+            {
+                Assert.Fail("Raw SQL could not be parsed for parity assertion: " + rawError);
+            }
+
+            var rawCanonicalSql = rawExpr!.ToSql(TSqlExporter.Default);
+            TestContext.WriteLine("Raw canonical SQL:");
+            TestContext.WriteLine(rawCanonicalSql);
+            Assert.AreEqual(rawCanonicalSql, generatedSql);
         }
 
         private static IExpr InvokeGeneratedBuildMethod(Assembly generatedAssembly, SqExpressSqlTranspilerOptions options)

@@ -1930,7 +1930,40 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 throw new MapException("Derived table query must be SELECT.");
             }
 
-            return (IExprSubQuery)MapSelect((SqlDomStatement)statement!, context);
+            var mapped = MapSelect((SqlDomStatement)statement!, context);
+            if (mapped is IExprSubQuery subQuery)
+            {
+                return subQuery;
+            }
+
+            if (mapped is ExprSelect select)
+            {
+                if (select.OrderBy.OrderList.Count < 1 && select.SelectQuery is IExprSubQuery innerSubQuery)
+                {
+                    return innerSubQuery;
+                }
+
+                if (select.SelectQuery is ExprQuerySpecification specification && specification.Top is ExprValue top)
+                {
+                    var queryWithoutTop = new ExprQuerySpecification(
+                        specification.SelectList,
+                        top: null,
+                        specification.Distinct,
+                        specification.From,
+                        specification.Where,
+                        specification.GroupBy);
+
+                    return new ExprSelectOffsetFetch(
+                        queryWithoutTop,
+                        new ExprOrderByOffsetFetch(
+                            select.OrderBy.OrderList,
+                            new ExprOffsetFetch(new ExprInt32Literal(0), top)));
+                }
+
+                throw new MapException("Derived table query with ORDER BY is not supported in this form.");
+            }
+
+            throw new MapException("Derived table query cannot be represented as subquery.");
         }
 
         private static IExprSubQuery ParseNestedSubQuery(string sql)
