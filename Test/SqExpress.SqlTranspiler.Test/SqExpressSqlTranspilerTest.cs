@@ -405,6 +405,67 @@ namespace SqExpress.SqlTranspiler.Test
         }
 
         [Test]
+        public void TranspileSelect_WindowAliasedExpressions_GenerateQueryReadStatements()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                "SELECT FIRST_VALUE(u.FirstName) OVER(ORDER BY u.UserId) AS FirstNameFirst, " +
+                "LAST_VALUE(u.FirstName) OVER(ORDER BY u.UserId ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS FirstNameLast " +
+                "FROM dbo.Users u");
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("await foreach (var r in Build(out var u).Query(database))"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var firstNameFirst = r.GetValue(r.GetOrdinal(\"FirstNameFirst\"));"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var firstNameLast = r.GetValue(r.GetOrdinal(\"FirstNameLast\"));"));
+        }
+
+        [Test]
+        public void TranspileSelect_FromDerivedTable_GeneratesQueryReadStatements()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                "SELECT s.FirstName FROM (SELECT u.FirstName FROM dbo.Users u WHERE u.UserId = 1) s");
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("public sealed class SSubQuery : DerivedTableBase"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("private readonly TableUsers u = new TableUsers(\"u\");"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("this.FirstName = this.u.FirstName.AddToDerivedTable(this);"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("return Select(u.FirstName).From(u).Where(u.UserId == 1).Done();"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("await foreach (var r in Build(out var s).Query(database))"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var firstName = s.FirstName.Read(r);"));
+        }
+
+        [Test]
+        public void TranspileSelect_FromDerivedTable_WithAliaslessInnerTable_UsesBoundTableColumns()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                "SELECT FirstName FROM (SELECT FirstName FROM Users WHERE Id = 1) S");
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("private readonly TableUsers users = new TableUsers();"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("this.FirstName = this.users.FirstName.AddToDerivedTable(this);"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("return Select(users.FirstName).From(users).Where(users.Id == 1).Done();"));
+            Assert.That(result.QueryCSharpCode, Does.Not.Contain("Select(Column(\"FirstName\"))"));
+            Assert.That(result.QueryCSharpCode, Does.Not.Contain("Where(Column(\"Id\") == 1)"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var firstName = s.FirstName.Read(r);"));
+            AssertCompilesAndSql(result, "SELECT [S].[FirstName] FROM (SELECT [A0].[FirstName] FROM [dbo].[Users] [A0] WHERE [A0].[Id]=1)[S]");
+        }
+
+        [Test]
+        public void TranspileSelect_FromDerivedTable_SelectStar_ExposesTypedColumnsUsedByOuterSelect()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                "SELECT FirstName, LastName FROM (SELECT * FROM Users WHERE Id = 1) S");
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("public StringCustomColumn FirstName"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("public StringCustomColumn LastName"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("this.FirstName = this.CreateStringColumn(\"FirstName\");"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("this.LastName = this.CreateStringColumn(\"LastName\");"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("return Select(AllColumns()).From(users).Where(users.Id == 1).Done();"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var firstName = s.FirstName.Read(r);"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var lastName = s.LastName.Read(r);"));
+        }
+
+        [Test]
         public void TranspileSelect_WindowAggregateFrames_UseHelpersForAllKnownAggregates()
         {
             var transpiler = new SqExpressSqlTranspiler();
