@@ -264,8 +264,7 @@ namespace SqExpress.SqlTranspiler
                     UsingDirective(ParseName("SqExpress.Syntax.Type")))
                 .AddMembers(namespaceDeclaration);
 
-            var queryCode = compilationUnit.NormalizeWhitespace().ToFullString();
-            return ApplyPreviewFormatting(queryCode);
+            return compilationUnit.NormalizeWhitespace().ToFullString();
         }
 
         private static DeclarationsBuildResult BuildDeclarationsCode(
@@ -486,20 +485,19 @@ namespace SqExpress.SqlTranspiler
         private static MethodDeclarationSyntax BuildQueryMethod(
             SqExpressSqlTranspilerOptions options,
             IReadOnlyList<QueryPreviewBuildSource> buildUsages,
-            IReadOnlyList<string> readStatements)
+            IReadOnlyList<RoslynStatementSyntax> readStatements)
         {
             var buildArgs = buildUsages.Count > 0
                 ? string.Join(", ", buildUsages.Select(i => "out var " + i.VariableName))
                 : string.Empty;
 
             var buildCall = options.MethodName + "(" + buildArgs + ")";
-            var bodyText = "await foreach (var r in " + buildCall + ".Query(database))\r\n{\r\n";
-            foreach (var readStatement in readStatements)
-            {
-                bodyText += "    " + readStatement + "\r\n";
-            }
-            bodyText += "}";
-            var body = new[] { ParseStatement(bodyText) };
+            var forEachStatement = ForEachStatement(
+                IdentifierName("var"),
+                Identifier("r"),
+                ParseExpression(buildCall + ".Query(database)"),
+                Block(readStatements))
+                .WithAwaitKeyword(Token(SyntaxKind.AwaitKeyword));
 
             return MethodDeclaration(ParseTypeName("Task"), Identifier("Query"))
                 .AddModifiers(Token(SyntaxKind.PublicKeyword), Token(SyntaxKind.StaticKeyword), Token(SyntaxKind.AsyncKeyword))
@@ -507,7 +505,7 @@ namespace SqExpress.SqlTranspiler
                 {
                     Parameter(Identifier("database")).WithType(ParseTypeName("ISqDatabase"))
                 })))
-                .WithBody(Block(body));
+                .WithBody(Block(forEachStatement));
         }
 
         private static MemberDeclarationSyntax BuildTableDescriptorClass(
@@ -1287,29 +1285,6 @@ namespace SqExpress.SqlTranspiler
 
         private static string ToCSharpStringLiteral(string value) => "\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
         private static string ToVerbatimStringLiteral(string value) => "@\"" + value.Replace("\"", "\"\"") + "\"";
-
-        private static string ApplyPreviewFormatting(string code)
-        {
-            var result = code.Replace("SelectOne().Done();", "SelectOne()\r\n                .Done();");
-            var lines = result.Split(new[] { "\r\n" }, StringSplitOptions.None);
-            for (var i = 0; i < lines.Length; i++)
-            {
-                var line = lines[i];
-                if (line.IndexOf(" = Select(", StringComparison.Ordinal) >= 0
-                    && line.Length > 220)
-                {
-                    line = line.Replace(" = Select(", " = Select(\r\n                    ");
-                    if (line.IndexOf(".Where(", StringComparison.Ordinal) >= 0)
-                    {
-                        line = line.Replace(".Where(", ".Where(\r\n                    ");
-                    }
-
-                    lines[i] = line;
-                }
-            }
-
-            return string.Join("\r\n", lines);
-        }
 
         private sealed class ExprAnalysis
         {

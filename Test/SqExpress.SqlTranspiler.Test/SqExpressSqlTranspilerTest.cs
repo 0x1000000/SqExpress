@@ -466,6 +466,42 @@ namespace SqExpress.SqlTranspiler.Test
         }
 
         [Test]
+        public void TranspileSelect_FromDerivedTable_SelectStar_WithAlias_UsesTypedReadWithCustomColumnName()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                "SELECT S.FirstName AS UserFirstName FROM (SELECT * FROM Users WHERE Id = 1) S");
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("public StringCustomColumn FirstName"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var userFirstName = s.FirstName.Read(r, \"UserFirstName\");"));
+            AssertCompiles(result, "GeneratedTranspilerDerivedStarAliasReadTests");
+        }
+
+        [Test]
+        public void TranspileSelect_MixedDirectAndComputedProjection_UsesTypedAndFallbackReads()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                "SELECT u.FirstName, ROW_NUMBER() OVER(ORDER BY u.UserId) AS Rn FROM dbo.Users u");
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("var firstName = u.FirstName.Read(r);"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var rn = r.GetValue(r.GetOrdinal(\"Rn\"));"));
+            AssertCompiles(result, "GeneratedTranspilerMixedReadsTests");
+        }
+
+        [Test]
+        public void TranspileSelect_DerivedComputedOnlyProjection_UsesSafeFallbackRead()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                "SELECT X.Rn FROM (SELECT ROW_NUMBER() OVER(ORDER BY u.UserId) AS Rn FROM dbo.Users u) X");
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("public ExprColumn Rn"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var rn = r.GetValue(r.GetOrdinal(\"Rn\"));"));
+            AssertCompiles(result, "GeneratedTranspilerDerivedComputedReadTests");
+        }
+
+        [Test]
         public void TranspileSelect_WindowAggregateFrames_UseHelpersForAllKnownAggregates()
         {
             var transpiler = new SqExpressSqlTranspiler();
@@ -513,8 +549,7 @@ namespace SqExpress.SqlTranspiler.Test
             Assert.That(result.QueryCSharpCode, Does.Contain("namespace Demo.Generated"));
             Assert.That(result.QueryCSharpCode, Does.Contain("using Demo.Generated.Declarations;"));
             Assert.That(result.QueryCSharpCode, Does.Contain("public static IExprQuery BuildReport()"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("var reportQuery = SelectOne()"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("\r\n                .Done();"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var reportQuery = SelectOne().Done();"));
             Assert.That(result.DeclarationsCSharpCode, Does.Contain("namespace Demo.Generated.Declarations"));
             AssertCompilesAndSql(result, SqlSelect1, options);
         }
@@ -678,9 +713,8 @@ namespace SqExpress.SqlTranspiler.Test
             Assert.That(result.QueryCSharpCode, Does.Contain("RowNumber().OverOrderBy(Asc(u.UserId)).As(\"Rn\")"));
             Assert.That(result.QueryCSharpCode, Does.Contain("IsNull(u.Name, \"NA\").As(\"UserName\")"));
             Assert.That(result.QueryCSharpCode, Does.Contain("ScalarFunctionSys(\"LEN\", u.Name).As(\"NameLen\")"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("Select(\r\n"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("\r\n                    u.UserId,"));
-            Assert.That(result.QueryCSharpCode, Does.Contain(".Where(\r\n"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Select(u.UserId"));
+            Assert.That(result.QueryCSharpCode, Does.Contain(".Where((u.UserId.In("));
             Assert.That(result.QueryCSharpCode, Does.Contain(".OuterApply("));
             Assert.That(result.QueryCSharpCode, Does.Contain("Exists(Select"));
             Assert.That(result.QueryCSharpCode, Does.Contain(".OffsetFetch(0, 20)"));

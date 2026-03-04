@@ -2,8 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SqExpress.Syntax;
+using SqExpress.QueryBuilders;
+using SqExpress.QueryBuilders.Delete;
+using SqExpress.QueryBuilders.Insert;
+using SqExpress.QueryBuilders.Merge;
+using SqExpress.QueryBuilders.Select;
+using SqExpress.QueryBuilders.Update;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Expressions;
@@ -16,6 +24,8 @@ using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Update;
 using SqExpress.Syntax.Value;
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
+using RoslynExpressionSyntax = Microsoft.CodeAnalysis.CSharp.Syntax.ExpressionSyntax;
+using RoslynStatementSyntax = Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax;
 
 namespace SqExpress.SqlTranspiler
 {
@@ -46,7 +56,7 @@ namespace SqExpress.SqlTranspiler
                 IReadOnlyList<QueryPreviewBuildSource> outSources,
                 IReadOnlyList<QueryPreviewBuildSource> localSources,
                 IReadOnlyList<string> parameterDeclarations,
-                IReadOnlyList<string> readStatements,
+                IReadOnlyList<RoslynStatementSyntax> readStatements,
                 IReadOnlyList<MemberDeclarationSyntax> nestedTypes,
                 string queryExpressionCode)
             {
@@ -64,7 +74,7 @@ namespace SqExpress.SqlTranspiler
 
             public IReadOnlyList<string> ParameterDeclarations { get; }
 
-            public IReadOnlyList<string> ReadStatements { get; }
+            public IReadOnlyList<RoslynStatementSyntax> ReadStatements { get; }
 
             public IReadOnlyList<MemberDeclarationSyntax> NestedTypes { get; }
 
@@ -73,6 +83,49 @@ namespace SqExpress.SqlTranspiler
 
         private sealed class QueryPreviewEmitter
         {
+            private const string MSelect = nameof(SqQueryBuilder.Select);
+            private const string MSelectOne = nameof(SqQueryBuilder.SelectOne);
+            private const string MSelectDistinct = nameof(SqQueryBuilder.SelectDistinct);
+            private const string MSelectTop = nameof(SqQueryBuilder.SelectTop);
+            private const string MSelectTopDistinct = nameof(SqQueryBuilder.SelectTopDistinct);
+            private const string MUpdate = nameof(SqQueryBuilder.Update);
+            private const string MDelete = nameof(SqQueryBuilder.Delete);
+            private const string MInsertInto = nameof(SqQueryBuilder.InsertInto);
+            private const string MIdentityInsertInto = nameof(SqQueryBuilder.IdentityInsertInto);
+            private const string MMergeInto = nameof(SqQueryBuilder.MergeInto);
+            private const string MDone = nameof(IExprSubQueryFinal.Done);
+            private const string MSet = nameof(UpdateBuilder.Set);
+            private const string MWhere = nameof(IQuerySpecificationBuilderJoin.Where);
+            private const string MAll = nameof(DeleteBuilder.All);
+            private const string MValues = nameof(InsertBuilder.Values);
+            private const string MDoneWithValues = nameof(InsertBuilder.ValuesBuilder.DoneWithValues);
+            private const string MFrom = nameof(IQuerySpecificationBuilderInitial.From);
+            private const string MOn = nameof(IMergeBuilderCondition.On);
+            private const string MWhenMatchedAnd = nameof(IMergeMatchedBuilder.WhenMatchedAnd);
+            private const string MWhenMatched = nameof(IMergeMatchedBuilder.WhenMatched);
+            private const string MThenUpdate = nameof(IMergeMatchedThenBuilder.ThenUpdate);
+            private const string MThenDelete = nameof(IMergeMatchedThenBuilder.ThenDelete);
+            private const string MWhenNotMatchedByTargetAnd = nameof(IMergeNotMatchedByTargetBuilder.WhenNotMatchedByTargetAnd);
+            private const string MWhenNotMatchedByTarget = nameof(IMergeNotMatchedByTargetBuilder.WhenNotMatchedByTarget);
+            private const string MThenInsert = nameof(IMergeNotMatchedByTargetThenBuilder.ThenInsert);
+            private const string MThenInsertDefaultValues = nameof(IMergeNotMatchedByTargetThenBuilder.ThenInsertDefaultValues);
+            private const string MWhenNotMatchedBySourceAnd = nameof(IMergeNotMatchedBySourceBuilder.WhenNotMatchedBySourceAnd);
+            private const string MWhenNotMatchedBySource = nameof(IMergeNotMatchedBySourceBuilder.WhenNotMatchedBySource);
+            private const string MInnerJoin = nameof(IQuerySpecificationBuilderJoin.InnerJoin);
+            private const string MLeftJoin = nameof(IQuerySpecificationBuilderJoin.LeftJoin);
+            private const string MFullJoin = nameof(IQuerySpecificationBuilderJoin.FullJoin);
+            private const string MCrossJoin = nameof(IQuerySpecificationBuilderJoin.CrossJoin);
+            private const string MOuterApply = nameof(IQuerySpecificationBuilderJoin.OuterApply);
+            private const string MCrossApply = nameof(IQuerySpecificationBuilderJoin.CrossApply);
+            private const string MOrderBy = nameof(IQuerySpecificationBuilderFinal.OrderBy);
+            private const string MGroupBy = nameof(IQuerySpecificationBuilderFiltered.GroupBy);
+            private const string MOffset = nameof(ISelectBuilder.Offset);
+            private const string MOffsetFetch = nameof(ISelectBuilder.OffsetFetch);
+            private const string MUnionAll = nameof(IQueryExpressionBuilder.UnionAll);
+            private const string MUnion = nameof(IQueryExpressionBuilder.Union);
+            private const string MExcept = nameof(IQueryExpressionBuilder.Except);
+            private const string MIntersect = nameof(IQueryExpressionBuilder.Intersect);
+
             private enum SourceKind
             {
                 Table,
@@ -174,7 +227,13 @@ namespace SqExpress.SqlTranspiler
 
                 foreach (var classPair in columnTypesByClassName)
                 {
-                    this._columnTypesByClassName[classPair.Key] = new Dictionary<string, string>(classPair.Value, StringComparer.OrdinalIgnoreCase);
+                    var byColumn = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var colType in classPair.Value)
+                    {
+                        byColumn[colType.Key] = colType.Value;
+                    }
+
+                    this._columnTypesByClassName[classPair.Key] = byColumn;
                 }
             }
 
@@ -368,7 +427,7 @@ namespace SqExpress.SqlTranspiler
                 }
             }
 
-            private IReadOnlyList<string> BuildReadStatements(RenderContext context)
+            private IReadOnlyList<RoslynStatementSyntax> BuildReadStatements(RenderContext context)
             {
                 IExprSubQuery? topSelect = null;
                 if (this._previewExpr is ExprSelect select)
@@ -382,16 +441,16 @@ namespace SqExpress.SqlTranspiler
 
                 if (topSelect is null)
                 {
-                    return Array.Empty<string>();
+                    return Array.Empty<RoslynStatementSyntax>();
                 }
 
                 var list = GetTopSelectList(topSelect);
                 if (list == null)
                 {
-                    return Array.Empty<string>();
+                    return Array.Empty<RoslynStatementSyntax>();
                 }
 
-                var result = new List<string>(list.Count);
+                var result = new List<RoslynStatementSyntax>(list.Count);
                 for (var i = 0; i < list.Count; i++)
                 {
                     if (list[i] is ExprAliasedColumn aliasedColumn)
@@ -401,12 +460,12 @@ namespace SqExpress.SqlTranspiler
                         var typedRead = this.TryRenderTypedRead(aliasedColumn.Column, context, aliasedColumn.Alias?.Name);
                         if (typedRead != null)
                         {
-                            result.Add("var " + varName + " = " + typedRead + ";");
+                            result.Add(CreateReadVarStatement(varName, typedRead));
                         }
                         else
                         {
                             var readName = aliasedColumn.Alias?.Name ?? aliasedColumn.Column.ColumnName.Name;
-                            result.Add("var " + varName + " = r.GetValue(r.GetOrdinal(" + ToCSharpStringLiteral(readName) + "));");
+                            result.Add(CreateReadVarStatement(varName, CreateFallbackReadExpression(readName)));
                         }
                     }
                     else if (list[i] is ExprColumn column)
@@ -416,12 +475,12 @@ namespace SqExpress.SqlTranspiler
                         var typedRead = this.TryRenderTypedRead(column, context, null);
                         if (typedRead != null)
                         {
-                            result.Add("var " + varName + " = " + typedRead + ";");
+                            result.Add(CreateReadVarStatement(varName, typedRead));
                         }
                         else
                         {
                             var readName = outputName ?? column.ColumnName.Name;
-                            result.Add("var " + varName + " = r.GetValue(r.GetOrdinal(" + ToCSharpStringLiteral(readName) + "));");
+                            result.Add(CreateReadVarStatement(varName, CreateFallbackReadExpression(readName)));
                         }
                     }
                     else if (list[i] is ExprAliasedSelecting aliasedSelecting && aliasedSelecting.Value is ExprColumn aliasedColumnValue)
@@ -431,25 +490,62 @@ namespace SqExpress.SqlTranspiler
                         var typedRead = this.TryRenderTypedRead(aliasedColumnValue, context, aliasedSelecting.Alias.Name);
                         if (typedRead != null)
                         {
-                            result.Add("var " + varName + " = " + typedRead + ";");
+                            result.Add(CreateReadVarStatement(varName, typedRead));
                         }
                         else
                         {
-                            result.Add("var " + varName + " = r.GetValue(r.GetOrdinal(" + ToCSharpStringLiteral(aliasedSelecting.Alias.Name) + "));");
+                            result.Add(CreateReadVarStatement(varName, CreateFallbackReadExpression(aliasedSelecting.Alias.Name)));
                         }
                     }
                     else if (list[i] is ExprAliasedSelecting anyAliasedSelecting)
                     {
                         var outputName = ((IExprNamedSelecting)anyAliasedSelecting).OutputName;
                         var varName = ToCamelCaseIdentifier(outputName ?? "c" + (i + 1).ToString(CultureInfo.InvariantCulture), "c");
-                        result.Add("var " + varName + " = r.GetValue(r.GetOrdinal(" + ToCSharpStringLiteral(anyAliasedSelecting.Alias.Name) + "));");
+                        result.Add(CreateReadVarStatement(varName, CreateFallbackReadExpression(anyAliasedSelecting.Alias.Name)));
                     }
                 }
 
                 return result;
             }
 
-            private string? TryRenderTypedRead(ExprColumn column, RenderContext context, string? aliasedName)
+            private static RoslynStatementSyntax CreateReadVarStatement(string variableName, RoslynExpressionSyntax valueExpression)
+            {
+                return LocalDeclarationStatement(
+                    VariableDeclaration(IdentifierName("var"))
+                        .WithVariables(
+                            SingletonSeparatedList(
+                                VariableDeclarator(Identifier(variableName))
+                                    .WithInitializer(
+                                        EqualsValueClause(valueExpression)))));
+            }
+
+            private static RoslynExpressionSyntax CreateFallbackReadExpression(string columnName)
+            {
+                var getOrdinalCall = InvocationExpression(
+                        MemberAccessExpression(
+                            SyntaxKind.SimpleMemberAccessExpression,
+                            IdentifierName("r"),
+                            IdentifierName("GetOrdinal")))
+                    .WithArgumentList(
+                        ArgumentList(
+                            SingletonSeparatedList(
+                                Argument(
+                                    LiteralExpression(
+                                        SyntaxKind.StringLiteralExpression,
+                                        Literal(columnName))))));
+
+                return InvocationExpression(
+                        MemberAccessExpression(
+                            SyntaxKind.SimpleMemberAccessExpression,
+                            IdentifierName("r"),
+                            IdentifierName("GetValue")))
+                    .WithArgumentList(
+                        ArgumentList(
+                            SingletonSeparatedList(
+                                Argument(getOrdinalCall))));
+            }
+
+            private RoslynExpressionSyntax? TryRenderTypedRead(ExprColumn column, RenderContext context, string? aliasedName)
             {
                 if (!this.TryGetColumnType(column, context, out var columnType))
                 {
@@ -461,13 +557,30 @@ namespace SqExpress.SqlTranspiler
                     return null;
                 }
 
-                var colExpr = this.RenderColumn(column, context);
+                var colExpr = ParseExpression(this.RenderColumn(column, context));
+                var readCall = InvocationExpression(
+                    MemberAccessExpression(
+                        SyntaxKind.SimpleMemberAccessExpression,
+                        colExpr,
+                        IdentifierName("Read")));
                 if (string.IsNullOrWhiteSpace(aliasedName))
                 {
-                    return colExpr + ".Read(r)";
+                    return readCall.WithArgumentList(
+                        ArgumentList(
+                            SingletonSeparatedList(
+                                Argument(IdentifierName("r")))));
                 }
 
-                return colExpr + ".Read(r, " + ToCSharpStringLiteral(aliasedName) + ")";
+                return readCall.WithArgumentList(
+                    ArgumentList(
+                        SeparatedList(new[]
+                        {
+                            Argument(IdentifierName("r")),
+                            Argument(
+                                LiteralExpression(
+                                    SyntaxKind.StringLiteralExpression,
+                                    Literal(aliasedName!)))
+                        })));
             }
 
             private bool TryGetColumnType(ExprColumn column, RenderContext context, out string columnType)
@@ -556,7 +669,7 @@ namespace SqExpress.SqlTranspiler
                     case ExprMerge merge:
                         return this.RenderMerge(merge, context);
                     default:
-                        return "SelectOne().Done()";
+                        return MSelectOne + "()." + MDone + "()";
                 }
             }
 
@@ -564,9 +677,9 @@ namespace SqExpress.SqlTranspiler
             {
                 if (query is ExprSelect select)
                 {
-                    var builder = this.RenderSubQueryBuilder(select.SelectQuery, context, useDerivedPropertyAliases: false, derivedPropertyMap: null);
+                    var builder = ParseExpression(this.RenderSubQueryBuilder(select.SelectQuery, context, useDerivedPropertyAliases: false, derivedPropertyMap: null));
                     builder = this.ApplyOrderBy(builder, select.OrderBy.OrderList, context);
-                    return builder + ".Done()";
+                    return ToRenderedCode(AppendInvocation(builder, MDone));
                 }
 
                 if (query is IExprSubQuery subQuery)
@@ -574,13 +687,13 @@ namespace SqExpress.SqlTranspiler
                     return this.RenderSubQueryFinal(subQuery, context, useDerivedPropertyAliases: false, derivedPropertyMap: null);
                 }
 
-                return "SelectOne().Done()";
+                return MSelectOne + "()." + MDone + "()";
             }
 
             private string RenderUpdate(ExprUpdate expr, RenderContext context)
             {
                 var target = this.RenderTableReference(expr.Target, context);
-                var builder = "Update(" + target + ")";
+                var builder = ParseExpression(MUpdate + "(" + target + ")");
 
                 if (expr.Source != null)
                 {
@@ -589,7 +702,11 @@ namespace SqExpress.SqlTranspiler
 
                 foreach (var set in expr.SetClause)
                 {
-                    builder += ".Set(" + this.RenderColumn(set.Column, context) + ", " + this.RenderAssigning(set.Value, context) + ")";
+                    builder = AppendInvocation(
+                        builder,
+                        MSet,
+                        this.RenderColumn(set.Column, context),
+                        this.RenderAssigning(set.Value, context));
                 }
 
                 if (expr.Source != null)
@@ -599,20 +716,20 @@ namespace SqExpress.SqlTranspiler
 
                 if (expr.Filter != null)
                 {
-                    builder += ".Where(" + this.RenderBoolean(expr.Filter, context) + ")";
+                    builder = AppendInvocation(builder, MWhere, this.RenderBoolean(expr.Filter, context));
                 }
                 else
                 {
-                    builder += ".All()";
+                    builder = AppendInvocation(builder, MAll);
                 }
 
-                return builder;
+                return ToRenderedCode(builder);
             }
 
             private string RenderDelete(ExprDelete expr, RenderContext context)
             {
                 var target = this.RenderTableReference(expr.Target, context);
-                var builder = "Delete(" + target + ")";
+                var builder = ParseExpression(MDelete + "(" + target + ")");
                 if (expr.Source != null)
                 {
                     builder = this.ApplyFromChain(builder, expr.Source, context, updateDeleteFrom: true);
@@ -620,14 +737,14 @@ namespace SqExpress.SqlTranspiler
 
                 if (expr.Filter != null)
                 {
-                    builder += ".Where(" + this.RenderBoolean(expr.Filter, context) + ")";
+                    builder = AppendInvocation(builder, MWhere, this.RenderBoolean(expr.Filter, context));
                 }
                 else
                 {
-                    builder += ".All()";
+                    builder = AppendInvocation(builder, MAll);
                 }
 
-                return builder;
+                return ToRenderedCode(builder);
             }
 
             private string RenderInsert(ExprInsert expr, RenderContext context)
@@ -637,30 +754,30 @@ namespace SqExpress.SqlTranspiler
                     .Select(i => targetVariable + "." + ToPascalCaseIdentifier(i.Name, "Column"))
                     .ToList();
 
-                var builder = "InsertInto(" + targetVariable;
-                if (targetColumns.Count > 0)
-                {
-                    builder += ", " + string.Join(", ", targetColumns);
-                }
-                builder += ")";
+                var insertArgs = new List<string>(1 + targetColumns.Count) { targetVariable };
+                insertArgs.AddRange(targetColumns);
+                var builder = ParseExpression(MInsertInto + "(" + string.Join(", ", insertArgs) + ")");
 
                 if (expr.Source is ExprInsertValues values)
                 {
                     foreach (var row in values.Items)
                     {
-                        builder += ".Values(" + string.Join(", ", row.Items.Select(i => this.RenderAssigning(i, context))) + ")";
+                        builder = AppendInvocation(
+                            builder,
+                            MValues,
+                            row.Items.Select(i => this.RenderAssigning(i, context)).ToArray());
                     }
-                    builder += ".DoneWithValues()";
-                    return builder;
+                    builder = AppendInvocation(builder, MDoneWithValues);
+                    return ToRenderedCode(builder);
                 }
 
                 if (expr.Source is ExprInsertQuery query)
                 {
-                    builder += ".From(" + this.RenderQuery(query.Query, context) + ")";
-                    return builder;
+                    builder = AppendInvocation(builder, MFrom, this.RenderQuery(query.Query, context));
+                    return ToRenderedCode(builder);
                 }
 
-                return builder;
+                return ToRenderedCode(builder);
             }
 
             private string RenderIdentityInsert(ExprIdentityInsert expr, RenderContext context)
@@ -670,30 +787,30 @@ namespace SqExpress.SqlTranspiler
                     .Select(i => targetVariable + "." + ToPascalCaseIdentifier(i.Name, "Column"))
                     .ToList();
 
-                var builder = "IdentityInsertInto(" + targetVariable;
-                if (targetColumns.Count > 0)
-                {
-                    builder += ", " + string.Join(", ", targetColumns);
-                }
-                builder += ")";
+                var insertArgs = new List<string>(1 + targetColumns.Count) { targetVariable };
+                insertArgs.AddRange(targetColumns);
+                var builder = ParseExpression(MIdentityInsertInto + "(" + string.Join(", ", insertArgs) + ")");
 
                 if (expr.Insert.Source is ExprInsertValues values)
                 {
                     foreach (var row in values.Items)
                     {
-                        builder += ".Values(" + string.Join(", ", row.Items.Select(i => this.RenderAssigning(i, context))) + ")";
+                        builder = AppendInvocation(
+                            builder,
+                            MValues,
+                            row.Items.Select(i => this.RenderAssigning(i, context)).ToArray());
                     }
-                    builder += ".DoneWithValues()";
-                    return builder;
+                    builder = AppendInvocation(builder, MDoneWithValues);
+                    return ToRenderedCode(builder);
                 }
 
                 if (expr.Insert.Source is ExprInsertQuery query)
                 {
-                    builder += ".From(" + this.RenderQuery(query.Query, context) + ")";
-                    return builder;
+                    builder = AppendInvocation(builder, MFrom, this.RenderQuery(query.Query, context));
+                    return ToRenderedCode(builder);
                 }
 
-                return builder;
+                return ToRenderedCode(builder);
             }
 
             private string RenderMerge(ExprMerge expr, RenderContext context)
@@ -716,62 +833,111 @@ namespace SqExpress.SqlTranspiler
                 }
                 var source = this.RenderTableSource(expr.Source, context);
 
-                var builder = "MergeInto(" + target + ", " + source + ").On(" + this.RenderBoolean(expr.On, context) + ")";
+                var builder = ParseExpression(MMergeInto + "(" + target + ", " + source + ")");
+                builder = AppendInvocation(builder, MOn, this.RenderBoolean(expr.On, context));
 
                 if (expr.WhenMatched is ExprMergeMatchedUpdate matchedUpdate)
                 {
-                    builder += matchedUpdate.And != null
-                        ? ".WhenMatchedAnd(" + this.RenderBoolean(matchedUpdate.And, context) + ").ThenUpdate()"
-                        : ".WhenMatched().ThenUpdate()";
+                    if (matchedUpdate.And != null)
+                    {
+                        builder = AppendInvocation(builder, MWhenMatchedAnd, this.RenderBoolean(matchedUpdate.And, context));
+                    }
+                    else
+                    {
+                        builder = AppendInvocation(builder, MWhenMatched);
+                    }
+                    builder = AppendInvocation(builder, MThenUpdate);
 
                     foreach (var set in matchedUpdate.Set)
                     {
-                        builder += ".Set(" + this.RenderColumn(set.Column, context) + ", " + this.RenderAssigning(set.Value, context) + ")";
+                        builder = AppendInvocation(
+                            builder,
+                            MSet,
+                            this.RenderColumn(set.Column, context),
+                            this.RenderAssigning(set.Value, context));
                     }
                 }
                 else if (expr.WhenMatched is ExprMergeMatchedDelete matchedDelete)
                 {
-                    builder += matchedDelete.And != null
-                        ? ".WhenMatchedAnd(" + this.RenderBoolean(matchedDelete.And, context) + ").ThenDelete()"
-                        : ".WhenMatched().ThenDelete()";
+                    if (matchedDelete.And != null)
+                    {
+                        builder = AppendInvocation(builder, MWhenMatchedAnd, this.RenderBoolean(matchedDelete.And, context));
+                    }
+                    else
+                    {
+                        builder = AppendInvocation(builder, MWhenMatched);
+                    }
+                    builder = AppendInvocation(builder, MThenDelete);
                 }
 
                 if (expr.WhenNotMatchedByTarget is ExprExprMergeNotMatchedInsert notMatchedInsert)
                 {
-                    builder += notMatchedInsert.And != null
-                        ? ".WhenNotMatchedByTargetAnd(" + this.RenderBoolean(notMatchedInsert.And, context) + ").ThenInsert()"
-                        : ".WhenNotMatchedByTarget().ThenInsert()";
+                    if (notMatchedInsert.And != null)
+                    {
+                        builder = AppendInvocation(builder, MWhenNotMatchedByTargetAnd, this.RenderBoolean(notMatchedInsert.And, context));
+                    }
+                    else
+                    {
+                        builder = AppendInvocation(builder, MWhenNotMatchedByTarget);
+                    }
+                    builder = AppendInvocation(builder, MThenInsert);
 
                     for (var i = 0; i < notMatchedInsert.Columns.Count && i < notMatchedInsert.Values.Count; i++)
                     {
-                        builder += ".Set(CustomColumnFactory.Any(" + ToCSharpStringLiteral(notMatchedInsert.Columns[i].Name) + "), " + this.RenderAssigning(notMatchedInsert.Values[i], context) + ")";
+                        builder = AppendInvocation(
+                            builder,
+                            MSet,
+                            "CustomColumnFactory.Any(" + ToCSharpStringLiteral(notMatchedInsert.Columns[i].Name) + ")",
+                            this.RenderAssigning(notMatchedInsert.Values[i], context));
                     }
                 }
                 else if (expr.WhenNotMatchedByTarget is ExprExprMergeNotMatchedInsertDefault notMatchedInsertDefault)
                 {
-                    builder += notMatchedInsertDefault.And != null
-                        ? ".WhenNotMatchedByTargetAnd(" + this.RenderBoolean(notMatchedInsertDefault.And, context) + ").ThenInsertDefaultValues()"
-                        : ".WhenNotMatchedByTarget().ThenInsertDefaultValues()";
+                    if (notMatchedInsertDefault.And != null)
+                    {
+                        builder = AppendInvocation(builder, MWhenNotMatchedByTargetAnd, this.RenderBoolean(notMatchedInsertDefault.And, context));
+                    }
+                    else
+                    {
+                        builder = AppendInvocation(builder, MWhenNotMatchedByTarget);
+                    }
+                    builder = AppendInvocation(builder, MThenInsertDefaultValues);
                 }
 
                 if (expr.WhenNotMatchedBySource is ExprMergeMatchedUpdate notMatchedBySourceUpdate)
                 {
-                    builder += notMatchedBySourceUpdate.And != null
-                        ? ".WhenNotMatchedBySourceAnd(" + this.RenderBoolean(notMatchedBySourceUpdate.And, context) + ").ThenUpdate()"
-                        : ".WhenNotMatchedBySource().ThenUpdate()";
+                    if (notMatchedBySourceUpdate.And != null)
+                    {
+                        builder = AppendInvocation(builder, MWhenNotMatchedBySourceAnd, this.RenderBoolean(notMatchedBySourceUpdate.And, context));
+                    }
+                    else
+                    {
+                        builder = AppendInvocation(builder, MWhenNotMatchedBySource);
+                    }
+                    builder = AppendInvocation(builder, MThenUpdate);
                     foreach (var set in notMatchedBySourceUpdate.Set)
                     {
-                        builder += ".Set(" + this.RenderColumn(set.Column, context) + ", " + this.RenderAssigning(set.Value, context) + ")";
+                        builder = AppendInvocation(
+                            builder,
+                            MSet,
+                            this.RenderColumn(set.Column, context),
+                            this.RenderAssigning(set.Value, context));
                     }
                 }
                 else if (expr.WhenNotMatchedBySource is ExprMergeMatchedDelete notMatchedBySourceDelete)
                 {
-                    builder += notMatchedBySourceDelete.And != null
-                        ? ".WhenNotMatchedBySourceAnd(" + this.RenderBoolean(notMatchedBySourceDelete.And, context) + ").ThenDelete()"
-                        : ".WhenNotMatchedBySource().ThenDelete()";
+                    if (notMatchedBySourceDelete.And != null)
+                    {
+                        builder = AppendInvocation(builder, MWhenNotMatchedBySourceAnd, this.RenderBoolean(notMatchedBySourceDelete.And, context));
+                    }
+                    else
+                    {
+                        builder = AppendInvocation(builder, MWhenNotMatchedBySource);
+                    }
+                    builder = AppendInvocation(builder, MThenDelete);
                 }
 
-                return builder + ".Done()";
+                return ToRenderedCode(AppendInvocation(builder, MDone));
             }
             private string RenderSubQueryBuilder(
                 IExprSubQuery query,
@@ -785,31 +951,35 @@ namespace SqExpress.SqlTranspiler
                         return this.RenderQuerySpecificationBuilder(specification, context, useDerivedPropertyAliases, derivedPropertyMap);
                     case ExprQueryExpression queryExpression:
                     {
-                        var left = this.RenderSubQueryBuilder(queryExpression.Left, context, useDerivedPropertyAliases, derivedPropertyMap);
+                        var left = ParseExpression(this.RenderSubQueryBuilder(queryExpression.Left, context, useDerivedPropertyAliases, derivedPropertyMap));
                         var right = this.RenderSubQueryBuilder(queryExpression.Right, context, useDerivedPropertyAliases, derivedPropertyMap);
                         string op = queryExpression.QueryExpressionType switch
                         {
-                            ExprQueryExpressionType.UnionAll => "UnionAll",
-                            ExprQueryExpressionType.Union => "Union",
-                            ExprQueryExpressionType.Except => "Except",
-                            ExprQueryExpressionType.Intersect => "Intersect",
-                            _ => "UnionAll"
+                            ExprQueryExpressionType.UnionAll => MUnionAll,
+                            ExprQueryExpressionType.Union => MUnion,
+                            ExprQueryExpressionType.Except => MExcept,
+                            ExprQueryExpressionType.Intersect => MIntersect,
+                            _ => MUnionAll
                         };
-                        return left + "." + op + "(" + right + ")";
+                        return ToRenderedCode(AppendInvocation(left, op, right));
                     }
                     case ExprSelectOffsetFetch offsetFetch:
                     {
-                        var builder = this.RenderSubQueryBuilder(offsetFetch.SelectQuery, context, useDerivedPropertyAliases, derivedPropertyMap);
+                        var builder = ParseExpression(this.RenderSubQueryBuilder(offsetFetch.SelectQuery, context, useDerivedPropertyAliases, derivedPropertyMap));
                         builder = this.ApplyOrderBy(builder, offsetFetch.OrderBy.OrderList, context);
                         if (offsetFetch.OrderBy.OffsetFetch.Fetch is ExprValue fetch)
                         {
-                            builder += ".OffsetFetch(" + this.RenderValue(offsetFetch.OrderBy.OffsetFetch.Offset, context) + ", " + this.RenderValue(fetch, context) + ")";
+                            builder = AppendInvocation(
+                                builder,
+                                MOffsetFetch,
+                                this.RenderValue(offsetFetch.OrderBy.OffsetFetch.Offset, context),
+                                this.RenderValue(fetch, context));
                         }
                         else
                         {
-                            builder += ".Offset(" + this.RenderValue(offsetFetch.OrderBy.OffsetFetch.Offset, context) + ")";
+                            builder = AppendInvocation(builder, MOffset, this.RenderValue(offsetFetch.OrderBy.OffsetFetch.Offset, context));
                         }
-                        return builder;
+                        return ToRenderedCode(builder);
                     }
                     default:
                         return "SelectOne()";
@@ -822,7 +992,10 @@ namespace SqExpress.SqlTranspiler
                 bool useDerivedPropertyAliases,
                 IReadOnlyDictionary<string, string>? derivedPropertyMap)
             {
-                return this.RenderSubQueryBuilder(query, context, useDerivedPropertyAliases, derivedPropertyMap) + ".Done()";
+                return ToRenderedCode(
+                    AppendInvocation(
+                        ParseExpression(this.RenderSubQueryBuilder(query, context, useDerivedPropertyAliases, derivedPropertyMap)),
+                        MDone));
             }
 
             private string RenderQuerySpecificationBuilder(
@@ -836,7 +1009,7 @@ namespace SqExpress.SqlTranspiler
                     this.PreBindSourceAliases(query.From, context);
                 }
 
-                string builder = this.RenderSelectStart(query.SelectList, query.Top, query.Distinct, context, useDerivedPropertyAliases, derivedPropertyMap);
+                var builder = ParseExpression(this.RenderSelectStart(query.SelectList, query.Top, query.Distinct, context, useDerivedPropertyAliases, derivedPropertyMap));
 
                 if (query.From != null)
                 {
@@ -845,23 +1018,15 @@ namespace SqExpress.SqlTranspiler
 
                 if (query.Where != null)
                 {
-                    var whereValue = this.RenderBoolean(query.Where, context);
-                    if (query.Where is ExprBooleanAnd || query.Where is ExprBooleanOr)
-                    {
-                        builder += ".Where(\r\n                    " + whereValue + ")";
-                    }
-                    else
-                    {
-                        builder += ".Where(" + whereValue + ")";
-                    }
+                    builder = AppendInvocation(builder, MWhere, this.RenderBoolean(query.Where, context));
                 }
 
                 if (query.GroupBy != null && query.GroupBy.Count > 0)
                 {
-                    builder += ".GroupBy(" + string.Join(", ", query.GroupBy.Select(i => this.RenderColumn(i, context))) + ")";
+                    builder = AppendInvocation(builder, MGroupBy, query.GroupBy.Select(i => this.RenderColumn(i, context)).ToArray());
                 }
 
-                return builder;
+                return ToRenderedCode(builder);
             }
 
             private void PreBindSourceAliases(IExprTableSource source, RenderContext context)
@@ -894,7 +1059,7 @@ namespace SqExpress.SqlTranspiler
                 }
             }
 
-            private string ApplyFromChain(string builder, IExprTableSource source, RenderContext context, bool updateDeleteFrom)
+            private RoslynExpressionSyntax ApplyFromChain(RoslynExpressionSyntax builder, IExprTableSource source, RenderContext context, bool updateDeleteFrom)
             {
                 if (source is ExprJoinedTable joined)
                 {
@@ -902,48 +1067,59 @@ namespace SqExpress.SqlTranspiler
                     var joinRight = this.RenderTableSource(joined.Right, context);
                     string method = joined.JoinType switch
                     {
-                        ExprJoinedTable.ExprJoinType.Inner => "InnerJoin",
-                        ExprJoinedTable.ExprJoinType.Left => "LeftJoin",
+                        ExprJoinedTable.ExprJoinType.Inner => MInnerJoin,
+                        ExprJoinedTable.ExprJoinType.Left => MLeftJoin,
                         ExprJoinedTable.ExprJoinType.Right => "RightJoin",
-                        ExprJoinedTable.ExprJoinType.Full => "FullJoin",
-                        _ => "InnerJoin"
+                        ExprJoinedTable.ExprJoinType.Full => MFullJoin,
+                        _ => MInnerJoin
                     };
-                    builder += "." + method + "(" + joinRight + ", " + this.RenderBoolean(joined.SearchCondition, context) + ")";
-                    return builder;
+                    return AppendInvocation(builder, method, joinRight, this.RenderBoolean(joined.SearchCondition, context));
                 }
 
                 if (source is ExprCrossedTable crossed)
                 {
                     builder = this.ApplyFromChain(builder, crossed.Left, context, updateDeleteFrom);
-                    builder += ".CrossJoin(" + this.RenderTableSource(crossed.Right, context) + ")";
-                    return builder;
+                    return AppendInvocation(builder, MCrossJoin, this.RenderTableSource(crossed.Right, context));
                 }
 
                 if (source is ExprLateralCrossedTable lateral)
                 {
                     builder = this.ApplyFromChain(builder, lateral.Left, context, updateDeleteFrom);
-                    builder += lateral.Outer
-                        ? ".OuterApply(" + this.RenderTableSource(lateral.Right, context) + ")"
-                        : ".CrossApply(" + this.RenderTableSource(lateral.Right, context) + ")";
-                    return builder;
+                    return lateral.Outer
+                        ? AppendInvocation(builder, MOuterApply, this.RenderTableSource(lateral.Right, context))
+                        : AppendInvocation(builder, MCrossApply, this.RenderTableSource(lateral.Right, context));
                 }
 
-                if (updateDeleteFrom)
-                {
-                    return builder + ".From(" + this.RenderTableSource(source, context) + ")";
-                }
-
-                return builder + ".From(" + this.RenderTableSource(source, context) + ")";
+                return AppendInvocation(builder, MFrom, this.RenderTableSource(source, context));
             }
 
-            private string ApplyOrderBy(string builder, IReadOnlyList<ExprOrderByItem> orderItems, RenderContext context)
+            private RoslynExpressionSyntax ApplyOrderBy(RoslynExpressionSyntax builder, IReadOnlyList<ExprOrderByItem> orderItems, RenderContext context)
             {
                 if (orderItems.Count < 1)
                 {
                     return builder;
                 }
 
-                return builder + ".OrderBy(" + string.Join(", ", orderItems.Select(i => this.RenderOrderByItem(i, context))) + ")";
+                return AppendInvocation(builder, MOrderBy, orderItems.Select(i => this.RenderOrderByItem(i, context)).ToArray());
+            }
+
+            private static RoslynExpressionSyntax AppendInvocation(RoslynExpressionSyntax target, string methodName, params string[] arguments)
+            {
+                var args = arguments.Length == 0
+                    ? SeparatedList<ArgumentSyntax>()
+                    : SeparatedList(arguments.Select(i => Argument(ParseExpression(i))));
+
+                return InvocationExpression(
+                    MemberAccessExpression(
+                        SyntaxKind.SimpleMemberAccessExpression,
+                        target,
+                        IdentifierName(methodName)))
+                    .WithArgumentList(ArgumentList(args));
+            }
+
+            private static string ToRenderedCode(RoslynExpressionSyntax expression)
+            {
+                return expression.NormalizeWhitespace().ToFullString();
             }
 
             private string RenderSelectStart(
@@ -973,18 +1149,18 @@ namespace SqExpress.SqlTranspiler
                 {
                     if (!distinct && rendered.Count == 1 && (rendered[0] == "Literal(1)" || rendered[0] == "1"))
                     {
-                        return "SelectOne()";
+                        return MSelectOne + "()";
                     }
 
                     return distinct
-                        ? "SelectDistinct(" + listText + ")"
-                        : "Select(" + listText + ")";
+                        ? MSelectDistinct + "(" + listText + ")"
+                        : MSelect + "(" + listText + ")";
                 }
 
                 string topValue = this.RenderValue(top, context);
                 return distinct
-                    ? "SelectTopDistinct(" + topValue + ", " + listText + ")"
-                    : "SelectTop(" + topValue + ", " + listText + ")";
+                    ? MSelectTopDistinct + "(" + topValue + ", " + listText + ")"
+                    : MSelectTop + "(" + topValue + ", " + listText + ")";
             }
 
             private string RenderSelecting(
