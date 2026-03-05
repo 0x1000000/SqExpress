@@ -668,6 +668,24 @@ namespace SqExpress.SqlTranspiler.Test
         }
 
         [Test]
+        public void TranspileSelect_WithStaticSqQueryBuilderDisabled_QualifiesHelperCallsInsideChain()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var options = new SqExpressSqlTranspilerOptions
+            {
+                UseStaticSqQueryBuilderUsing = false
+            };
+
+            var result = transpiler.Transpile(
+                "SELECT u.UserId, u.Name AS UserName FROM dbo.Users u WHERE u.IsActive = 1 ORDER BY u.Name DESC",
+                options);
+
+            Assert.That(result.QueryCSharpCode, Does.Contain(".OrderBy(SqQueryBuilder.Desc(u.Name))"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("SqQueryBuilder.Select("));
+            AssertCompilesAndSql(result, SqlBasic, options);
+        }
+
+        [Test]
         public void TranspileSelect_DefaultTableDescriptorNaming_UsesPrefixAndNoSuffix()
         {
             var transpiler = new SqExpressSqlTranspiler();

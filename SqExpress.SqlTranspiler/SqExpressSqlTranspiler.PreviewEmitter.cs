@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -125,6 +126,66 @@ namespace SqExpress.SqlTranspiler
             private const string MUnion = nameof(IQueryExpressionBuilder.Union);
             private const string MExcept = nameof(IQueryExpressionBuilder.Except);
             private const string MIntersect = nameof(IQueryExpressionBuilder.Intersect);
+            private static readonly string[] StaticSqQueryBuilderFunctionNames =
+            {
+                nameof(SqQueryBuilder.Select),
+                nameof(SqQueryBuilder.SelectOne),
+                nameof(SqQueryBuilder.SelectDistinct),
+                nameof(SqQueryBuilder.SelectTop),
+                nameof(SqQueryBuilder.SelectTopDistinct),
+                nameof(SqQueryBuilder.Update),
+                nameof(SqQueryBuilder.Delete),
+                nameof(SqQueryBuilder.InsertInto),
+                nameof(SqQueryBuilder.IdentityInsertInto),
+                nameof(SqQueryBuilder.MergeInto),
+                nameof(SqQueryBuilder.Values),
+                nameof(SqQueryBuilder.AllColumns),
+                nameof(SqQueryBuilder.Column),
+                nameof(SqQueryBuilder.TableAlias),
+                nameof(SqQueryBuilder.Literal),
+                nameof(SqQueryBuilder.ValueQuery),
+                nameof(SqQueryBuilder.Exists),
+                nameof(SqQueryBuilder.Like),
+                nameof(SqQueryBuilder.IsNull),
+                nameof(SqQueryBuilder.IsNotNull),
+                nameof(SqQueryBuilder.Coalesce),
+                nameof(SqQueryBuilder.GetDate),
+                nameof(SqQueryBuilder.GetUtcDate),
+                nameof(SqQueryBuilder.DateAdd),
+                nameof(SqQueryBuilder.DateDiff),
+                nameof(SqQueryBuilder.Cast),
+                nameof(SqQueryBuilder.UnsafeValue),
+                nameof(SqQueryBuilder.ScalarFunctionSys),
+                nameof(SqQueryBuilder.ScalarFunctionCustom),
+                nameof(SqQueryBuilder.Case),
+                nameof(SqQueryBuilder.AggregateFunction),
+                nameof(SqQueryBuilder.AnalyticFunction),
+                nameof(SqQueryBuilder.CountOne),
+                nameof(SqQueryBuilder.Count),
+                nameof(SqQueryBuilder.CountDistinct),
+                nameof(SqQueryBuilder.Min),
+                nameof(SqQueryBuilder.MinDistinct),
+                nameof(SqQueryBuilder.Max),
+                nameof(SqQueryBuilder.MaxDistinct),
+                nameof(SqQueryBuilder.Sum),
+                nameof(SqQueryBuilder.SumDistinct),
+                nameof(SqQueryBuilder.Avg),
+                nameof(SqQueryBuilder.AvgDistinct),
+                nameof(SqQueryBuilder.RowNumber),
+                nameof(SqQueryBuilder.Rank),
+                nameof(SqQueryBuilder.DenseRank),
+                nameof(SqQueryBuilder.CumeDist),
+                nameof(SqQueryBuilder.PercentRank),
+                nameof(SqQueryBuilder.Ntile),
+                nameof(SqQueryBuilder.Lag),
+                nameof(SqQueryBuilder.Lead),
+                nameof(SqQueryBuilder.FirstValue),
+                nameof(SqQueryBuilder.LastValue),
+                nameof(SqQueryBuilder.Asc),
+                nameof(SqQueryBuilder.Desc),
+                nameof(SqQueryBuilder.TableFunctionSys),
+                nameof(SqQueryBuilder.TableFunctionCustom)
+            };
 
             private enum SourceKind
             {
@@ -255,10 +316,6 @@ namespace SqExpress.SqlTranspiler
                 this.PreRegisterTopLevelOutSources(rootContext);
 
                 string queryExpressionCode = this.RenderStatement(this._previewExpr, rootContext);
-                if (this._options.UseStaticSqQueryBuilderUsing == false)
-                {
-                    queryExpressionCode = "SqQueryBuilder." + queryExpressionCode;
-                }
 
                 var parameterDeclarations = this.BuildParameterDeclarations();
                 var readStatements = this.BuildReadStatements(rootContext);
@@ -1251,9 +1308,29 @@ namespace SqExpress.SqlTranspiler
                     .WithArgumentList(ArgumentList(args));
             }
 
-            private static string ToRenderedCode(RoslynExpressionSyntax expression)
+            private string ToRenderedCode(RoslynExpressionSyntax expression)
             {
-                return expression.NormalizeWhitespace().ToFullString();
+                var code = expression.NormalizeWhitespace().ToFullString();
+                if (this._options.UseStaticSqQueryBuilderUsing)
+                {
+                    return code;
+                }
+
+                return QualifyStaticSqQueryBuilderCalls(code);
+            }
+
+            private static string QualifyStaticSqQueryBuilderCalls(string code)
+            {
+                foreach (var functionName in StaticSqQueryBuilderFunctionNames)
+                {
+                    code = Regex.Replace(
+                        code,
+                        @"(?<![\w\.])" + functionName + @"\(",
+                        "SqQueryBuilder." + functionName + "(",
+                        RegexOptions.CultureInvariant);
+                }
+
+                return code;
             }
 
             private string RenderSelectStart(
