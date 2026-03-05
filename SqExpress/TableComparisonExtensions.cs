@@ -51,7 +51,7 @@ public static class TableComparisonExtensions
             missedTables ??= new();
             foreach (var thisTable in thisList)
             {
-                if (sameNameColumns.Contains(tableNameKeyExtractor(thisTable.FullName)))
+                if (!sameNameColumns.Contains(tableNameKeyExtractor(thisTable.FullName)))
                 {
                     missedTables.Add(thisTable);
                 }
@@ -103,7 +103,7 @@ public static class TableComparisonExtensions
             missedColumns ??= new();
             foreach (var thisColumn in thisList.Columns)
             {
-                if (sameNameColumns.Contains(thisColumn.ColumnName))
+                if (!sameNameColumns.Contains(thisColumn.ColumnName))
                 {
                     missedColumns.Add(thisColumn);
                 }

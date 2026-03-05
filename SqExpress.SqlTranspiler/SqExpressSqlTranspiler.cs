@@ -1278,19 +1278,22 @@ namespace SqExpress.SqlTranspiler
             expr.Accept(tableCollector);
 
             var fallbackTableKey = tableCollector.TableKeys.Count == 1 ? tableCollector.TableKeys[0] : null;
-            var columnCollector = new TableColumnCollectorVisitor(tableCollector.AliasToTableKey, fallbackTableKey);
+            var columnCollector = new TableColumnCollectorVisitor(tableCollector.AliasToTableKeys, fallbackTableKey);
             expr.Accept(columnCollector);
 
             var aliasesByTableKey = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
-            foreach (var pair in tableCollector.AliasToTableKey)
+            foreach (var pair in tableCollector.AliasToTableKeys)
             {
-                if (!aliasesByTableKey.TryGetValue(pair.Value, out var set))
+                foreach (var tableKey in pair.Value)
                 {
-                    set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                    aliasesByTableKey[pair.Value] = set;
-                }
+                    if (!aliasesByTableKey.TryGetValue(tableKey, out var set))
+                    {
+                        set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        aliasesByTableKey[tableKey] = set;
+                    }
 
-                set.Add(pair.Key);
+                    set.Add(pair.Key);
+                }
             }
 
             var keywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ASC", "DESC" };
@@ -2028,12 +2031,12 @@ namespace SqExpress.SqlTranspiler
 
         private sealed class TableUsageCollectorVisitor : ExprVisitorBase
         {
-            private readonly Dictionary<string, string> _aliasToTableKey = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            private readonly Dictionary<string, HashSet<string>> _aliasToTableKeys = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
             private readonly List<TableUsage> _tableUsages = new List<TableUsage>();
             private readonly HashSet<string> _seenAliasAndKey = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             private readonly HashSet<string> _tableKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            public IReadOnlyDictionary<string, string> AliasToTableKey => this._aliasToTableKey;
+            public IReadOnlyDictionary<string, HashSet<string>> AliasToTableKeys => this._aliasToTableKeys;
 
             public IReadOnlyList<TableUsage> TableUsages => this._tableUsages;
 
@@ -2051,7 +2054,13 @@ namespace SqExpress.SqlTranspiler
 
                 if (!string.IsNullOrWhiteSpace(alias))
                 {
-                    this._aliasToTableKey[alias!] = tableKey;
+                    if (!this._aliasToTableKeys.TryGetValue(alias!, out var keys))
+                    {
+                        keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        this._aliasToTableKeys[alias!] = keys;
+                    }
+
+                    keys.Add(tableKey);
                     var usageKey = alias + "|" + tableKey;
                     if (this._seenAliasAndKey.Add(usageKey))
                     {
@@ -2089,7 +2098,13 @@ namespace SqExpress.SqlTranspiler
                 var tableKey = GetTableKey(fullName.AsExprTableFullName());
                 this._tableKeys.Add(tableKey);
                 var alias = ToCamelCaseIdentifier(fullName.AsExprTableFullName().TableName.Name, "t");
-                this._aliasToTableKey[alias] = tableKey;
+                if (!this._aliasToTableKeys.TryGetValue(alias, out var keys))
+                {
+                    keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    this._aliasToTableKeys[alias] = keys;
+                }
+
+                keys.Add(tableKey);
                 var usageKey = alias + "|" + tableKey;
                 if (this._seenAliasAndKey.Add(usageKey))
                 {
@@ -2100,12 +2115,12 @@ namespace SqExpress.SqlTranspiler
 
         private sealed class TableColumnCollectorVisitor : ExprVisitorBase
         {
-            private readonly IReadOnlyDictionary<string, string> _aliasToTableKey;
+            private readonly IReadOnlyDictionary<string, HashSet<string>> _aliasToTableKeys;
             private readonly string? _fallbackTableKey;
 
-            public TableColumnCollectorVisitor(IReadOnlyDictionary<string, string> aliasToTableKey, string? fallbackTableKey)
+            public TableColumnCollectorVisitor(IReadOnlyDictionary<string, HashSet<string>> aliasToTableKeys, string? fallbackTableKey)
             {
-                this._aliasToTableKey = aliasToTableKey;
+                this._aliasToTableKeys = aliasToTableKeys;
                 this._fallbackTableKey = fallbackTableKey;
             }
 
@@ -2283,19 +2298,22 @@ namespace SqExpress.SqlTranspiler
 
             private void AddColumn(Dictionary<string, HashSet<string>> map, ExprColumn expr)
             {
-                var tableKey = this.ResolveTableKey(expr);
-                if (tableKey == null)
+                var tableKeys = this.ResolveTableKeys(expr);
+                if (tableKeys == null)
                 {
                     return;
                 }
 
-                if (!map.TryGetValue(tableKey, out var columns))
+                foreach (var tableKey in tableKeys)
                 {
-                    columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                    map[tableKey] = columns;
-                }
+                    if (!map.TryGetValue(tableKey, out var columns))
+                    {
+                        columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        map[tableKey] = columns;
+                    }
 
-                columns.Add(expr.ColumnName.Name);
+                    columns.Add(expr.ColumnName.Name);
+                }
             }
 
             private void AddColumnByTableKey(Dictionary<string, HashSet<string>> map, string tableKey, string columnName)
@@ -2309,21 +2327,21 @@ namespace SqExpress.SqlTranspiler
                 columns.Add(columnName);
             }
 
-            private string? ResolveTableKey(ExprColumn expr)
+            private IReadOnlyCollection<string>? ResolveTableKeys(ExprColumn expr)
             {
                 if (expr.Source is ExprTableAlias sourceAlias)
                 {
                     var aliasName = TryGetAliasName(sourceAlias.Alias);
                     if (!string.IsNullOrWhiteSpace(aliasName)
-                        && this._aliasToTableKey.TryGetValue(aliasName!, out var keyByAlias))
+                        && this._aliasToTableKeys.TryGetValue(aliasName!, out var keysByAlias))
                     {
-                        return keyByAlias;
+                        return keysByAlias;
                     }
                 }
 
                 if (!string.IsNullOrWhiteSpace(this._fallbackTableKey))
                 {
-                    return this._fallbackTableKey;
+                    return new[] { this._fallbackTableKey! };
                 }
 
                 return null;
@@ -2331,25 +2349,28 @@ namespace SqExpress.SqlTranspiler
 
             private void AddKindHint(ExprColumn column, ParamKind kind)
             {
-                var tableKey = this.ResolveTableKey(column);
-                if (tableKey == null)
+                var tableKeys = this.ResolveTableKeys(column);
+                if (tableKeys == null)
                 {
                     return;
                 }
 
-                if (!this.InferredColumnKindsByTableKey.TryGetValue(tableKey, out var map))
+                foreach (var tableKey in tableKeys)
                 {
-                    map = new Dictionary<string, ParamKind>(StringComparer.OrdinalIgnoreCase);
-                    this.InferredColumnKindsByTableKey[tableKey] = map;
-                }
+                    if (!this.InferredColumnKindsByTableKey.TryGetValue(tableKey, out var map))
+                    {
+                        map = new Dictionary<string, ParamKind>(StringComparer.OrdinalIgnoreCase);
+                        this.InferredColumnKindsByTableKey[tableKey] = map;
+                    }
 
-                if (map.TryGetValue(column.ColumnName.Name, out var existing))
-                {
-                    map[column.ColumnName.Name] = MergeColumnKind(existing, kind);
-                }
-                else
-                {
-                    map[column.ColumnName.Name] = kind;
+                    if (map.TryGetValue(column.ColumnName.Name, out var existing))
+                    {
+                        map[column.ColumnName.Name] = MergeColumnKind(existing, kind);
+                    }
+                    else
+                    {
+                        map[column.ColumnName.Name] = kind;
+                    }
                 }
             }
 

@@ -75,7 +75,7 @@ namespace SqExpress.Test.SqlParser
         }
 
         [Test]
-        public void TryParse_WithExistingTables_WhenExpectedColumnMissing_ReturnsMismatchError()
+        public void TryParse_WithExistingTables_WhenExpectedHasMoreColumns_StillReturnsTrue()
         {
             var sql = "SELECT [u].[Id],[u].[Name] FROM [dbo].[Users] [u]";
             var existing = new TableBase[]
@@ -88,9 +88,9 @@ namespace SqExpress.Test.SqlParser
 
             var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
 
-            Assert.That(ok, Is.False);
-            Assert.That(expr, Is.Null);
-            Assert.That(error, Does.Contain("missing columns: [Email]"));
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(error, Is.Null);
         }
 
         [Test]
@@ -110,35 +110,74 @@ namespace SqExpress.Test.SqlParser
         }
 
         [Test]
-        public void TryParse_WithExistingTables_WhenColumnTypeDiffers_ReturnsMismatchError()
+        public void TryParse_WithExistingTables_WhenWildcardQueryReferencesKnownColumn_ReturnsTrue()
         {
-            var sql = "SELECT [u].[Id] FROM [dbo].[Users] [u]";
+            var sql = "SELECT * FROM [dbo].[Users] WHERE [UserId] = @userId";
             var existing = new TableBase[]
             {
-                CreateTable("dbo", "Users", a => a.AppendStringColumn("Id", 255, isUnicode: true))
+                CreateTable("dbo", "Users", a => a
+                    .AppendInt32Column("UserId")
+                    .AppendStringColumn("Name", 255, isUnicode: true)
+                    .AppendBooleanColumn("IsActive"))
             };
 
             var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
 
-            Assert.That(ok, Is.False);
-            Assert.That(expr, Is.Null);
-            Assert.That(error, Does.Contain("changed columns: [Id] (DifferentType)"));
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(error, Is.Null);
         }
 
         [Test]
-        public void TryParse_WithExistingTables_WhenColumnNullabilityDiffers_ReturnsMismatchError()
+        public void TryParse_WithExistingTables_WhenWildcardQueryReferencesUnknownColumn_ReturnsMismatchError()
         {
-            var sql = "SELECT [u].[Id] FROM [dbo].[Users] [u] WHERE [u].[Id] IS NULL";
+            var sql = "SELECT * FROM [dbo].[Users] WHERE [UserKey] = @userId";
             var existing = new TableBase[]
             {
-                CreateTable("dbo", "Users", a => a.AppendInt32Column("Id"))
+                CreateTable("dbo", "Users", a => a
+                    .AppendInt32Column("UserId")
+                    .AppendStringColumn("Name", 255, isUnicode: true))
             };
 
             var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
 
             Assert.That(ok, Is.False);
             Assert.That(expr, Is.Null);
-            Assert.That(error, Does.Contain("DifferentNullability"));
+            Assert.That(error, Does.Contain("extra columns: [UserKey]"));
+        }
+
+        [Test]
+        public void TryParse_WithExistingTables_WhenColumnTypeDiffers_StillReturnsTrue()
+        {
+            var sql = "SELECT [u].[Id],[o].[OrderId] FROM [dbo].[Users] [u] JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[Id]";
+            var existing = new TableBase[]
+            {
+                CreateTable("dbo", "Users", a => a.AppendStringColumn("Id", 255, isUnicode: true)),
+                CreateTable("dbo", "Orders", a => a.AppendInt32Column("OrderId").AppendInt32Column("UserId"))
+            };
+
+            var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(error, Is.Null);
+        }
+
+        [Test]
+        public void TryParse_WithExistingTables_WhenColumnNullabilityDiffers_StillReturnsTrue()
+        {
+            var sql = "SELECT [u].[Id],[o].[OrderId] FROM [dbo].[Users] [u] JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[Id] WHERE [u].[Id] IS NULL";
+            var existing = new TableBase[]
+            {
+                CreateTable("dbo", "Users", a => a.AppendInt32Column("Id")),
+                CreateTable("dbo", "Orders", a => a.AppendInt32Column("OrderId").AppendInt32Column("UserId"))
+            };
+
+            var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(error, Is.Null);
         }
 
         [Test]

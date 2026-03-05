@@ -72,7 +72,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
 
             for (var i = 0; i < meaningful.Count; i++)
             {
-                if (!TryReadColumnReference(meaningful, i, aliasToTable, singleTableIdentity, out var identity, out var column, out var next))
+                if (!TryReadColumnReference(meaningful, i, aliasToTable, singleTableIdentity, out var identity, out var column, out var next, out var isQualified))
                 {
                     continue;
                 }
@@ -82,13 +82,17 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     continue;
                 }
 
-                RegisterColumnHint(map, column!, InferredColumnKind.Int32);
                 if (next >= meaningful.Count)
                 {
                     continue;
                 }
 
                 var token = meaningful[next];
+                if (isQualified || IsLikelySelectProjection(meaningful, i, next))
+                {
+                    RegisterColumnHint(map, column!, InferredColumnKind.Int32);
+                }
+
                 if (token.IsKeyword("LIKE"))
                 {
                     RegisterColumnHint(map, column!, InferredColumnKind.NVarChar, stringLength: 255);
@@ -127,8 +131,36 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     continue;
                 }
 
+                RegisterColumnHint(map, column!, InferredColumnKind.Int32);
                 InferFromRightOperand(meaningful[next + 1], map, column!);
             }
+        }
+
+        private static bool IsLikelySelectProjection(IReadOnlyList<SqlToken> tokens, int currentIndex, int nextTokenIndex)
+        {
+            if (nextTokenIndex >= tokens.Count)
+            {
+                return false;
+            }
+
+            var next = tokens[nextTokenIndex];
+            if (next.Type != SqlTokenType.Comma && !next.IsKeyword("FROM"))
+            {
+                return false;
+            }
+
+            if (currentIndex < 1)
+            {
+                return false;
+            }
+
+            var previous = tokens[currentIndex - 1];
+            if (previous.IsKeyword("AS"))
+            {
+                return false;
+            }
+
+            return previous.IsKeyword("SELECT") || previous.Type == SqlTokenType.Comma;
         }
 
         private static void InferFromInList(
@@ -251,11 +283,13 @@ namespace SqExpress.SqlParser.Internal.Mapping
             TableIdentity? singleTableIdentity,
             out TableIdentity? identity,
             out string? column,
-            out int nextTokenIndex)
+            out int nextTokenIndex,
+            out bool isQualified)
         {
             identity = null;
             column = null;
             nextTokenIndex = index;
+            isQualified = false;
 
             if (index >= tokens.Count || !tokens[index].IsIdentifierLike || IsReservedWord(tokens[index]))
             {
@@ -272,6 +306,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     return false;
                 }
 
+                isQualified = true;
                 column = tokens[index + 2].IdentifierValue;
                 nextTokenIndex = index + 3;
                 return true;
@@ -282,8 +317,19 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 return false;
             }
 
+            var identifier = tokens[index].IdentifierValue;
+            if (identifier.StartsWith("@", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            if (aliasToTable.ContainsKey(identifier))
+            {
+                return false;
+            }
+
             identity = singleTableIdentity;
-            column = tokens[index].IdentifierValue;
+            column = identifier;
             nextTokenIndex = index + 1;
             return true;
         }
@@ -370,11 +416,6 @@ namespace SqExpress.SqlParser.Internal.Mapping
             var result = new List<SqTable>(tableColumns.Count);
             foreach (var entry in tableColumns.OrderBy(i => i.Key.SchemaName, StringComparer.OrdinalIgnoreCase).ThenBy(i => i.Key.TableName, StringComparer.OrdinalIgnoreCase))
             {
-                if (entry.Value.Columns.Count < 1)
-                {
-                    continue;
-                }
-
                 var columns = entry.Value.Columns.Values.OrderBy(i => i.Order).ToList();
                 var table = SqTable.Create(
                     entry.Key.SchemaName,
