@@ -181,6 +181,21 @@ namespace SqExpress.Test.SqlParser
         }
 
         [Test]
+        public void TryParse_WithExistingTables_WhenSimpleUpdateWithoutFrom_UsesUpdateTargetTableForValidation()
+        {
+            var sql = "UPDATE [dbo].[Users] SET [Name]='X' WHERE [Id]=1";
+            var existing = new TableBase[]
+            {
+                CreateTable("dbo", "Users", a => a
+                    .AppendInt32Column("Id")
+                    .AppendStringColumn("Name", 255, isUnicode: true))
+            };
+            var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(error, Is.Null);
+        }
+        [Test]
         public void TryParse_WithExistingTables_WhenSchemaMatchesNonDbo_ReturnsTrue()
         {
             var sql = "SELECT [u].[Id],[o].[OrderId] FROM [sales].[Users] [u] JOIN [sales].[Orders] [o] ON [o].[UserId]=[u].[Id]";
@@ -290,3 +305,5 @@ namespace SqExpress.Test.SqlParser
             => SqTable.Create(schema, tableName, a => columns(a));
     }
 }
+
+

@@ -6,8 +6,9 @@ using SqExpress;
 using SqExpress.DbMetadata;
 using SqExpress.SqlParser.Internal.Mapping;
 using SqExpress.SqlParser.Internal.Parsing;
-using SqExpress.Syntax.Names;
 using SqExpress.Syntax;
+using SqExpress.Syntax.Names;
+using SqExpress.Syntax.Update;
 
 namespace SqExpress.SqlParser
 {
@@ -91,6 +92,11 @@ namespace SqExpress.SqlParser
 
             if (SqlDomToSqExprMapper.TryMap(statement!, out result, out _, out var mappingError))
             {
+                if (extractedTables.Count < 1 && result is ExprUpdate update)
+                {
+                    extractedTables = EnsureUpdateTargetTable(update);
+                }
+
                 tables = extractedTables;
                 errors = null;
                 return true;
@@ -100,6 +106,14 @@ namespace SqExpress.SqlParser
             tables = extractedTables;
             errors = new[] { mappingError ?? "Could not map SQL DOM to SqExpress AST." };
             return false;
+        }
+
+        private static IReadOnlyList<SqTable> EnsureUpdateTargetTable(ExprUpdate update)
+        {
+            var fullName = update.Target.FullName.AsExprTableFullName();
+            var schema = fullName.DbSchema?.Schema.Name ?? "dbo";
+            var table = fullName.TableName.Name;
+            return new[] { SqTable.Create(schema, table, a => a) };
         }
 
         private static bool TryValidateParsedTables(
@@ -260,4 +274,3 @@ namespace SqExpress.SqlParser
         }
     }
 }
-

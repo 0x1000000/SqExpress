@@ -39,6 +39,22 @@ namespace SqExpress.Test.SqlParser
             Assert.That(expr, Is.Not.Null);
         }
 
+        [Test]
+        public void UnterminatedStringLiteralIsRejected()
+        {
+            var sql = "SELECT 'abc";
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? _, out var error);
+            Assert.That(ok, Is.False);
+            Assert.That(error, Is.Not.Null.And.Not.Empty);
+        }
+        [Test]
+        public void UnterminatedBlockCommentIsRejected()
+        {
+            var sql = "SELECT 1 /* unterminated";
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? _, out var error);
+            Assert.That(ok, Is.False);
+            Assert.That(error, Is.Not.Null.And.Not.Empty);
+        }
         private static IEnumerable<TestCaseData> InvalidSyntaxCases()
         {
             yield return new TestCaseData(
@@ -73,5 +89,7 @@ namespace SqExpress.Test.SqlParser
         }
     }
 }
+
+
 
 

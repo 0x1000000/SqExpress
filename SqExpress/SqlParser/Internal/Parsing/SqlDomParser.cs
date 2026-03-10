@@ -20,7 +20,17 @@ namespace SqExpress.SqlParser.Internal.Parsing
             }
 
             var rawSql = sql.Trim();
-            var tokens = SqlLexer.Tokenize(rawSql);
+            IReadOnlyList<SqlToken> tokens;
+            try
+            {
+                tokens = SqlLexer.Tokenize(rawSql);
+            }
+            catch (InvalidOperationException ex)
+            {
+                statement = null;
+                errors = new[] { ex.Message };
+                return false;
+            }
 
             if (HasMultipleStatements(tokens))
             {
@@ -1360,3 +1370,4 @@ namespace SqExpress.SqlParser.Internal.Parsing
         }
     }
 }
+

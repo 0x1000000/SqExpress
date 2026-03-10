@@ -2299,7 +2299,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 if (current.Type == SqlTokenType.StringLiteral)
                 {
                     this._index++;
-                    return new ExprStringLiteral(current.Text.Length >= 2 ? current.Text.Substring(1, current.Text.Length - 2).Replace("''", "'") : string.Empty);
+                    return new ExprStringLiteral(current.Text.Length >= 3 && (current.Text[0] == 'N' || current.Text[0] == 'n') && current.Text[1] == '\'' ? current.Text.Substring(2, current.Text.Length - 3).Replace("''", "'") : current.Text.Length >= 2 ? current.Text.Substring(1, current.Text.Length - 2).Replace("''", "'") : string.Empty);
                 }
 
                 if (current.Type == SqlTokenType.NumberLiteral)
@@ -2984,7 +2984,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
 
                 if (token.Type == SqlTokenType.StringLiteral)
                 {
-                    value = token.Text.Length >= 2 ? token.Text.Substring(1, token.Text.Length - 2).Replace("''", "'") : string.Empty;
+                    value = token.Text.Length >= 3 && (token.Text[0] == 'N' || token.Text[0] == 'n') && token.Text[1] == '\'' ? token.Text.Substring(2, token.Text.Length - 3).Replace("''", "'") : token.Text.Length >= 2 ? token.Text.Substring(1, token.Text.Length - 2).Replace("''", "'") : string.Empty;
                     return true;
                 }
 
