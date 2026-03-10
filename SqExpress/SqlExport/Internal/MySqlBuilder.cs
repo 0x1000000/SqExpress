@@ -872,7 +872,7 @@ namespace SqExpress.SqlExport.Internal
             }
             else
             {
-                int max = exprTypeString.IsUnicode ? 21844 : 65535;
+                int max = exprTypeString.IsUnicode ? 16383 : 65535;
                 this.Builder.Append("varchar");
                 this.Builder.Append('(');
                 this.Builder.Append(exprTypeString.Size ?? max);
@@ -882,7 +882,7 @@ namespace SqExpress.SqlExport.Internal
 
             if (exprTypeString.IsUnicode)
             {
-                this.Builder.Append(" character set utf8");
+                this.Builder.Append(" character set utf8mb4");
             }
 
             return true;
@@ -898,7 +898,7 @@ namespace SqExpress.SqlExport.Internal
 
             if (exprTypeFixSizeString.IsUnicode)
             {
-                this.Builder.Append(" character set utf8");
+                this.Builder.Append(" character set utf8mb4");
             }
 
             return true;
@@ -906,7 +906,7 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprTypeXml(ExprTypeXml exprTypeXml, IExpr? arg)
         {
-            this.Builder.Append("text character set utf8");
+            this.Builder.Append("text character set utf8mb4");
             return true;
         }
 
@@ -1080,4 +1080,5 @@ namespace SqExpress.SqlExport.Internal
         }
     }
 }
+
 

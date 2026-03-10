@@ -20,6 +20,9 @@
   - support for T-SQL named parameters (`@name`) mapped to `ExprParameter` with `WithParams(...)` replacement helpers
   - mapping for common T-SQL functions (`LEN`, `DATALENGTH`, `CHARINDEX`, `LEFT`, `RIGHT`, `REPLICATE`, date-part/current date-time functions) to portable AST nodes for PostgreSQL/MySQL export
 
+### Bugfix
+- MySQL metadata now treats `utf8mb3` and `utf8mb4` columns as Unicode and exports Unicode columns as `utf8mb4` while preserving explicit column length when possible. ([#4](https://github.com/0x1000000/SqExpress/issues/4))
+
 # 1.1.1
 ### Bugfix
 - Missed **CreateNullableStringColumn** in **DerivedTableBase**.

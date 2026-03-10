@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
@@ -69,7 +69,7 @@ namespace SqExpress.Test.Utils
             var q = TempTableData.FromDerivedTableValuesInsert(derivedTable, new []{ derivedTable.Columns[2], derivedTable.Columns[3] }, out var table, name: "TestTmpTable");
 
             var sql = q.ToMySql();
-            Assert.AreEqual(sql, "CREATE TEMPORARY TABLE `TestTmpTable`(`Bool` bit,`Byte` tinyint unsigned,`Int16` smallint,`Int32` int,`Int64` bigint,`Decimal` decimal(29,0),`Double` double,`String` varchar(8) character set utf8,`DateTime` datetime,`Guid` binary(16),CONSTRAINT PRIMARY KEY (`Int16`,`Int32`));INSERT INTO `TestTmpTable`(`Bool`,`Byte`,`Int16`,`Int32`,`Int64`,`Decimal`,`Double`,`String`,`DateTime`,`Guid`) VALUES (true,255,32767,2147483647,9223372036854775807,79228162514264337593543950335,123.456,'ABCD','2099-01-01',0x287F1937EDAA0B48BA662C4D67A57E33),(true,0,-32768,-2147483648,-9223372036854775808,-79228162514264337593543950335,-123.456,'ABCDABCD','1900-01-01',0x0B62C3E8CDB87445A074ACE09AA3DA8A)");
+            Assert.AreEqual(sql, "CREATE TEMPORARY TABLE `TestTmpTable`(`Bool` bit,`Byte` tinyint unsigned,`Int16` smallint,`Int32` int,`Int64` bigint,`Decimal` decimal(29,0),`Double` double,`String` varchar(8) character set utf8mb4,`DateTime` datetime,`Guid` binary(16),CONSTRAINT PRIMARY KEY (`Int16`,`Int32`));INSERT INTO `TestTmpTable`(`Bool`,`Byte`,`Int16`,`Int32`,`Int64`,`Decimal`,`Double`,`String`,`DateTime`,`Guid`) VALUES (true,255,32767,2147483647,9223372036854775807,79228162514264337593543950335,123.456,'ABCD','2099-01-01',0x287F1937EDAA0B48BA662C4D67A57E33),(true,0,-32768,-2147483648,-9223372036854775808,-79228162514264337593543950335,-123.456,'ABCDABCD','1900-01-01',0x0B62C3E8CDB87445A074ACE09AA3DA8A)");
 
             sql = q.ToSql();
             Assert.AreEqual(sql, "CREATE TABLE [#TestTmpTable]([Bool] bit,[Byte] tinyint,[Int16] smallint,[Int32] int,[Int64] bigint,[Decimal] decimal(29,0),[Double] float,[String] [nvarchar](8),[DateTime] datetime,[Guid] uniqueidentifier,CONSTRAINT [PK_TestTmpTable] PRIMARY KEY ([Int16],[Int32]));INSERT INTO [#TestTmpTable]([Bool],[Byte],[Int16],[Int32],[Int64],[Decimal],[Double],[String],[DateTime],[Guid]) VALUES (1,255,32767,2147483647,9223372036854775807,79228162514264337593543950335,123.456,'ABCD','2099-01-01','37197f28-aaed-480b-ba66-2c4d67a57e33'),(1,0,-32768,-2147483648,-9223372036854775808,-79228162514264337593543950335,-123.456,'ABCDABCD','1900-01-01','e8c3620b-b8cd-4574-a074-ace09aa3da8a')");
@@ -87,7 +87,7 @@ namespace SqExpress.Test.Utils
 
             var sql = tmpQuery.ToMySql();
             
-            Assert.AreEqual("CREATE TEMPORARY TABLE `tmpTable`(`Str` varchar(9) character set utf8,CONSTRAINT PRIMARY KEY (`Str`));INSERT INTO `tmpTable`(`Str`) VALUES ('123456789'),('1234'),('1234567')", sql);
+            Assert.AreEqual("CREATE TEMPORARY TABLE `tmpTable`(`Str` varchar(9) character set utf8mb4,CONSTRAINT PRIMARY KEY (`Str`));INSERT INTO `tmpTable`(`Str`) VALUES ('123456789'),('1234'),('1234567')", sql);
         }
 
         [Test]
