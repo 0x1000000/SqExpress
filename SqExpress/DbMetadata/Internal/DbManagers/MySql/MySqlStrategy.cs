@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
@@ -16,7 +16,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers.MySql
     {
         private readonly string _databaseName;
 
-        internal MySqlDbStrategy(ISqDatabase database, string databaseName) : base(database)
+        internal MySqlDbStrategy(ISqDatabase database, string databaseName, MySqlFlavor flavor) : base(database)
         {
             _databaseName = databaseName;
         }
@@ -28,11 +28,11 @@ namespace SqExpress.DbMetadata.Internal.DbManagers.MySql
                 var database = new SqDatabase<DbConnection>(
                     connection,
                     CommandFactory,
-                    MySqlExporter.Default,
+                    MySqlExporter.MariaDbDefault,
                     ParametrizationMode.None
                 );
 
-                return new DbManager(new MySqlDbStrategy(database, connection.Database), connection, options);
+                return new DbManager(new MySqlDbStrategy(database, connection.Database, MySqlFlavor.MariaDb), connection, options);
             }
             catch
             {
@@ -469,3 +469,4 @@ namespace SqExpress.DbMetadata.Internal.DbManagers.MySql
         }
     }
 }
+

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
@@ -56,7 +56,7 @@ namespace SqExpress.IntTest.Scenarios
                         .ForMember(nameof(table.ColNullableFixedSizeByteArray), c => c.Ignore())
                         .ForMember(nameof(table.ColFixedSizeByteArray), c => c.Ignore());
                 }
-                if (context.Dialect == SqlDialect.MySql)
+                if (context.Dialect.IsMySqlFamily())
                 {
                     map
                         .ForMember(nameof(table.ColBoolean), c => c.MapFrom((r, dto) => r.GetBoolean(r.GetOrdinal(nameof(table.ColBoolean)))))
@@ -289,8 +289,8 @@ namespace SqExpress.IntTest.Scenarios
                     ColXml = "<root><Item2 /></root>",
                     ColNullableXml = "<root><Item /></root>",
 
-                    ColDateTimeOffset = dialect == SqlDialect.MySql ? default : new DateTimeOffset(new DateTime(2022, 07, 10, 18, 10, 45), TimeSpan.FromHours(3)),
-                    ColNullableDateTimeOffset = dialect == SqlDialect.MySql ? (DateTimeOffset?)null : new DateTimeOffset(new DateTime(2022, 07, 10, 18, 10, 46), TimeSpan.FromHours(3))
+                    ColDateTimeOffset = dialect.IsMySqlFamily() ? default : new DateTimeOffset(new DateTime(2022, 07, 10, 18, 10, 45), TimeSpan.FromHours(3)),
+                    ColNullableDateTimeOffset = dialect.IsMySqlFamily() ? (DateTimeOffset?)null : new DateTimeOffset(new DateTime(2022, 07, 10, 18, 10, 46), TimeSpan.FromHours(3))
                 },
 
                 new AllColumnTypesDto
@@ -333,7 +333,7 @@ namespace SqExpress.IntTest.Scenarios
                     ColNullableFixedSizeString = null,
                     ColNullableXml = null,
 
-                    ColDateTimeOffset = dialect == SqlDialect.MySql ? default : new DateTimeOffset(new DateTime(2022, 07, 10, 18, 10, 45), TimeSpan.FromHours(3)),
+                    ColDateTimeOffset = dialect.IsMySqlFamily() ? default : new DateTimeOffset(new DateTime(2022, 07, 10, 18, 10, 45), TimeSpan.FromHours(3)),
 
                     ColNullableDateTimeOffset = null
                 }
@@ -538,3 +538,4 @@ namespace SqExpress.IntTest.Scenarios
         }
     }
 }
+

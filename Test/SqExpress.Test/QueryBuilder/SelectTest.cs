@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using NUnit.Framework;
 using SqExpress.QueryBuilders.Select;
 using SqExpress.Syntax.Boolean;
@@ -48,6 +48,14 @@ namespace SqExpress.Test.QueryBuilder
             Assert.AreEqual("SELECT 1 FROM [SomeDB].[dbo].[user]", e.ToSql());
             Assert.AreEqual("SELECT 1 FROM \"SomeDB\".\"public\".\"user\"", e.ToPgSql());
             Assert.AreEqual("SELECT 1 FROM `SomeDB`.`user`", e.ToMySql());
+        }
+
+        [Test]
+        public void OracleMySqlStringCastTest()
+        {
+            var actual = Select(Cast(Literal(7), SqlType.String(5))).Done().ToOracleSql();
+
+            Assert.AreEqual("SELECT CAST(7 AS CHAR(5))", actual);
         }
 
         [Test]

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -15,26 +15,53 @@ namespace SqExpress.IntTest.Scenarios
     {
         public async Task Exec(IScenarioContext context)
         {
-            var data = this.ReadUserData();
+            var data = this.ReadUserData().ToList();
 
             var utcNow = DateTime.UtcNow;
             var userTable = AllTables.GetItUser(context.Dialect);
 
-            var ids = await InsertDataInto(userTable, data)
-                .MapData(s => s
-                    .Set(s.Target.ExternalId, s.Source.ExternalId)
-                    .Set(s.Target.FirstName, s.Source.FirstName)
-                    .Set(s.Target.LastName, s.Source.LastName)
-                    .Set(s.Target.Email, s.Source.Email)
-                )
-                .AlsoInsert(s => s
-                    .Set(s.Target.RegDate, utcNow)
-                    .Set(s.Target.Version, 1)
-                    .Set(s.Target.Created, utcNow)
-                    .Set(s.Target.Modified, utcNow)
-                )
-                .Output(userTable.UserId, userTable.FirstName, userTable.LastName)
-                .QueryList(context.Database, r => $"{userTable.UserId.Read(r)}, {userTable.FirstName.Read(r)} {userTable.LastName.Read(r)}");
+            List<string> ids;
+            if (context.Dialect.IsOracleMySql())
+            {
+                await InsertDataInto(userTable, data)
+                    .MapData(s => s
+                        .Set(s.Target.ExternalId, s.Source.ExternalId)
+                        .Set(s.Target.FirstName, s.Source.FirstName)
+                        .Set(s.Target.LastName, s.Source.LastName)
+                        .Set(s.Target.Email, s.Source.Email)
+                    )
+                    .AlsoInsert(s => s
+                        .Set(s.Target.RegDate, utcNow)
+                        .Set(s.Target.Version, 1)
+                        .Set(s.Target.Created, utcNow)
+                        .Set(s.Target.Modified, utcNow)
+                    )
+                    .Exec(context.Database);
+
+                ids = await Select(userTable.UserId, userTable.FirstName, userTable.LastName)
+                    .From(userTable)
+                    .Where(userTable.ExternalId.In(data.Select(d => d.ExternalId).ToArray()))
+                    .OrderBy(userTable.UserId)
+                    .QueryList(context.Database, r => $"{userTable.UserId.Read(r)}, {userTable.FirstName.Read(r)} {userTable.LastName.Read(r)}");
+            }
+            else
+            {
+                ids = await InsertDataInto(userTable, data)
+                    .MapData(s => s
+                        .Set(s.Target.ExternalId, s.Source.ExternalId)
+                        .Set(s.Target.FirstName, s.Source.FirstName)
+                        .Set(s.Target.LastName, s.Source.LastName)
+                        .Set(s.Target.Email, s.Source.Email)
+                    )
+                    .AlsoInsert(s => s
+                        .Set(s.Target.RegDate, utcNow)
+                        .Set(s.Target.Version, 1)
+                        .Set(s.Target.Created, utcNow)
+                        .Set(s.Target.Modified, utcNow)
+                    )
+                    .Output(userTable.UserId, userTable.FirstName, userTable.LastName)
+                    .QueryList(context.Database, r => $"{userTable.UserId.Read(r)}, {userTable.FirstName.Read(r)} {userTable.LastName.Read(r)}");
+            }
 
             foreach (var id in ids.Take(3))
             {

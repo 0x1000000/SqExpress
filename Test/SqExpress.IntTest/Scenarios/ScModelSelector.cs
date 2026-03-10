@@ -35,14 +35,15 @@ namespace SqExpress.IntTest.Scenarios
 
             //Expected totals differ by dialect/test chain specifics:
             //- PostgreSQL: 8397
-            //- MySQL: 8438 (different auto-increment behavior in previous steps)
+            //- MariaDB / Oracle MySQL: 8438 (different auto-increment behavior in previous steps)
             //- MS SQL:
             //  - ParametrizationMode.None => 8397
             //  - Parameterized modes => 8442
             //    (upstream chain uses identity/modulo-sensitive operations with non-stable ordering).
             var expected = context.Dialect switch
             {
-                SqlDialect.MySql => data.Total == 8438,
+                SqlDialect.MariaDb => data.Total == 8438,
+                SqlDialect.OracleMySql => data.Total == 8438,
                 SqlDialect.TSql => context.ParametrizationMode == ParametrizationMode.None
                     ? data.Total == 8397
                     : data.Total == 8442,
@@ -56,4 +57,3 @@ namespace SqExpress.IntTest.Scenarios
         }
     }
 }
-

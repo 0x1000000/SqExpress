@@ -55,7 +55,7 @@ namespace SqExpress.IntTest.Tables
                 this.ColNullableFixedSizeByteArray = this.CreateNullableFixedSizeByteArrayColumn("ColNullableFixedSizeByteArray", 2, null);
             }
 
-            if (sqlDialect != SqlDialect.MySql)
+            if (!sqlDialect.IsMySqlFamily())
             {
                 this.ColXml = this.CreateXmlColumn("ColXml", null);
                 this.ColNullableXml = this.CreateNullableXmlColumn("ColNullableXml", null);
@@ -69,7 +69,7 @@ namespace SqExpress.IntTest.Tables
             }
 
             //There is a limit on row size (64k) that includes all columns in mysql
-            static int? GetMaxSizeNull(SqlDialect dialect) => dialect == SqlDialect.MySql ? 1000 : null;
+            static int? GetMaxSizeNull(SqlDialect dialect) => dialect.IsMySqlFamily() ? 1000 : null;
 
         }
 

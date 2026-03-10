@@ -26,7 +26,7 @@ namespace SqExpress.IntTest.Tables
             this.Version = this.CreateInt32Column("Version", ColumnMeta.DefaultValue(0));
             this.Created = this.CreateDateTimeColumn("Created", false, ColumnMeta.DefaultValue(SqQueryBuilder.GetUtcDate()));
             this.Modified = this.CreateDateTimeColumn("Modified", false, ColumnMeta.DefaultValue(SqQueryBuilder.GetUtcDate()));
-            if (sqlDialect == SqlDialect.MySql)
+            if (sqlDialect.IsMySqlFamily())
             {
                 this.AddUniqueIndex(this.ExternalId);
             }

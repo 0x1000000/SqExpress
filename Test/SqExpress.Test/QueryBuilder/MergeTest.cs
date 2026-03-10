@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using NUnit.Framework;
 
 namespace SqExpress.Test.QueryBuilder;
@@ -40,6 +40,11 @@ public class MergeTest
         expected = "CREATE TEMPORARY TABLE `tmpMergeDataSource`(`UserId` int NOT NULL,`FirstName` varchar(255) NOT NULL);INSERT INTO `tmpMergeDataSource`(`UserId`,`FirstName`) VALUES (1,'Alice'),(2,'Bob');UPDATE `user` `A0` JOIN `tmpMergeDataSource` `A1` ON `A0`.`UserId`=`A1`.`UserId` SET `A0`.`FirstName`=`A1`.`FirstName`,`A0`.`Modified`=UTC_TIMESTAMP() WHERE `A0`.`FirstName`!=`A1`.`FirstName`;INSERT INTO `user`(`UserId`,`FirstName`,`Modified`,`Created`) SELECT `A1`.`UserId`,`A1`.`FirstName`,UTC_TIMESTAMP(),UTC_TIMESTAMP() FROM `tmpMergeDataSource` `A1` WHERE NOT EXISTS(SELECT 1 FROM `user` `A0` WHERE `A0`.`UserId`=`A1`.`UserId`);UPDATE `user` `A0` SET `A0`.`Modified`=UTC_TIMESTAMP() WHERE NOT EXISTS(SELECT 1 FROM `tmpMergeDataSource` `A1` WHERE `A0`.`UserId`=`A1`.`UserId`);DROP TABLE `tmpMergeDataSource`;";
 
         Assert.AreEqual(expected, expr.ToMySql());
+
+        var oracleSql = expr.ToOracleSql();
+        Assert.That(oracleSql, Does.Contain("DELETE `A1` FROM `tmpMergeDataSource`"));
+        Assert.That(oracleSql, Does.Not.Contain("LEFT JOIN `user`"));
+        Assert.That(oracleSql, Does.Not.Contain("WHERE NOT EXISTS(SELECT 1 FROM `user`"));
     }
 
     [Test]
@@ -94,3 +99,5 @@ public class MergeTest
     }
 
 }
+
+

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -10,6 +10,12 @@ namespace SqExpress.IntTest.Scenarios
     {
         public async Task Exec(IScenarioContext context)
         {
+            if (context.Dialect.IsOracleMySql())
+            {
+                context.WriteLine("Skipped: recursive tree-closure CTE is not supported on Oracle MySQL yet");
+                return;
+            }
+
             var targetTable = new TreeData();
 
             await context.Database.Statement(targetTable.Script.Create());

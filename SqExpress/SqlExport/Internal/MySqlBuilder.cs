@@ -23,18 +23,22 @@ namespace SqExpress.SqlExport.Internal
 {
     internal class MySqlBuilder : SqlBuilderBase, IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>
     {
-        public MySqlBuilder(SqlBuilderOptions? options = null, StringBuilder? externalBuilder = null) : base(options, externalBuilder, new SqlAliasGenerator(), false)
+        public MySqlBuilder(SqlBuilderOptions? options = null, MySqlFlavor flavor = MySqlFlavor.MariaDb, StringBuilder? externalBuilder = null) : base(options, externalBuilder, new SqlAliasGenerator(), false)
         {
+            this.Flavor = flavor;
         }
 
-        private MySqlBuilder(SqlBuilderOptions? options, StringBuilder? externalBuilder, SqlAliasGenerator aliasGenerator, bool dismissCteInject) 
+        private MySqlBuilder(SqlBuilderOptions? options, StringBuilder? externalBuilder, SqlAliasGenerator aliasGenerator, bool dismissCteInject, MySqlFlavor flavor) 
             : base(options, externalBuilder, aliasGenerator, dismissCteInject)
         {
+            this.Flavor = flavor;
         }
+
+        public MySqlFlavor Flavor { get; }
 
         protected override SqlBuilderBase CreateInstance(SqlAliasGenerator aliasGenerator, bool dismissCteInject)
         {
-            return new MySqlBuilder(this.Options, new StringBuilder(), aliasGenerator, dismissCteInject);
+            return new MySqlBuilder(this.Options, new StringBuilder(), aliasGenerator, dismissCteInject, this.Flavor);
         }
 
         public override bool VisitExprGuidLiteral(ExprGuidLiteral exprGuidLiteral, IExpr? parent)
@@ -361,7 +365,8 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprMerge(ExprMerge merge, IExpr? parent)
         {
-            MergeSimulation.ConvertMerge(merge, "tmpMergeDataSource").Accept(this, parent);
+            var useJoinBasedInsertAntiMatch = this.Flavor == MySqlFlavor.Oracle;
+            MergeSimulation.ConvertMerge(merge, "tmpMergeDataSource", useJoinBasedInsertAntiMatch).Accept(this, parent);
             return true;
         }
 
@@ -463,6 +468,11 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprInsertOutput(ExprInsertOutput exprInsertOutput, IExpr? parent)
         {
+            if (this.Flavor == MySqlFlavor.Oracle)
+            {
+                throw new SqExpressException("Oracle MySQL does not support generic INSERT OUTPUT/RETURNING");
+            }
+
             var insertExpr = PrepareGenericInsert(exprInsertOutput.Insert, out var middleBuilder);
 
             this.GenericInsert(insertExpr,
@@ -657,6 +667,11 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprDeleteOutput(ExprDeleteOutput exprDeleteOutput, IExpr? parent)
         {
+            if (this.Flavor == MySqlFlavor.Oracle)
+            {
+                throw new SqExpressException("Oracle MySQL does not support generic DELETE OUTPUT/RETURNING");
+            }
+
             exprDeleteOutput.Delete.Accept(this, exprDeleteOutput);
             var columns = exprDeleteOutput.OutputColumns;
             this.AssertNotEmptyList(columns, "Output list in 'DELETE' statement cannot be empty");
@@ -699,10 +714,25 @@ namespace SqExpress.SqlExport.Internal
                     exprCast.Expression.Accept(this, exprCast);
                     break;
                 case ExprTypeDateTime _:
-                case ExprTypeString _:
+                    return this.VisitExprCastCommon(exprCast, parent);
+                case ExprTypeString exprTypeString:
+                    if (this.Flavor == MySqlFlavor.Oracle)
+                    {
+                        this.Builder.Append("CAST(");
+                        exprCast.Expression.Accept(this, exprCast);
+                        this.Builder.Append(" AS CHAR");
+                        if (exprTypeString.Size.HasValue)
+                        {
+                            this.Builder.Append('(');
+                            this.Builder.Append(exprTypeString.Size.Value);
+                            this.Builder.Append(')');
+                        }
+                        this.Builder.Append(')');
+                        return true;
+                    }
                     return this.VisitExprCastCommon(exprCast, parent);
                 default:
-                    throw new SqExpressException("MySQL does not support casting to " + MySqlExporter.Default.ToSql(exprCast.SqlType));
+                    throw new SqExpressException("MySQL does not support casting to " + MySqlExporter.MariaDbDefault.ToSql(exprCast.SqlType));
             }
 
             return true;
@@ -989,7 +1019,7 @@ namespace SqExpress.SqlExport.Internal
         }
 
         protected override IStatementVisitor CreateStatementSqlBuilder() 
-            => new MySqlStatementBuilder(this.Options, this.Builder);
+            => new MySqlStatementBuilder(this.Options, this.Flavor, this.Builder);
 
         private static TExpr ModifySourceJoins<TExpr>(TExpr exprUpdate, IExprTableSource tableSource) where TExpr : IExpr
         {
@@ -1050,3 +1080,4 @@ namespace SqExpress.SqlExport.Internal
         }
     }
 }
+

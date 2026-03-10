@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using SqExpress.SyntaxTreeOperations;
@@ -72,7 +72,7 @@ namespace SqExpress.Test.QueryBuilder
                     .Set(i.Target.LastName, i.Source.LastName)
                     .Set(i.Target.Email, i.Source.EMail)
                     .Set(i.Target.RegDate, i.Source.RegDate))
-                .AlsoInsert(s=>s.Set(s.Target.Version, 5).Set(s.Target.Created, new DateTime(2020,01,02)))
+                .AlsoInsert(s => s.Set(s.Target.Version, 5).Set(s.Target.Created, new DateTime(2020, 01, 02)))
                 .Output(tbl.UserId)
                 .Done();
 
@@ -81,16 +81,16 @@ namespace SqExpress.Test.QueryBuilder
             var expected = "INSERT INTO [dbo].[user]([FirstName],[LastName],[Email],[RegDate],[Version],[Created]) OUTPUT INSERTED.[UserId] SELECT [FirstName],[LastName],[Email],[RegDate],5,'2020-01-02' FROM (VALUES ('First0','Last0','user0@company.com','2020-01-02'),('First1','Last1','user1@company.com','2020-01-02'),('First2','Last2','user2@company.com','2020-01-02'))[A0]([FirstName],[LastName],[Email],[RegDate])";
             Assert.AreEqual(actual, expected);
 
-            //Serialization
             var list = expr.SyntaxTree().ExportToPlainList(PlainItem.Create!);
             var after = ExprDeserializer.DeserializeFormPlainList(list);
 
             Assert.AreEqual(expected, after.ToSql());
 
-            //My SQL
             expected = "INSERT INTO `user`(`FirstName`,`LastName`,`Email`,`RegDate`,`Version`,`Created`) SELECT `A0`.*,5,'2020-01-02' FROM (SELECT 'First0' `FirstName`,'Last0' `LastName`,'user0@company.com' `Email`,'2020-01-02' `RegDate` UNION ALL SELECT 'First1','Last1','user1@company.com','2020-01-02' UNION ALL SELECT 'First2','Last2','user2@company.com','2020-01-02')`A0`  RETURNING `UserId`";
-            Assert.AreEqual(expected,after.ToMySql());
+            Assert.AreEqual(expected, after.ToMySql());
 
+            Assert.That(() => after.ToOracleSql(),
+                Throws.Exception.With.Message.Contains("Oracle MySQL does not support generic INSERT OUTPUT/RETURNING"));
         }
 
         [Test]
@@ -128,7 +128,7 @@ namespace SqExpress.Test.QueryBuilder
             var tbl = Tables.User();
 
             var actual = InsertInto(tbl, tbl.FirstName, tbl.LastName, tbl.Modified, tbl.Version)
-                .From(Select(tbl.FirstName, tbl.LastName, GetUtcDate(), Literal(1)+1).From(tbl))
+                .From(Select(tbl.FirstName, tbl.LastName, GetUtcDate(), Literal(1) + 1).From(tbl))
                 .ToSql();
             var expected = "INSERT INTO [dbo].[user]([FirstName],[LastName],[Modified],[Version]) " +
                            "SELECT [A0].[FirstName],[A0].[LastName],GETUTCDATE(),1+1 FROM [dbo].[user] [A0]";
@@ -142,7 +142,7 @@ namespace SqExpress.Test.QueryBuilder
             var tbl = Tables.User();
 
             var actual = InsertInto(tbl, tbl.FirstName, tbl.LastName, tbl.Modified, tbl.Version)
-                .Values("FirstName","LastName", GetUtcDate(), 1)
+                .Values("FirstName", "LastName", GetUtcDate(), 1)
                 .Values("FirstName2", "LastName2", new DateTime(2022, 7, 10), 2)
                 .DoneWithValues()
                 .ToSql();
@@ -213,6 +213,14 @@ namespace SqExpress.Test.QueryBuilder
                 .ToMySql();
 
             Assert.AreEqual("INSERT INTO `user`(`FirstName`,`LastName`) WITH CTE_Derived_Table_0(`FirstName`,`LastName`) AS(VALUES ('First0','Last0')) SELECT `FirstName`,`LastName` FROM `CTE_Derived_Table_0` `A0` WHERE NOT EXISTS(SELECT 1 FROM `user` `A1` WHERE `A1`.`FirstName`=`A0`.`FirstName` AND `A1`.`LastName`=`A0`.`LastName`)  RETURNING `UserId`", actualMyOutputSql);
+
+            Assert.That(() => InsertDataInto(tbl, data)
+                    .MapData(s => s.Set(s.Target.FirstName, s.Source.FirstName).Set(s.Target.LastName, s.Source.LastName))
+                    .CheckExistenceBy(tbl.FirstName, tbl.LastName)
+                    .Output(tbl.UserId)
+                    .Done()
+                    .ToOracleSql(),
+                Throws.Exception.With.Message.Contains("Oracle MySQL does not support generic INSERT OUTPUT/RETURNING"));
         }
     }
 }

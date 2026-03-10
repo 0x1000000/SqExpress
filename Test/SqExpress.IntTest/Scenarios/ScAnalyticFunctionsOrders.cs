@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using SqExpress.IntTest.Context;
 using SqExpress.Syntax.Value;
@@ -138,7 +138,7 @@ namespace SqExpress.IntTest.Scenarios
                         .OverPartitionBy(tTestData.Group)
                         .OverOrderBy(tTestData.Index)
                         .As(clLag2),
-                    Lag(tTestData.Index, 1, context.Dialect == SqlDialect.MySql ? (ExprValue?)null : 100)
+                    Lag(tTestData.Index, 1, context.Dialect.IsMySqlFamily() ? (ExprValue?)null : 100)
                         .OverPartitionBy(tTestData.Group)
                         .OverOrderBy(tTestData.Index)
                         .As(clLagDef),
@@ -150,7 +150,7 @@ namespace SqExpress.IntTest.Scenarios
                         .OverPartitionBy(tTestData.Group)
                         .OverOrderBy(tTestData.Index)
                         .As(clLead2),
-                    Lead(tTestData.Index, 1, context.Dialect == SqlDialect.MySql ? (ExprValue?)null : 100)
+                    Lead(tTestData.Index, 1, context.Dialect.IsMySqlFamily() ? (ExprValue?)null : 100)
                         .OverPartitionBy(tTestData.Group)
                         .OverOrderBy(tTestData.Index)
                         .As(clLeadDef)

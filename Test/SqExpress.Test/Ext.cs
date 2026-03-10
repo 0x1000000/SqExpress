@@ -1,4 +1,4 @@
-﻿using SqExpress.SqlExport;
+using SqExpress.SqlExport;
 using SqExpress.Syntax;
 
 namespace SqExpress.Test
@@ -13,6 +13,10 @@ namespace SqExpress.Test
             return expr.ToSql(pgSqlExporter);
         }
 
-        public static string ToMySql(this IExpr expr) => expr.ToSql(MySqlExporter.Default);
+        public static string ToMySql(this IExpr expr) => expr.ToSql(MySqlExporter.MariaDbDefault);
+
+        public static string ToMariaDb(this IExpr expr) => expr.ToSql(MySqlExporter.MariaDbDefault);
+
+        public static string ToOracleSql(this IExpr expr) => expr.ToSql(MySqlExporter.OracleDefault);
     }
 }
