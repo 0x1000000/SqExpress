@@ -50,14 +50,15 @@ namespace SqExpress.SqlParser.Internal.Parsing
             var withClause = ParseWithClause(cursor);
             var kind = DetermineStatementKind(cursor.Current);
 
-            if (TryDetectBasicSyntaxError(tokens, cursor.Index, kind, out var syntaxError))
+            var topLevelSelect = ParseTopLevelSelectIfAny(rawSql, tokens, cursor.Index, kind);
+
+            if (TryDetectBasicSyntaxError(tokens, cursor.Index, kind, topLevelSelect, out var syntaxError))
             {
                 statement = null;
                 errors = new[] { syntaxError };
                 return false;
             }
 
-            var topLevelSelect = ParseTopLevelSelectIfAny(rawSql, tokens, cursor.Index, kind);
             var tableReferences = ExtractTableReferences(tokens);
             var columnReferences = ExtractColumnReferences(tokens);
             var normalizedSql = SqlTextNormalizer.Normalize(rawSql);
@@ -149,6 +150,7 @@ namespace SqExpress.SqlParser.Internal.Parsing
             IReadOnlyList<SqlToken> tokens,
             int statementStartIndex,
             SqlDomStatementKind kind,
+            SqlDomSelectClause? topLevelSelect,
             [NotNullWhen(true)] out string? error)
         {
             if (kind == SqlDomStatementKind.Unknown)
@@ -163,9 +165,26 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 return true;
             }
 
+            if (TryDetectSelectClauseError(topLevelSelect, out error))
+            {
+                return true;
+            }
+
             if (HasDanglingTailToken(tokens))
             {
                 error = "Syntax error: unexpected end of statement.";
+                return true;
+            }
+
+            if (HasInvalidJoinSyntax(tokens))
+            {
+                error = "Syntax error: JOIN clause must contain ON condition.";
+                return true;
+            }
+
+            if (HasUnexpectedOnAfterCrossOrApply(tokens))
+            {
+                error = "Syntax error: CROSS/ APPLY join cannot contain ON condition.";
                 return true;
             }
 
@@ -184,6 +203,47 @@ namespace SqExpress.SqlParser.Internal.Parsing
             if (kind == SqlDomStatementKind.Merge && !ContainsTopLevelKeyword(tokens, statementStartIndex + 1, "ON"))
             {
                 error = "Syntax error: MERGE statement must contain ON clause.";
+                return true;
+            }
+
+            error = null;
+            return false;
+        }
+
+        private static bool TryDetectSelectClauseError(SqlDomSelectClause? selectClause, [NotNullWhen(true)] out string? error)
+        {
+            if (selectClause == null)
+            {
+                error = null;
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(selectClause.HavingSql))
+            {
+                error = "Feature 'HAVING' is not supported by SqExpress parser.";
+                return true;
+            }
+
+            if (selectClause.GroupBySql != null && !IsValidTopLevelCommaSeparatedClause(selectClause.GroupBySql))
+            {
+                error = "Syntax error: GROUP BY clause is invalid.";
+                return true;
+            }
+
+            if (selectClause.OrderBySql != null && !IsValidTopLevelCommaSeparatedClause(selectClause.OrderBySql))
+            {
+                error = "Syntax error: ORDER BY clause is invalid.";
+                return true;
+            }
+
+            if (ContainsTopLevelKeyword(selectClause.OrderBySql, "FETCH"))
+            {
+                error = "Syntax error: OFFSET/FETCH clause is invalid.";
+                return true;
+            }
+
+            if (TryDetectOffsetFetchError(selectClause.OrderBySql, selectClause.OffsetFetchSql, out error))
+            {
                 return true;
             }
 
@@ -238,6 +298,315 @@ namespace SqExpress.SqlParser.Internal.Parsing
                    || tokens[last].Type == SqlTokenType.Comma
                    || tokens[last].Type == SqlTokenType.Dot
                    || tokens[last].Type == SqlTokenType.OpenParen;
+        }
+
+        private static bool IsValidTopLevelCommaSeparatedClause(string? sql)
+        {
+            if (sql == null)
+            {
+                return true;
+            }
+
+            if (string.IsNullOrWhiteSpace(sql))
+            {
+                return false;
+            }
+
+            var meaningfulTokens = GetMeaningfulTokens(sql);
+            if (meaningfulTokens.Count < 1)
+            {
+                return false;
+            }
+
+            var depth = 0;
+            var segmentHasToken = false;
+            for (var i = 0; i < meaningfulTokens.Count; i++)
+            {
+                var token = meaningfulTokens[i];
+                if (token.Type == SqlTokenType.OpenParen)
+                {
+                    depth++;
+                    segmentHasToken = true;
+                    continue;
+                }
+
+                if (token.Type == SqlTokenType.CloseParen)
+                {
+                    if (depth > 0)
+                    {
+                        depth--;
+                    }
+
+                    segmentHasToken = true;
+                    continue;
+                }
+
+                if (depth == 0 && token.Type == SqlTokenType.Comma)
+                {
+                    if (!segmentHasToken)
+                    {
+                        return false;
+                    }
+
+                    segmentHasToken = false;
+                    continue;
+                }
+
+                segmentHasToken = true;
+            }
+
+            return segmentHasToken;
+        }
+
+        private static bool ContainsTopLevelKeyword(string? sql, string keyword)
+        {
+            if (string.IsNullOrWhiteSpace(sql))
+            {
+                return false;
+            }
+
+            var tokens = SqlLexer.Tokenize(sql!);
+            return ContainsTopLevelKeyword(tokens, 0, keyword);
+        }
+
+        private static bool TryDetectOffsetFetchError(string? orderBySql, string? offsetFetchSql, [NotNullWhen(true)] out string? error)
+        {
+            if (string.IsNullOrWhiteSpace(offsetFetchSql))
+            {
+                error = null;
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(orderBySql))
+            {
+                error = "Syntax error: OFFSET requires ORDER BY clause.";
+                return true;
+            }
+
+            var tokens = GetMeaningfulTokens(offsetFetchSql!);
+            if (tokens.Count < 3 || !tokens[0].IsKeyword("OFFSET"))
+            {
+                error = "Syntax error: OFFSET/FETCH clause is invalid.";
+                return true;
+            }
+
+            var index = 1;
+            if (!TryReadClauseExpression(tokens, ref index, "ROW", "ROWS"))
+            {
+                error = "Syntax error: OFFSET/FETCH clause is invalid.";
+                return true;
+            }
+
+            if (index >= tokens.Count)
+            {
+                error = null;
+                return false;
+            }
+
+            if (!tokens[index].IsKeyword("FETCH"))
+            {
+                error = "Syntax error: OFFSET/FETCH clause is invalid.";
+                return true;
+            }
+
+            index++;
+            if (index >= tokens.Count || (!tokens[index].IsKeyword("NEXT") && !tokens[index].IsKeyword("FIRST")))
+            {
+                error = "Syntax error: OFFSET/FETCH clause is invalid.";
+                return true;
+            }
+
+            index++;
+            if (!TryReadClauseExpression(tokens, ref index, "ROW", "ROWS"))
+            {
+                error = "Syntax error: OFFSET/FETCH clause is invalid.";
+                return true;
+            }
+
+            if (index >= tokens.Count || !tokens[index].IsKeyword("ONLY"))
+            {
+                error = "Syntax error: OFFSET/FETCH clause is invalid.";
+                return true;
+            }
+
+            index++;
+            if (index != tokens.Count)
+            {
+                error = "Syntax error: OFFSET/FETCH clause is invalid.";
+                return true;
+            }
+
+            error = null;
+            return false;
+        }
+
+        private static List<SqlToken> GetMeaningfulTokens(string sql)
+        {
+            var meaningfulTokens = new List<SqlToken>();
+            var tokens = SqlLexer.Tokenize(sql);
+            for (var i = 0; i < tokens.Count; i++)
+            {
+                if (tokens[i].Type != SqlTokenType.EndOfFile)
+                {
+                    meaningfulTokens.Add(tokens[i]);
+                }
+            }
+
+            return meaningfulTokens;
+        }
+
+        private static bool TryReadClauseExpression(IReadOnlyList<SqlToken> tokens, ref int index, string terminalKeyword1, string terminalKeyword2)
+        {
+            var depth = 0;
+            var expressionStart = index;
+
+            while (index < tokens.Count)
+            {
+                if (tokens[index].Type == SqlTokenType.OpenParen)
+                {
+                    depth++;
+                    index++;
+                    continue;
+                }
+
+                if (tokens[index].Type == SqlTokenType.CloseParen)
+                {
+                    if (depth == 0)
+                    {
+                        break;
+                    }
+
+                    depth--;
+                    index++;
+                    continue;
+                }
+
+                if (depth == 0 && (tokens[index].IsKeyword(terminalKeyword1) || tokens[index].IsKeyword(terminalKeyword2)))
+                {
+                    break;
+                }
+
+                index++;
+            }
+
+            if (index <= expressionStart || index >= tokens.Count)
+            {
+                return false;
+            }
+
+            if (!tokens[index].IsKeyword(terminalKeyword1) && !tokens[index].IsKeyword(terminalKeyword2))
+            {
+                return false;
+            }
+
+            index++;
+            return true;
+        }
+
+        private static bool HasInvalidJoinSyntax(IReadOnlyList<SqlToken> tokens)
+        {
+            for (var i = 0; i < tokens.Count; i++)
+            {
+                if (tokens[i].Type == SqlTokenType.EndOfFile)
+                {
+                    break;
+                }
+
+                if (!IsKeyword(tokens, i, "INNER")
+                    && !IsKeyword(tokens, i, "LEFT")
+                    && !IsKeyword(tokens, i, "RIGHT")
+                    && !IsKeyword(tokens, i, "FULL"))
+                {
+                    continue;
+                }
+
+                if (i + 1 >= tokens.Count || !IsKeyword(tokens, i + 1, "JOIN"))
+                {
+                    continue;
+                }
+
+                var boundary = FindNextJoinBoundary(tokens, i + 2, tokens.Count);
+                var hasOn = false;
+                var depth = 0;
+                for (var j = i + 2; j < boundary; j++)
+                {
+                    if (tokens[j].Type == SqlTokenType.OpenParen)
+                    {
+                        depth++;
+                        continue;
+                    }
+
+                    if (tokens[j].Type == SqlTokenType.CloseParen)
+                    {
+                        if (depth > 0)
+                        {
+                            depth--;
+                        }
+
+                        continue;
+                    }
+
+                    if (depth == 0 && IsKeyword(tokens, j, "ON"))
+                    {
+                        hasOn = true;
+                        break;
+                    }
+                }
+
+                if (!hasOn)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool HasUnexpectedOnAfterCrossOrApply(IReadOnlyList<SqlToken> tokens)
+        {
+            for (var i = 0; i < tokens.Count; i++)
+            {
+                if (tokens[i].Type == SqlTokenType.EndOfFile)
+                {
+                    break;
+                }
+
+                var isCrossJoin = IsKeyword(tokens, i, "CROSS") && i + 1 < tokens.Count && IsKeyword(tokens, i + 1, "JOIN");
+                var isCrossApply = IsKeyword(tokens, i, "CROSS") && i + 1 < tokens.Count && IsKeyword(tokens, i + 1, "APPLY");
+                var isOuterApply = IsKeyword(tokens, i, "OUTER") && i + 1 < tokens.Count && IsKeyword(tokens, i + 1, "APPLY");
+                if (!isCrossJoin && !isCrossApply && !isOuterApply)
+                {
+                    continue;
+                }
+
+                var boundary = FindNextJoinBoundary(tokens, i + 2, tokens.Count);
+                var depth = 0;
+                for (var j = i + 2; j < boundary; j++)
+                {
+                    if (tokens[j].Type == SqlTokenType.OpenParen)
+                    {
+                        depth++;
+                        continue;
+                    }
+
+                    if (tokens[j].Type == SqlTokenType.CloseParen)
+                    {
+                        if (depth > 0)
+                        {
+                            depth--;
+                        }
+
+                        continue;
+                    }
+
+                    if (depth == 0 && IsKeyword(tokens, j, "ON"))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
 
         private static bool IsSelectProjectionMissing(IReadOnlyList<SqlToken> tokens, int startIndex)
@@ -1276,6 +1645,10 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 case "SELECT":
                 case "FROM":
                 case "JOIN":
+                case "INNER":
+                case "LEFT":
+                case "RIGHT":
+                case "FULL":
                 case "UPDATE":
                 case "DELETE":
                 case "INSERT":
@@ -1305,6 +1678,20 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 case "END":
                 case "AS":
                 case "WITH":
+                case "TOP":
+                case "DISTINCT":
+                case "PERCENT":
+                case "HAVING":
+                case "AND":
+                case "OR":
+                case "NOT":
+                case "LIKE":
+                case "NULL":
+                case "CASE":
+                case "OVER":
+                case "PARTITION":
+                case "ASC":
+                case "DESC":
                     return true;
                 default:
                     return false;

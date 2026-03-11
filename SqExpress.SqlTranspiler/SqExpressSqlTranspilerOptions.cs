@@ -16,7 +16,7 @@ namespace SqExpress.SqlTranspiler
 
         public string TableDescriptorClassSuffix { get; set; } = string.Empty;
 
-        public string DefaultSchemaName { get; set; } = "dbo";
+        public string? DefaultSchemaName { get; set; } = "dbo";
 
         public bool UseStaticSqQueryBuilderUsing { get; set; } = true;
 

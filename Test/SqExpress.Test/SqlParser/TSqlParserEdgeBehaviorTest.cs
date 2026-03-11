@@ -133,6 +133,46 @@ namespace SqExpress.Test.SqlParser
         }
 
         [Test]
+        public void CustomDefaultSchemaIsUsedForUnqualifiedTables()
+        {
+            var sql = "SELECT U.Id FROM Users U";
+
+            var ok = SqTSqlParser.TryParse(
+                sql,
+                new SqTSqlParserOptions { DefaultSchema = "sales" },
+                out var expr,
+                out var tables,
+                out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(tables, Is.Not.Null);
+            Assert.That(tables!.Count, Is.EqualTo(1));
+            Assert.That(tables[0].FullName.AsExprTableFullName().DbSchema!.Schema.Name, Is.EqualTo("sales"));
+            Assert.That(expr!.ToSql(TSqlExporter.Default), Is.EqualTo("SELECT [U].[Id] FROM [sales].[Users] [U]"));
+        }
+
+        [Test]
+        public void NullDefaultSchemaKeepsUnqualifiedTablesSchemaLess()
+        {
+            var sql = "SELECT U.Id FROM Users U";
+
+            var ok = SqTSqlParser.TryParse(
+                sql,
+                new SqTSqlParserOptions { DefaultSchema = null },
+                out var expr,
+                out var tables,
+                out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(tables, Is.Not.Null);
+            Assert.That(tables!.Count, Is.EqualTo(1));
+            Assert.That(tables[0].FullName.AsExprTableFullName().DbSchema, Is.Null);
+            Assert.That(expr!.ToSql(TSqlExporter.Default), Is.EqualTo("SELECT [U].[Id] FROM [Users] [U]"));
+        }
+
+        [Test]
         public void UpdateJoinOnPredicateIsPreserved()
         {
             var sql = "UPDATE [u] SET [u].[Name]=[o].[Title] FROM [dbo].[Users] [u] JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[UserId] WHERE [o].[Title] LIKE 'A%'";
@@ -200,6 +240,36 @@ namespace SqExpress.Test.SqlParser
                 .Single(i => i.FullName.AsExprTableFullName().TableName.Name == "Users");
             Assert.That(userTable.Alias, Is.Null);
             Assert.That(parsedExpr.ToSql(TSqlExporter.Default), Is.EqualTo("SELECT COUNT(1) [Total] FROM [dbo].[Users]"));
+        }
+
+        [Test]
+        public void OrderByCanUseSelectAliasInMultiTableScope()
+        {
+            var sql = "SELECT [u].[Name] [UserName],[o].[OrderId] FROM [dbo].[Users] [u] INNER JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[UserId] ORDER BY [UserName]";
+
+            var ok = SqTSqlParser.TryParse(sql, out var expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.TypeOf<ExprSelect>());
+
+            var select = (ExprSelect)expr!;
+            Assert.That(select.OrderBy.OrderList.Count, Is.EqualTo(1));
+            var orderBy = select.OrderBy.OrderList[0].Value as ExprColumn;
+            Assert.That(orderBy, Is.Not.Null);
+            Assert.That(orderBy!.Source, Is.Null);
+            Assert.That(orderBy.ColumnName.Name, Is.EqualTo("UserName"));
+        }
+
+        [Test]
+        public void CrossApplyDerivedTableCanReferenceLeftTable()
+        {
+            var sql = "SELECT [u].[UserId],[x].[UserId] FROM [dbo].[Users] [u] CROSS APPLY (SELECT [u].[UserId] [UserId]) [x]";
+
+            var ok = SqTSqlParser.TryParse(sql, out var expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(expr!.ToSql(TSqlExporter.Default), Does.Contain("CROSS APPLY"));
         }
     }
 }

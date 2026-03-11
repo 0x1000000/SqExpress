@@ -112,7 +112,12 @@ namespace SqExpress.SqlTranspiler
             sourceSql = NormalizeBetween(sourceSql);
             sourceSql = NormalizeMergeAliasInSource(sourceSql);
 
-            if (!SqTSqlParser.TryParse(sourceSql, out IExpr? expr, out IReadOnlyList<SqTable>? tables, out string? parseError))
+            var parserOptions = new SqTSqlParserOptions
+            {
+                DefaultSchema = effectiveOptions.EffectiveDefaultSchemaName
+            };
+
+            if (!SqTSqlParser.TryParse(sourceSql, parserOptions, out IExpr? expr, out IReadOnlyList<SqTable>? tables, out string? parseError))
             {
                 if (LooksLikeUnsupportedStatement(sourceSql))
                 {
@@ -164,7 +169,7 @@ namespace SqExpress.SqlTranspiler
                 canonicalSql = NormalizeMergeTargetAlias(canonicalSql);
             }
 
-            if (!SqTSqlParser.TryParse(canonicalSql, out IExpr? _, out tables, out string? canonicalError))
+            if (!SqTSqlParser.TryParse(canonicalSql, parserOptions, out IExpr? _, out tables, out string? canonicalError))
             {
                 throw new SqExpressSqlTranspilerException("Could not parse SQL. " + (canonicalError ?? "Unknown parser error."));
             }

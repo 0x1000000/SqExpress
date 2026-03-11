@@ -10,7 +10,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
 {
     internal static class SqlDomTableArtifactExtractor
     {
-        public static IReadOnlyList<SqTable> ExtractTables(SqlDomStatement statement)
+        public static IReadOnlyList<SqTable> ExtractTables(SqlDomStatement statement, string? defaultSchema)
         {
             var cteNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (statement.WithClause != null)
@@ -32,7 +32,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     continue;
                 }
 
-                var schema = string.IsNullOrWhiteSpace(tableRef.Schema) ? "dbo" : tableRef.Schema!;
+                var schema = string.IsNullOrWhiteSpace(tableRef.Schema) ? defaultSchema : tableRef.Schema!;
                 var tableIdentity = new TableIdentity(schema, tableRef.Table);
                 if (!byTable.TryGetValue(tableIdentity, out _))
                 {
@@ -414,7 +414,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
         private static IReadOnlyList<SqTable> BuildSqTables(IReadOnlyDictionary<TableIdentity, TableColumnMap> tableColumns)
         {
             var result = new List<SqTable>(tableColumns.Count);
-            foreach (var entry in tableColumns.OrderBy(i => i.Key.SchemaName, StringComparer.OrdinalIgnoreCase).ThenBy(i => i.Key.TableName, StringComparer.OrdinalIgnoreCase))
+            foreach (var entry in tableColumns.OrderBy(i => i.Key.SchemaName ?? string.Empty, StringComparer.OrdinalIgnoreCase).ThenBy(i => i.Key.TableName, StringComparer.OrdinalIgnoreCase))
             {
                 var columns = entry.Value.Columns.Values.OrderBy(i => i.Order).ToList();
                 var table = SqTable.Create(
@@ -684,13 +684,13 @@ namespace SqExpress.SqlParser.Internal.Mapping
 
         private sealed class TableIdentity
         {
-            public TableIdentity(string schemaName, string tableName)
+            public TableIdentity(string? schemaName, string tableName)
             {
                 this.SchemaName = schemaName;
                 this.TableName = tableName;
             }
 
-            public string SchemaName { get; }
+            public string? SchemaName { get; }
 
             public string TableName { get; }
         }
@@ -720,7 +720,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 unchecked
                 {
                     var hashCode = 17;
-                    hashCode = (hashCode * 31) + StringComparer.OrdinalIgnoreCase.GetHashCode(obj.SchemaName);
+                    hashCode = (hashCode * 31) + (obj.SchemaName == null ? 0 : StringComparer.OrdinalIgnoreCase.GetHashCode(obj.SchemaName));
                     hashCode = (hashCode * 31) + StringComparer.OrdinalIgnoreCase.GetHashCode(obj.TableName);
                     return hashCode;
                 }
@@ -769,3 +769,4 @@ namespace SqExpress.SqlParser.Internal.Mapping
         }
     }
 }
+

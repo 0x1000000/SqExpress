@@ -35,6 +35,11 @@ namespace SqExpress.Test.SqlParser
                 .SetName("Unsupported_Select_OptionHint");
 
             yield return new TestCaseData(
+                    "SELECT [u].[Status],COUNT(1) [Total] FROM [dbo].[Users] [u] GROUP BY [u].[Status] HAVING COUNT(1) > 0",
+                    "Feature 'HAVING' is not supported by SqExpress parser.")
+                .SetName("Unsupported_Select_Having");
+
+            yield return new TestCaseData(
                     "UPDATE [u] SET [u].[Name]='X' OUTPUT INSERTED.[UserId] INTO [dbo].[Audit]([UserId]) FROM [dbo].[Users] [u]",
                     "Feature 'OUTPUT ... INTO' is not supported by SqExpress parser.")
                 .SetName("Unsupported_Update_OutputInto");

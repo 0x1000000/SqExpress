@@ -195,6 +195,49 @@ namespace SqExpress.Test.SqlParser
             Assert.That(expr, Is.Not.Null);
             Assert.That(error, Is.Null);
         }
+
+        [Test]
+        public void TryParse_WithExistingTables_WhenCustomDefaultSchemaMatchesUnqualifiedTable_ReturnsTrue()
+        {
+            var sql = "SELECT [u].[Id] FROM [Users] [u]";
+            var existing = new TableBase[]
+            {
+                CreateTable("sales", "Users", a => a.AppendInt32Column("Id"))
+            };
+
+            var ok = SqTSqlParser.TryParse(
+                sql,
+                existing,
+                new SqTSqlParserOptions { DefaultSchema = "sales" },
+                out IExpr? expr,
+                out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(error, Is.Null);
+        }
+
+        [Test]
+        public void TryParse_WithExistingTables_WhenDefaultSchemaIsNull_MatchesSchemaLessTable()
+        {
+            var sql = "SELECT [u].[Id] FROM [Users] [u]";
+            var existing = new TableBase[]
+            {
+                CreateTable(null, "Users", a => a.AppendInt32Column("Id"))
+            };
+
+            var ok = SqTSqlParser.TryParse(
+                sql,
+                existing,
+                new SqTSqlParserOptions { DefaultSchema = null },
+                out IExpr? expr,
+                out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(error, Is.Null);
+        }
+
         [Test]
         public void TryParse_WithExistingTables_WhenSchemaMatchesNonDbo_ReturnsTrue()
         {
@@ -267,7 +310,7 @@ namespace SqExpress.Test.SqlParser
 
             Assert.Throws<ArgumentNullException>(() =>
             {
-                SqTSqlParser.TryParse(sql, null!, out expr, out error);
+                SqTSqlParser.TryParse(sql, (System.Collections.Generic.IReadOnlyList<TableBase>)null!, out expr, out error);
             });
         }
 
@@ -299,7 +342,7 @@ namespace SqExpress.Test.SqlParser
         }
 
         private static SqTable CreateTable(
-            string schema,
+            string? schema,
             string tableName,
             Func<ITableColumnAppender, ITableColumnAppender> columns)
             => SqTable.Create(schema, tableName, a => columns(a));

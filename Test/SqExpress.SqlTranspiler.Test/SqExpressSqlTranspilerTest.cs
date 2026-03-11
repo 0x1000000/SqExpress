@@ -741,6 +741,21 @@ namespace SqExpress.SqlTranspiler.Test
         }
 
         [Test]
+        public void TranspileSelect_UnqualifiedTables_CanDisableDefaultSchema_WithNull()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var options = new SqExpressSqlTranspilerOptions
+            {
+                DefaultSchemaName = null
+            };
+
+            var result = transpiler.Transpile("SELECT u.UserId FROM Users u", options);
+
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("null, \"Users\", alias"));
+            AssertCompilesAndSql(result, SqlUnqualifiedUsersWithoutDefaultSchema, options);
+        }
+
+        [Test]
         public void Transpile_Cte_GeneratesCteDeclarationAndQuery()
         {
             var transpiler = new SqExpressSqlTranspiler();
@@ -1085,6 +1100,26 @@ namespace SqExpress.SqlTranspiler.Test
             var options = new SqExpressSqlTranspilerOptions
             {
                 DefaultSchemaName = string.Empty
+            };
+
+            var ex = Assert.Throws<SqExpressSqlTranspilerException>(() => transpiler.Transpile(
+                "SELECT u.UserId FROM dbo.Users u " +
+                "UNION " +
+                "SELECT u.UserId FROM sales.Users u " +
+                "UNION " +
+                "SELECT u.UserId FROM Users u",
+                options));
+
+            Assert.That(ex?.Message, Does.Contain("Ambiguous unqualified table reference 'Users'"));
+        }
+
+        [Test]
+        public void TranspileSelect_SetOperations_MixedSchemasAndUnqualified_ThrowsAmbiguousError_WhenDefaultSchemaIsNull()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var options = new SqExpressSqlTranspilerOptions
+            {
+                DefaultSchemaName = null
             };
 
             var ex = Assert.Throws<SqExpressSqlTranspilerException>(() => transpiler.Transpile(

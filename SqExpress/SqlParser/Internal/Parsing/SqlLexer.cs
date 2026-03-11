@@ -70,6 +70,7 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 {
                     var start = index;
                     index++;
+                    var closed = false;
                     while (index < sql.Length)
                     {
                         if (sql[index] == ']')
@@ -81,10 +82,18 @@ namespace SqExpress.SqlParser.Internal.Parsing
                             }
 
                             index++;
+                            closed = true;
                             break;
                         }
 
                         index++;
+                    }
+
+                    if (!closed)
+                    {
+                        result = null;
+                        error = "Syntax error: unterminated bracket identifier.";
+                        return false;
                     }
 
                     result.Add(new SqlToken(SqlTokenType.BracketIdentifier, sql.Substring(start, index - start), start, index - start));
