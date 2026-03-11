@@ -193,7 +193,7 @@ namespace SqExpress.SqlTranspiler
                 parameterDefaults,
                 listParameters);
 
-            return new SqExpressTranspileResult(statementKind, query, declarations.Code);
+            return new SqExpressTranspileResult(statementKind, query, declarations.Code, canonicalSql);
         }
 
         public SqExpressTranspileResult TranspileSelect(string sql, SqExpressSqlTranspilerOptions? options = null)
@@ -271,7 +271,8 @@ namespace SqExpress.SqlTranspiler
                     UsingDirective(ParseName("SqExpress.Syntax.Functions.Known")),
                     UsingDirective(ParseName("SqExpress.Syntax.Names")),
                     UsingDirective(ParseName("SqExpress.Syntax.Select")),
-                    UsingDirective(ParseName("SqExpress.Syntax.Type")))
+                    UsingDirective(ParseName("SqExpress.Syntax.Type")),
+                    UsingDirective(ParseName("SqExpress.Syntax.Value")))
                 .AddMembers(namespaceDeclaration);
 
             var csharpCode = compilationUnit.NormalizeWhitespace().ToFullString();
@@ -473,15 +474,15 @@ namespace SqExpress.SqlTranspiler
                     usage.VariableName + " = new " + usage.ClassName + "(" + ToCSharpStringLiteral(usage.Alias) + ");"));
             }
 
+            foreach (var declaration in model.ParameterDeclarations)
+            {
+                statements.Add(ParseStatement(declaration));
+            }
+
             foreach (var usage in model.LocalSources)
             {
                 statements.Add(ParseStatement(
                     "var " + usage.VariableName + " = " + usage.InitializationExpression + ";"));
-            }
-
-            foreach (var declaration in model.ParameterDeclarations)
-            {
-                statements.Add(ParseStatement(declaration));
             }
 
             statements.Add(ParseStatement("var " + options.QueryVariableName + " = " + model.QueryExpressionCode + ";"));

@@ -5,11 +5,12 @@ namespace SqExpress.SqlTranspiler
 {
     public sealed class SqExpressTranspileResult
     {
-        public SqExpressTranspileResult(string statementKind, string queryCSharpCode, string declarationsCSharpCode)
+        public SqExpressTranspileResult(string statementKind, string queryCSharpCode, string declarationsCSharpCode, string canonicalSql)
         {
             this.StatementKind = statementKind;
             this.QueryCSharpCode = queryCSharpCode;
             this.DeclarationsCSharpCode = declarationsCSharpCode;
+            this.CanonicalSql = canonicalSql;
             this.QueryAst = (CompilationUnitSyntax)CSharpSyntaxTree.ParseText(queryCSharpCode).GetRoot();
             this.DeclarationsAst = (CompilationUnitSyntax)CSharpSyntaxTree.ParseText(declarationsCSharpCode).GetRoot();
         }
@@ -19,6 +20,8 @@ namespace SqExpress.SqlTranspiler
         public string QueryCSharpCode { get; }
 
         public string DeclarationsCSharpCode { get; }
+
+        public string CanonicalSql { get; }
 
         public CompilationUnitSyntax QueryAst { get; }
 

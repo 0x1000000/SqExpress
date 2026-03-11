@@ -84,6 +84,22 @@ namespace SqExpress.SqlTranspiler
 
         private sealed class QueryPreviewEmitter
         {
+            private sealed class CapturedParameterSpec
+            {
+                public CapturedParameterSpec(string parameterName, string variableName, string typeName)
+                {
+                    this.ParameterName = parameterName;
+                    this.VariableName = variableName;
+                    this.TypeName = typeName;
+                }
+
+                public string ParameterName { get; }
+
+                public string VariableName { get; }
+
+                public string TypeName { get; }
+            }
+
             private const string MSelect = nameof(SqQueryBuilder.Select);
             private const string MSelectOne = nameof(SqQueryBuilder.SelectOne);
             private const string MSelectDistinct = nameof(SqQueryBuilder.SelectDistinct);
@@ -260,6 +276,8 @@ namespace SqExpress.SqlTranspiler
 
             private readonly Dictionary<string, string> _cteClassByName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             private readonly Dictionary<string, string> _derivedClassByAlias = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            private readonly Dictionary<string, IReadOnlyList<CapturedParameterSpec>> _cteParametersByName = new Dictionary<string, IReadOnlyList<CapturedParameterSpec>>(StringComparer.OrdinalIgnoreCase);
+            private readonly Dictionary<string, IReadOnlyList<CapturedParameterSpec>> _derivedParametersByAlias = new Dictionary<string, IReadOnlyList<CapturedParameterSpec>>(StringComparer.OrdinalIgnoreCase);
 
             private readonly HashSet<string> _usedNestedTypeNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             private readonly List<MemberDeclarationSyntax> _nestedTypes = new List<MemberDeclarationSyntax>();
@@ -1704,7 +1722,7 @@ namespace SqExpress.SqlTranspiler
                             variableName,
                             SourceKind.Derived,
                             className,
-                            "new " + className + "(" + ToCSharpStringLiteral(alias!) + ")");
+                            "new " + className + "(" + this.RenderNestedSourceArguments(this._derivedParametersByAlias, alias!, ToCSharpStringLiteral(alias!)) + ")");
                         return true;
                     }
                     case ExprCteQuery cte:
@@ -1717,7 +1735,7 @@ namespace SqExpress.SqlTranspiler
                             variableName,
                             SourceKind.Cte,
                             className,
-                            "new " + className + "(" + ToCSharpStringLiteral(alias) + ")");
+                            "new " + className + "(" + this.RenderNestedSourceArguments(this._cteParametersByName, cte.Name, ToCSharpStringLiteral(alias)) + ")");
                         return true;
                     }
                     case ExprAliasedTableFunction aliasedFunction:
@@ -2331,7 +2349,7 @@ namespace SqExpress.SqlTranspiler
             private string RenderDerivedValuesInline(ExprDerivedTableValues values, RenderContext context)
             {
                 var rows = values.Values.Items
-                    .Select(r => "new global::SqExpress.Syntax.Value.ExprValue[] { " + string.Join(", ", r.Items.Select(i => this.RenderValue(i, context))) + " }")
+                    .Select(r => "new ExprValue[] { " + string.Join(", ", r.Items.Select(i => this.RenderValue(i, context))) + " }")
                     .ToList();
                 string alias = this.GetAliasName(values.Alias.Alias) ?? "v";
                 var columns = values.Columns.Select(i => ToCSharpStringLiteral(i.Name)).ToList();
@@ -2368,6 +2386,8 @@ namespace SqExpress.SqlTranspiler
                 var createQueryContext = new RenderContext();
                 var queryExpr = this.RenderSubQueryFinal(cte.Query, createQueryContext, useDerivedPropertyAliases: false, derivedPropertyMap: null);
                 var selectingList = GetTopSelectList(cte.Query);
+                var capturedParameters = this.CollectCapturedParameters(cte.Query);
+                this._cteParametersByName[cte.Name] = capturedParameters;
 
                 var propertyNames = outputColumns.ToDictionary(i => i, i => ToPascalCaseIdentifier(i, "Column"), StringComparer.OrdinalIgnoreCase);
                 var propertyTypesByColumn = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -2384,6 +2404,15 @@ namespace SqExpress.SqlTranspiler
                 var ctorAssignments = string.Join(
                     "\r\n",
                     outputColumns.Select(i => "            this." + propertyNames[i] + " = " + RenderCreateDerivedColumnExpression(propertyTypesByColumn[i], i) + ";"));
+                var parameterFields = string.Join(
+                    "\r\n",
+                    capturedParameters.Select(i => "        private readonly " + i.TypeName + " " + i.VariableName + ";"));
+                var parameterCtorAssignments = string.Join(
+                    "\r\n",
+                    capturedParameters.Select(i => "            this." + i.VariableName + " = " + i.VariableName + ";"));
+                var ctorPrefix = capturedParameters.Count > 0
+                    ? string.Join(", ", capturedParameters.Select(i => i.TypeName + " " + i.VariableName)) + ", "
+                    : string.Empty;
 
                 var localDecl = string.Join("\r\n", createQueryContext.LocalSources.Select(i => "            var " + i.VariableName + " = " + i.InitializationExpression + ";"));
                 if (localDecl.Length > 0)
@@ -2394,9 +2423,11 @@ namespace SqExpress.SqlTranspiler
                 var classCode =
                     "public sealed class " + className + " : CteBase\r\n" +
                     "{\r\n" +
+                    (parameterFields.Length > 0 ? parameterFields + "\r\n\r\n" : string.Empty) +
                     (properties.Length > 0 ? properties + "\r\n\r\n" : string.Empty) +
-                    "    public " + className + "(Alias alias = default) : base(" + ToCSharpStringLiteral(cte.Name) + ", alias)\r\n" +
+                    "    public " + className + "(" + ctorPrefix + "Alias alias = default) : base(" + ToCSharpStringLiteral(cte.Name) + ", alias)\r\n" +
                     "    {\r\n" +
+                    (parameterCtorAssignments.Length > 0 ? parameterCtorAssignments + "\r\n" : string.Empty) +
                     (ctorAssignments.Length > 0 ? ctorAssignments + "\r\n" : string.Empty) +
                     "    }\r\n\r\n" +
                     "    public override IExprSubQuery CreateQuery()\r\n" +
@@ -2482,6 +2513,8 @@ namespace SqExpress.SqlTranspiler
 
                 var createQueryContext = new RenderContext();
                 var queryExpr = this.RenderSubQueryFinal(derived.Query, createQueryContext, useDerivedPropertyAliases: true, derivedPropertyMap: propertyNames);
+                var capturedParameters = this.CollectCapturedParameters(derived.Query);
+                this._derivedParametersByAlias[alias] = capturedParameters;
                 var selectingList = (derived.Query as ExprQuerySpecification)?.SelectList;
                 var propertyTypesByColumn = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 for (var index = 0; index < outputColumns.Count; index++)
@@ -2506,6 +2539,18 @@ namespace SqExpress.SqlTranspiler
                 var fields = string.Join(
                     "\r\n",
                     fieldSources.Select(i => "        private readonly " + i.ClassName + " " + i.VariableName + " = " + i.InitializationExpression + ";"));
+                var parameterFields = string.Join(
+                    "\r\n",
+                    capturedParameters.Select(i => "        private readonly " + i.TypeName + " " + i.VariableName + ";"));
+                var allFields = string.Join(
+                    "\r\n",
+                    new[] { parameterFields, fields }.Where(i => !string.IsNullOrWhiteSpace(i)));
+                var parameterCtorAssignments = string.Join(
+                    "\r\n",
+                    capturedParameters.Select(i => "            this." + i.VariableName + " = " + i.VariableName + ";"));
+                var ctorPrefix = capturedParameters.Count > 0
+                    ? string.Join(", ", capturedParameters.Select(i => i.TypeName + " " + i.VariableName)) + ", "
+                    : string.Empty;
 
                 var ctorAssignmentsList = new List<string>(outputColumns.Count);
                 for (var index = 0; index < outputColumns.Count; index++)
@@ -2540,10 +2585,11 @@ namespace SqExpress.SqlTranspiler
                 var classCode =
                     "public sealed class " + className + " : DerivedTableBase\r\n" +
                     "{\r\n" +
-                    (fields.Length > 0 ? fields + "\r\n\r\n" : string.Empty) +
+                    (allFields.Length > 0 ? allFields + "\r\n\r\n" : string.Empty) +
                     (properties.Length > 0 ? properties + "\r\n\r\n" : string.Empty) +
-                    "    public " + className + "(Alias alias = default) : base(alias)\r\n" +
+                    "    public " + className + "(" + ctorPrefix + "Alias alias = default) : base(alias)\r\n" +
                     "    {\r\n" +
+                    (parameterCtorAssignments.Length > 0 ? parameterCtorAssignments + "\r\n" : string.Empty) +
                     (ctorAssignments.Length > 0 ? ctorAssignments + "\r\n" : string.Empty) +
                     "    }\r\n\r\n" +
                     "    protected override IExprSubQuery CreateQuery()\r\n" +
@@ -3133,6 +3179,66 @@ namespace SqExpress.SqlTranspiler
                     trimmed = trimmed.Substring(1);
                 }
                 return ToCamelCaseIdentifier(trimmed, "p");
+            }
+
+            private string RenderNestedSourceArguments(
+                IReadOnlyDictionary<string, IReadOnlyList<CapturedParameterSpec>> parametersByName,
+                string lookupName,
+                string aliasExpression)
+            {
+                if (!parametersByName.TryGetValue(lookupName, out var parameters) || parameters.Count < 1)
+                {
+                    return aliasExpression;
+                }
+
+                return string.Join(", ", parameters.Select(i => i.VariableName).Concat(new[] { aliasExpression }));
+            }
+
+            private IReadOnlyList<CapturedParameterSpec> CollectCapturedParameters(IExpr expr)
+            {
+                var result = new List<CapturedParameterSpec>();
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var parameter in expr.SyntaxTree().DescendantsAndSelf().OfType<ExprParameter>())
+                {
+                    var parameterName = parameter.TagName ?? "p";
+                    var variableName = NormalizeParameterName(parameterName);
+                    if (!seen.Add(variableName))
+                    {
+                        continue;
+                    }
+
+                    result.Add(new CapturedParameterSpec(parameterName, variableName, this.GetParameterTypeName(parameterName)));
+                }
+
+                return result;
+            }
+
+            private string GetParameterTypeName(string parameterName)
+            {
+                if (this._listParameters.Contains(parameterName))
+                {
+                    return "ExprValue[]";
+                }
+
+                if (!this._parameterDefaults.TryGetValue(parameterName, out var defaultValue))
+                {
+                    return "string";
+                }
+
+                return defaultValue switch
+                {
+                    ExprBoolLiteral => "bool",
+                    ExprInt16Literal => "int",
+                    ExprInt32Literal => "int",
+                    ExprInt64Literal => "int",
+                    ExprDecimalLiteral => "decimal",
+                    ExprDoubleLiteral => "double",
+                    ExprGuidLiteral => "global::System.Guid",
+                    ExprDateTimeLiteral => "global::System.DateTime",
+                    ExprDateTimeOffsetLiteral => "global::System.DateTimeOffset",
+                    ExprByteArrayLiteral => "byte[]",
+                    _ => "string"
+                };
             }
         }
     }

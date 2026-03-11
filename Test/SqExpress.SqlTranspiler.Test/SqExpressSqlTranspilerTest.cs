@@ -1271,6 +1271,67 @@ namespace SqExpress.SqlTranspiler.Test
         }
 
         [Test]
+        public void TranspileMergeWithValuesSource_UsesShortExprValueArrayName()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                "MERGE dbo.Users AS trg " +
+                "USING (VALUES (1, 'Alice', 1), (2, 'Bob', 0)) AS src(UserId, UserName, IsActive) " +
+                "ON trg.UserId = src.UserId " +
+                "WHEN MATCHED THEN UPDATE SET trg.UserName = src.UserName, trg.IsActive = src.IsActive " +
+                "WHEN NOT MATCHED BY TARGET THEN INSERT (UserId, UserName, IsActive) VALUES (src.UserId, src.UserName, src.IsActive) " +
+                "WHEN NOT MATCHED BY SOURCE THEN DELETE;");
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("new ExprValue[] { 1,"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("\"Alice\""));
+            Assert.That(result.QueryCSharpCode, Does.Not.Contain("global::SqExpress.Syntax.Value.ExprValue[]"));
+            AssertCompiles(result, "GeneratedTranspilerMergeValuesShortExprValueArrayNameTests");
+        }
+
+        [Test]
+        public void TranspileMerge_WithSelectSource_GeneratesCompilableNestedSubQuery()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                "MERGE dbo.Users AS trg " +
+                "USING (SELECT @UserId AS UserId, @UserName AS UserName, @IsActive AS IsActive) AS src " +
+                "ON trg.UserId = src.UserId " +
+                "WHEN MATCHED THEN UPDATE SET trg.UserName = src.UserName, trg.IsActive = src.IsActive " +
+                "WHEN NOT MATCHED BY TARGET THEN INSERT (UserId, UserName, IsActive) VALUES (src.UserId, src.UserName, src.IsActive) " +
+                "WHEN NOT MATCHED BY SOURCE THEN DELETE;");
+
+            Assert.AreEqual("MERGE", result.StatementKind);
+            Assert.That(result.QueryCSharpCode, Does.Contain("private readonly int userId;"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("private readonly string userName;"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("private readonly bool isActive;"));
+            Assert.That(result.QueryCSharpCode, Does.Not.Contain("global::SqExpress.Syntax.Value.ExprValue[]"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("new SrcSubQuery(userId, userName, isActive, \"src\")"));
+            AssertCompilesAndSql(result, result.CanonicalSql, assemblyName: "GeneratedTranspilerMergeSelectSourceTests");
+        }
+
+        [Test]
+        public void TranspiledMerge_WithSelectSource_MySqlExport_ShowsCurrentPolyfillLimitation()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                "MERGE dbo.Users AS trg " +
+                "USING (SELECT @UserId AS UserId, @UserName AS UserName, @IsActive AS IsActive) AS src " +
+                "ON trg.UserId = src.UserId " +
+                "WHEN MATCHED THEN UPDATE SET trg.UserName = src.UserName, trg.IsActive = src.IsActive " +
+                "WHEN NOT MATCHED BY TARGET THEN INSERT (UserId, UserName, IsActive) VALUES (src.UserId, src.UserName, src.IsActive) " +
+                "WHEN NOT MATCHED BY SOURCE THEN DELETE;");
+
+            var assembly = AssertCompiles(result, "GeneratedTranspilerMergeSelectSourceMySqlTests");
+            var expr = InvokeGeneratedBuildMethod(assembly, new SqExpressSqlTranspilerOptions());
+
+            var mariaDbEx = Assert.Throws<SqExpressException>(() => expr.ToSql(MySqlExporter.MariaDbDefault));
+            Assert.That(mariaDbEx?.Message, Does.Contain("Only derived table values can be used as a source in MERGE simulation"));
+
+            var oracleEx = Assert.Throws<SqExpressException>(() => expr.ToSql(MySqlExporter.OracleDefault));
+            Assert.That(oracleEx?.Message, Does.Contain("Only derived table values can be used as a source in MERGE simulation"));
+        }
+
+        [Test]
         public void Transpile_RejectsUnsupportedStatement()
         {
             var transpiler = new SqExpressSqlTranspiler();

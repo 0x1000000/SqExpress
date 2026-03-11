@@ -171,6 +171,42 @@
     padding: 0.85rem;
 }
 
+.dialect-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    margin-bottom: 0.75rem;
+}
+
+.dialect-tab {
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #334155;
+    border-radius: 999px;
+    padding: 0.42rem 0.85rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.dialect-tab:hover {
+    border-color: #0f766e;
+    color: #0f766e;
+}
+
+.dialect-tab-active {
+    border-color: #0f766e;
+    background: #0f766e;
+    color: #ffffff;
+}
+
+.dialect-tab-active:hover {
+    border-color: #0c625b;
+    background: #0c625b;
+    color: #ffffff;
+}
+
 .card-title-row {
     display: flex;
     align-items: center;
@@ -254,8 +290,29 @@
     display: grid;
     grid-template-columns: 1fr;
     gap: 0.9rem;
-    margin-top: 1rem;
     min-width: 0;
+}
+
+.stack-section {
+    margin-top: 1rem;
+}
+
+.section-heading {
+    margin-bottom: 0.7rem;
+}
+
+.section-heading h2 {
+    margin: 0;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted-text);
+}
+
+.section-heading p {
+    margin: 0.3rem 0 0 0;
+    color: var(--muted-text);
+    line-height: 1.45;
 }
 
 .output-card {
@@ -271,6 +328,20 @@
     min-height: 480px;
     max-height: 1000px;
     border: 1px solid #1f2937;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.sql-preview-card {
+    padding: 0.85rem;
+}
+
+.sql-output-editor {
+    border-radius: 10px;
+    min-height: 320px;
+    max-height: 720px;
+    border: 1px solid var(--border-color);
     width: 100%;
     max-width: 100%;
     overflow: hidden;
@@ -292,6 +363,15 @@
     .editor-actions {
         width: 100%;
         justify-content: flex-end;
+    }
+
+    .dialect-tabs {
+        gap: 0.4rem;
+    }
+
+    .dialect-tab {
+        flex: 1 1 11rem;
+        text-align: center;
     }
 
     .settings-grid {
