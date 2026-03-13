@@ -139,6 +139,8 @@ namespace SqExpress.SqlTranspiler
                 expr = ApplyDefaultSchema(expr!, effectiveOptions.EffectiveDefaultSchemaName);
             }
 
+            expr = RebindParsedTables(expr!, tables!);
+
             var statementKind = DetectStatementKind(expr!);
             if (statementKind == "UNKNOWN")
             {
@@ -1405,6 +1407,40 @@ namespace SqExpress.SqlTranspiler
             return m ?? expr;
         }
 
+        private static IExpr RebindParsedTables(IExpr expr, IReadOnlyList<SqTable> tables)
+        {
+            if (tables.Count < 1)
+            {
+                return expr;
+            }
+
+            var tablesByKey = new Dictionary<string, SqTable>(StringComparer.OrdinalIgnoreCase);
+            foreach (var table in tables)
+            {
+                tablesByKey[BuildTableKey(table.FullName)] = table;
+            }
+
+            var modified = expr.SyntaxTree().Modify<ExprTable>(tableExpr =>
+            {
+                if (tableExpr is TableBase)
+                {
+                    return tableExpr;
+                }
+
+                return tablesByKey.TryGetValue(BuildTableKey(tableExpr.FullName), out var sqTable)
+                    ? sqTable.With(tableExpr.Alias, tableExpr.FullName)
+                    : tableExpr;
+            });
+
+            return modified as IExpr ?? expr;
+        }
+
+        private static string BuildTableKey(IExprTableFullName fullName)
+        {
+            var schema = fullName.SchemaName ?? string.Empty;
+            return schema + "|" + fullName.TableName;
+        }
+
         private static IExpr EnsureCurrentRowFrameWhenPresentInSql(IExpr expr, string sql)
         {
             var hasCurrentRowFrame = sql.IndexOf("ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW", StringComparison.OrdinalIgnoreCase) >= 0;
@@ -2123,6 +2159,7 @@ namespace SqExpress.SqlTranspiler
         {
             private readonly IReadOnlyDictionary<string, HashSet<string>> _aliasToTableKeys;
             private readonly string? _fallbackTableKey;
+            private readonly Stack<string?> _queryFallbackStack = new Stack<string?>();
 
             public TableColumnCollectorVisitor(IReadOnlyDictionary<string, HashSet<string>> aliasToTableKeys, string? fallbackTableKey)
             {
@@ -2138,6 +2175,19 @@ namespace SqExpress.SqlTranspiler
 
             public Dictionary<string, Dictionary<string, ParamKind>> InferredColumnKindsByTableKey { get; } =
                 new Dictionary<string, Dictionary<string, ParamKind>>(StringComparer.OrdinalIgnoreCase);
+
+            public override void VisitExprQuerySpecification(ExprQuerySpecification expr)
+            {
+                this._queryFallbackStack.Push(TryGetSingleTableKey(expr.From));
+                try
+                {
+                    base.VisitExprQuerySpecification(expr);
+                }
+                finally
+                {
+                    this._queryFallbackStack.Pop();
+                }
+            }
 
             public override void VisitExprColumn(ExprColumn expr)
             {
@@ -2345,12 +2395,55 @@ namespace SqExpress.SqlTranspiler
                     }
                 }
 
+                if (this._queryFallbackStack.Count > 0)
+                {
+                    var scopedFallback = this._queryFallbackStack.Peek();
+                    if (!string.IsNullOrWhiteSpace(scopedFallback))
+                    {
+                        return new[] { scopedFallback! };
+                    }
+                }
+
                 if (!string.IsNullOrWhiteSpace(this._fallbackTableKey))
                 {
                     return new[] { this._fallbackTableKey! };
                 }
 
                 return null;
+            }
+
+            private static string? TryGetSingleTableKey(IExprTableSource? source)
+            {
+                if (source == null)
+                {
+                    return null;
+                }
+
+                var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                CollectTableKeys(source, keys);
+                return keys.Count == 1 ? keys.First() : null;
+            }
+
+            private static void CollectTableKeys(IExprTableSource source, HashSet<string> keys)
+            {
+                switch (source)
+                {
+                    case ExprTable table:
+                        keys.Add(GetTableKey(table.FullName.AsExprTableFullName()));
+                        break;
+                    case ExprJoinedTable joined:
+                        CollectTableKeys(joined.Left, keys);
+                        CollectTableKeys(joined.Right, keys);
+                        break;
+                    case ExprCrossedTable crossed:
+                        CollectTableKeys(crossed.Left, keys);
+                        CollectTableKeys(crossed.Right, keys);
+                        break;
+                    case ExprLateralCrossedTable lateral:
+                        CollectTableKeys(lateral.Left, keys);
+                        CollectTableKeys(lateral.Right, keys);
+                        break;
+                }
             }
 
             private void AddKindHint(ExprColumn column, ParamKind kind)

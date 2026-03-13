@@ -158,8 +158,8 @@ namespace SqExpress.Test.SqlParser
             new PgSample(
                 "Merge_UpdateInsertDelete",
                 @"MERGE [dbo].[Users] [A0] USING [dbo].[UsersStaging] [s] ON [A0].[UserId]=[s].[UserId] WHEN MATCHED THEN UPDATE SET [A0].[Name]=[s].[Name],[A0].[IsActive]=[s].[IsActive] WHEN NOT MATCHED THEN INSERT([UserId],[Name],[IsActive]) VALUES([s].[UserId],[s].[Name],[s].[IsActive]) WHEN NOT MATCHED BY SOURCE THEN  DELETE;",
-                null,
-                @"EXPORT: Could not determine MERGE source columns"
+                @"WITH ""__sqexpress_merge_source""(""UserId"",""Name"",""IsActive"") AS(SELECT ""A0"".""UserId"",""A0"".""Name"",""A0"".""IsActive"" FROM ""dbo"".""UsersStaging"" ""s""),""__sqexpress_merge_matched"" AS(UPDATE ""dbo"".""Users"" ""A0"" SET ""Name""=""s"".""Name"",""IsActive""=""s"".""IsActive"" FROM ""__sqexpress_merge_source"" ""s"" WHERE ""A0"".""UserId""=""s"".""UserId"" RETURNING 1),""__sqexpress_merge_not_matched_by_target"" AS(INSERT INTO ""dbo"".""Users""(""UserId"",""Name"",""IsActive"") SELECT ""s"".""UserId"",""s"".""Name"",""s"".""IsActive"" FROM ""__sqexpress_merge_source"" ""s"" WHERE NOT EXISTS(SELECT 1 FROM ""dbo"".""Users"" ""A0"" WHERE ""A0"".""UserId""=""s"".""UserId"") RETURNING 1),""__sqexpress_merge_not_matched_by_source"" AS(DELETE FROM ""dbo"".""Users"" ""A0"" WHERE NOT EXISTS(SELECT 1 FROM ""__sqexpress_merge_source"" ""s"" WHERE ""A0"".""UserId""=""s"".""UserId"") RETURNING 1) SELECT (SELECT COUNT(*) FROM ""__sqexpress_merge_matched""),(SELECT COUNT(*) FROM ""__sqexpress_merge_not_matched_by_target""),(SELECT COUNT(*) FROM ""__sqexpress_merge_not_matched_by_source"")",
+                null
             ),
             new PgSample(
                 "Select_SchemaQualifiedScalarFunction",

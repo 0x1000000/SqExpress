@@ -960,7 +960,7 @@ namespace SqExpress.SqlTranspiler
             {
                 var targetVariable = this.EnsureTableVariable(expr.Target, context);
                 var targetColumns = (expr.TargetColumns ?? Array.Empty<ExprColumnName>())
-                    .Select(i => targetVariable + "." + ToPascalCaseIdentifier(i.Name, "Column"))
+                    .Select(i => this.RenderTargetColumn(expr.Target, targetVariable, i))
                     .ToList();
 
                 var insertArgs = new List<string>(1 + targetColumns.Count) { targetVariable };
@@ -993,7 +993,7 @@ namespace SqExpress.SqlTranspiler
             {
                 var targetVariable = this.EnsureTableVariable(expr.Insert.Target, context);
                 var targetColumns = (expr.Insert.TargetColumns ?? Array.Empty<ExprColumnName>())
-                    .Select(i => targetVariable + "." + ToPascalCaseIdentifier(i.Name, "Column"))
+                    .Select(i => this.RenderTargetColumn(expr.Insert.Target, targetVariable, i))
                     .ToList();
 
                 var insertArgs = new List<string>(1 + targetColumns.Count) { targetVariable };
@@ -1096,7 +1096,7 @@ namespace SqExpress.SqlTranspiler
                         builder = AppendInvocation(
                             builder,
                             MSet,
-                            "CustomColumnFactory.Any(" + ToCSharpStringLiteral(notMatchedInsert.Columns[i].Name) + ")",
+                            this.RenderMergeInsertTargetColumn(expr.TargetTable, target, notMatchedInsert.Columns[i]),
                             this.RenderAssigning(notMatchedInsert.Values[i], context));
                     }
                 }
@@ -1148,6 +1148,41 @@ namespace SqExpress.SqlTranspiler
 
                 return ToRenderedCode(AppendInvocation(builder, MDone));
             }
+
+            private string RenderMergeInsertTargetColumn(ExprTable targetTable, string targetVariable, ExprColumnName columnName)
+            {
+                return this.RenderTargetColumn(
+                    targetTable,
+                    targetVariable,
+                    columnName,
+                    "CustomColumnFactory.Any(" + ToCSharpStringLiteral(columnName.Name) + ")");
+            }
+
+            private string RenderTargetColumn(ExprTable targetTable, string targetVariable, ExprColumnName columnName)
+            {
+                return this.RenderTargetColumn(
+                    targetTable,
+                    targetVariable,
+                    columnName,
+                    targetVariable + "." + ToPascalCaseIdentifier(columnName.Name, "Column"));
+            }
+
+            private string RenderTargetColumn(IExprTableFullName targetTable, string targetVariable, ExprColumnName columnName)
+            {
+                return targetVariable + "." + ToPascalCaseIdentifier(columnName.Name, "Column");
+            }
+
+            private string RenderTargetColumn(ExprTable targetTable, string targetVariable, ExprColumnName columnName, string fallback)
+            {
+                if (targetTable is TableBase tableBase
+                    && tableBase.Columns.Any(c => string.Equals(c.ColumnName.Name, columnName.Name, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return targetVariable + "." + ToPascalCaseIdentifier(columnName.Name, "Column");
+                }
+
+                return fallback;
+            }
+
             private string RenderSubQueryBuilder(
                 IExprSubQuery query,
                 RenderContext context,

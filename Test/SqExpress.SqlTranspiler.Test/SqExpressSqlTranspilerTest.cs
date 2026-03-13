@@ -1247,6 +1247,25 @@ namespace SqExpress.SqlTranspiler.Test
         }
 
         [Test]
+        public void TranspileDelete_WithDerivedJoin_PreservesInnerTableColumns()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            const string rawSql =
+                "DELETE t " +
+                "FROM dbo.Users t " +
+                "INNER JOIN (SELECT UserId FROM dbo.UserOrders) uo ON t.Id = uo.UserId";
+
+            var result = transpiler.Transpile(rawSql);
+
+            Assert.AreEqual("DELETE", result.StatementKind);
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public sealed class TableUserOrders : TableBase"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("public Int32TableColumn UserId"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("private readonly TableUserOrders userOrders = new TableUserOrders();"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("return Select(userOrders.UserId).From(userOrders).Done();"));
+            AssertCompiles(result, "GeneratedTranspilerDeleteDerivedJoinTests");
+        }
+
+        [Test]
         public void TranspileMerge_IsSupported()
         {
             var transpiler = new SqExpressSqlTranspiler();
@@ -1264,7 +1283,7 @@ namespace SqExpress.SqlTranspiler.Test
             Assert.That(result.QueryCSharpCode, Does.Contain(".WhenMatched()"));
             Assert.That(result.QueryCSharpCode, Does.Contain(".ThenUpdate()"));
             Assert.That(result.QueryCSharpCode, Does.Contain(".ThenInsert()"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("CustomColumnFactory.Any(\"UserId\")"));
+            Assert.That(result.QueryCSharpCode, Does.Contain(".Set(users.UserId, s.UserId)"));
             Assert.That(result.QueryCSharpCode, Does.Contain(".WhenNotMatchedBySource()"));
             Assert.That(result.QueryCSharpCode, Does.Contain(".ThenDelete()"));
             AssertCompilesAndSql(result, SqlMergeBasic);
