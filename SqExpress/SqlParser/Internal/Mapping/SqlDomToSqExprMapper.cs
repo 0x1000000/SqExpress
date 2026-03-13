@@ -277,6 +277,12 @@ namespace SqExpress.SqlParser.Internal.Mapping
             public IReadOnlyList<string?> GetOutputColumnNames()
                 => this.Resolve().GetOutputColumnNames();
 
+            public IReadOnlyList<IExprSelecting> ExtractSelecting()
+                => this.Resolve().ExtractSelecting();
+
+            public IExprSubQuery CreateSubQuery()
+                => this.Resolve();
+
             public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
                 => this.Resolve().Accept(visitor, arg);
 

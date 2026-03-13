@@ -15,6 +15,9 @@ namespace SqExpress.Syntax.Names
 
         public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprAllColumns(this, arg);
+
+        public TRes Accept<TRes, TArg>(IExprSelectingVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprAllColumns(this, arg);
     }
 
     public class ExprColumn : ExprValue, IExprNamedSelecting, IEquatable<ExprColumn>

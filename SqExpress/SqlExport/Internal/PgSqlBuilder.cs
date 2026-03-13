@@ -857,15 +857,18 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprMerge(ExprMerge merge, IExpr? parent)
         {
-            if (merge.Source is not ExprDerivedTableValues sourceValues)
+            var sourceAlias = merge.Source.Alias?.Alias
+                ?? throw new SqExpressException("MERGE source should have an alias");
+            var sourceColumns = ExtractSourceColumns(merge.Source);
+            if (sourceColumns.Count < 1)
             {
-                throw new SqExpressException("Only derived table values can be used as a source in MERGE simulation");
+                throw new SqExpressException("Could not determine MERGE source columns");
             }
 
             var sourceCteName = "__sqexpress_merge_source";
             var sourceTable = new ExprTable(
                 new ExprTableFullName(null, new ExprTableName(sourceCteName)),
-                sourceValues.Alias
+                merge.Source.Alias
             );
 
             var actionCtes = new List<(string CteName, IExprExec Statement)>();
@@ -876,7 +879,7 @@ namespace SqExpress.SqlExport.Internal
                 actionCtes.Add(("__sqexpress_merge_matched", matchedAction));
             }
 
-            var notMatchedByTargetAction = BuildNotMatchedByTargetAction(merge, sourceValues, sourceTable);
+            var notMatchedByTargetAction = BuildNotMatchedByTargetAction(merge, sourceTable, sourceAlias);
             if (notMatchedByTargetAction != null)
             {
                 actionCtes.Add(("__sqexpress_merge_not_matched_by_target", notMatchedByTargetAction));
@@ -890,9 +893,16 @@ namespace SqExpress.SqlExport.Internal
 
             this.Builder.Append("WITH ");
             this.AppendName(sourceCteName);
-            this.AcceptListComaSeparatedPar('(', sourceValues.Columns, ')', sourceValues);
+            this.AcceptListComaSeparatedPar('(', sourceColumns, ')', merge);
             this.Builder.Append(" AS(");
-            sourceValues.Values.Accept(this, sourceValues);
+            if (merge.Source is ExprDerivedTableValues sourceValues)
+            {
+                sourceValues.Values.Accept(this, sourceValues);
+            }
+            else
+            {
+                merge.Source.CreateSubQuery().Accept(this, merge.Source);
+            }
             this.Builder.Append(')');
 
             for (var i = 0; i < actionCtes.Count; i++)
@@ -979,7 +989,7 @@ namespace SqExpress.SqlExport.Internal
             throw new SqExpressException($"Unknown type: '{merge.WhenMatched.GetType().Name}'");
         }
 
-        private static IExprExec? BuildNotMatchedByTargetAction(ExprMerge merge, ExprDerivedTableValues sourceValues, ExprTable sourceTable)
+        private static IExprExec? BuildNotMatchedByTargetAction(ExprMerge merge, ExprTable sourceTable, IExprAlias sourceAlias)
         {
             if (merge.WhenNotMatchedByTarget == null)
             {
@@ -1014,7 +1024,7 @@ namespace SqExpress.SqlExport.Internal
 
             if (merge.WhenNotMatchedByTarget is ExprExprMergeNotMatchedInsertDefault insertDefault)
             {
-                var keys = ExtractKeys(merge, sourceValues.Alias.Alias);
+                var keys = ExtractKeys(merge, sourceAlias);
 
                 var filter = !SqQueryBuilder.Exists(
                     SqQueryBuilder.SelectOne()
@@ -1078,6 +1088,21 @@ namespace SqExpress.SqlExport.Internal
             }
 
             throw new SqExpressException($"Unknown type: '{merge.WhenNotMatchedBySource.GetType().Name}'");
+        }
+
+        private static IReadOnlyList<ExprColumnName> ExtractSourceColumns(IExprTableSource source)
+        {
+            var result = new List<ExprColumnName>();
+            var selectings = source.ExtractSelecting();
+            for (var i = 0; i < selectings.Count; i++)
+            {
+                if (selectings[i] is IExprNamedSelecting named && !string.IsNullOrWhiteSpace(named.OutputName))
+                {
+                    result.Add(new ExprColumnName(named.OutputName!));
+                }
+            }
+
+            return result;
         }
 
         private static ExtractKeysResult ExtractKeys(ExprMerge merge, IExprAlias sourceAlias)

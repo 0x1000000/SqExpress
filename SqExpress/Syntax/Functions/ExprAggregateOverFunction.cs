@@ -16,4 +16,7 @@ public class ExprAggregateOverFunction : IExprSelecting
 
     public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
         => visitor.VisitExprAggregateOverFunction(this, arg);
+
+    public TRes Accept<TRes, TArg>(IExprSelectingVisitor<TRes, TArg> visitor, TArg arg)
+        => visitor.VisitExprAggregateOverFunction(this, arg);
 }

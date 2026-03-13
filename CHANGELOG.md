@@ -2,6 +2,11 @@
 ### New Features
 - Added non-generic syntax tree visitor support with `IExprVisitor` and `ExprVisitorBase`.
 - `ExprVisitorBase` now provides traversal context via `CurrentPath`, `CurrentNode`, and `Depth`.
+- Added selecting-source abstractions for extracting projected columns and materializing a source as a subquery:
+  - `ISelectingSource`
+  - `IExprTableSource.Alias`
+  - `ExtractSelecting()`
+  - `ToSubQuery()`
 - Added parametrization modes to `SqDatabase`:
   - `None`
   - `ThrowOnLimit`
@@ -19,9 +24,16 @@
 - Added an optional SQL-import workflow via `SqTSqlParser.Parse(...)`, including:
   - support for T-SQL named parameters (`@name`) mapped to `ExprParameter` with `WithParams(...)` replacement helpers
   - mapping for common T-SQL functions (`LEN`, `DATALENGTH`, `CHARINDEX`, `LEFT`, `RIGHT`, `REPLICATE`, date-part/current date-time functions) to portable AST nodes for PostgreSQL/MySQL export
+- Added column-shape extraction helpers used by the `MERGE` polyfill to infer projected column names and SQL types from subqueries and table sources.
+- Added `TypedColumn` as a shared typed-column abstraction for table and custom columns.
 
 ### Bugfix
 - MySQL metadata now treats `utf8mb3` and `utf8mb4` columns as Unicode and exports Unicode columns as `utf8mb4` while preserving explicit column length when possible. ([#4](https://github.com/0x1000000/SqExpress/issues/4))
+- `MERGE` polyfill now supports more source shapes, including derived `SELECT` sources, and preserves richer inferred temp-table column types where possible.
+- Typed custom-column conversion now preserves more SQL type details such as string length/fixed-size/XML, decimal precision-scale, byte-array size, and date/date-time distinctions.
+
+### Breaking Changes
+- Some public syntax/source interfaces gained new members, including selecting-source and alias-related APIs, so custom implementations may need to be updated.
 
 # 1.1.1
 ### Bugfix

@@ -1310,7 +1310,7 @@ namespace SqExpress.SqlTranspiler.Test
         }
 
         [Test]
-        public void TranspiledMerge_WithSelectSource_MySqlExport_ShowsCurrentPolyfillLimitation()
+        public void TranspiledMerge_WithSelectSource_MySqlExport_UsesPolyfill()
         {
             var transpiler = new SqExpressSqlTranspiler();
             var result = transpiler.Transpile(
@@ -1324,11 +1324,49 @@ namespace SqExpress.SqlTranspiler.Test
             var assembly = AssertCompiles(result, "GeneratedTranspilerMergeSelectSourceMySqlTests");
             var expr = InvokeGeneratedBuildMethod(assembly, new SqExpressSqlTranspilerOptions());
 
-            var mariaDbEx = Assert.Throws<SqExpressException>(() => expr.ToSql(MySqlExporter.MariaDbDefault));
-            Assert.That(mariaDbEx?.Message, Does.Contain("Only derived table values can be used as a source in MERGE simulation"));
+            var mariaDbSql = expr.ToSql(MySqlExporter.MariaDbDefault);
+            Assert.That(mariaDbSql, Does.StartWith("CREATE TEMPORARY TABLE `tmpMergeDataSource`("));
+            Assert.That(mariaDbSql, Does.Contain("INSERT INTO `tmpMergeDataSource`(`UserId`,`UserName`,`IsActive`) SELECT "));
+            Assert.That(mariaDbSql, Does.Contain("JOIN `tmpMergeDataSource` `src` ON "));
+            Assert.That(mariaDbSql, Does.Contain("`src`.`UserId`"));
+            Assert.That(mariaDbSql, Does.Contain("DROP TABLE `tmpMergeDataSource`;"));
 
-            var oracleEx = Assert.Throws<SqExpressException>(() => expr.ToSql(MySqlExporter.OracleDefault));
-            Assert.That(oracleEx?.Message, Does.Contain("Only derived table values can be used as a source in MERGE simulation"));
+            var oracleSql = expr.ToSql(MySqlExporter.OracleDefault);
+            Assert.That(oracleSql, Does.StartWith("CREATE TEMPORARY TABLE `tmpMergeDataSource`("));
+            Assert.That(oracleSql, Does.Contain("DELETE `src` FROM `tmpMergeDataSource`"));
+            Assert.That(oracleSql, Does.Contain("DROP TABLE `tmpMergeDataSource`;"));
+        }
+
+        [Test]
+        public void TranspiledMerge_WithSelectSource_ExportsToAllSqlDialects()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                "MERGE dbo.Users AS trg " +
+                "USING (SELECT @UserId AS UserId, @UserName AS UserName, @IsActive AS IsActive) AS src " +
+                "ON trg.UserId = src.UserId " +
+                "WHEN MATCHED THEN UPDATE SET trg.UserName = src.UserName, trg.IsActive = src.IsActive " +
+                "WHEN NOT MATCHED BY TARGET THEN INSERT (UserId, UserName, IsActive) VALUES (src.UserId, src.UserName, src.IsActive) " +
+                "WHEN NOT MATCHED BY SOURCE THEN DELETE;");
+
+            var assembly = AssertCompiles(result, "GeneratedTranspilerMergeSelectSourceAllDialectsTests");
+            var expr = InvokeGeneratedBuildMethod(assembly, new SqExpressSqlTranspilerOptions());
+
+            var tSql = expr.ToSql(TSqlExporter.Default);
+            var pgSql = expr.ToSql(PgSqlExporter.Default);
+            var mariaDbSql = expr.ToSql(MySqlExporter.MariaDbDefault);
+            var oracleSql = expr.ToSql(MySqlExporter.OracleDefault);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(tSql, Does.Contain("MERGE [dbo].[Users]"));
+                Assert.That(tSql, Does.Contain("USING (SELECT 0 [UserId],'' [UserName],0 [IsActive])[src]"));
+                Assert.That(pgSql, Does.StartWith("WITH "));
+                Assert.That(pgSql, Does.Contain("\"__sqexpress_merge_source\""));
+                Assert.That(pgSql, Does.Contain("SELECT 0 \"UserId\",'' \"UserName\",false \"IsActive\""));
+                Assert.That(mariaDbSql, Does.Contain("tmpMergeDataSource"));
+                Assert.That(oracleSql, Does.Contain("tmpMergeDataSource"));
+            });
         }
 
         [Test]

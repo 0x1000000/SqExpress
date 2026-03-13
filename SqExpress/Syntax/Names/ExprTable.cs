@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using SqExpress.Syntax.Select;
 
 namespace SqExpress.Syntax.Names
@@ -21,6 +22,25 @@ namespace SqExpress.Syntax.Names
         public TableMultiplication ToTableMultiplication()
         {
             return new TableMultiplication(new[] {this}, null);
+        }
+
+        public IReadOnlyList<IExprSelecting> ExtractSelecting()
+        {
+            if (this is TableBase tableBase)
+            {
+                return tableBase.Columns;
+            }
+
+            return [];
+        }
+
+        public IExprSubQuery CreateSubQuery()
+        {
+            if (this is TableBase tableBase)
+            {
+                return SqQueryBuilder.Select(tableBase.Columns).From(tableBase).Done();
+            }
+            return SqQueryBuilder.Select(SqQueryBuilder.AllColumns()).From(this).Done();
         }
 
         public bool Equals(ExprTable? other)

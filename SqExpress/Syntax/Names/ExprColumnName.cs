@@ -26,6 +26,9 @@ namespace SqExpress.Syntax.Names
         public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprColumnName(this, arg);
 
+        public TRes Accept<TRes, TArg>(IExprSelectingVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprColumnName(this, arg);
+
         public static implicit operator ExprColumnName(ExprColumn column) => column.ColumnName;
 
         public static implicit operator ExprColumnName(string columnName) => new ExprColumnName(columnName);

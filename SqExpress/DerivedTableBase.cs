@@ -30,6 +30,16 @@ namespace SqExpress
 
         protected abstract IExprSubQuery CreateQuery();
 
+        public override IReadOnlyList<IExprSelecting> ExtractSelecting()
+        {
+            return this.Columns;
+        }
+
+        public override IExprSubQuery CreateSubQuery()
+        {
+            return this.CreateQuery();
+        }
+
         public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
         {
             this._table ??=

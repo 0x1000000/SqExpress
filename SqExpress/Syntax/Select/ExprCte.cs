@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using SqExpress.Syntax.Names;
 
 namespace SqExpress.Syntax.Select
@@ -21,6 +22,10 @@ namespace SqExpress.Syntax.Select
 
         public TableMultiplication ToTableMultiplication() 
             => new TableMultiplication(new[] { this }, null);
+
+        public IReadOnlyList<IExprSelecting> ExtractSelecting() => this.CreateQuery().ExtractSelecting();
+
+        IExprSubQuery ISelectingSource.CreateSubQuery() => this.CreateQuery();
     }
 
     [SqCustomTraversal]

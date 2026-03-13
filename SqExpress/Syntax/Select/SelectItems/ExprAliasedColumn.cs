@@ -17,6 +17,9 @@ namespace SqExpress.Syntax.Select.SelectItems
         public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprAliasedColumn(this, arg);
 
+        public TRes Accept<TRes, TArg>(IExprSelectingVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprAliasedColumn(this, arg);
+
         string IExprNamedSelecting.OutputName
         {
             get

@@ -1,47 +1,56 @@
 ﻿using System;
 using System.Collections.Generic;
 using SqExpress.Syntax.Boolean;
+using SqExpress.Syntax.Names;
 
-namespace SqExpress.Syntax.Select
+namespace SqExpress.Syntax.Select;
+
+public interface IExprTableSource : ISelectingSource
 {
-    public interface IExprTableSource : IExpr
+    public ExprTableAlias? Alias { get; }
+
+    public TableMultiplication ToTableMultiplication();
+}
+
+public interface ISelectingSource : IExpr
+{
+    public IReadOnlyList<IExprSelecting> ExtractSelecting();
+
+    public IExprSubQuery CreateSubQuery();
+}
+
+public readonly struct TableMultiplication : IEquatable<TableMultiplication>
+{
+    public readonly IReadOnlyList<IExprTableSource> Tables;
+    public readonly ExprBoolean? On;
+
+    public TableMultiplication(IReadOnlyList<IExprTableSource> tables, ExprBoolean? on)
     {
-        public TableMultiplication ToTableMultiplication();
+        this.Tables = tables;
+        this.On = on;
     }
 
-    public readonly struct TableMultiplication : IEquatable<TableMultiplication>
+    public void Deconstruct(out IReadOnlyList<IExprTableSource> tables, out ExprBoolean? on)
     {
-        public readonly IReadOnlyList<IExprTableSource> Tables;
-        public readonly ExprBoolean? On;
+        tables = this.Tables;
+        on = this.On;
+    }
 
-        public TableMultiplication(IReadOnlyList<IExprTableSource> tables, ExprBoolean? on)
-        {
-            this.Tables = tables;
-            this.On = on;
-        }
+    public bool Equals(TableMultiplication other)
+    {
+        return this.Tables.Equals(other.Tables) && Equals(this.On, other.On);
+    }
 
-        public void Deconstruct(out IReadOnlyList<IExprTableSource> tables, out ExprBoolean? on)
-        {
-            tables = this.Tables;
-            on = this.On;
-        }
+    public override bool Equals(object? obj)
+    {
+        return obj is TableMultiplication other && Equals(other);
+    }
 
-        public bool Equals(TableMultiplication other)
+    public override int GetHashCode()
+    {
+        unchecked
         {
-            return this.Tables.Equals(other.Tables) && Equals(this.On, other.On);
-        }
-
-        public override bool Equals(object? obj)
-        {
-            return obj is TableMultiplication other && Equals(other);
-        }
-
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                return (this.Tables.GetHashCode() * 397) ^ (this.On != null ? this.On.GetHashCode() : 0);
-            }
+            return (this.Tables.GetHashCode() * 397) ^ (this.On != null ? this.On.GetHashCode() : 0);
         }
     }
 }

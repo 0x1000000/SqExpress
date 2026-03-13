@@ -3,6 +3,7 @@ using System.Linq;
 using SqExpress.Syntax;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Boolean.Predicate;
+using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
@@ -15,25 +16,20 @@ namespace SqExpress.Utils
     {
         public static ExprList ConvertMerge(ExprMerge merge, string tempTableName, bool useJoinBasedInsertAntiMatch = false)
         {
-            var derivedTableValues = merge.Source as ExprDerivedTableValues;
-
-            if (derivedTableValues == null)
-            {
-                throw new SqExpressException("Only derived table values can be used as a source in MERGE simulation");
-            }
-
             var acc = new List<IExprExec>();
 
-            var keys = ExtractKeys(merge, derivedTableValues.Alias.Alias);
+            var sourceAlias = GetSourceAlias(merge.Source);
 
-            IReadOnlyDictionary<ExprColumnName, TableColumn>? hints = ExtractHints(merge, derivedTableValues);
+            var keys = ExtractKeys(merge, sourceAlias);
 
-            var exprInsertIntoTmp = TempTableData.FromDerivedTableValuesInsert(
-                derivedTableValues: derivedTableValues,
+            IReadOnlyDictionary<ExprColumnName, TableColumn>? hints = ExtractHints(merge, ExtractSourceColumnNames(merge.Source));
+
+            var exprInsertIntoTmp = TempTableData.FromTableSourceInsert(
+                tableSource: merge.Source,
                 keys: keys.SourceKeys,
                 tempTable: out var tempTable,
                 name: tempTableName,
-                alias: Alias.From(derivedTableValues.Alias.Alias),
+                alias: Alias.From(sourceAlias),
                 hints: hints
             );
 
@@ -66,7 +62,7 @@ namespace SqExpress.Utils
 
         private static IReadOnlyDictionary<ExprColumnName, TableColumn>? ExtractHints(
             ExprMerge merge,
-            ExprDerivedTableValues derivedTableValues)
+            IReadOnlyCollection<ExprColumnName> sourceColumns)
         {
             Dictionary<ExprColumnName, TableColumn>? result = null; 
 
@@ -74,7 +70,7 @@ namespace SqExpress.Utils
             {
                 foreach (var exprColumnSetClause in mu.Set)
                 {
-                    if (exprColumnSetClause.Column is TableColumn targetColumn && exprColumnSetClause.Value is ExprColumn col && derivedTableValues.Columns.Contains(col.ColumnName))
+                    if (exprColumnSetClause.Column is TableColumn targetColumn && exprColumnSetClause.Value is ExprColumn col && sourceColumns.Contains(col.ColumnName))
                     {
                         result ??= new();
                         result[col] = targetColumn;
@@ -89,7 +85,7 @@ namespace SqExpress.Utils
                     var exprColumnName = i.Columns[index];
                     var assigning = i.Values[index];
 
-                    if (assigning is ExprColumn col && derivedTableValues.Columns.Contains(col.ColumnName))
+                    if (assigning is ExprColumn col && sourceColumns.Contains(col.ColumnName))
                     {
                         if (merge.TargetTable is TableBase tb)
                         {
@@ -102,6 +98,28 @@ namespace SqExpress.Utils
                         }
                     }
 
+                }
+            }
+
+            return result;
+        }
+
+        private static IExprAlias GetSourceAlias(IExprTableSource source)
+        {
+            return source.Alias?.Alias
+                ?? throw new SqExpressException("MERGE simulation requires a source with an exposed alias");
+        }
+
+        private static IReadOnlyCollection<ExprColumnName> ExtractSourceColumnNames(IExprTableSource source)
+        {
+            var result = new List<ExprColumnName>();
+            var selectings = source.ExtractSelecting();
+
+            for (var i = 0; i < selectings.Count; i++)
+            {
+                if (selectings[i] is IExprNamedSelecting named && !string.IsNullOrWhiteSpace(named.OutputName))
+                {
+                    result.Add(new ExprColumnName(named.OutputName!));
                 }
             }
 

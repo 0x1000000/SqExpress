@@ -57,6 +57,7 @@ namespace SqExpress.IntTest
                         .Then(new ScParserParamsExprValues())
                         .Then(new ScParametrizationLimitBoundary())
                         .Then(new ScMergeExpr())
+                        .Then(new ScMergeExprEdgeCases())
                         .Then(new ScModelSelector())
                         .Then(new ScCancellation())
                         .Then(new ScCte())

@@ -86,7 +86,7 @@ namespace SqExpress.Utils
 
                         if (hintedColumns != null && hintedColumns.Contains(currentColumnName))
                         {
-                            break;
+                            continue;
                         }
 
                         var value = row.Items[valueIndex];
@@ -140,10 +140,146 @@ namespace SqExpress.Utils
             }
         }
 
+        public static ExprList FromTableSourceInsert(IExprTableSource tableSource, IReadOnlyList<ExprColumnName>? keys, out TempTableBase tempTable, Alias alias = default, string? name = null, IReadOnlyDictionary<ExprColumnName, TableColumn>? hints = null)
+        {
+            if (tableSource is ExprDerivedTableValues derivedTableValues)
+            {
+                return FromDerivedTableValuesInsert(derivedTableValues, keys, out tempTable, alias, name, hints);
+            }
+
+            tempTable = FromTableSource(tableSource, keys, alias, name, hints);
+
+            var insert = SqQueryBuilder.InsertInto((ExprTable)tempTable, ((TableBase)tempTable).Columns)
+                .From(tableSource.CreateSubQuery());
+
+            return new ExprList(new IExprExec[] { new ExprStatement(tempTable.Script.Create()), insert });
+        }
+
+        public static TempTableData FromTableSource(IExprTableSource tableSource, IReadOnlyList<ExprColumnName>? keys, Alias alias = default, string? name = null, IReadOnlyDictionary<ExprColumnName, TableColumn>? hints = null)
+        {
+            if (tableSource is ExprDerivedTableValues derivedTableValues)
+            {
+                return FromDerivedTableValues(derivedTableValues, keys, alias, name, hints);
+            }
+
+            var result = new TempTableData(string.IsNullOrEmpty(name) || name == null ? GenerateName() : name, alias);
+
+            var sourceSelecting = tableSource.ExtractSelecting();
+            sourceSelecting.AssertNotEmpty("Could not extract output columns from the table source");
+
+            var sourceQuery = tableSource.CreateSubQuery();
+            var querySelecting = sourceQuery.ExtractSelecting();
+            if (querySelecting.Count != sourceSelecting.Count)
+            {
+                throw new SqExpressException("Number of source columns does not match number of selected expressions");
+            }
+
+            var queryOutputNames = sourceQuery.GetOutputColumnNames();
+            var tableColumns = new TableColumn[sourceSelecting.Count];
+
+            for (var index = 0; index < sourceSelecting.Count; index++)
+            {
+                var columnName = GetOutputColumnName(
+                    sourceSelecting[index],
+                    index < queryOutputNames.Count ? queryOutputNames[index] : null,
+                    index);
+
+                if (hints != null && hints.TryGetValue(columnName, out var targetColumn))
+                {
+                    tableColumns[index] = targetColumn
+                        .WithColumnName(columnName)
+                        .WithTable(result)
+                        .WithColumnMeta(null);
+                    continue;
+                }
+
+                var columnInfo = querySelecting[index].Accept(ExprSelectingToColumnInfo.Instance, null);
+                if (columnInfo == null)
+                {
+                    throw new SqExpressException($"Could not evaluate column type for \"{columnName.Name}\"");
+                }
+
+                tableColumns[index] = CreateColumnFromInfo(result, columnName, columnInfo, CheckIsPk(columnName))
+                    ?? throw new SqExpressException($"Could not evaluate column type for \"{columnName.Name}\"");
+            }
+
+            result.AddColumns(tableColumns);
+            return result;
+
+            bool CheckIsPk(ExprColumnName columnName)
+            {
+                if (keys == null || keys.Count < 1)
+                {
+                    return false;
+                }
+
+                for (var index = 0; index < keys.Count; index++)
+                {
+                    if (keys[index].LowerInvariantName == columnName.LowerInvariantName)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        }
+
         public TableColumn? VisitAny(TempTableBuilderCtx arg, bool? isNull)
         {
             return arg.PreviousType;
         }
+
+        private static ExprColumnName GetOutputColumnName(IExprSelecting selecting, string? fallbackName, int ordinal)
+        {
+            if (selecting is IExprNamedSelecting named && !string.IsNullOrWhiteSpace(named.OutputName))
+            {
+                return new ExprColumnName(named.OutputName!);
+            }
+
+            if (!string.IsNullOrWhiteSpace(fallbackName))
+            {
+                return new ExprColumnName(fallbackName!);
+            }
+
+            return new ExprColumnName($"Expr{ordinal + 1}");
+        }
+
+        private static TableColumn? CreateColumnFromInfo(TempTableData table, ExprColumnName columnName, ExprSelectingAsColumnInfo columnInfo, bool primaryKey)
+        {
+            return columnInfo.Match(
+                column => CreateColumnFromExprColumn(table, columnName, column, primaryKey),
+                _ => null,
+                type => CreateColumnFromExprType(table, columnName, type, primaryKey));
+        }
+
+        private static TableColumn? CreateColumnFromExprColumn(TempTableData table, ExprColumnName columnName, ExprColumn column, bool primaryKey)
+        {
+            if (column is TableColumn tableColumn)
+            {
+                return tableColumn
+                    .WithColumnName(columnName)
+                    .WithTable(table)
+                    .WithColumnMeta(primaryKey ? ColumnMeta.PrimaryKey() : null);
+            }
+
+            return TryGetExprType(column, out var exprType) ? CreateColumnFromExprType(table, columnName, exprType, primaryKey) : null;
+        }
+
+        private static bool TryGetExprType(ExprColumn column, out ExprType exprType)
+        {
+            if (column is TypedColumn typedColumn)
+            {
+                exprType = typedColumn.SqlType;
+                return true;
+            }
+
+            exprType = null!;
+            return false;
+        }
+
+        private static TableColumn? CreateColumnFromExprType(TempTableData table, ExprColumnName columnName, ExprType exprType, bool primaryKey)
+            => exprType.Accept(ExprTypeToTableColumn.Instance, new ExprTypeToTableColumnCtx(table, columnName, primaryKey));
 
         private static T? EnsureColumnType<T>(TempTableBuilderCtx arg) where T : TableColumn
         {
