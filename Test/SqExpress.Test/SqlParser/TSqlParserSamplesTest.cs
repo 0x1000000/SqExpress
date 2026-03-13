@@ -46,7 +46,7 @@ namespace SqExpress.Test.SqlParser
         [TestCaseSource(nameof(PgSqlCases))]
         public void ExportToPgSqlSamples(string name, string sql, string? expectedPgSql, string? expectedUnsupportedReason)
         {
-            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var error);
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var tables, out var error);
 
             if (!string.IsNullOrWhiteSpace(expectedUnsupportedReason))
             {
@@ -69,7 +69,7 @@ namespace SqExpress.Test.SqlParser
             Assert.That(expr, Is.Not.Null, $"Sample '{name}' should produce non-null expression.");
             AssertNoUnsafeValue(expr!, name);
 
-            var actualPgSql = PgSqlExporter.Default.ToSql(expr!);
+            var actualPgSql = PgSqlExporter.Default.ToSql(expr!.RebindParsedTables(tables!));
             Assert.That(actualPgSql, Is.EqualTo(expectedPgSql), $"Sample '{name}' PgSql mismatch.");
         }
 
@@ -159,7 +159,7 @@ namespace SqExpress.Test.SqlParser
                 "Merge_UpdateInsertDelete",
                 @"MERGE [dbo].[Users] [A0] USING [dbo].[UsersStaging] [s] ON [A0].[UserId]=[s].[UserId] WHEN MATCHED THEN UPDATE SET [A0].[Name]=[s].[Name],[A0].[IsActive]=[s].[IsActive] WHEN NOT MATCHED THEN INSERT([UserId],[Name],[IsActive]) VALUES([s].[UserId],[s].[Name],[s].[IsActive]) WHEN NOT MATCHED BY SOURCE THEN  DELETE;",
                 null,
-                @"EXPORT: Only derived table values can be used as a source in MERGE simulation"
+                @"EXPORT: Could not determine MERGE source columns"
             ),
             new PgSample(
                 "Select_SchemaQualifiedScalarFunction",
