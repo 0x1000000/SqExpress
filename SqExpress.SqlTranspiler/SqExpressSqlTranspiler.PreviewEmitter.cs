@@ -2188,6 +2188,18 @@ namespace SqExpress.SqlTranspiler
 
                 string functionName = function.PortableFunction switch
                 {
+                    PortableScalarFunction.NullIf => "NullIf",
+                    PortableScalarFunction.Abs => "Abs",
+                    PortableScalarFunction.Lower => "Lower",
+                    PortableScalarFunction.Upper => "Upper",
+                    PortableScalarFunction.Trim => "Trim",
+                    PortableScalarFunction.LTrim => "LTrim",
+                    PortableScalarFunction.RTrim => "RTrim",
+                    PortableScalarFunction.Replace => "Replace",
+                    PortableScalarFunction.Substring => "Substring",
+                    PortableScalarFunction.Round => "Round",
+                    PortableScalarFunction.Floor => "Floor",
+                    PortableScalarFunction.Ceiling => "Ceiling",
                     PortableScalarFunction.Len => "Len",
                     PortableScalarFunction.DataLen => "DataLength",
                     PortableScalarFunction.Year => "Year",

@@ -71,6 +71,29 @@ namespace SqExpress.SqlExport.Internal
             throw new SqExpressException("My SQL does not support DateTimeOffset type");
         }
 
+        public override bool VisitExprDateTimeLiteral(ExprDateTimeLiteral dateTimeLiteral, IExpr? parent)
+        {
+            if (!dateTimeLiteral.Value.HasValue)
+            {
+                this.AppendNull();
+            }
+            else
+            {
+                this.Builder.Append('\'');
+                if (dateTimeLiteral.Value.Value.TimeOfDay != TimeSpan.Zero)
+                {
+                    this.Builder.Append(dateTimeLiteral.Value.Value.ToString("yyyy-MM-dd HH:mm:ss.fff"));
+                }
+                else
+                {
+                    this.Builder.Append(dateTimeLiteral.Value.Value.ToString("yyyy-MM-dd"));
+                }
+                this.Builder.Append('\'');
+            }
+
+            return true;
+        }
+
         public override bool VisitExprBoolLiteral(ExprBoolLiteral boolLiteral, IExpr? parent)
         {
             if (boolLiteral.Value.HasValue)
@@ -918,6 +941,78 @@ namespace SqExpress.SqlExport.Internal
         bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseLen(ExprPortableScalarFunction ctx)
         {
             this.AppendFunctionSingleArg("CHAR_LENGTH", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseNullIf(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionTwoArgs("NULLIF", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseAbs(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("ABS", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseLower(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("LOWER", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseUpper(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("UPPER", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseTrim(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("TRIM", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseLTrim(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("LTRIM", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseRTrim(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("RTRIM", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseReplace(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionThreeArgs("REPLACE", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseSubstring(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionThreeArgs("SUBSTRING", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseRound(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionTwoArgs("ROUND", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseFloor(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("FLOOR", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseCeiling(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("CEILING", ctx.Arguments, ctx);
             return true;
         }
 

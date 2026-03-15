@@ -23,6 +23,18 @@ public class ExprPortableScalarFunction : ExprValue
 [VisitorGenerator]
 public enum PortableScalarFunction
 {
+    NullIf,
+    Abs,
+    Lower,
+    Upper,
+    Trim,
+    LTrim,
+    RTrim,
+    Replace,
+    Substring,
+    Round,
+    Floor,
+    Ceiling,
     Len,
     DataLen,
     Year,

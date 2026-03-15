@@ -34,7 +34,12 @@ public class ScMergeExprEdgeCases : IScenario
                 .From(tUser)
                 .Where((Literal(1) == Literal(1)) & tUser.UserId.In(1, 2))
                 .Done()
-                .As(TableAlias("S"));
+                .As(
+                    TableAlias("S"),
+                    "Expr1",
+                    "BB",
+                    tUser.UserId.ColumnName,
+                    "Expr4");
 
             await MergeInto(tt, source)
                 .On(tt.Id == source.Column(tUser.UserId.ColumnName))

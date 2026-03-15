@@ -293,7 +293,7 @@ namespace SqExpress.Test.SqlParser
 
             Assert.That(ok, Is.True, error);
             Assert.That(expr, Is.Not.Null);
-            Assert.That(expr!.ToSql(TSqlExporter.Default), Is.EqualTo("SELECT SUM([o].[TotalAmount]) OVER()-[o].[Discount] [RemainingRevenue] FROM [dbo].[Orders] [o]"));
+            Assert.That(expr!.ToSql(TSqlExporter.Default), Is.EqualTo("SELECT SUM([o].[TotalAmount])OVER()-[o].[Discount] [RemainingRevenue] FROM [dbo].[Orders] [o]"));
         }
 
         [Test]

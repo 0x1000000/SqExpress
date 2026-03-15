@@ -25,8 +25,14 @@ namespace SqExpress
         public static ExprDerivedTableQuery As(this IExprSubQueryFinal expressionBuilder, ExprTableAlias tableAlias) 
             => new ExprDerivedTableQuery(expressionBuilder.Done(), tableAlias, null);
 
+        public static ExprDerivedTableQuery As(this IExprSubQueryFinal expressionBuilder, ExprTableAlias tableAlias, params ExprColumnName[] columns)
+            => new ExprDerivedTableQuery(expressionBuilder.Done(), tableAlias, columns);
+
         public static ExprDerivedTableQuery As(this IExprSubQuery expressionBuilder, ExprTableAlias tableAlias) 
             => new ExprDerivedTableQuery(expressionBuilder, tableAlias, null);
+
+        public static ExprDerivedTableQuery As(this IExprSubQuery expressionBuilder, ExprTableAlias tableAlias, params ExprColumnName[] columns)
+            => new ExprDerivedTableQuery(expressionBuilder, tableAlias, columns);
 
         public static ExprAliasedColumn As(this ExprColumn column, ExprColumnAlias alias) =>
             new ExprAliasedColumn(column, alias);

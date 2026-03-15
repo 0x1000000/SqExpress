@@ -155,41 +155,41 @@ namespace SqExpress
 
         public static ExprGetUtcDate GetUtcDate()=> ExprGetUtcDate.Instance;
 
-        public static ExprScalarFunction NullIf(ExprValue left, ExprValue right)
-            => ScalarFunctionSys("NULLIF", left, right);
+        public static ExprPortableScalarFunction NullIf(ExprValue left, ExprValue right)
+            => new ExprPortableScalarFunction(PortableScalarFunction.NullIf, new[] { left, right });
 
-        public static ExprScalarFunction Abs(ExprValue value)
-            => ScalarFunctionSys("ABS", value);
+        public static ExprPortableScalarFunction Abs(ExprValue value)
+            => new ExprPortableScalarFunction(PortableScalarFunction.Abs, new[] { value });
 
-        public static ExprScalarFunction Lower(ExprValue value)
-            => ScalarFunctionSys("LOWER", value);
+        public static ExprPortableScalarFunction Lower(ExprValue value)
+            => new ExprPortableScalarFunction(PortableScalarFunction.Lower, new[] { value });
 
-        public static ExprScalarFunction Upper(ExprValue value)
-            => ScalarFunctionSys("UPPER", value);
+        public static ExprPortableScalarFunction Upper(ExprValue value)
+            => new ExprPortableScalarFunction(PortableScalarFunction.Upper, new[] { value });
 
-        public static ExprScalarFunction Trim(ExprValue value)
-            => ScalarFunctionSys("TRIM", value);
+        public static ExprPortableScalarFunction Trim(ExprValue value)
+            => new ExprPortableScalarFunction(PortableScalarFunction.Trim, new[] { value });
 
-        public static ExprScalarFunction LTrim(ExprValue value)
-            => ScalarFunctionSys("LTRIM", value);
+        public static ExprPortableScalarFunction LTrim(ExprValue value)
+            => new ExprPortableScalarFunction(PortableScalarFunction.LTrim, new[] { value });
 
-        public static ExprScalarFunction RTrim(ExprValue value)
-            => ScalarFunctionSys("RTRIM", value);
+        public static ExprPortableScalarFunction RTrim(ExprValue value)
+            => new ExprPortableScalarFunction(PortableScalarFunction.RTrim, new[] { value });
 
-        public static ExprScalarFunction Replace(ExprValue value, ExprValue search, ExprValue replacement)
-            => ScalarFunctionSys("REPLACE", value, search, replacement);
+        public static ExprPortableScalarFunction Replace(ExprValue value, ExprValue search, ExprValue replacement)
+            => new ExprPortableScalarFunction(PortableScalarFunction.Replace, new[] { value, search, replacement });
 
-        public static ExprScalarFunction Substring(ExprValue value, ExprValue start, ExprValue length)
-            => ScalarFunctionSys("SUBSTRING", value, start, length);
+        public static ExprPortableScalarFunction Substring(ExprValue value, ExprValue start, ExprValue length)
+            => new ExprPortableScalarFunction(PortableScalarFunction.Substring, new[] { value, start, length });
 
-        public static ExprScalarFunction Round(ExprValue value, ExprValue precision)
-            => ScalarFunctionSys("ROUND", value, precision);
+        public static ExprPortableScalarFunction Round(ExprValue value, ExprValue precision)
+            => new ExprPortableScalarFunction(PortableScalarFunction.Round, new[] { value, precision });
 
-        public static ExprScalarFunction Floor(ExprValue value)
-            => ScalarFunctionSys("FLOOR", value);
+        public static ExprPortableScalarFunction Floor(ExprValue value)
+            => new ExprPortableScalarFunction(PortableScalarFunction.Floor, new[] { value });
 
-        public static ExprScalarFunction Ceiling(ExprValue value)
-            => ScalarFunctionSys("CEILING", value);
+        public static ExprPortableScalarFunction Ceiling(ExprValue value)
+            => new ExprPortableScalarFunction(PortableScalarFunction.Ceiling, new[] { value });
 
         public static ExprScalarFunction Concat(ExprValue first, params ExprValue[] rest)
             => ScalarFunctionSys("CONCAT", first, rest);

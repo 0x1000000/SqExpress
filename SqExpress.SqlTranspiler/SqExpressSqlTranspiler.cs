@@ -2430,7 +2430,21 @@ namespace SqExpress.SqlTranspiler
                     return;
                 }
 
-                if (expr.PortableFunction == PortableScalarFunction.Len
+                if (expr.PortableFunction == PortableScalarFunction.Abs
+                    || expr.PortableFunction == PortableScalarFunction.Round
+                    || expr.PortableFunction == PortableScalarFunction.Ceiling
+                    || expr.PortableFunction == PortableScalarFunction.Floor)
+                {
+                    this.AddKindHint(col, ParamKind.Decimal);
+                }
+                else if (expr.PortableFunction == PortableScalarFunction.Lower
+                    || expr.PortableFunction == PortableScalarFunction.Upper
+                    || expr.PortableFunction == PortableScalarFunction.Trim
+                    || expr.PortableFunction == PortableScalarFunction.LTrim
+                    || expr.PortableFunction == PortableScalarFunction.RTrim
+                    || expr.PortableFunction == PortableScalarFunction.Replace
+                    || expr.PortableFunction == PortableScalarFunction.Substring
+                    || expr.PortableFunction == PortableScalarFunction.Len
                     || expr.PortableFunction == PortableScalarFunction.IndexOf
                     || expr.PortableFunction == PortableScalarFunction.Left
                     || expr.PortableFunction == PortableScalarFunction.Right

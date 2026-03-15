@@ -544,6 +544,78 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseNullIf(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionTwoArgs("NULLIF", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseAbs(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("ABS", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseLower(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("LOWER", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseUpper(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("UPPER", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseTrim(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("TRIM", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseLTrim(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("LTRIM", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseRTrim(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("RTRIM", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseReplace(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionThreeArgs("REPLACE", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseSubstring(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionThreeArgs("SUBSTRING", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseRound(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionTwoArgs("ROUND", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseFloor(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("FLOOR", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseCeiling(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("CEIL", ctx.Arguments, ctx);
+            return true;
+        }
+
         bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseDataLen(ExprPortableScalarFunction ctx)
         {
             this.AppendFunctionSingleArg("OCTET_LENGTH", ctx.Arguments, ctx);
@@ -1099,7 +1171,10 @@ namespace SqExpress.SqlExport.Internal
                 if (selectings[i] is IExprNamedSelecting named && !string.IsNullOrWhiteSpace(named.OutputName))
                 {
                     result.Add(new ExprColumnName(named.OutputName!));
+                    continue;
                 }
+
+                result.Add(new ExprColumnName($"Expr{i + 1}"));
             }
 
             return result;

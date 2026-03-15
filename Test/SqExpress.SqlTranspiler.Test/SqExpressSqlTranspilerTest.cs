@@ -434,6 +434,43 @@ namespace SqExpress.SqlTranspiler.Test
         }
 
         [Test]
+        public void TranspileSelect_PromotedPortableFunctions_UseSqQueryBuilderHelpers()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                "SELECT " +
+                "NULLIF('A','B') AS NullIfV, " +
+                "ABS(-12) AS AbsV, " +
+                "LOWER('AbC') AS LowerV, " +
+                "UPPER('aBc') AS UpperV, " +
+                "TRIM('  x  ') AS TrimV, " +
+                "LTRIM('  x') AS LTrimV, " +
+                "RTRIM('x  ') AS RTrimV, " +
+                "REPLACE('abc','b','z') AS ReplaceV, " +
+                "SUBSTRING('abcdef',2,3) AS SubstringV, " +
+                "ROUND(12.345,2) AS RoundV, " +
+                "FLOOR(12.9) AS FloorV, " +
+                "CEILING(12.1) AS CeilingV");
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("NullIf(\"A\", \"B\").As(\"NullIfV\")"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Abs((Literal(0) - 12)).As(\"AbsV\")"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Lower(\"AbC\").As(\"LowerV\")"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Upper(\"aBc\").As(\"UpperV\")"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Trim(\"  x  \").As(\"TrimV\")"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("LTrim(\"  x\").As(\"LTrimV\")"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("RTrim(\"x  \").As(\"RTrimV\")"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Replace(\"abc\", \"b\", \"z\").As(\"ReplaceV\")"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Substring(\"abcdef\", 2, 3).As(\"SubstringV\")"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Round(12.345m, 2).As(\"RoundV\")"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Floor(12.9m).As(\"FloorV\")"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Ceiling(12.1m).As(\"CeilingV\")"));
+            AssertCompilesAndSqlMatchesRaw(
+                result,
+                "SELECT NULLIF('A','B') AS NullIfV, ABS(-12) AS AbsV, LOWER('AbC') AS LowerV, UPPER('aBc') AS UpperV, TRIM('  x  ') AS TrimV, LTRIM('  x') AS LTrimV, RTRIM('x  ') AS RTrimV, REPLACE('abc','b','z') AS ReplaceV, SUBSTRING('abcdef',2,3) AS SubstringV, ROUND(12.345,2) AS RoundV, FLOOR(12.9) AS FloorV, CEILING(12.1) AS CeilingV",
+                assemblyName: "GeneratedTranspilerPromotedPortableFunctionsTests");
+        }
+
+        [Test]
         public void TranspileSelect_PortableYearFunction_UsesKnownHelper()
         {
             var transpiler = new SqExpressSqlTranspiler();

@@ -3516,6 +3516,42 @@ namespace SqExpress.SqlParser.Internal.Mapping
 
 	                switch (normalized)
 	                {
+	                    case "NULLIF":
+	                        return TryCreateTwoArgs(PortableScalarFunction.NullIf, args, out result);
+
+	                    case "ABS":
+	                        return TryCreateSingleArg(PortableScalarFunction.Abs, args, out result);
+
+	                    case "LOWER":
+	                        return TryCreateSingleArg(PortableScalarFunction.Lower, args, out result);
+
+	                    case "UPPER":
+	                        return TryCreateSingleArg(PortableScalarFunction.Upper, args, out result);
+
+	                    case "TRIM":
+	                        return TryCreateSingleArg(PortableScalarFunction.Trim, args, out result);
+
+	                    case "LTRIM":
+	                        return TryCreateSingleArg(PortableScalarFunction.LTrim, args, out result);
+
+	                    case "RTRIM":
+	                        return TryCreateSingleArg(PortableScalarFunction.RTrim, args, out result);
+
+	                    case "REPLACE":
+	                        return TryCreateThreeArgs(PortableScalarFunction.Replace, args, out result);
+
+	                    case "SUBSTRING":
+	                        return TryCreateThreeArgs(PortableScalarFunction.Substring, args, out result);
+
+	                    case "ROUND":
+	                        return TryCreateTwoArgs(PortableScalarFunction.Round, args, out result);
+
+	                    case "FLOOR":
+	                        return TryCreateSingleArg(PortableScalarFunction.Floor, args, out result);
+
+	                    case "CEILING":
+	                        return TryCreateSingleArg(PortableScalarFunction.Ceiling, args, out result);
+
 	                    case "LEN":
 	                    case "CHAR_LENGTH":
 	                        return TryCreateSingleArg(PortableScalarFunction.Len, args, out result);
@@ -3589,6 +3625,18 @@ namespace SqExpress.SqlParser.Internal.Mapping
 	                    }
 
 	                    res2 = null;
+	                    return false;
+	                }
+
+	                static bool TryCreateThreeArgs(PortableScalarFunction function, IReadOnlyList<ExprValue>? args3, [NotNullWhen(true)] out ExprPortableScalarFunction? res3)
+	                {
+	                    if (args3?.Count == 3)
+	                    {
+	                        res3 = new ExprPortableScalarFunction(function, args3);
+	                        return true;
+	                    }
+
+	                    res3 = null;
 	                    return false;
 	                }
 	            }

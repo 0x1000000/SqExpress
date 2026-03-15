@@ -12,12 +12,6 @@ public class ScPortableScalarFunctions : IScenario
 {
     public async Task Exec(IScenarioContext context)
     {
-        if (context.Dialect.IsOracleMySql())
-        {
-            context.WriteLine("Skipped: portable scalar function semantics are not aligned for Oracle MySQL yet");
-            return;
-        }
-
         var baseDate = new DateTime(2020, 2, 3, 4, 5, 6);
         var monthEnd = new DateTime(2020, 1, 31);
         const string unicodeSample = "\u0416";

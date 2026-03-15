@@ -98,6 +98,39 @@ public class MergeTest
         Assert.AreEqual(expected, sql);
     }
 
+    [Test]
+    public void PgMergePolyfill_NamesAnonymousSourceColumns()
+    {
+        var target = Tables.User("T");
+        var sourceTable = Tables.User("U");
+        var source = SqQueryBuilder.Select(
+                SqQueryBuilder.Literal(1),
+                SqQueryBuilder.Literal("AA").As("BB"),
+                sourceTable.UserId,
+                SqQueryBuilder.GetUtcDate())
+            .From(sourceTable)
+            .Where((SqQueryBuilder.Literal(1) == SqQueryBuilder.Literal(1)) & sourceTable.UserId.In(1, 2))
+            .Done()
+            .As(SqQueryBuilder.TableAlias("S"));
+
+        var sql = SqQueryBuilder.MergeInto(target, source)
+            .On(target.UserId == source.Column(sourceTable.UserId.ColumnName))
+            .WhenMatched()
+                .ThenUpdate()
+                .Set(target.FirstName, source.Column("BB"))
+                .Set(target.Version, target.Version + 1)
+            .WhenNotMatchedByTarget()
+                .ThenInsert()
+                .Set(target.UserId, source.Column(sourceTable.UserId.ColumnName))
+                .Set(target.FirstName, source.Column("BB"))
+                .Set(target.Modified, target.Modified)
+            .Done()
+            .ToPgSql();
+
+        Assert.That(sql, Does.Contain("WITH \"__sqexpress_merge_source\"(\"Expr1\",\"BB\",\"UserId\",\"Expr4\") AS("));
+        Assert.That(sql, Does.Contain("FROM \"__sqexpress_merge_source\" \"S\""));
+    }
+
 }
 
 
