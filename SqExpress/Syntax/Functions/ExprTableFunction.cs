@@ -50,8 +50,6 @@ public class ExprAliasedTableFunction : IExprTableSource
 
     public ExprTableAlias Alias { get; }
 
-    ExprTableAlias? IExprTableSource.Alias => this.Alias;
-
     public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
         => visitor.VisitExprAliasedTableFunction(this, arg);
 

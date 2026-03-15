@@ -112,7 +112,7 @@ namespace SqExpress.Test
             const string sql = "SELECT @id [Id], @name [Name]";
             Assert.That(SqTSqlParser.TryParse(sql, out IExpr? expr, out var error), Is.True, error);
 
-            var replaced = expr!.WithParams(new Dictionary<string, ExprValue>
+            var replaced = expr!.WithParams(new Dictionary<string, ParamValue>
             {
                 {"id", Literal(1)},
                 {"name", Literal("John")}
@@ -131,7 +131,7 @@ namespace SqExpress.Test
             const string sql = "SELECT @id [Id], @name [Name]";
             Assert.That(SqTSqlParser.TryParse(sql, out IExpr? expr, out var error), Is.True, error);
 
-            var ex = Assert.Throws<SqExpressException>(() => expr!.WithParams(new Dictionary<string, ExprValue>
+            var ex = Assert.Throws<SqExpressException>(() => expr!.WithParams(new Dictionary<string, ParamValue>
             {
                 {"id", Literal(1)}
             }));
@@ -145,12 +145,27 @@ namespace SqExpress.Test
             const string sql = "SELECT @id [Id]";
             Assert.That(SqTSqlParser.TryParse(sql, out IExpr? expr, out var error), Is.True, error);
 
-            var ex = Assert.Throws<SqExpressException>(() => expr!.WithParams(new Dictionary<string, ExprValue>
+            var replaced = expr!.WithParams(new Dictionary<string, ParamValue>
             {
                 {"@id", Literal(1)}
-            }));
+            });
 
-            Assert.That(ex!.Message, Does.Contain("Could not find parameter id"));
+            Assert.That(replaced.ToSql(), Does.Not.Contain("@id"));
+            Assert.That(replaced.ToSql(), Does.Contain("1"));
+        }
+
+        [Test]
+        public void WithParams_Dictionary_ExpandsListParametersInsideInPredicate()
+        {
+            const string sql = "SELECT [u].[UserId] FROM [dbo].[Users] [u] WHERE [u].[UserId] IN(@users)";
+            Assert.That(SqTSqlParser.TryParse(sql, out IExpr? expr, out var error), Is.True, error);
+
+            var replaced = expr!.WithParams(new Dictionary<string, ParamValue>
+            {
+                {"users", new[] {1, 2, 3}}
+            });
+
+            Assert.That(replaced.ToSql(), Does.Contain("IN(1,2,3)"));
         }
 
 #if NET8_0_OR_GREATER
@@ -163,6 +178,23 @@ namespace SqExpress.Test
             var replaced = expr!.WithParams(
                 ("id", 1),
                 ("name", "John"));
+
+            Assert.That(replaced.SyntaxTree().Descendants().OfType<ExprParameter>().Any(), Is.False);
+            var exported = replaced.ToSql();
+            Assert.That(exported, Does.Not.Contain("@id"));
+            Assert.That(exported, Does.Not.Contain("@name"));
+            Assert.That(exported, Does.Contain("'John'"));
+        }
+
+        [Test]
+        public void WithParams_Span_ReplacesParameters_WhenNameStartsWithAt()
+        {
+            const string sql = "SELECT @id [Id], @name [Name]";
+            Assert.That(SqTSqlParser.TryParse(sql, out IExpr? expr, out var error), Is.True, error);
+
+            var replaced = expr!.WithParams(
+                ("@id", 1),
+                ("@name", "John"));
 
             Assert.That(replaced.SyntaxTree().Descendants().OfType<ExprParameter>().Any(), Is.False);
             var exported = replaced.ToSql();
@@ -194,6 +226,60 @@ namespace SqExpress.Test
                 ("", 1)));
 
             Assert.That(ex!.Message, Does.Contain("Parameter name cannot be null or empty"));
+        }
+
+        [Test]
+        public void WithParams_Span_ExpandsListParametersInsideInPredicate()
+        {
+            const string sql = "SELECT [u].[UserId] FROM [dbo].[Users] [u] WHERE [u].[UserId] IN(@users) AND [u].[Name]=@name";
+            Assert.That(SqTSqlParser.TryParse(sql, out IExpr? expr, out var error), Is.True, error);
+
+            var replaced = expr!.WithParams(
+                ("users", new[] {1, 2, 3}),
+                ("name", "John"));
+
+            var exported = replaced.ToSql();
+            Assert.That(exported, Does.Contain("IN(1,2,3)"));
+            Assert.That(exported, Does.Contain("'John'"));
+        }
+
+        [Test]
+        public void WithParams_Span_ExpandsCollectionExpressionInsideInPredicate()
+        {
+            var u = new User();
+
+            var sql = SqTSqlParser
+                .Parse("SELECT * FROM User WHERE UserId IN(@users)", [u])
+                .WithParams(("users", [1, 2, 3]))
+                .ToSql();
+
+            Assert.That(sql, Does.Contain("IN(1,2,3)"));
+        }
+
+        [Test]
+        public void WithParams_SingleParameter_UsesNameWithAt()
+        {
+            var u = new User();
+
+            var sql = SqTSqlParser
+                .Parse("SELECT * FROM User WHERE UserId = @users", [u])
+                .WithParams("@users", 1)
+                .ToSql();
+
+            Assert.That(sql, Does.Not.Contain("@users"));
+            Assert.That(sql, Does.Contain("=1"));
+        }
+
+        [Test]
+        public void WithParams_Span_ThrowsWhenListParameterIsUsedOutsideIn()
+        {
+            const string sql = "SELECT [u].[UserId] FROM [dbo].[Users] [u] WHERE [u].[UserId]=@users";
+            Assert.That(SqTSqlParser.TryParse(sql, out IExpr? expr, out var error), Is.True, error);
+
+            var ex = Assert.Throws<SqExpressException>(() => expr!.WithParams(
+                ("users", new[] {1, 2, 3})));
+
+            Assert.That(ex!.Message, Does.Contain("List parameter users can be used only in IN(...)"));
         }
 #endif
 

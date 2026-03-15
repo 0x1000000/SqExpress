@@ -10,6 +10,7 @@ using SqExpress.QueryBuilders.Update;
 using SqExpress.SqlExport;
 using SqExpress.StatementSyntax;
 using SqExpress.Syntax;
+using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Value;
 using SqExpress.SyntaxTreeOperations;
@@ -135,17 +136,34 @@ namespace SqExpress
         public static string ToSql(this IStatement expr, ISqlExporter exporter)
             => exporter.ToSql(expr);
 
-        public static T WithParams<T>(this T expr, IReadOnlyDictionary<string, ExprValue> values) where T : IExpr
+        public static T WithParams<T>(this T expr, IReadOnlyDictionary<string, ParamValue> values) where T : IExpr
         {
-            return expr.SyntaxTree()
+            if (values.Count == 0)
+            {
+                return expr;
+            }
+
+            var normalizedValues = NormalizeParamDictionary(values);
+
+            var result = expr.SyntaxTree()
                 .ModifyDescendants(e =>
                     {
+                        if (e is ExprInValues inValues)
+                        {
+                            return ReplaceInValues(inValues, normalizedValues);
+                        }
+
                         if (e is ExprParameter parameter)
                         {
                             var tagName = parameter.TagName;
-                            if (tagName != null && tagName.Length > 0 && values.TryGetValue(tagName, out var value))
+                            if (tagName != null && tagName.Length > 0 && normalizedValues.TryGetValue(tagName, out var value))
                             {
-                                return value;
+                                if (value.IsSingle)
+                                {
+                                    return value.AsSingle;
+                                }
+
+                                return e;
                             }
 
                             if (tagName != null && tagName.Length > 0)
@@ -157,10 +175,17 @@ namespace SqExpress
                         return e;
                     }
                 );
+
+            EnsureNoListParamsOutsideIn(result, normalizedValues);
+            return result;
         }
 
 #if NET8_0_OR_GREATER
-        public static T WithParams<T>(this T expr, params ReadOnlySpan<(string paramName, ExprValue paramExprValue)> values) where T: IExpr
+
+        public static T WithParams<T>(this T expr, string paramName, ParamValue paramValue) where T : IExpr 
+            => WithParams(expr, [(paramName, paramValue)]);
+
+        public static T WithParams<T>(this T expr, params ReadOnlySpan<(string paramName, ParamValue paramExprValue)> values) where T: IExpr
         {
             if (values.Length == 0)
             {
@@ -173,18 +198,15 @@ namespace SqExpress
                 string? n1 = null;
                 string? n2 = null;
                 string? n3 = null;
-                ExprValue? v0 = null;
-                ExprValue? v1 = null;
-                ExprValue? v2 = null;
-                ExprValue? v3 = null;
+                ParamValue? v0 = null;
+                ParamValue? v1 = null;
+                ParamValue? v2 = null;
+                ParamValue? v3 = null;
 
                 for (int i = 0; i < values.Length; i++)
                 {
                     var (paramName, paramExprValue) = values[i];
-                    if (string.IsNullOrEmpty(paramName))
-                    {
-                        throw new SqExpressException("Parameter name cannot be null or empty");
-                    }
+                    paramName = NormalizeParamName(paramName);
 
                     if ((n0 != null && StringComparer.Ordinal.Equals(paramName, n0))
                         || (n1 != null && StringComparer.Ordinal.Equals(paramName, n1))
@@ -215,29 +237,34 @@ namespace SqExpress
                     }
                 }
 
-                return expr.SyntaxTree()
+                var result = expr.SyntaxTree()
                     .ModifyDescendants(e =>
                         {
+                            if (e is ExprInValues inValues)
+                            {
+                                return ReplaceInValues(inValues, n0, v0, n1, v1, n2, v2, n3, v3);
+                            }
+
                             if (e is ExprParameter parameter)
                             {
                                 var tagName = parameter.TagName;
-                                if (tagName != null && tagName.Length > 0)
+                                if (tagName is { Length: > 0 })
                                 {
-                                    if (n0 != null && StringComparer.Ordinal.Equals(tagName, n0))
+                                    if (n0 != null && StringComparer.Ordinal.Equals(tagName, n0) && v0.HasValue)
                                     {
-                                        return v0!;
+                                        return v0.Value.IsSingle ? v0.Value.AsSingle : e;
                                     }
-                                    if (n1 != null && StringComparer.Ordinal.Equals(tagName, n1))
+                                    if (n1 != null && StringComparer.Ordinal.Equals(tagName, n1) && v1.HasValue)
                                     {
-                                        return v1!;
+                                        return v1.Value.IsSingle ? v1.Value.AsSingle : e;
                                     }
-                                    if (n2 != null && StringComparer.Ordinal.Equals(tagName, n2))
+                                    if (n2 != null && StringComparer.Ordinal.Equals(tagName, n2) && v2.HasValue)
                                     {
-                                        return v2!;
+                                        return v2.Value.IsSingle ? v2.Value.AsSingle : e;
                                     }
-                                    if (n3 != null && StringComparer.Ordinal.Equals(tagName, n3))
+                                    if (n3 != null && StringComparer.Ordinal.Equals(tagName, n3) && v3.HasValue)
                                     {
-                                        return v3!;
+                                        return v3.Value.IsSingle ? v3.Value.AsSingle : e;
                                     }
 
                                     throw new SqExpressException($"Could not find parameter {tagName}");
@@ -247,16 +274,15 @@ namespace SqExpress
                             return e;
                         }
                     );
+                EnsureNoListParamsOutsideIn(result, n0, v0, n1, v1, n2, v2, n3, v3);
+                return result;
             }
 
-            var dictionary = new Dictionary<string, ExprValue>(values.Length, StringComparer.Ordinal);
+            var dictionary = new Dictionary<string, ParamValue>(values.Length, StringComparer.Ordinal);
             for (int i = 0; i < values.Length; i++)
             {
                 var (paramName, paramExprValue) = values[i];
-                if (string.IsNullOrEmpty(paramName))
-                {
-                    throw new SqExpressException("Parameter name cannot be null or empty");
-                }
+                paramName = NormalizeParamName(paramName);
 
                 if (!dictionary.TryAdd(paramName, paramExprValue))
                 {
@@ -265,6 +291,213 @@ namespace SqExpress
             }
 
             return expr.WithParams(dictionary);
+        }
+#endif
+
+        private static ExprInValues ReplaceInValues(ExprInValues inValues, IReadOnlyDictionary<string, ParamValue> values)
+        {
+            List<ExprValue>? newItems = null;
+
+            for (var index = 0; index < inValues.Items.Count; index++)
+            {
+                var item = inValues.Items[index];
+                if (item is ExprParameter { TagName: { Length: > 0 } tagName } && values.TryGetValue(tagName, out var value))
+                {
+                    newItems ??= new List<ExprValue>(inValues.Items.Count);
+                    if (newItems.Count == 0 && index > 0)
+                    {
+                        for (var j = 0; j < index; j++)
+                        {
+                            newItems.Add(inValues.Items[j]);
+                        }
+                    }
+
+                    if (value.IsSingle)
+                    {
+                        newItems.Add(value.AsSingle);
+                    }
+                    else
+                    {
+                        foreach (var listValue in value.AsList)
+                        {
+                            newItems.Add(listValue);
+                        }
+                    }
+                }
+                else if (newItems != null)
+                {
+                    newItems.Add(item);
+                }
+            }
+
+            return newItems != null ? new ExprInValues(inValues.TestExpression, newItems) : inValues;
+        }
+
+#if NET8_0_OR_GREATER
+        private static ExprInValues ReplaceInValues(
+            ExprInValues inValues,
+            string? n0,
+            ParamValue? v0,
+            string? n1,
+            ParamValue? v1,
+            string? n2,
+            ParamValue? v2,
+            string? n3,
+            ParamValue? v3)
+        {
+            List<ExprValue>? newItems = null;
+
+            for (var index = 0; index < inValues.Items.Count; index++)
+            {
+                var item = inValues.Items[index];
+                ParamValue? replacement = null;
+
+                if (item is ExprParameter { TagName: { Length: > 0 } tagName })
+                {
+                    if (n0 != null && StringComparer.Ordinal.Equals(tagName, n0))
+                    {
+                        replacement = v0;
+                    }
+                    else if (n1 != null && StringComparer.Ordinal.Equals(tagName, n1))
+                    {
+                        replacement = v1;
+                    }
+                    else if (n2 != null && StringComparer.Ordinal.Equals(tagName, n2))
+                    {
+                        replacement = v2;
+                    }
+                    else if (n3 != null && StringComparer.Ordinal.Equals(tagName, n3))
+                    {
+                        replacement = v3;
+                    }
+                }
+
+                if (replacement.HasValue)
+                {
+                    newItems ??= new List<ExprValue>(inValues.Items.Count);
+                    if (newItems.Count == 0 && index > 0)
+                    {
+                        for (var j = 0; j < index; j++)
+                        {
+                            newItems.Add(inValues.Items[j]);
+                        }
+                    }
+
+                    if (replacement.Value.IsSingle)
+                    {
+                        newItems.Add(replacement.Value.AsSingle);
+                    }
+                    else
+                    {
+                        foreach (var listValue in replacement.Value.AsList)
+                        {
+                            newItems.Add(listValue);
+                        }
+                    }
+                }
+                else if (newItems != null)
+                {
+                    newItems.Add(item);
+                }
+            }
+
+            return newItems != null ? new ExprInValues(inValues.TestExpression, newItems) : inValues;
+        }
+#endif
+
+        private static void EnsureNoListParamsOutsideIn<T>(T expr, IReadOnlyDictionary<string, ParamValue> values) where T : IExpr
+        {
+            foreach (var parameter in expr.SyntaxTree().DescendantsAndSelf())
+            {
+                if (parameter is ExprParameter { TagName: { Length: > 0 } tagName }
+                    && values.TryGetValue(tagName, out var value)
+                    && value.IsList)
+                {
+                    throw new SqExpressException($"List parameter {tagName} can be used only in IN(...)");
+                }
+            }
+        }
+
+        private static IReadOnlyDictionary<string, ParamValue> NormalizeParamDictionary(IReadOnlyDictionary<string, ParamValue> values)
+        {
+            var result = new Dictionary<string, ParamValue>(values.Count, StringComparer.Ordinal);
+
+            foreach (var pair in values)
+            {
+                var paramName = NormalizeParamName(pair.Key);
+                if (result.ContainsKey(paramName))
+                {
+                    throw new SqExpressException($"Duplicate parameter name '{paramName}'");
+                }
+
+                result.Add(paramName, pair.Value);
+            }
+
+            return result;
+        }
+
+        private static string NormalizeParamName(string? paramName)
+        {
+            if (string.IsNullOrEmpty(paramName))
+            {
+                throw new SqExpressException("Parameter name cannot be null or empty");
+            }
+
+            var notNullParamName = paramName!;
+
+            var index = 0;
+            while (index < notNullParamName.Length && notNullParamName[index] == '@')
+            {
+                index++;
+            }
+
+            if (index == notNullParamName.Length)
+            {
+                throw new SqExpressException("Parameter name cannot be null or empty");
+            }
+
+            return index == 0 ? notNullParamName : notNullParamName.Substring(index);
+        }
+
+#if NET8_0_OR_GREATER
+        private static void EnsureNoListParamsOutsideIn<T>(
+            T expr,
+            string? n0,
+            ParamValue? v0,
+            string? n1,
+            ParamValue? v1,
+            string? n2,
+            ParamValue? v2,
+            string? n3,
+            ParamValue? v3) where T : IExpr
+        {
+            foreach (var parameter in expr.SyntaxTree().DescendantsAndSelf())
+            {
+                if (parameter is not ExprParameter { TagName: { Length: > 0 } tagName })
+                {
+                    continue;
+                }
+
+                if (n0 != null && StringComparer.Ordinal.Equals(tagName, n0) && v0.HasValue && v0.Value.IsList)
+                {
+                    throw new SqExpressException($"List parameter {tagName} can be used only in IN(...)");
+                }
+
+                if (n1 != null && StringComparer.Ordinal.Equals(tagName, n1) && v1.HasValue && v1.Value.IsList)
+                {
+                    throw new SqExpressException($"List parameter {tagName} can be used only in IN(...)");
+                }
+
+                if (n2 != null && StringComparer.Ordinal.Equals(tagName, n2) && v2.HasValue && v2.Value.IsList)
+                {
+                    throw new SqExpressException($"List parameter {tagName} can be used only in IN(...)");
+                }
+
+                if (n3 != null && StringComparer.Ordinal.Equals(tagName, n3) && v3.HasValue && v3.Value.IsList)
+                {
+                    throw new SqExpressException($"List parameter {tagName} can be used only in IN(...)");
+                }
+            }
         }
 #endif
 

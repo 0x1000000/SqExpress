@@ -19,17 +19,38 @@
     flex-wrap: wrap;
 }
 
+.header-links {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+}
+
+.bug-report-link,
 .github-link {
     display: inline-flex;
     align-items: center;
-    border: 1px solid #0f172a;
-    background: #0f172a;
     color: #ffffff;
     text-decoration: none;
     border-radius: 10px;
     padding: 0.45rem 0.8rem;
     font-size: 0.88rem;
     font-weight: 600;
+}
+
+.bug-report-link {
+    border: 1px solid #b91c1c;
+    background: #b91c1c;
+}
+
+.bug-report-link:hover {
+    background: #991b1b;
+    border-color: #991b1b;
+}
+
+.github-link {
+    border: 1px solid #0f172a;
+    background: #0f172a;
 }
 
 .github-link:hover {
@@ -40,6 +61,22 @@
 .workspace-header p {
     margin-top: 0.4rem;
     color: var(--muted-text);
+}
+
+.privacy-box {
+    margin-top: 0.9rem;
+    border: 1px solid #99f6e4;
+    border-radius: 12px;
+    background: #f0fdfa;
+    color: #115e59;
+    padding: 0.75rem 0.9rem;
+    line-height: 1.45;
+}
+
+.privacy-box strong {
+    display: block;
+    margin-bottom: 0.15rem;
+    color: #134e4a;
 }
 
 .settings-card {
