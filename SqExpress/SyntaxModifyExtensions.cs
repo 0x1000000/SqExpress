@@ -685,6 +685,9 @@ namespace SqExpress
         public static ExprSelectOffsetFetch WithOrderBy(this ExprSelectOffsetFetch original, ExprOrderByOffsetFetch newOrderBy) 
             => new ExprSelectOffsetFetch(selectQuery: original.SelectQuery, orderBy: newOrderBy);
 
+        public static ExprSelectingValue WithSelecting(this ExprSelectingValue original, IExprSelecting newSelecting) 
+            => new ExprSelectingValue(selecting: newSelecting);
+
         public static ExprStringConcat WithLeft(this ExprStringConcat original, ExprValue newLeft) 
             => new ExprStringConcat(left: newLeft, right: original.Right);
 

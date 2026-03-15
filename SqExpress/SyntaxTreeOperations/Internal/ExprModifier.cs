@@ -1046,6 +1046,15 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprSelectingValue(ExprSelectingValue exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newSelecting = this.AcceptItem(exprIn.Selecting, modifier);
+            if(!ReferenceEquals(exprIn.Selecting, newSelecting))
+            {
+                exprIn = new ExprSelectingValue(selecting: newSelecting);
+            }
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprStringConcat(ExprStringConcat exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newLeft = this.AcceptItem(exprIn.Left, modifier);

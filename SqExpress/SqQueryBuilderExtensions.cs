@@ -34,6 +34,9 @@ namespace SqExpress
         public static ExprAliasedSelecting As(this IExprSelecting value, ExprColumnAlias alias) =>
             new ExprAliasedSelecting(value, alias);
 
+        public static ExprSelectingValue AsValue(this IExprSelecting selecting)
+            => new ExprSelectingValue(selecting);
+
         public static ExprDerivedTableValues As(this ExprTableValueConstructor valueConstructor, Alias alias, params ExprColumnName[] columns)
             => new ExprDerivedTableValues(valueConstructor, new ExprTableAlias(alias.BuildAliasExpression() ?? throw new SqExpressException("Derived Table Values has to have not empty alias")), columns);
 

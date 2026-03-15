@@ -271,6 +271,30 @@ namespace SqExpress.Test.SqlParser
             Assert.That(expr, Is.Not.Null);
             Assert.That(expr!.ToSql(TSqlExporter.Default), Does.Contain("CROSS APPLY"));
         }
+
+        [Test]
+        public void AggregateArithmeticInSelectListRoundTrips()
+        {
+            var sql = "SELECT SUM([o].[TotalAmount])+1 [AdjustedRevenue] FROM [dbo].[Orders] [o]";
+
+            var ok = SqTSqlParser.TryParse(sql, out var expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(expr!.ToSql(TSqlExporter.Default), Is.EqualTo("SELECT SUM([o].[TotalAmount])+1 [AdjustedRevenue] FROM [dbo].[Orders] [o]"));
+        }
+
+        [Test]
+        public void WindowAggregateArithmeticInSelectListRoundTrips()
+        {
+            var sql = "SELECT SUM([o].[TotalAmount]) OVER()-[o].[Discount] [RemainingRevenue] FROM [dbo].[Orders] [o]";
+
+            var ok = SqTSqlParser.TryParse(sql, out var expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(expr!.ToSql(TSqlExporter.Default), Is.EqualTo("SELECT SUM([o].[TotalAmount]) OVER()-[o].[Discount] [RemainingRevenue] FROM [dbo].[Orders] [o]"));
+        }
     }
 }
 

@@ -450,8 +450,16 @@ namespace SqExpress.SqlTranspiler
                     var variable = NormalizeParameterName(pair.Key);
                     if (this._listParameters.Contains(pair.Key))
                     {
-                        var item = this.RenderListParameterItem(pair.Value);
-                        result.Add("ParamValue " + variable + " = [" + item + "];");
+                        var typedListType = TryGetListParameterTypeName(pair.Value);
+                        if (typedListType != null)
+                        {
+                            var defaultItem = this.RenderParameterDefaultValue(pair.Value);
+                            result.Add(typedListType + " " + variable + " = [" + defaultItem + "];");
+                            continue;
+                        }
+
+                        var listItem = this.RenderListParameterItem(pair.Value);
+                        result.Add("ParamValue " + variable + " = [" + listItem + "];");
                         continue;
                     }
 
@@ -490,13 +498,13 @@ namespace SqExpress.SqlTranspiler
                     case ExprBoolLiteral boolLiteral:
                         return boolLiteral.Value == true ? "true" : "false";
                     case ExprGuidLiteral:
-                        return "default(global::System.Guid)";
+                        return "default(Guid)";
                     case ExprDateTimeLiteral:
-                        return "default(global::System.DateTime)";
+                        return "default(DateTime)";
                     case ExprDateTimeOffsetLiteral:
-                        return "default(global::System.DateTimeOffset)";
+                        return "default(DateTimeOffset)";
                     case ExprByteArrayLiteral:
-                        return "global::System.Array.Empty<byte>()";
+                        return "Array.Empty<byte>()";
                     default:
                         return this.RenderValue(value, new RenderContext());
                 }
@@ -681,7 +689,7 @@ namespace SqExpress.SqlTranspiler
                 var getOrdinalCall = InvocationExpression(
                         MemberAccessExpression(
                             SyntaxKind.SimpleMemberAccessExpression,
-                            IdentifierName("r"),
+                            IdentifierName("row"),
                             IdentifierName("GetOrdinal")))
                     .WithArgumentList(
                         ArgumentList(
@@ -694,7 +702,7 @@ namespace SqExpress.SqlTranspiler
                 return InvocationExpression(
                         MemberAccessExpression(
                             SyntaxKind.SimpleMemberAccessExpression,
-                            IdentifierName("r"),
+                            IdentifierName("row"),
                             IdentifierName("GetValue")))
                     .WithArgumentList(
                         ArgumentList(
@@ -707,7 +715,7 @@ namespace SqExpress.SqlTranspiler
                 return InvocationExpression(
                         MemberAccessExpression(
                             SyntaxKind.SimpleMemberAccessExpression,
-                            IdentifierName("r"),
+                            IdentifierName("row"),
                             IdentifierName("GetValue")))
                     .WithArgumentList(
                         ArgumentList(
@@ -723,7 +731,7 @@ namespace SqExpress.SqlTranspiler
                 return InvocationExpression(
                         MemberAccessExpression(
                             SyntaxKind.SimpleMemberAccessExpression,
-                            IdentifierName("r"),
+                            IdentifierName("row"),
                             IdentifierName(methodName)))
                     .WithArgumentList(
                         ArgumentList(
@@ -739,7 +747,7 @@ namespace SqExpress.SqlTranspiler
                 return InvocationExpression(
                         MemberAccessExpression(
                             SyntaxKind.SimpleMemberAccessExpression,
-                            IdentifierName("r"),
+                            IdentifierName("row"),
                             GenericName(Identifier("GetFieldValue"))
                                 .WithTypeArgumentList(
                                     TypeArgumentList(
@@ -777,14 +785,14 @@ namespace SqExpress.SqlTranspiler
                     return readCall.WithArgumentList(
                         ArgumentList(
                             SingletonSeparatedList(
-                                Argument(IdentifierName("r")))));
+                                Argument(IdentifierName("row")))));
                 }
 
                 return readCall.WithArgumentList(
                     ArgumentList(
                         SeparatedList(new[]
                         {
-                            Argument(IdentifierName("r")),
+                            Argument(IdentifierName("row")),
                             Argument(
                                 LiteralExpression(
                                     SyntaxKind.StringLiteralExpression,
@@ -2049,13 +2057,13 @@ namespace SqExpress.SqlTranspiler
                     case ExprDoubleLiteral doubleLiteral:
                         return (doubleLiteral.Value ?? 0d).ToString("R", CultureInfo.InvariantCulture) + "d";
                     case ExprGuidLiteral:
-                        return "default(global::System.Guid)";
+                        return "default(Guid)";
                     case ExprDateTimeLiteral:
-                        return "default(global::System.DateTime)";
+                        return "default(DateTime)";
                     case ExprDateTimeOffsetLiteral:
-                        return "default(global::System.DateTimeOffset)";
+                        return "default(DateTimeOffset)";
                     case ExprByteArrayLiteral:
-                        return "global::System.Array.Empty<byte>()";
+                        return "Array.Empty<byte>()";
                     case ExprByteLiteral byteLiteral:
                         return "(byte)" + (byteLiteral.Value ?? (byte)0).ToString(CultureInfo.InvariantCulture);
                     case ExprNull:
@@ -2118,6 +2126,8 @@ namespace SqExpress.SqlTranspiler
                         return this.RenderPortableScalarFunction(portable, context);
                     case ExprUnsafeValue unsafeValue:
                         return "UnsafeValue(" + ToCSharpStringLiteral(unsafeValue.UnsafeValue) + ")";
+                    case ExprSelectingValue selectingValue:
+                        return this.RenderSelecting(selectingValue.Selecting, context, useDerivedPropertyAliases: false, derivedPropertyMap: null) + ".AsValue()";
                     default:
                         return "Literal(1)";
                 }
@@ -3252,7 +3262,7 @@ namespace SqExpress.SqlTranspiler
             {
                 if (this._listParameters.Contains(parameterName))
                 {
-                    return "ParamValue";
+                    return this.TryGetCapturedListParameterTypeName(parameterName) ?? "ParamValue";
                 }
 
                 if (!this._parameterDefaults.TryGetValue(parameterName, out var defaultValue))
@@ -3268,12 +3278,51 @@ namespace SqExpress.SqlTranspiler
                     ExprInt64Literal => "int",
                     ExprDecimalLiteral => "decimal",
                     ExprDoubleLiteral => "double",
-                    ExprGuidLiteral => "global::System.Guid",
-                    ExprDateTimeLiteral => "global::System.DateTime",
-                    ExprDateTimeOffsetLiteral => "global::System.DateTimeOffset",
+                    ExprGuidLiteral => "Guid",
+                    ExprDateTimeLiteral => "DateTime",
+                    ExprDateTimeOffsetLiteral => "DateTimeOffset",
                     ExprByteArrayLiteral => "byte[]",
                     _ => "string"
                 };
+            }
+
+            private string? TryGetCapturedListParameterTypeName(string parameterName)
+            {
+                if (!this._parameterDefaults.TryGetValue(parameterName, out var defaultValue))
+                {
+                    return null;
+                }
+
+                switch (defaultValue)
+                {
+                    case ExprStringLiteral:
+                        return "IReadOnlyList<string>";
+                    case ExprInt16Literal:
+                    case ExprInt32Literal:
+                    case ExprInt64Literal:
+                        return "IReadOnlyList<int>";
+                    case ExprGuidLiteral:
+                        return "IReadOnlyList<Guid>";
+                    default:
+                        return null;
+                }
+            }
+
+            private static string? TryGetListParameterTypeName(ExprValue defaultValue)
+            {
+                switch (defaultValue)
+                {
+                    case ExprStringLiteral:
+                        return "IReadOnlyList<string>";
+                    case ExprInt16Literal:
+                    case ExprInt32Literal:
+                    case ExprInt64Literal:
+                        return "IReadOnlyList<int>";
+                    case ExprGuidLiteral:
+                        return "IReadOnlyList<global::System.Guid>";
+                    default:
+                        return null;
+                }
             }
         }
     }

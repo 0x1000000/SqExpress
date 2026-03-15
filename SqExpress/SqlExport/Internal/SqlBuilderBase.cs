@@ -405,6 +405,11 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public bool VisitExprSelectingValue(ExprSelectingValue exprSelectingValue, IExpr? parent)
+        {
+            return exprSelectingValue.Selecting.Accept(this, exprSelectingValue);
+        }
+
         public bool VisitExprValueQuery(ExprValueQuery exprValueQuery, IExpr? parent)
         {
             this.AcceptPar('(', exprValueQuery.Query, ')', exprValueQuery);

@@ -108,6 +108,23 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
         }
 
+        public TRes VisitExprSelectingValue(ExprSelectingValue exprSelectingValue, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            switch (exprSelectingValue.Selecting)
+            {
+                case ExprValue value:
+                    return value.Accept(this, ctx);
+                case ExprAggregateFunction aggregateFunction:
+                    return this.VisitExprAggregateFunction(aggregateFunction, ctx);
+                case ExprAggregateOverFunction aggregateOverFunction:
+                    return this.VisitExprAggregateOverFunction(aggregateOverFunction, ctx);
+                case ExprAnalyticFunction analyticFunction:
+                    return this.VisitExprAnalyticFunction(analyticFunction, ctx);
+                default:
+                    return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+            }
+        }
+
         public TRes VisitExprValueQuery(ExprValueQuery exprValueQuery, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
         {
             return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
@@ -226,6 +243,56 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         public TRes VisitExprCast(ExprCast exprCast, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
         {
             return exprCast.SqlType.Accept(this, ctx);
+        }
+
+        private TRes VisitExprAggregateFunction(ExprAggregateFunction exprAggregateFunction, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            switch (exprAggregateFunction.Name.Name.ToUpperInvariant())
+            {
+                case "COUNT":
+                    return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
+
+                case "MIN":
+                case "MAX":
+                case "SUM":
+                case "AVG":
+                    return exprAggregateFunction.Expression.Accept(this, ctx);
+
+                default:
+                    return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+            }
+        }
+
+        private TRes VisitExprAggregateOverFunction(ExprAggregateOverFunction exprAggregateOverFunction, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return this.VisitExprAggregateFunction(exprAggregateOverFunction.Function, ctx);
+        }
+
+        private TRes VisitExprAnalyticFunction(ExprAnalyticFunction exprAnalyticFunction, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            switch (exprAnalyticFunction.Name.Name.ToUpperInvariant())
+            {
+                case "ROW_NUMBER":
+                case "RANK":
+                case "DENSE_RANK":
+                case "NTILE":
+                    return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
+
+                case "CUME_DIST":
+                case "PERCENT_RANK":
+                    return ctx.ValueVisitor.VisitDouble(ctx.Ctx, false);
+
+                case "FIRST_VALUE":
+                case "LAST_VALUE":
+                case "LAG":
+                case "LEAD":
+                    return exprAnalyticFunction.Arguments != null && exprAnalyticFunction.Arguments.Count > 0
+                        ? exprAnalyticFunction.Arguments[0].Accept(this, ctx)
+                        : ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+
+                default:
+                    return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+            }
         }
 
         //Implementation to analyze in "VisitExprCast" and "VisitExprColumn"

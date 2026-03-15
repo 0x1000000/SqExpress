@@ -38,6 +38,8 @@ public interface IExprValueVisitor<out TRes, in TArg>
 
     TRes VisitExprUnsafeValue(ExprUnsafeValue exprUnsafeValue, TArg arg);
 
+    TRes VisitExprSelectingValue(ExprSelectingValue exprSelectingValue, TArg arg);
+
     TRes VisitExprValueQuery(ExprValueQuery exprValueQuery, TArg arg);
 
     //Arithmetic Expressions

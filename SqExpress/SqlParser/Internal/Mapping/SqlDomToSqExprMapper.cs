@@ -1772,6 +1772,10 @@ namespace SqExpress.SqlParser.Internal.Mapping
             try
             {
                 value = ParseSelectingExpression(itemSql, context);
+                if (value is ExprSelectingValue selectingValue)
+                {
+                    value = selectingValue.Selecting;
+                }
             }
             catch (MapException ex)
             {
@@ -1818,46 +1822,6 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 && tokens[2].Text == "*")
             {
                 return new ExprAllColumns(new ExprTableAlias(new ExprAlias(tokens[0].IdentifierValue)));
-            }
-
-            if (TryParseTopLevelFunction(tokens, out var fnParts, out var argTokens, out var tailTokens))
-            {
-                var functionName = fnParts[fnParts.Count - 1];
-                var upperName = functionName.ToUpperInvariant();
-
-                if (upperName == "CAST")
-                {
-                    return ParseValue(sql, context);
-                }
-
-                if (tailTokens.Count > 0 && tailTokens[0].IsKeyword("OVER"))
-                {
-                    var args = ParseFunctionArgs(argTokens, context);
-                    var overTokens = ExtractOverTokens(tailTokens);
-                    var over = ParseOverClause(overTokens, context);
-                    return new ExprAnalyticFunction(new ExprFunctionName(true, functionName), args, over);
-                }
-
-                if (tailTokens.Count == 0 && (upperName == "COUNT" || upperName == "SUM" || upperName == "AVG" || upperName == "MIN" || upperName == "MAX"))
-                {
-                    var args = ParseFunctionArgs(argTokens, context);
-                    var distinct = false;
-                    ExprValue argument;
-                    if (args == null || args.Count < 1)
-                    {
-                        argument = new ExprInt32Literal(1);
-                    }
-                    else
-                    {
-                        argument = args[0];
-                        if (argTokens.Count > 0 && argTokens[0].IsKeyword("DISTINCT"))
-                        {
-                            distinct = true;
-                        }
-                    }
-
-                    return new ExprAggregateFunction(distinct, new ExprFunctionName(true, functionName), argument);
-                }
             }
 
             return ParseValue(sql, context);
@@ -2523,6 +2487,47 @@ namespace SqExpress.SqlParser.Internal.Mapping
         private static ExprValue ParseValue(string sql)
             => ParseValue(sql, new MappingContext(null));
 
+        private static ExprSelectingValue WrapSelectingAsValue(IExprSelecting selecting)
+            => new ExprSelectingValue(selecting);
+
+        private static bool IsAggregateFunctionName(string functionName)
+        {
+            switch (functionName)
+            {
+                case "COUNT":
+                case "SUM":
+                case "AVG":
+                case "MIN":
+                case "MAX":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static ExprAggregateFunction CreateAggregateFunction(
+            string functionName,
+            IReadOnlyList<SqlToken> argTokens,
+            IReadOnlyList<ExprValue>? args)
+        {
+            var distinct = false;
+            ExprValue argument;
+            if (args == null || args.Count < 1)
+            {
+                argument = new ExprInt32Literal(1);
+            }
+            else
+            {
+                argument = args[0];
+                if (argTokens.Count > 0 && argTokens[0].IsKeyword("DISTINCT"))
+                {
+                    distinct = true;
+                }
+            }
+
+            return new ExprAggregateFunction(distinct, new ExprFunctionName(true, functionName), argument);
+        }
+
         private static IReadOnlyList<string> SplitComma(string sql)
             => SplitComma(SqlLexer.Tokenize(sql).Where(i => i.Type != SqlTokenType.EndOfFile).ToList())
                 .Select(i => string.Join(" ", i.Select(t => t.Text)))
@@ -2797,22 +2802,42 @@ namespace SqExpress.SqlParser.Internal.Mapping
                         parts.Add(this.NextIdentifier());
                     }
 
-	                    if (this.TryType(SqlTokenType.OpenParen))
-	                    {
-	                        var argsTokens = this.ReadBalancedInner();
-	                        var argSegments = argsTokens.Count == 0
-	                            ? null
-	                            : SplitComma(argsTokens);
-	                        var args = argSegments == null
-	                            ? null
-	                            : argSegments.Select(i => new ExprParser(string.Join(" ", i.Select(t => t.Text)), this._context).ParseValue()).ToList();
+                    if (this.TryType(SqlTokenType.OpenParen))
+                    {
+                        var argsTokens = this.ReadBalancedInner();
+                        var argSegments = argsTokens.Count == 0
+                            ? null
+                            : SplitComma(argsTokens);
+                        var args = ParseFunctionArgs(argsTokens, this._context);
+                        var functionName = parts[parts.Count - 1];
+                        var upperName = functionName.ToUpperInvariant();
 
-	                        if (parts.Count == 1)
-	                        {
-	                            if (TryMapKnownScalarFunction(parts[0], argSegments, args, out var known))
-	                            {
-	                                return known;
-	                            }
+                        if (!this.IsEnd && this.Current.IsKeyword("OVER"))
+                        {
+                            this._index++;
+                            this.ExpectType(SqlTokenType.OpenParen, "OVER clause should contain opening parenthesis.");
+                            var overTokens = this.ReadBalancedInner();
+                            var over = ParseOverClause(overTokens, this._context);
+
+                            if (IsAggregateFunctionName(upperName))
+                            {
+                                return WrapSelectingAsValue(new ExprAggregateOverFunction(CreateAggregateFunction(functionName, argsTokens, args), over));
+                            }
+
+                            return WrapSelectingAsValue(new ExprAnalyticFunction(new ExprFunctionName(true, functionName), args, over));
+                        }
+
+                        if (parts.Count == 1 && IsAggregateFunctionName(upperName))
+                        {
+                            return WrapSelectingAsValue(CreateAggregateFunction(functionName, argsTokens, args));
+                        }
+
+                        if (parts.Count == 1)
+                        {
+                            if (TryMapKnownScalarFunction(parts[0], argSegments, args, out var known))
+                            {
+                                return known;
+                            }
 
 	                            if (TryMapPortableScalarFunction(parts[0], args, out var portable))
 	                            {

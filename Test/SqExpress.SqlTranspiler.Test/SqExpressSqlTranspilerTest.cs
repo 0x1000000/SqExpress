@@ -92,9 +92,9 @@ namespace SqExpress.SqlTranspiler.Test
             Assert.That(result.QueryCSharpCode, Does.Contain("public static IExprQuery Build(out TableUsers u)"));
             Assert.That(result.QueryCSharpCode, Does.Contain("u = new TableUsers(\"u\");"));
             Assert.That(result.QueryCSharpCode, Does.Contain("public static async Task Query(ISqDatabase database)"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("await foreach (var r in Build(out var u).Query(database))"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("var userId = u.UserId.Read(r);"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("var userName = u.Name.Read(r, \"UserName\");"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("await foreach (var row in Build(out var u).Query(database))"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var userId = u.UserId.Read(row);"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var userName = u.Name.Read(row, \"UserName\");"));
             Assert.That(result.QueryCSharpCode, Does.Contain("Select(u.UserId, u.Name.As(\"UserName\"))"));
             Assert.That(result.QueryCSharpCode, Does.Contain(".Where(u.IsActive == 1)"));
             Assert.That(result.DeclarationsCSharpCode, Does.Contain("public sealed class TableUsers : TableBase"));
@@ -231,8 +231,8 @@ namespace SqExpress.SqlTranspiler.Test
             Assert.That(result.QueryCSharpCode, Does.Contain("public sealed class UserOrderAggCte : CteBase"));
             Assert.That(result.QueryCSharpCode, Does.Contain("ValueQuery(Select"));
             Assert.That(result.QueryCSharpCode, Does.Contain("Where(Exists(Select"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("var orderCount30d = uoa.OrderCount30d.Read(r);"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("var totalAmount30d = uoa.TotalAmount30d.Read(r);"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var orderCount30d = uoa.OrderCount30d.Read(row);"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var totalAmount30d = uoa.TotalAmount30d.Read(row);"));
             Assert.That(result.QueryCSharpCode, Does.Not.Contain("GetOrdinal(\"OrderCount30d\")"));
             Assert.That(result.QueryCSharpCode, Does.Not.Contain("GetOrdinal(\"TotalAmount30d\")"));
             Assert.That(result.QueryCSharpCode, Does.Not.Contain("TopCategoryAmount\")).From(u).InnerJoin("));
@@ -292,7 +292,7 @@ namespace SqExpress.SqlTranspiler.Test
             AssertCompilesAndSql(intVariable, SqlVariableIntCompare);
 
             var inVariable = transpiler.Transpile("SELECT u.UserId FROM dbo.Users u WHERE u.Name IN (@names)");
-            Assert.That(inVariable.QueryCSharpCode, Does.Contain("ParamValue names = [Literal(\"\")];"));
+            Assert.That(inVariable.QueryCSharpCode, Does.Contain("IReadOnlyList<string> names = [\"\"];"));
             Assert.That(inVariable.QueryCSharpCode, Does.Contain("\"\""));
             Assert.That(inVariable.QueryCSharpCode, Does.Contain("u.Name.In(names)"));
             AssertCompilesAndSql(inVariable, SqlVariableInList);
@@ -306,8 +306,8 @@ namespace SqExpress.SqlTranspiler.Test
 
             Assert.That(result.QueryCSharpCode, Does.Contain("var id = 0;"));
             Assert.That(result.QueryCSharpCode, Does.Contain("var name = \"\";"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("var id = r.GetInt32(0);"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("var name = r.GetString(1);"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var id = row.GetInt32(0);"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var name = row.GetString(1);"));
             AssertCompiles(result, "GeneratedTranspilerSelectOnlyVariablesReadsTests");
         }
 
@@ -336,18 +336,18 @@ namespace SqExpress.SqlTranspiler.Test
             Assert.That(result.DeclarationsCSharpCode, Does.Contain("public GuidTableColumn ExternalId"));
             Assert.That(result.DeclarationsCSharpCode, Does.Contain("public ByteArrayTableColumn Payload"));
 
-            Assert.That(result.QueryCSharpCode, Does.Contain("var createdAt = default(global::System.DateTime);"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var createdAt = default(DateTime);"));
             Assert.That(result.QueryCSharpCode, Does.Contain("var isActive = false;"));
             Assert.That(result.QueryCSharpCode, Does.Contain("var amount = 0M;"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("var userGuid = default(global::System.Guid);"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("var payload = global::System.Array"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var userGuid = default(Guid);"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var payload = Array"));
             Assert.That(result.QueryCSharpCode, Does.Contain(".Empty<byte>();"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("ParamValue guidList = [Literal(default(global::System.Guid))];"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("Literal(default(global::System.Guid))"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("IReadOnlyList<global::System.Guid> guidList = [default(Guid)];"));
+            Assert.That(result.QueryCSharpCode, Does.Not.Contain("ParamValue guidList"));
             Assert.That(result.QueryCSharpCode, Does.Contain("Literal(0m)"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("Literal(default(global::System.DateTime))"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Literal(default(DateTime))"));
             Assert.That(result.QueryCSharpCode, Does.Contain("Literal(false)"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("Literal(global::System.Array.Empty<byte>())"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Literal(Array.Empty<byte>())"));
 
             AssertCompiles(result);
         }
@@ -508,9 +508,9 @@ namespace SqExpress.SqlTranspiler.Test
                 "LAST_VALUE(u.FirstName) OVER(ORDER BY u.UserId ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS FirstNameLast " +
                 "FROM dbo.Users u");
 
-            Assert.That(result.QueryCSharpCode, Does.Contain("await foreach (var r in Build(out var u).Query(database))"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("var firstNameFirst = r.GetValue(r.GetOrdinal(\"FirstNameFirst\"));"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("var firstNameLast = r.GetValue(r.GetOrdinal(\"FirstNameLast\"));"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("await foreach (var row in Build(out var u).Query(database))"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var firstNameFirst = row.GetValue(row.GetOrdinal(\"FirstNameFirst\"));"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var firstNameLast = row.GetValue(row.GetOrdinal(\"FirstNameLast\"));"));
         }
 
         [Test]
@@ -524,8 +524,8 @@ namespace SqExpress.SqlTranspiler.Test
             Assert.That(result.QueryCSharpCode, Does.Contain("private readonly TableUsers u = new TableUsers(\"u\");"));
             Assert.That(result.QueryCSharpCode, Does.Contain("this.FirstName = this.u.FirstName.AddToDerivedTable(this);"));
             Assert.That(result.QueryCSharpCode, Does.Contain("return Select(u.FirstName).From(u).Where(u.UserId == 1).Done();"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("await foreach (var r in Build(out var s).Query(database))"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("var firstName = s.FirstName.Read(r);"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("await foreach (var row in Build(out var s).Query(database))"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var firstName = s.FirstName.Read(row);"));
         }
 
         [Test]
@@ -540,7 +540,7 @@ namespace SqExpress.SqlTranspiler.Test
             Assert.That(result.QueryCSharpCode, Does.Contain("return Select(users.FirstName).From(users).Where(users.Id == 1).Done();"));
             Assert.That(result.QueryCSharpCode, Does.Not.Contain("Select(Column(\"FirstName\"))"));
             Assert.That(result.QueryCSharpCode, Does.Not.Contain("Where(Column(\"Id\") == 1)"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("var firstName = s.FirstName.Read(r);"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var firstName = s.FirstName.Read(row);"));
             AssertCompilesAndSql(result, "SELECT [S].[FirstName] FROM (SELECT [A0].[FirstName] FROM [dbo].[Users] [A0] WHERE [A0].[Id]=1)[S]");
         }
 
@@ -556,8 +556,8 @@ namespace SqExpress.SqlTranspiler.Test
             Assert.That(result.QueryCSharpCode, Does.Contain("this.FirstName = this.CreateStringColumn(\"FirstName\");"));
             Assert.That(result.QueryCSharpCode, Does.Contain("this.LastName = this.CreateStringColumn(\"LastName\");"));
             Assert.That(result.QueryCSharpCode, Does.Contain("return Select(AllColumns()).From(users).Where(users.Id == 1).Done();"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("var firstName = s.FirstName.Read(r);"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("var lastName = s.LastName.Read(r);"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var firstName = s.FirstName.Read(row);"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var lastName = s.LastName.Read(row);"));
         }
 
         [Test]
@@ -568,7 +568,7 @@ namespace SqExpress.SqlTranspiler.Test
                 "SELECT S.FirstName AS UserFirstName FROM (SELECT * FROM Users WHERE Id = 1) S");
 
             Assert.That(result.QueryCSharpCode, Does.Contain("public StringCustomColumn FirstName"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("var userFirstName = s.FirstName.Read(r, \"UserFirstName\");"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var userFirstName = s.FirstName.Read(row, \"UserFirstName\");"));
             AssertCompiles(result, "GeneratedTranspilerDerivedStarAliasReadTests");
         }
 
@@ -579,8 +579,8 @@ namespace SqExpress.SqlTranspiler.Test
             var result = transpiler.Transpile(
                 "SELECT u.FirstName, ROW_NUMBER() OVER(ORDER BY u.UserId) AS Rn FROM dbo.Users u");
 
-            Assert.That(result.QueryCSharpCode, Does.Contain("var firstName = u.FirstName.Read(r);"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("var rn = r.GetValue(r.GetOrdinal(\"Rn\"));"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var firstName = u.FirstName.Read(row);"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var rn = row.GetValue(row.GetOrdinal(\"Rn\"));"));
             AssertCompiles(result, "GeneratedTranspilerMixedReadsTests");
         }
 
@@ -592,7 +592,7 @@ namespace SqExpress.SqlTranspiler.Test
                 "SELECT X.Rn FROM (SELECT ROW_NUMBER() OVER(ORDER BY u.UserId) AS Rn FROM dbo.Users u) X");
 
             Assert.That(result.QueryCSharpCode, Does.Contain("public Int32CustomColumn Rn"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("var rn = x.Rn.Read(r);"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var rn = x.Rn.Read(row);"));
             AssertCompiles(result, "GeneratedTranspilerDerivedComputedReadTests");
         }
 
@@ -1329,16 +1329,77 @@ namespace SqExpress.SqlTranspiler.Test
         }
 
         [Test]
-        public void TranspileSelect_WithInParameter_UsesParamValue()
+        public void TranspileSelect_WithInParameter_UsesTypedReadOnlyList()
         {
             var transpiler = new SqExpressSqlTranspiler();
             var result = transpiler.Transpile("SELECT * FROM dbo.Users u WHERE u.UserId IN(@ids)");
 
             Assert.AreEqual("SELECT", result.StatementKind);
-            Assert.That(result.QueryCSharpCode, Does.Contain("ParamValue ids = [Literal(0)];"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("IReadOnlyList<int> ids = [0];"));
             Assert.That(result.QueryCSharpCode, Does.Contain("u.UserId.In(ids)"));
             Assert.That(result.QueryCSharpCode, Does.Not.Contain("ExprValue[] ids"));
+            Assert.That(result.QueryCSharpCode, Does.Not.Contain("ParamValue ids"));
             AssertCompilesAndSql(result, result.CanonicalSql, assemblyName: "GeneratedTranspilerSelectInParamValueTests");
+        }
+
+        [Test]
+        public void TranspileSelect_CteCapturedFrameworkParameterTypes_AreRenderedWithoutGlobalPrefix()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                "WITH revenue_by_customer AS (" +
+                "SELECT c.CustomerId, SUM(o.TotalAmount) AS Revenue " +
+                "FROM dbo.Customers c " +
+                "INNER JOIN dbo.Orders o ON o.CustomerId = c.CustomerId " +
+                "WHERE o.OrderDate >= @fromDate " +
+                "GROUP BY c.CustomerId" +
+                ") " +
+                "SELECT revenue.CustomerId, revenue.Revenue FROM revenue_by_customer revenue");
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("private readonly DateTime fromDate;"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("public RevenueByCustomerCte(DateTime fromDate, Alias alias = default)"));
+            Assert.That(result.QueryCSharpCode, Does.Not.Contain("public RevenueByCustomerCte(global::System.DateTime"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("new RevenueByCustomerCte(fromDate, \"revenue\")"));
+        }
+
+        [Test]
+        public void TranspileSelect_AliasedSubtractionOverWindow_IsPreserved()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                "WITH revenue_by_customer AS (" +
+                "SELECT c.CustomerId, SUM(o.TotalAmount) AS Revenue " +
+                "FROM dbo.Customers c " +
+                "INNER JOIN dbo.Orders o ON o.CustomerId = c.CustomerId " +
+                "GROUP BY c.CustomerId" +
+                ") " +
+                "SELECT r.CustomerId, SUM(r.Revenue) OVER() - r.Revenue AS RemainingRevenue FROM revenue_by_customer r");
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("Sum(r.Revenue).Over().AsValue() - r.Revenue"));
+            AssertCompilesAndSql(result, result.CanonicalSql, assemblyName: "GeneratedTranspilerSelectWindowArithmeticTests");
+        }
+
+        [Test]
+        public void TranspileSelect_Showcase20_RemainingRevenueSubtraction_IsPreserved()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                "WITH revenue_by_customer AS (" +
+                "SELECT c.CustomerId, c.CustomerName, SUM(o.TotalAmount) AS Revenue " +
+                "FROM dbo.Customers c " +
+                "INNER JOIN dbo.Orders o ON o.CustomerId = c.CustomerId " +
+                "WHERE o.OrderDate >= @fromDate " +
+                "GROUP BY c.CustomerId, c.CustomerName" +
+                ") " +
+                "SELECT r.CustomerId, r.CustomerName, r.Revenue, " +
+                "SUM(r.Revenue) OVER() AS TotalRevenue, " +
+                "SUM(r.Revenue) OVER() - r.Revenue AS RemainingRevenue " +
+                "FROM revenue_by_customer r " +
+                "ORDER BY r.Revenue DESC");
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("Sum(r.Revenue).Over().As(\"TotalRevenue\")"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("(Sum(r.Revenue).Over().AsValue() - r.Revenue).As(\"RemainingRevenue\")"));
+            AssertCompilesAndSql(result, result.CanonicalSql, assemblyName: "GeneratedTranspilerShowcase20ArithmeticTests");
         }
 
         [Test]

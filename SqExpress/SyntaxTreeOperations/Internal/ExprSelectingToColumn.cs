@@ -60,6 +60,9 @@ internal sealed class ExprSelectingToColumnInfo : IExprSelectingVisitor<ExprSele
     public ExprSelectingAsColumnInfo? VisitExprUnsafeValue(ExprUnsafeValue exprUnsafeValue, object? arg)
         => null;
 
+    public ExprSelectingAsColumnInfo? VisitExprSelectingValue(ExprSelectingValue exprSelectingValue, object? arg)
+        => exprSelectingValue.Selecting.Accept(this, arg);
+
     public ExprSelectingAsColumnInfo? VisitExprValueQuery(ExprValueQuery exprValueQuery, object? arg)
     {
         var outputSelecting = exprValueQuery.Query.ExtractSelecting();

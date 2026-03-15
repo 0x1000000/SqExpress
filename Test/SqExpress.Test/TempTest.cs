@@ -16,10 +16,9 @@ public class TempTest
     {
         var u = new User();
 
-        var sql = SqTSqlParser
-            .Parse("SELECT * FROM User WHERE UserId = @users", [u])
-            .WithParams("users", 1)
-            .ToSql();
+        var sql = SqQueryBuilder
+            .Select(SqQueryBuilder.Sum(SqQueryBuilder.AsValue(SqQueryBuilder.Sum(u.UserId))).Over())
+            .From(u);
         
        Console.WriteLine(sql);
     }

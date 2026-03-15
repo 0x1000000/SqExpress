@@ -88,6 +88,11 @@ internal class DbParameterValueVisitorExtractor: IExprValueVisitor<DbParameterVa
         return new DbParameterValue(ToDbValue(exprUnsafeValue.UnsafeValue), DbType.String, name);
     }
 
+    public virtual DbParameterValue? VisitExprSelectingValue(ExprSelectingValue exprSelectingValue, string? name)
+    {
+        return null;
+    }
+
     public virtual DbParameterValue? VisitExprValueQuery(ExprValueQuery exprValueQuery, string? name)
     {
         return null;

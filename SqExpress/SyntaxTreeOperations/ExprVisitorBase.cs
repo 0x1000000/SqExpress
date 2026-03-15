@@ -577,6 +577,10 @@ namespace SqExpress.SyntaxTreeOperations
             this.Accept(expr.SelectQuery);
             this.Accept(expr.OrderBy);
         }
+        public virtual void VisitExprSelectingValue(ExprSelectingValue expr)
+        {
+            this.Accept(expr.Selecting);
+        }
         public virtual void VisitExprStringConcat(ExprStringConcat expr)
         {
             this.Accept(expr.Left);

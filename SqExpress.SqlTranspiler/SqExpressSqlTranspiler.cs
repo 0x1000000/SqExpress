@@ -265,6 +265,7 @@ namespace SqExpress.SqlTranspiler
             var compilationUnit = CompilationUnit()
                 .AddUsings(
                     UsingDirective(ParseName("System")),
+                    UsingDirective(ParseName("System.Collections.Generic")),
                     UsingDirective(ParseName("System.Threading.Tasks")),
                     UsingDirective(ParseName("SqExpress")),
                     UsingDirective(ParseName("SqExpress.DataAccess")),
@@ -465,6 +466,11 @@ namespace SqExpress.SqlTranspiler
             var statements = new List<RoslynStatementSyntax>(
                 model.OutSources.Count + model.LocalSources.Count + model.ParameterDeclarations.Count + 3);
 
+            foreach (var declaration in model.ParameterDeclarations)
+            {
+                statements.Add(ParseStatement(declaration));
+            }
+
             foreach (var usage in model.OutSources)
             {
                 parameters.Add(
@@ -473,12 +479,7 @@ namespace SqExpress.SqlTranspiler
                         .AddModifiers(Token(SyntaxKind.OutKeyword)));
 
                 statements.Add(ParseStatement(
-                    usage.VariableName + " = new " + usage.ClassName + "(" + ToCSharpStringLiteral(usage.Alias) + ");"));
-            }
-
-            foreach (var declaration in model.ParameterDeclarations)
-            {
-                statements.Add(ParseStatement(declaration));
+                    usage.VariableName + " = " + usage.InitializationExpression + ";"));
             }
 
             foreach (var usage in model.LocalSources)
@@ -878,7 +879,7 @@ namespace SqExpress.SqlTranspiler
             var buildCall = options.MethodName + "(" + buildArgs + ")";
             var forEachStatement = ForEachStatement(
                 IdentifierName("var"),
-                Identifier("r"),
+                Identifier("row"),
                 ParseExpression(buildCall + ".Query(database)"),
                 Block(readStatements))
                 .WithAwaitKeyword(Token(SyntaxKind.AwaitKeyword));

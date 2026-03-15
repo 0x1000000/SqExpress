@@ -39,6 +39,23 @@
             </div>
         </div>
         <div id="sql-editor" class="sql-editor"></div>
+        <details class="showcase-panel">
+            <summary class="showcase-panel-summary">Showcase Query</summary>
+            <div class="showcase-field">
+                <span class="showcase-label">Choose an example</span>
+                <div class="showcase-toolbar">
+                    <label class="showcase-picker">
+                    <select value="@this._selectedShowcaseSampleId" @onchange="this.OnShowcaseSampleChanged">
+                        @foreach (var sample in ShowcaseSamples)
+                        {
+                            <option value="@sample.Id">@sample.Title</option>
+                        }
+                    </select>
+                    </label>
+                    <button class="action-button action-button-secondary" @onclick="this.LoadSelectedShowcaseSampleAsync">Load Example</button>
+                </div>
+            </div>
+        </details>
     </div>
 
     <div class="settings-card">
@@ -147,12 +164,14 @@
         new DialectOption(SqlPreviewDialect.MySqlOracle, "MySQL Oracle"),
         new DialectOption(SqlPreviewDialect.MySqlMariaDb, "MySQL MariaDB")
     };
+    private static readonly IReadOnlyList<ShowcaseSample> ShowcaseSamples = ShowcaseCatalog.All;
     private DotNetObjectReference<Home>? _dotNetRef;
     private string _sqlText =
         "SELECT u.UserId, u.Name AS UserName " +
         "FROM dbo.Users u " +
         "WHERE u.IsActive = 1 " +
         "ORDER BY u.Name DESC";
+    private string _selectedShowcaseSampleId = ShowcaseSamples[0].Id;
     private string _tableDescriptorPrefix = "Table";
     private string _tableDescriptorSuffix = string.Empty;
     private string _defaultSchemaName = "dbo";
@@ -165,6 +184,8 @@
     private bool _editorInitialized;
     private bool _outputEditorsInitialized;
     private SqlPreviewDialect _selectedDialect = SqlPreviewDialect.TSql;
+    private ShowcaseSample SelectedShowcaseSample
+        => ShowcaseSamples.FirstOrDefault(i => i.Id == this._selectedShowcaseSampleId) ?? ShowcaseSamples[0];
 
     [JSInvokable]
     public Task OnSqlChangedFromJs(string sqlText)
@@ -351,6 +372,24 @@
         {
             // Ignore storage errors and keep transpiler usable.
         }
+    }
+
+    private void OnShowcaseSampleChanged(ChangeEventArgs args)
+    {
+        this._selectedShowcaseSampleId = args.Value?.ToString() ?? ShowcaseSamples[0].Id;
+    }
+
+    private async Task LoadSelectedShowcaseSampleAsync()
+    {
+        this._sqlText = this.SelectedShowcaseSample.SqlText;
+        this._error = null;
+
+        if (this._editorInitialized)
+        {
+            await JsRuntime.InvokeVoidAsync("sqExpressSqlEditor.setValue", EditorElementId, this._sqlText);
+        }
+
+        await this.TranspileAsync();
     }
 
     private string GetDialectLabel(SqlPreviewDialect dialect)

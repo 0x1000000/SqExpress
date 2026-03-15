@@ -118,6 +118,7 @@ namespace SqExpress.Syntax
         void VisitExprSchemaName(ExprSchemaName expr);
         void VisitExprSelect(ExprSelect expr);
         void VisitExprSelectOffsetFetch(ExprSelectOffsetFetch expr);
+        void VisitExprSelectingValue(ExprSelectingValue expr);
         void VisitExprStringConcat(ExprStringConcat expr);
         void VisitExprStringLiteral(ExprStringLiteral expr);
         void VisitExprSub(ExprSub expr);
