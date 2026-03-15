@@ -292,7 +292,7 @@ namespace SqExpress.SqlTranspiler.Test
             AssertCompilesAndSql(intVariable, SqlVariableIntCompare);
 
             var inVariable = transpiler.Transpile("SELECT u.UserId FROM dbo.Users u WHERE u.Name IN (@names)");
-            Assert.That(inVariable.QueryCSharpCode, Does.Contain("var names = new[]"));
+            Assert.That(inVariable.QueryCSharpCode, Does.Contain("ParamValue names = [Literal(\"\")];"));
             Assert.That(inVariable.QueryCSharpCode, Does.Contain("\"\""));
             Assert.That(inVariable.QueryCSharpCode, Does.Contain("u.Name.In(names)"));
             AssertCompilesAndSql(inVariable, SqlVariableInList);
@@ -342,7 +342,7 @@ namespace SqExpress.SqlTranspiler.Test
             Assert.That(result.QueryCSharpCode, Does.Contain("var userGuid = default(global::System.Guid);"));
             Assert.That(result.QueryCSharpCode, Does.Contain("var payload = global::System.Array"));
             Assert.That(result.QueryCSharpCode, Does.Contain(".Empty<byte>();"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("var guidList = new[]"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("ParamValue guidList = [Literal(default(global::System.Guid))];"));
             Assert.That(result.QueryCSharpCode, Does.Contain("Literal(default(global::System.Guid))"));
             Assert.That(result.QueryCSharpCode, Does.Contain("Literal(0m)"));
             Assert.That(result.QueryCSharpCode, Does.Contain("Literal(default(global::System.DateTime))"));
@@ -1326,6 +1326,19 @@ namespace SqExpress.SqlTranspiler.Test
             Assert.That(result.QueryCSharpCode, Does.Not.Contain("global::SqExpress.Syntax.Value.ExprValue[]"));
             Assert.That(result.QueryCSharpCode, Does.Contain("new SrcSubQuery(userId, userName, isActive, \"src\")"));
             AssertCompilesAndSql(result, result.CanonicalSql, assemblyName: "GeneratedTranspilerMergeSelectSourceTests");
+        }
+
+        [Test]
+        public void TranspileSelect_WithInParameter_UsesParamValue()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile("SELECT * FROM dbo.Users u WHERE u.UserId IN(@ids)");
+
+            Assert.AreEqual("SELECT", result.StatementKind);
+            Assert.That(result.QueryCSharpCode, Does.Contain("ParamValue ids = [Literal(0)];"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("u.UserId.In(ids)"));
+            Assert.That(result.QueryCSharpCode, Does.Not.Contain("ExprValue[] ids"));
+            AssertCompilesAndSql(result, result.CanonicalSql, assemblyName: "GeneratedTranspilerSelectInParamValueTests");
         }
 
         [Test]

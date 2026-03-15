@@ -152,7 +152,7 @@ namespace SqExpress.SqlTranspiler
             var listParameters = GetListParameterNames(previewExpr);
             if (parameterDefaults.Count > 0)
             {
-                expr = previewExpr.WithParams(parameterDefaults);
+                expr = previewExpr.WithParams(ToParamValues(parameterDefaults));
             }
             else
             {
@@ -1502,6 +1502,17 @@ namespace SqExpress.SqlTranspiler
 
             var result = new Dictionary<string, ExprValue>(kinds.Count, StringComparer.Ordinal);
             foreach (var p in kinds) { result[p.Key] = CreateDefaultExprValue(p.Value); }
+            return result;
+        }
+
+        private static IReadOnlyDictionary<string, ParamValue> ToParamValues(IReadOnlyDictionary<string, ExprValue> values)
+        {
+            var result = new Dictionary<string, ParamValue>(values.Count, StringComparer.Ordinal);
+            foreach (var pair in values)
+            {
+                result.Add(pair.Key, pair.Value);
+            }
+
             return result;
         }
 

@@ -451,7 +451,7 @@ namespace SqExpress.SqlTranspiler
                     if (this._listParameters.Contains(pair.Key))
                     {
                         var item = this.RenderListParameterItem(pair.Value);
-                        result.Add("var " + variable + " = new[] { " + item + " };");
+                        result.Add("ParamValue " + variable + " = [" + item + "];");
                         continue;
                     }
 
@@ -3252,7 +3252,7 @@ namespace SqExpress.SqlTranspiler
             {
                 if (this._listParameters.Contains(parameterName))
                 {
-                    return "ExprValue[]";
+                    return "ParamValue";
                 }
 
                 if (!this._parameterDefaults.TryGetValue(parameterName, out var defaultValue))
