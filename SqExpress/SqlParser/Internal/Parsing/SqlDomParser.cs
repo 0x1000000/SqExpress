@@ -1139,6 +1139,11 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 return null;
             }
 
+            if (last.IdentifierValue.StartsWith("@", StringComparison.Ordinal))
+            {
+                return null;
+            }
+
             var prev = tokens[endExclusive - 2];
             if (prev.IsKeyword("AS"))
             {

@@ -312,6 +312,53 @@ namespace SqExpress.SqlTranspiler.Test
         }
 
         [Test]
+        public void TranspileSelect_LiteralArithmetic_UsesSqlExpressionOperators()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile("SELECT 1 + 2, 10 - 3, 4 * 5, 8 / 2, 9 % 4");
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("(Literal(1) + 2)"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("(Literal(10) - 3)"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("(Literal(4) * 5)"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("(Literal(8) / 2)"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("(Literal(9) % 4)"));
+            AssertCompilesAndSqlMatchesRaw(result, "SELECT 1 + 2, 10 - 3, 4 * 5, 8 / 2, 9 % 4", assemblyName: "GeneratedTranspilerLiteralArithmeticTests");
+        }
+
+        [Test]
+        public void TranspileSelect_ParameterArithmetic_UsesSqlExpressionOperators()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var sql =
+                "SELECT @a + @b, @a - @b, @a * @b, @a / @b, @a % @b " +
+                "FROM dbo.Users u " +
+                "WHERE @a > 0 AND @b > 0";
+            var result = transpiler.Transpile(sql);
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("var a = 0;"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var b = 0;"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("(Literal(a) + b)"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("(Literal(a) - b)"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("(Literal(a) * b)"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("(Literal(a) / b)"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("(Literal(a) % b)"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Where((Literal(a) > 0) & (Literal(b) > 0))"));
+            AssertCompiles(result, "GeneratedTranspilerParameterArithmeticTests");
+        }
+
+        [Test]
+        public void TranspileSelect_ArithmeticParameter_DefaultsToNumericLocal()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile("SELECT (1+2)*2/@p1");
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("var p1 = 0;"));
+            Assert.That(result.QueryCSharpCode, Does.Not.Contain("var p1 = \"\";"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("(((Literal(1) + 2) * 2) / p1)"));
+            AssertCompiles(result, "GeneratedTranspilerArithmeticParameterInferenceTests");
+        }
+
+        [Test]
         public void TranspileSelect_DescriptorAndVariableTyping_SupportsExtendedTypes()
         {
             var transpiler = new SqExpressSqlTranspiler();
@@ -382,8 +429,18 @@ namespace SqExpress.SqlTranspiler.Test
 
             var result = transpiler.Transpile("SELECT LEN(u.Name) AS NameLength FROM dbo.Users u");
 
-            Assert.That(result.QueryCSharpCode, Does.Contain("ScalarFunctionSys(\"LEN\", u.Name).As(\"NameLength\")"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Len(u.Name).As(\"NameLength\")"));
             AssertCompilesAndSql(result, SqlFunction);
+        }
+
+        [Test]
+        public void TranspileSelect_PortableYearFunction_UsesKnownHelper()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile("SELECT YEAR('2026-01-01')");
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("Select(Year(\"2026-01-01\")).Done();"));
+            AssertCompilesAndSqlMatchesRaw(result, "SELECT YEAR('2026-01-01')", assemblyName: "GeneratedTranspilerPortableYearTests");
         }
 
         [Test]
@@ -840,7 +897,7 @@ namespace SqExpress.SqlTranspiler.Test
 
             Assert.That(result.QueryCSharpCode, Does.Contain("RowNumber().OverOrderBy(Asc(u.UserId)).As(\"Rn\")"));
             Assert.That(result.QueryCSharpCode, Does.Contain("IsNull(u.Name, \"NA\").As(\"UserName\")"));
-            Assert.That(result.QueryCSharpCode, Does.Contain("ScalarFunctionSys(\"LEN\", u.Name).As(\"NameLen\")"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Len(u.Name).As(\"NameLen\")"));
             Assert.That(result.QueryCSharpCode, Does.Contain("Select(u.UserId"));
             Assert.That(result.QueryCSharpCode, Does.Contain(".Where((u.UserId.In("));
             Assert.That(result.QueryCSharpCode, Does.Contain(".OuterApply("));

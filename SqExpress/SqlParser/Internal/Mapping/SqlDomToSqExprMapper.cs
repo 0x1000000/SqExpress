@@ -2005,6 +2005,11 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 return false;
             }
 
+            if (last.IdentifierValue.StartsWith("@", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
             var prev = tokens[tokens.Count - 2];
             if (prev.Type == SqlTokenType.Dot)
             {

@@ -16,11 +16,9 @@ public class TempTest
     {
         var u = new User();
 
-        var sql = SqQueryBuilder
-            .Select(SqQueryBuilder.Sum(SqQueryBuilder.AsValue(SqQueryBuilder.Sum(u.UserId))).Over())
-            .From(u);
         
-       Console.WriteLine(sql);
+        
+       //Console.WriteLine(sql);
     }
 }
 

@@ -2071,15 +2071,15 @@ namespace SqExpress.SqlTranspiler
                     case ExprParameter parameter:
                         return NormalizeParameterName(parameter.TagName ?? "p");
                     case ExprSum sum:
-                        return "(" + this.RenderValue(sum.Left, context) + " + " + this.RenderValue(sum.Right, context) + ")";
+                        return "(" + this.RenderArithmeticLeftOperand(sum.Left, context) + " + " + this.RenderValue(sum.Right, context) + ")";
                     case ExprSub sub:
-                        return "(" + this.RenderValue(sub.Left, context) + " - " + this.RenderValue(sub.Right, context) + ")";
+                        return "(" + this.RenderArithmeticLeftOperand(sub.Left, context) + " - " + this.RenderValue(sub.Right, context) + ")";
                     case ExprMul mul:
-                        return "(" + this.RenderValue(mul.Left, context) + " * " + this.RenderValue(mul.Right, context) + ")";
+                        return "(" + this.RenderArithmeticLeftOperand(mul.Left, context) + " * " + this.RenderValue(mul.Right, context) + ")";
                     case ExprDiv div:
-                        return "(" + this.RenderValue(div.Left, context) + " / " + this.RenderValue(div.Right, context) + ")";
+                        return "(" + this.RenderArithmeticLeftOperand(div.Left, context) + " / " + this.RenderValue(div.Right, context) + ")";
                     case ExprModulo modulo:
-                        return "(" + this.RenderValue(modulo.Left, context) + " % " + this.RenderValue(modulo.Right, context) + ")";
+                        return "(" + this.RenderArithmeticLeftOperand(modulo.Left, context) + " % " + this.RenderValue(modulo.Right, context) + ")";
                     case ExprStringConcat concat:
                         return this.RenderValue(concat.Left, context) + " + " + this.RenderValue(concat.Right, context);
                     case ExprBitwiseAnd bitwiseAnd:
@@ -2133,6 +2133,39 @@ namespace SqExpress.SqlTranspiler
                 }
             }
 
+            private string RenderArithmeticLeftOperand(ExprValue value, RenderContext context)
+            {
+                if (ShouldWrapInLiteralForArithmetic(value))
+                {
+                    return "Literal(" + this.RenderValue(value, context) + ")";
+                }
+
+                return this.RenderValue(value, context);
+            }
+
+            private static bool ShouldWrapInLiteralForArithmetic(ExprValue value)
+            {
+                switch (value)
+                {
+                    case ExprStringLiteral:
+                    case ExprBoolLiteral:
+                    case ExprInt16Literal:
+                    case ExprInt32Literal:
+                    case ExprInt64Literal:
+                    case ExprDecimalLiteral:
+                    case ExprDoubleLiteral:
+                    case ExprGuidLiteral:
+                    case ExprDateTimeLiteral:
+                    case ExprDateTimeOffsetLiteral:
+                    case ExprByteArrayLiteral:
+                    case ExprByteLiteral:
+                    case ExprParameter:
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+
             private string RenderScalarFunction(ExprScalarFunction function, RenderContext context)
             {
                 var args = function.Arguments == null || function.Arguments.Count < 1
@@ -2155,27 +2188,29 @@ namespace SqExpress.SqlTranspiler
 
                 string functionName = function.PortableFunction switch
                 {
-                    PortableScalarFunction.Len => "ScalarFunctionSys(\"LEN\"",
-                    PortableScalarFunction.DataLen => "ScalarFunctionSys(\"DATALENGTH\"",
-                    PortableScalarFunction.Year => "ScalarFunctionSys(\"YEAR\"",
-                    PortableScalarFunction.Month => "ScalarFunctionSys(\"MONTH\"",
-                    PortableScalarFunction.Day => "ScalarFunctionSys(\"DAY\"",
-                    PortableScalarFunction.Hour => "ScalarFunctionSys(\"DATEPART\", \"hour\"",
-                    PortableScalarFunction.Minute => "ScalarFunctionSys(\"DATEPART\", \"minute\"",
-                    PortableScalarFunction.Second => "ScalarFunctionSys(\"DATEPART\", \"second\"",
-                    PortableScalarFunction.IndexOf => "ScalarFunctionSys(\"CHARINDEX\"",
-                    PortableScalarFunction.Left => "ScalarFunctionSys(\"LEFT\"",
-                    PortableScalarFunction.Right => "ScalarFunctionSys(\"RIGHT\"",
-                    PortableScalarFunction.Repeat => "ScalarFunctionSys(\"REPLICATE\"",
+                    PortableScalarFunction.Len => "Len",
+                    PortableScalarFunction.DataLen => "DataLength",
+                    PortableScalarFunction.Year => "Year",
+                    PortableScalarFunction.Month => "Month",
+                    PortableScalarFunction.Day => "Day",
+                    PortableScalarFunction.Hour => "Hour",
+                    PortableScalarFunction.Minute => "Minute",
+                    PortableScalarFunction.Second => "Second",
+                    PortableScalarFunction.IndexOf => "IndexOf",
+                    PortableScalarFunction.Left => "Left",
+                    PortableScalarFunction.Right => "Right",
+                    PortableScalarFunction.Repeat => "Repeat",
                     _ => "ScalarFunctionSys(\"UNKNOWN\""
                 };
 
-                if (args.Length < 1)
+                if (functionName.StartsWith("ScalarFunctionSys(", StringComparison.Ordinal))
                 {
-                    return functionName + ")";
+                    return args.Length < 1
+                        ? functionName + ")"
+                        : functionName + ", " + string.Join(", ", args) + ")";
                 }
 
-                return functionName + ", " + string.Join(", ", args) + ")";
+                return functionName + "(" + string.Join(", ", args) + ")";
             }
 
             private string RenderCase(ExprCase exprCase, RenderContext context)

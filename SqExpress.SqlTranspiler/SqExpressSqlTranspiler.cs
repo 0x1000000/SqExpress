@@ -1500,6 +1500,7 @@ namespace SqExpress.SqlTranspiler
             foreach (Match m in RxParamCompareColumn.Matches(sql)) { Hint(kinds, m.Groups["p"].Value, InferKindFromColumnToken(m.Groups["c"].Value)); }
             foreach (Match m in RxInParam.Matches(sql)) { Hint(kinds, m.Groups["p"].Value, InferKindFromColumnToken(m.Groups["c"].Value)); }
             foreach (Match m in RxParamCompareNumber.Matches(sql)) { Hint(kinds, m.Groups["p"].Value, m.Groups["n"].Value.Contains(".") ? ParamKind.Decimal : ParamKind.Int32); }
+            HintParametersFromArithmeticContext(expr, kinds);
 
             var result = new Dictionary<string, ExprValue>(kinds.Count, StringComparer.Ordinal);
             foreach (var p in kinds) { result[p.Key] = CreateDefaultExprValue(p.Value); }
@@ -1536,6 +1537,134 @@ namespace SqExpress.SqlTranspiler
             var n = rawName.Trim().TrimStart('@');
             if (!kinds.ContainsKey(n)) { return; }
             kinds[n] = MergeParamKind(kinds[n], hint);
+        }
+
+        private static void HintParametersFromArithmeticContext(IExpr expr, Dictionary<string, ParamKind> kinds)
+        {
+            foreach (var arithmetic in expr.SyntaxTree().DescendantsAndSelf().OfType<ExprArithmetic>())
+            {
+                var inferred = InferArithmeticKind(arithmetic, kinds) ?? ParamKind.Int32;
+                HintParametersInArithmetic(arithmetic, inferred, kinds);
+            }
+        }
+
+        private static ParamKind? InferArithmeticKind(ExprValue value, IReadOnlyDictionary<string, ParamKind> kinds)
+        {
+            switch (value)
+            {
+                case ExprParameter parameter when !string.IsNullOrWhiteSpace(parameter.TagName):
+                    if (kinds.TryGetValue(parameter.TagName!, out var parameterKind))
+                    {
+                        return NormalizeArithmeticKind(parameterKind);
+                    }
+
+                    return null;
+                case ExprColumn column:
+                    return NormalizeArithmeticKind(InferKindFromColumnToken(column.ColumnName.Name));
+                case ExprCast cast:
+                    return NormalizeArithmeticKind(InferArithmeticKindFromSqlType(cast.SqlType));
+                case ExprSum sum:
+                    return MergeArithmeticKinds(InferArithmeticKind(sum.Left, kinds), InferArithmeticKind(sum.Right, kinds));
+                case ExprSub sub:
+                    return MergeArithmeticKinds(InferArithmeticKind(sub.Left, kinds), InferArithmeticKind(sub.Right, kinds));
+                case ExprMul mul:
+                    return MergeArithmeticKinds(InferArithmeticKind(mul.Left, kinds), InferArithmeticKind(mul.Right, kinds));
+                case ExprDiv div:
+                    return MergeArithmeticKinds(InferArithmeticKind(div.Left, kinds), InferArithmeticKind(div.Right, kinds));
+                case ExprModulo modulo:
+                    return MergeArithmeticKinds(InferArithmeticKind(modulo.Left, kinds), InferArithmeticKind(modulo.Right, kinds));
+                default:
+                    return NormalizeArithmeticKind(InferArithmeticKindFromValue(value));
+            }
+        }
+
+        private static void HintParametersInArithmetic(ExprValue value, ParamKind hint, Dictionary<string, ParamKind> kinds)
+        {
+            switch (value)
+            {
+                case ExprParameter parameter when !string.IsNullOrWhiteSpace(parameter.TagName):
+                    Hint(kinds, parameter.TagName!, hint);
+                    break;
+                case ExprSum sum:
+                    HintParametersInArithmetic(sum.Left, hint, kinds);
+                    HintParametersInArithmetic(sum.Right, hint, kinds);
+                    break;
+                case ExprSub sub:
+                    HintParametersInArithmetic(sub.Left, hint, kinds);
+                    HintParametersInArithmetic(sub.Right, hint, kinds);
+                    break;
+                case ExprMul mul:
+                    HintParametersInArithmetic(mul.Left, hint, kinds);
+                    HintParametersInArithmetic(mul.Right, hint, kinds);
+                    break;
+                case ExprDiv div:
+                    HintParametersInArithmetic(div.Left, hint, kinds);
+                    HintParametersInArithmetic(div.Right, hint, kinds);
+                    break;
+                case ExprModulo modulo:
+                    HintParametersInArithmetic(modulo.Left, hint, kinds);
+                    HintParametersInArithmetic(modulo.Right, hint, kinds);
+                    break;
+            }
+        }
+
+        private static ParamKind? MergeArithmeticKinds(ParamKind? left, ParamKind? right)
+        {
+            if (left == ParamKind.Decimal || right == ParamKind.Decimal)
+            {
+                return ParamKind.Decimal;
+            }
+
+            if (left == ParamKind.Int32 || right == ParamKind.Int32)
+            {
+                return ParamKind.Int32;
+            }
+
+            return left ?? right;
+        }
+
+        private static ParamKind? NormalizeArithmeticKind(ParamKind? kind)
+        {
+            return kind switch
+            {
+                ParamKind.Int32 => ParamKind.Int32,
+                ParamKind.Decimal => ParamKind.Decimal,
+                _ => null
+            };
+        }
+
+        private static ParamKind? InferArithmeticKindFromValue(ExprValue value)
+        {
+            switch (value)
+            {
+                case ExprInt16Literal:
+                case ExprInt32Literal:
+                case ExprInt64Literal:
+                case ExprByteLiteral:
+                    return ParamKind.Int32;
+                case ExprDecimalLiteral:
+                case ExprDoubleLiteral:
+                    return ParamKind.Decimal;
+                default:
+                    return null;
+            }
+        }
+
+        private static ParamKind? InferArithmeticKindFromSqlType(ExprType sqlType)
+        {
+            switch (sqlType)
+            {
+                case ExprTypeByte:
+                case ExprTypeInt16:
+                case ExprTypeInt32:
+                case ExprTypeInt64:
+                    return ParamKind.Int32;
+                case ExprTypeDecimal:
+                case ExprTypeDouble:
+                    return ParamKind.Decimal;
+                default:
+                    return null;
+            }
         }
 
         private static ParamKind MergeParamKind(ParamKind existing, ParamKind hint)

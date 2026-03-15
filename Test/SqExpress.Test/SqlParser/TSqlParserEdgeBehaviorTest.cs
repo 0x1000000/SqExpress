@@ -295,6 +295,17 @@ namespace SqExpress.Test.SqlParser
             Assert.That(expr, Is.Not.Null);
             Assert.That(expr!.ToSql(TSqlExporter.Default), Is.EqualTo("SELECT SUM([o].[TotalAmount]) OVER()-[o].[Discount] [RemainingRevenue] FROM [dbo].[Orders] [o]"));
         }
+
+        [Test]
+        public void ParameterArithmeticInSelectListParsesWithoutAliasTruncation()
+        {
+            var sql = "SELECT @a+@b FROM [dbo].[Users] [u] WHERE @a>0 AND @b>0";
+
+            var ok = SqTSqlParser.TryParse(sql, out var expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+        }
     }
 }
 
