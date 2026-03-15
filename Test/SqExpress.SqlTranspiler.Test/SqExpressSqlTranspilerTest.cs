@@ -1437,6 +1437,35 @@ namespace SqExpress.SqlTranspiler.Test
         }
 
         [Test]
+        public void TranspileSelect_WithOffsetFetchParameters_UsesIntegerDefaults()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                "SELECT o.OrderId " +
+                "FROM dbo.Orders o " +
+                "ORDER BY o.OrderId " +
+                "OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY");
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("var offset = 0;"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("var pageSize = 0;"));
+            Assert.That(result.QueryCSharpCode, Does.Not.Contain("var offset = \"\";"));
+            Assert.That(result.QueryCSharpCode, Does.Not.Contain("var pageSize = \"\";"));
+            AssertCompilesAndSql(result, result.CanonicalSql, assemblyName: "GeneratedTranspilerOffsetFetchParameterTests");
+        }
+
+        [Test]
+        public void TranspileSelect_AnalyticPartitionOrder_UsesOverOrderByBuilder()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                "SELECT DENSE_RANK() OVER(PARTITION BY u.TeamId ORDER BY u.Score DESC) AS TeamRank " +
+                "FROM dbo.Users u");
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("DenseRank().OverPartitionBy(u.TeamId).OverOrderBy(Desc(u.Score))"));
+            AssertCompilesAndSql(result, result.CanonicalSql, assemblyName: "GeneratedTranspilerAnalyticPartitionOrderTests");
+        }
+
+        [Test]
         public void TranspileSelect_CteCapturedFrameworkParameterTypes_AreRenderedWithoutGlobalPrefix()
         {
             var transpiler = new SqExpressSqlTranspiler();

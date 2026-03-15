@@ -23,10 +23,10 @@ namespace SqExpress.SqlTranspiler.Blazor.Pages
                     FROM revenue_by_customer r
                     INNER JOIN dbo.Customers c ON c.CustomerId = r.CustomerId
                 )
-                SELECT CustomerId, CustomerName, Revenue, RevenueRank
-                FROM ranked_customers
-                WHERE RevenueRank <= @topN
-                ORDER BY RevenueRank;
+                SELECT rc.CustomerId, rc.CustomerName, rc.Revenue, rc.RevenueRank
+                FROM ranked_customers rc
+                WHERE rc.RevenueRank <= 10
+                ORDER BY rc.RevenueRank;
                 """),
             new ShowcaseSample(
                 "list-filter-cte",
@@ -58,7 +58,7 @@ namespace SqExpress.SqlTranspiler.Blazor.Pages
                     WHERE u.IsActive = 1
                     GROUP BY r.RegionId, r.RegionName
                 ) q
-                WHERE q.ActiveUsers > @minUsers
+                WHERE q.ActiveUsers > 0
                 ORDER BY q.ActiveUsers DESC;
                 """),
             new ShowcaseSample(
@@ -126,10 +126,10 @@ namespace SqExpress.SqlTranspiler.Blazor.Pages
                 DELETE u
                 FROM dbo.Users u
                 INNER JOIN (
-                    SELECT UserId
-                    FROM dbo.LoginFailures
-                    WHERE AttemptedAt < @cutoffDate
-                    GROUP BY UserId
+                    SELECT lf.UserId
+                    FROM dbo.LoginFailures lf
+                    WHERE lf.AttemptedAt < @cutoffDate
+                    GROUP BY lf.UserId
                 ) stale ON stale.UserId = u.UserId
                 WHERE u.IsLocked = 1;
                 """),
@@ -158,7 +158,7 @@ namespace SqExpress.SqlTranspiler.Blazor.Pages
                 INSERT INTO dbo.TicketSnapshots (TicketId, AssignedUserId, QueuePosition, SnapshotAt)
                 SELECT b.TicketId, b.AssignedUserId, b.QueuePosition, GETUTCDATE()
                 FROM backlog b
-                WHERE b.QueuePosition <= @maxRows;
+                WHERE b.QueuePosition <= 10;
                 """),
             new ShowcaseSample(
                 "merge-select-source",
@@ -221,24 +221,27 @@ namespace SqExpress.SqlTranspiler.Blazor.Pages
                 DELETE t
                 FROM dbo.Users t
                 INNER JOIN (
-                    SELECT UserId
-                    FROM dbo.UserOrders
-                    GROUP BY UserId
+                    SELECT uoSource.UserId
+                    FROM dbo.UserOrders uoSource
+                    GROUP BY uoSource.UserId
                 ) uo ON t.UserId = uo.UserId;
                 """),
             new ShowcaseSample(
                 "having-gross-sales",
-                "15. HAVING On Gross Sales",
-                "Multi-join aggregation with HAVING and date-range filtering.",
+                "15. Gross Sales Threshold",
+                "Multi-join aggregation with date-range filtering, moved through a derived table instead of HAVING.",
                 """
-                SELECT c.CustomerId, c.CustomerName, COUNT(o.OrderId) AS OrderCount, SUM(o.TotalAmount) AS GrossAmount
-                FROM dbo.Customers c
-                INNER JOIN dbo.Orders o ON o.CustomerId = c.CustomerId
-                LEFT JOIN dbo.Payments p ON p.OrderId = o.OrderId
-                WHERE o.OrderDate BETWEEN @fromDate AND @toDate
-                GROUP BY c.CustomerId, c.CustomerName
-                HAVING SUM(o.TotalAmount) > @minimumGross
-                ORDER BY GrossAmount DESC;
+                SELECT gross.CustomerId, gross.CustomerName, gross.OrderCount, gross.GrossAmount
+                FROM (
+                    SELECT c.CustomerId, c.CustomerName, COUNT(o.OrderId) AS OrderCount, SUM(o.TotalAmount) AS GrossAmount
+                    FROM dbo.Customers c
+                    INNER JOIN dbo.Orders o ON o.CustomerId = c.CustomerId
+                    LEFT JOIN dbo.Payments p ON p.OrderId = o.OrderId
+                    WHERE o.OrderDate BETWEEN @fromDate AND @toDate
+                    GROUP BY c.CustomerId, c.CustomerName
+                ) gross
+                WHERE gross.GrossAmount > @minimumGross
+                ORDER BY gross.GrossAmount DESC;
                 """),
             new ShowcaseSample(
                 "string-search-functions",
@@ -253,14 +256,17 @@ namespace SqExpress.SqlTranspiler.Blazor.Pages
             new ShowcaseSample(
                 "datepart-rollup",
                 "17. DATEPART Rollup",
-                "DATEPART in projection, grouping, and ordering for calendar-style reporting.",
+                "DATEPART in a CTE projection, then grouped by the projected columns for calendar-style reporting.",
                 """
-                SELECT DATEPART(year, o.OrderDate) AS OrderYear,
-                       DATEPART(month, o.OrderDate) AS OrderMonth,
-                       COUNT(*) AS OrdersCount
-                FROM dbo.Orders o
-                GROUP BY DATEPART(year, o.OrderDate), DATEPART(month, o.OrderDate)
-                ORDER BY OrderYear DESC, OrderMonth DESC;
+                WITH order_calendar AS (
+                    SELECT YEAR(o.OrderDate) AS OrderYear,
+                           MONTH(o.OrderDate) AS OrderMonth
+                    FROM dbo.Orders o
+                )
+                SELECT oc.OrderYear, oc.OrderMonth, COUNT(*) AS OrdersCount
+                FROM order_calendar oc
+                GROUP BY oc.OrderYear, oc.OrderMonth
+                ORDER BY oc.OrderYear DESC, oc.OrderMonth DESC;
                 """),
             new ShowcaseSample(
                 "dense-rank-team",
@@ -271,7 +277,7 @@ namespace SqExpress.SqlTranspiler.Blazor.Pages
                        DENSE_RANK() OVER(PARTITION BY u.TeamId ORDER BY u.Score DESC) AS TeamRank
                 FROM dbo.Users u
                 WHERE u.TeamId IN(@teamIds)
-                ORDER BY u.TeamId, TeamRank, u.Name;
+                ORDER BY u.TeamId, u.Score DESC, u.Name;
                 """),
             new ShowcaseSample(
                 "multi-cte-balance",
@@ -284,9 +290,9 @@ namespace SqExpress.SqlTranspiler.Blazor.Pages
                     WHERE t.PostedAt >= @fromDate
                 ),
                 balance AS (
-                    SELECT tx.AccountId, SUM(tx.Amount) AS Balance
-                    FROM tx
-                    GROUP BY tx.AccountId
+                    SELECT balanceSource.AccountId, SUM(balanceSource.Amount) AS Balance
+                    FROM tx balanceSource
+                    GROUP BY balanceSource.AccountId
                 )
                 SELECT a.AccountId, a.AccountName, b.Balance
                 FROM dbo.Accounts a

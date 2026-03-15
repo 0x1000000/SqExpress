@@ -2328,12 +2328,12 @@ namespace SqExpress.SqlTranspiler
                 {
                     string partition = string.Join(", ", over.Partitions!.Select(i => this.RenderValue(i, context)));
                     string order = string.Join(", ", over.OrderBy!.OrderList.Select(i => this.RenderOrderByItem(i, context)));
-                    if (analyticFrameBuilder)
+                    if (supportsNoOrder && !analyticFrameBuilder)
                     {
-                        return baseExpression + ".OverPartitionBy(" + partition + ").OverOrderBy(" + order + ")";
+                        return baseExpression + ".OverPartitionBy(" + partition + ").OrderBy(" + order + ")";
                     }
 
-                    return baseExpression + ".OverPartitionBy(" + partition + ").OrderBy(" + order + ")";
+                    return baseExpression + ".OverPartitionBy(" + partition + ").OverOrderBy(" + order + ")";
                 }
 
                 if (hasPartitions)

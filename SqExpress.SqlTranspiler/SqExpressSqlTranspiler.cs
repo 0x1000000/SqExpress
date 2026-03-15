@@ -1501,6 +1501,7 @@ namespace SqExpress.SqlTranspiler
             foreach (Match m in RxInParam.Matches(sql)) { Hint(kinds, m.Groups["p"].Value, InferKindFromColumnToken(m.Groups["c"].Value)); }
             foreach (Match m in RxParamCompareNumber.Matches(sql)) { Hint(kinds, m.Groups["p"].Value, m.Groups["n"].Value.Contains(".") ? ParamKind.Decimal : ParamKind.Int32); }
             HintParametersFromArithmeticContext(expr, kinds);
+            HintParametersFromOffsetFetch(expr, kinds);
 
             var result = new Dictionary<string, ExprValue>(kinds.Count, StringComparer.Ordinal);
             foreach (var p in kinds) { result[p.Key] = CreateDefaultExprValue(p.Value); }
@@ -1545,6 +1546,23 @@ namespace SqExpress.SqlTranspiler
             {
                 var inferred = InferArithmeticKind(arithmetic, kinds) ?? ParamKind.Int32;
                 HintParametersInArithmetic(arithmetic, inferred, kinds);
+            }
+        }
+
+        private static void HintParametersFromOffsetFetch(IExpr expr, Dictionary<string, ParamKind> kinds)
+        {
+            foreach (var offsetFetch in expr.SyntaxTree().DescendantsAndSelf().OfType<ExprOffsetFetch>())
+            {
+                HintIntParameter(offsetFetch.Offset, kinds);
+                HintIntParameter(offsetFetch.Fetch, kinds);
+            }
+        }
+
+        private static void HintIntParameter(ExprValue? value, Dictionary<string, ParamKind> kinds)
+        {
+            if (value is ExprParameter parameter && !string.IsNullOrWhiteSpace(parameter.TagName))
+            {
+                Hint(kinds, parameter.TagName!, ParamKind.Int32);
             }
         }
 
