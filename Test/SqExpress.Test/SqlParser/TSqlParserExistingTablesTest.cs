@@ -286,7 +286,7 @@ namespace SqExpress.Test.SqlParser
         }
 
         [Test]
-        public void TryParse_WithExistingTables_WhenSqlHasNoTablesButExpectedNotEmpty_ReturnsMismatchError()
+        public void TryParse_WithExistingTables_WhenSqlHasNoTablesButExpectedNotEmpty_ReturnsTrue()
         {
             var sql = "SELECT 1";
             var existing = new TableBase[]
@@ -296,9 +296,9 @@ namespace SqExpress.Test.SqlParser
 
             var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
 
-            Assert.That(ok, Is.False);
-            Assert.That(expr, Is.Null);
-            Assert.That(error, Does.Contain("Missing tables: [dbo].[Users]"));
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(error, Is.Null);
         }
 
         [Test]

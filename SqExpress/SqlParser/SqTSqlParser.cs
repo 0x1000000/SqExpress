@@ -155,6 +155,12 @@ namespace SqExpress.SqlParser
             string? defaultSchema,
             [NotNullWhen(false)] out string? error)
         {
+            if (parsedTables.Count < 1)
+            {
+                error = null;
+                return true;
+            }
+
             var parsedAsBaseTables = parsedTables.Cast<TableBase>().ToList();
             var comparison = existingTables.CompareWith(parsedAsBaseTables, i => BuildTableComparisonKey(i, defaultSchema));
             if (comparison == null)
