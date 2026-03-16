@@ -306,6 +306,40 @@ namespace SqExpress.Test.SqlParser
             Assert.That(ok, Is.True, error);
             Assert.That(expr, Is.Not.Null);
         }
+
+        [Test]
+        public void DerivedTableGroupByQuery_WithSingleQuotedInnerAlias_Parses()
+        {
+            var sql = """
+                SELECT 
+                	CustomerName.CustomerName,
+                	COUNT(1) As OrdersNum
+                FROM 
+                (
+                	SELECT 
+                		C.CustomerId,
+                		CASE WHEN U.UserId IS NOT NULL
+                			THEN U.FirstName + ' ' + U.LastName
+                			ELSE Co.CompanyName
+                			END
+                			AS 'CustomerName'
+                	FROM Customer C
+                	LEFT JOIN [User] U ON U.UserId = C.UserId
+                	LEFT JOIN [Company] Co ON Co.CompanyId = C.CompanyId
+                ) AS CustomerName
+                INNER JOIN ItOrder Ord ON Ord.CustomerId = CustomerName.CustomerId
+                GROUP BY CustomerName.CustomerName
+                """;
+
+            var ok = SqTSqlParser.TryParse(sql, out var expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+
+            var exportedSql = expr!.ToSql(TSqlExporter.Default);
+            Assert.That(exportedSql, Does.Contain("END [CustomerName]"));
+            Assert.That(exportedSql, Does.Contain("GROUP BY [CustomerName].[CustomerName]"));
+        }
     }
 }
 

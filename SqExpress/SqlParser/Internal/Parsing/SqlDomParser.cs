@@ -1134,6 +1134,12 @@ namespace SqExpress.SqlParser.Internal.Parsing
             }
 
             var last = tokens[endExclusive - 1];
+            if (last.Type == SqlTokenType.StringLiteral)
+            {
+                var prevString = tokens[endExclusive - 2];
+                return prevString.IsKeyword("AS") ? ParseAliasToken(last) : null;
+            }
+
             if (!last.IsIdentifierLike)
             {
                 return null;
@@ -1159,6 +1165,20 @@ namespace SqExpress.SqlParser.Internal.Parsing
             }
 
             return last.IdentifierValue;
+        }
+
+        private static string ParseAliasToken(SqlToken token)
+        {
+            if (token.Type != SqlTokenType.StringLiteral)
+            {
+                return token.IdentifierValue;
+            }
+
+            return token.Text.Length >= 3 && (token.Text[0] == 'N' || token.Text[0] == 'n') && token.Text[1] == '\''
+                ? token.Text.Substring(2, token.Text.Length - 3).Replace("''", "'")
+                : token.Text.Length >= 2
+                    ? token.Text.Substring(1, token.Text.Length - 2).Replace("''", "'")
+                    : string.Empty;
         }
 
         private static SqlDomTableSource? ParseTableSource(string sql, IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)

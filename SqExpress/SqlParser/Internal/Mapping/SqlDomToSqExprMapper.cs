@@ -2000,6 +2000,19 @@ namespace SqExpress.SqlParser.Internal.Mapping
             }
 
             var last = tokens[tokens.Count - 1];
+            if (last.Type == SqlTokenType.StringLiteral)
+            {
+                var prevString = tokens[tokens.Count - 2];
+                if (!prevString.IsKeyword("AS") || tokens.Count < 3)
+                {
+                    return false;
+                }
+
+                alias = ParseAliasToken(last);
+                body = tokens.Take(tokens.Count - 2).ToList();
+                return true;
+            }
+
             if (!last.IsIdentifierLike)
             {
                 return false;
@@ -2036,6 +2049,20 @@ namespace SqExpress.SqlParser.Internal.Mapping
             alias = last.IdentifierValue;
             body = tokens.Take(tokens.Count - 1).ToList();
             return true;
+        }
+
+        private static string ParseAliasToken(SqlToken token)
+        {
+            if (token.Type != SqlTokenType.StringLiteral)
+            {
+                return token.IdentifierValue;
+            }
+
+            return token.Text.Length >= 3 && (token.Text[0] == 'N' || token.Text[0] == 'n') && token.Text[1] == '\''
+                ? token.Text.Substring(2, token.Text.Length - 3).Replace("''", "'")
+                : token.Text.Length >= 2
+                    ? token.Text.Substring(1, token.Text.Length - 2).Replace("''", "'")
+                    : string.Empty;
         }
 
         private static bool IsNonAliasTerminalKeyword(string text)
