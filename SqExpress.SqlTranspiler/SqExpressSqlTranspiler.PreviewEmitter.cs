@@ -281,6 +281,7 @@ namespace SqExpress.SqlTranspiler
 
             private readonly HashSet<string> _usedNestedTypeNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             private readonly List<MemberDeclarationSyntax> _nestedTypes = new List<MemberDeclarationSyntax>();
+            private readonly bool _reuseProvidedTopLevelSources;
 
             public QueryPreviewEmitter(
                 IExpr previewExpr,
@@ -289,7 +290,8 @@ namespace SqExpress.SqlTranspiler
                 IReadOnlyDictionary<string, string> classNamesByTableKey,
                 IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> columnTypesByClassName,
                 IReadOnlyDictionary<string, ExprValue> parameterDefaults,
-                IReadOnlyCollection<string> listParameters)
+                IReadOnlyCollection<string> listParameters,
+                bool reuseProvidedTopLevelSources = false)
             {
                 this._previewExpr = previewExpr;
                 this._statementKind = statementKind;
@@ -298,6 +300,7 @@ namespace SqExpress.SqlTranspiler
                 this._columnTypesByClassName = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
                 this._parameterDefaults = parameterDefaults;
                 this._listParameters = listParameters;
+                this._reuseProvidedTopLevelSources = reuseProvidedTopLevelSources;
 
                 foreach (var pair in classNamesByTableKey)
                 {
@@ -331,6 +334,19 @@ namespace SqExpress.SqlTranspiler
                 this.PrepareNestedTypes();
 
                 var rootContext = new RenderContext();
+                if (this._reuseProvidedTopLevelSources)
+                {
+                    foreach (var usage in buildUsages)
+                    {
+                        rootContext.BindingsByAlias[usage.Alias] = new SourceBinding(
+                            usage.Alias,
+                            usage.VariableName,
+                            SourceKind.Table,
+                            usage.ClassName,
+                            string.Empty);
+                        rootContext.UsedVariableNames.Add(usage.VariableName);
+                    }
+                }
                 this.PreRegisterTopLevelOutSources(rootContext);
 
                 string queryExpressionCode = this.RenderStatement(this._previewExpr, rootContext);
@@ -380,6 +396,16 @@ namespace SqExpress.SqlTranspiler
 
                 foreach (var leaf in this.ExtractLeafSources(topFrom))
                 {
+                    if (this._reuseProvidedTopLevelSources
+                        && leaf.Source is ExprTable table
+                        && context.BindingsByAlias.ContainsKey(
+                            table.Alias != null
+                                ? this.GetAliasName(table.Alias.Alias)
+                                : ToCamelCaseIdentifier(table.FullName.AsExprTableFullName().TableName.Name, "t")))
+                    {
+                        continue;
+                    }
+
                     if (this.TryCreateBindingForSource(context, leaf.Source, out var binding, isOutPreferred: true))
                     {
                         if (binding is null)
@@ -388,7 +414,8 @@ namespace SqExpress.SqlTranspiler
                         }
 
                         context.BindingsByAlias[binding.Alias] = binding;
-                        if (binding.ClassName is string className
+                        if (!string.IsNullOrWhiteSpace(binding.InitializationExpression)
+                            && binding.ClassName is string className
                             && (binding.SourceKind == SourceKind.Table
                                 || binding.SourceKind == SourceKind.Cte
                                 || binding.SourceKind == SourceKind.Derived))

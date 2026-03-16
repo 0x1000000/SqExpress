@@ -31,6 +31,7 @@ Here’s an article that explains the library principles: [“Syntax Tree and Al
     <AssemblyOriginatorKeyFile>..\SqExpress.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>
     <DelaySign>false</DelaySign>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);PackSqExpressAnalyzerAssets</TargetsForTfmSpecificContentInPackage>
   </PropertyGroup>
 
   <ItemGroup>
@@ -68,6 +69,26 @@ Here’s an article that explains the library principles: [“Syntax Tree and Al
   <ItemGroup>
     <PackageReference Include="EnumVisitorGenerator" Version="1.1.2" PrivateAssets="all" ImportAssets="analyzers" />
   </ItemGroup>
+
+  <Target Name="PackSqExpressAnalyzerAssets"
+          Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <MSBuild Projects="..\SqExpress.Analyzers\SqExpress.Analyzers.csproj"
+             Targets="Build"
+             Properties="Configuration=$(Configuration)" />
+
+    <MSBuild Projects="..\SqExpress.Analyzers\SqExpress.Analyzers.csproj"
+             Targets="GetTargetPathWithTargetPlatformMoniker"
+             Properties="Configuration=$(Configuration)">
+      <Output TaskParameter="TargetOutputs" ItemName="_SqExpressAnalyzerPackageFiles" />
+    </MSBuild>
+
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="@(_SqExpressAnalyzerPackageFiles)">
+        <PackagePath>analyzers/dotnet/cs/%(_SqExpressAnalyzerPackageFiles.Filename)%(_SqExpressAnalyzerPackageFiles.Extension)</PackagePath>
+        <BuildAction>None</BuildAction>
+      </TfmSpecificPackageFile>
+    </ItemGroup>
+  </Target>
 
   <Target Name="PreventPackInDebug" BeforeTargets="Pack" Condition="'$(Configuration)|$(Platform)'!='Release|AnyCPU'">
     <Error Text="Pack cannot be done in debug mode!"></Error>
