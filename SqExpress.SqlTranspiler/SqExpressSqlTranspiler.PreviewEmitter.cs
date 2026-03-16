@@ -302,6 +302,14 @@ namespace SqExpress.SqlTranspiler
                 this._listParameters = listParameters;
                 this._reuseProvidedTopLevelSources = reuseProvidedTopLevelSources;
 
+                foreach (var reservedName in options.ReservedNestedTypeNames)
+                {
+                    if (!string.IsNullOrWhiteSpace(reservedName))
+                    {
+                        this._usedNestedTypeNames.Add(reservedName);
+                    }
+                }
+
                 foreach (var pair in classNamesByTableKey)
                 {
                     this._tableClassByKey[pair.Key] = pair.Value;
@@ -334,6 +342,7 @@ namespace SqExpress.SqlTranspiler
                 this.PrepareNestedTypes();
 
                 var rootContext = new RenderContext();
+                this.ReserveRootScopeNames(rootContext);
                 if (this._reuseProvidedTopLevelSources)
                 {
                     foreach (var usage in buildUsages)
@@ -361,6 +370,19 @@ namespace SqExpress.SqlTranspiler
                     readStatements,
                     this._nestedTypes,
                     queryExpressionCode);
+            }
+
+            private void ReserveRootScopeNames(RenderContext context)
+            {
+                foreach (var parameterName in this._parameterDefaults.Keys)
+                {
+                    context.UsedVariableNames.Add(NormalizeParameterName(parameterName));
+                }
+
+                if (!string.IsNullOrWhiteSpace(this._options.QueryVariableName))
+                {
+                    context.UsedVariableNames.Add(this._options.QueryVariableName);
+                }
             }
 
             private void PrepareNestedTypes()

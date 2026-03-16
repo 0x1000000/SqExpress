@@ -340,6 +340,23 @@ namespace SqExpress.Test.SqlParser
             Assert.That(exportedSql, Does.Contain("END [CustomerName]"));
             Assert.That(exportedSql, Does.Contain("GROUP BY [CustomerName].[CustomerName]"));
         }
+
+        [Test]
+        public void DeleteWithoutFromClause_Parses()
+        {
+            var sql = """
+                DELETE [User] WHERE UserId = @userId
+                """;
+
+            var ok = SqTSqlParser.TryParse(sql, out var expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.TypeOf<ExprDelete>());
+            var delete = (ExprDelete)expr!;
+            Assert.That(delete.Source, Is.Null);
+            Assert.That(delete.Target.FullName.AsExprTableFullName().TableName.Name, Is.EqualTo("User"));
+            Assert.That(delete.Filter, Is.Not.Null);
+        }
     }
 }
 

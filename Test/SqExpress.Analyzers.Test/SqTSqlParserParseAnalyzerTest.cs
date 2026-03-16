@@ -85,6 +85,59 @@ namespace SqExpress.Analyzers.Test
         }
 
         [Test]
+        public async Task Analyze_WhenSqlComesFromLastLocalAssignment_ReportsDiagnostic()
+        {
+            var source = CommonTypes + """
+
+                public sealed class Host
+                {
+                    public object M()
+                    {
+                        var u = new UsersTable("u");
+                        string sql = "SELECT u.UserId FROM dbo.Users u";
+
+                        return SqTSqlParser.Parse(sql, [u]);
+                    }
+                }
+                """;
+
+            var diagnostics = await GetDiagnosticsAsync(source);
+
+            Assert.That(diagnostics.Length, Is.EqualTo(1));
+            Assert.That(diagnostics[0].Id, Is.EqualTo("SQEX001"));
+        }
+
+        [Test]
+        public async Task Analyze_WhenSqlLocalHasAmbiguousControlFlow_DoesNotReportDiagnostic()
+        {
+            var source = CommonTypes + """
+
+                public sealed class Host
+                {
+                    public object M(bool flag)
+                    {
+                        var u = new UsersTable("u");
+                        string sql;
+                        if (flag)
+                        {
+                            sql = "SELECT u.UserId FROM dbo.Users u";
+                        }
+                        else
+                        {
+                            sql = "SELECT u.Name FROM dbo.Users u";
+                        }
+
+                        return SqTSqlParser.Parse(sql, [u]);
+                    }
+                }
+                """;
+
+            var diagnostics = await GetDiagnosticsAsync(source);
+
+            Assert.That(diagnostics, Is.Empty);
+        }
+
+        [Test]
         public async Task Analyze_WhenReferencedSqlTableHasNoMatchingSourceTableClass_StillReportsMigrationDiagnostic()
         {
             var source = """
@@ -140,6 +193,113 @@ namespace SqExpress.Analyzers.Test
         }
 
         [Test]
+        public async Task CodeFix_WhenUpdateStatementIsParsed_RewritesToSqExpress()
+        {
+            var source = CommonTypes + """
+
+                public sealed class Host
+                {
+                    public string M(int id, string name)
+                    {
+                        var u = new UsersTable("u");
+                        return SqTSqlParser.Parse("UPDATE u SET u.Name = @name FROM dbo.Users u WHERE u.UserId = @userId", [u])
+                            .WithParams("name", name)
+                            .WithParams("userId", id)
+                            .ToSql(SqExpress.SqlExport.TSqlExporter.Default);
+                    }
+                }
+                """;
+
+            var fixedSource = await ApplyCodeFixAsync(source);
+
+            Assert.That(fixedSource, Does.Not.Contain("SqTSqlParser.Parse"));
+            Assert.That(fixedSource, Does.Contain("var userId = id;"));
+            Assert.That(fixedSource, Does.Contain("Update("));
+            Assert.That(fixedSource, Does.Contain(".Set("));
+            Assert.That(fixedSource, Does.Contain(".Where("));
+            Assert.That(fixedSource, Does.Not.Contain("var name = name;"));
+            await AssertCompilesAsync(fixedSource);
+        }
+
+        [Test]
+        public async Task CodeFix_WhenDeleteStatementIsParsed_RewritesToSqExpress()
+        {
+            var source = CommonTypes + """
+
+                public sealed class Host
+                {
+                    public string M(int id)
+                    {
+                        var u = new UsersTable("u");
+                        return SqTSqlParser.Parse("DELETE u FROM dbo.Users u WHERE u.UserId = @userId", [u])
+                            .WithParams("userId", id)
+                            .ToSql(SqExpress.SqlExport.TSqlExporter.Default);
+                    }
+                }
+                """;
+
+            var fixedSource = await ApplyCodeFixAsync(source);
+
+            Assert.That(fixedSource, Does.Not.Contain("SqTSqlParser.Parse"));
+            Assert.That(fixedSource, Does.Contain("var userId = id;"));
+            Assert.That(fixedSource, Does.Contain("Delete("));
+            Assert.That(fixedSource, Does.Contain(".Where("));
+            await AssertCompilesAsync(fixedSource);
+        }
+
+        [Test]
+        public async Task CodeFix_WhenDeleteStatementOmitsFrom_RewritesToSqExpress()
+        {
+            var source = CommonTypes + """
+
+                public sealed class Host
+                {
+                    public string M(int id)
+                    {
+                        var allTables = new TableBase[] { new UsersTable() };
+                        return SqTSqlParser.Parse("DELETE [Users] WHERE UserId = @userId", allTables)
+                            .WithParams("userId", id)
+                            .ToSql(SqExpress.SqlExport.TSqlExporter.Default);
+                    }
+                }
+                """;
+
+            var fixedSource = await ApplyCodeFixAsync(source);
+
+            Assert.That(fixedSource, Does.Not.Contain("SqTSqlParser.Parse"));
+            Assert.That(fixedSource, Does.Contain("Delete("));
+            Assert.That(fixedSource, Does.Contain(".Where("));
+            await AssertCompilesAsync(fixedSource);
+        }
+
+        [Test]
+        public async Task CodeFix_WhenInsertStatementIsParsed_RewritesToSqExpress()
+        {
+            var source = CommonTypes + """
+
+                public sealed class Host
+                {
+                    public string M(int id, string name)
+                    {
+                        var u = new UsersTable("u");
+                        return SqTSqlParser.Parse("INSERT INTO dbo.Users(UserId, Name) VALUES (@userId, @name)", [u])
+                            .WithParams("userId", id)
+                            .WithParams("name", name)
+                            .ToSql(SqExpress.SqlExport.TSqlExporter.Default);
+                    }
+                }
+                """;
+
+            var fixedSource = await ApplyCodeFixAsync(source);
+
+            Assert.That(fixedSource, Does.Not.Contain("SqTSqlParser.Parse"));
+            Assert.That(fixedSource, Does.Contain("var userId = id;"));
+            Assert.That(fixedSource, Does.Contain("InsertInto("));
+            Assert.That(fixedSource, Does.Not.Contain("var name = name;"));
+            await AssertCompilesAsync(fixedSource);
+        }
+
+        [Test]
         public async Task CodeFix_WhenDictionaryWithParams_IsUsed_IndexesDictionaryByParameterName()
         {
             var source = CommonTypes + """
@@ -179,6 +339,33 @@ namespace SqExpress.Analyzers.Test
             var fixedSource = await ApplyCodeFixAsync(source);
 
             Assert.That(fixedSource, Does.Contain("private sealed class SqSubQuery"));
+            Assert.That(fixedSource, Does.Not.Contain("var usersTable = new UsersTable(\"u\");"));
+            await AssertCompilesAsync(fixedSource);
+        }
+
+        [Test]
+        public async Task CodeFix_WhenHostAlreadyContainsSqSubQuery_UsesNonConflictingNestedHelperName()
+        {
+            var source = CommonTypes + """
+
+                public sealed class Host
+                {
+                    private sealed class SqSubQuery
+                    {
+                    }
+
+                    public object M()
+                    {
+                        var u = new UsersTable("u");
+                        return SqTSqlParser.Parse("SELECT sq.UserId FROM (SELECT u.UserId FROM dbo.Users u) sq", [u]);
+                    }
+                }
+                """;
+
+            var fixedSource = await ApplyCodeFixAsync(source);
+
+            Assert.That(fixedSource, Does.Contain("private sealed class SqSubQuery"));
+            Assert.That(fixedSource, Does.Contain("private sealed class SqSubQuery1"));
             await AssertCompilesAsync(fixedSource);
         }
 
@@ -357,6 +544,60 @@ namespace SqExpress.Analyzers.Test
             await AssertCompilesAsync(fixedSource);
         }
 
+        [Test]
+        public async Task CodeFix_WhenConversionFails_InsertsSingleSqexErrorBeforeStatement()
+        {
+            var source = """
+                using SqExpress;
+                using SqExpress.SqlParser;
+
+                public sealed class Host
+                {
+                    public object M()
+                    {
+                        return SqTSqlParser.Parse("SELECT u.UserId FROM dbo.Users u", []);
+                    }
+                }
+                """;
+
+            var fixedSource = await ApplyCodeFixAsync(source);
+
+            Assert.That(fixedSource, Does.Contain("#error SQEX: Could not convert SQL to SqExpress: No SqExpress table class found for SQL table [dbo].[Users]."));
+
+            var fixedAgain = await ApplyCodeFixAsync(fixedSource);
+            Assert.That(CountOccurrences(fixedAgain, "#error SQEX:"), Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task CodeFix_WhenConversionSucceeds_RemovesSqexErrorsOnlyFromHostingMethod()
+        {
+            var source = CommonTypes + """
+
+                public sealed class Host
+                {
+                    public object M1()
+                    {
+                        #error SQEX: stale method error
+                        var u = new UsersTable("u");
+                        return SqTSqlParser.Parse("SELECT u.UserId FROM dbo.Users u", [u]);
+                    }
+
+                    public object M2()
+                    {
+                        #error SQEX: keep this one
+                        return 1;
+                    }
+                }
+                """;
+
+            var fixedSource = await ApplyCodeFixAsync(source);
+
+            Assert.That(fixedSource, Does.Not.Contain("#error SQEX: stale method error"));
+            Assert.That(fixedSource, Does.Contain("#error SQEX: keep this one"));
+            Assert.That(fixedSource, Does.Not.Contain("SqTSqlParser.Parse"));
+            await AssertCompilesAsync(fixedSource.Replace("#error SQEX: keep this one", string.Empty, StringComparison.Ordinal));
+        }
+
         private static async Task<ImmutableArray<Diagnostic>> GetDiagnosticsAsync(string source)
         {
             var document = CreateDocument(source);
@@ -392,6 +633,19 @@ namespace SqExpress.Analyzers.Test
 
             var text = await changedDocument!.GetTextAsync();
             return text.ToString();
+        }
+
+        private static int CountOccurrences(string source, string value)
+        {
+            var count = 0;
+            var index = 0;
+            while ((index = source.IndexOf(value, index, StringComparison.Ordinal)) >= 0)
+            {
+                count++;
+                index += value.Length;
+            }
+
+            return count;
         }
 
         private static async Task AssertCompilesAsync(string source)

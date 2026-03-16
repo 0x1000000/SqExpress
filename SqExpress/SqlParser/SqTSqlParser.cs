@@ -162,19 +162,14 @@ namespace SqExpress.SqlParser
             }
 
             var parsedAsBaseTables = parsedTables.Cast<TableBase>().ToList();
-            var comparison = existingTables.CompareWith(parsedAsBaseTables, i => BuildTableComparisonKey(i, defaultSchema));
+            var comparison = parsedAsBaseTables.CompareWith(existingTables, i => BuildTableComparisonKey(i, defaultSchema));
             if (comparison == null)
             {
                 error = null;
                 return true;
             }
 
-            var missingTables = comparison.MissedTables
-                .Select(i => FormatTableName(i.FullName, defaultSchema))
-                .OrderBy(i => i, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            var extraTables = comparison.ExtraTables
+            var unexpectedTables = comparison.MissedTables
                 .Select(i => FormatTableName(i.FullName, defaultSchema))
                 .OrderBy(i => i, StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -189,7 +184,7 @@ namespace SqExpress.SqlParser
                 }
             }
 
-            if (missingTables.Count < 1 && extraTables.Count < 1 && tableDifferences.Count < 1)
+            if (unexpectedTables.Count < 1 && tableDifferences.Count < 1)
             {
                 error = null;
                 return true;
@@ -200,14 +195,9 @@ namespace SqExpress.SqlParser
                 "Parsed SQL table artifacts do not match provided existing tables."
             };
 
-            if (missingTables.Count > 0)
+            if (unexpectedTables.Count > 0)
             {
-                parts.Add("Missing tables: " + string.Join(", ", missingTables));
-            }
-
-            if (extraTables.Count > 0)
-            {
-                parts.Add("Unexpected tables: " + string.Join(", ", extraTables));
+                parts.Add("Unexpected tables: " + string.Join(", ", unexpectedTables));
             }
 
             if (tableDifferences.Count > 0)
@@ -221,8 +211,8 @@ namespace SqExpress.SqlParser
 
         private static string? BuildTableDifferenceMessage(TableBase expected, TableComparison comparison, string? defaultSchema)
         {
-            var missingColumnsRaw = comparison.MissedColumns.ToList();
-            var extraColumnsRaw = comparison.ExtraColumns.ToList();
+            var parsedOnlyColumns = comparison.MissedColumns.ToList();
+            var providedOnlyColumns = comparison.ExtraColumns.ToList();
 
             var changedColumns = new List<string>();
             foreach (var differentColumn in comparison.DifferentColumns.OrderBy(i => i.Column.ColumnName.Name, StringComparer.OrdinalIgnoreCase))
@@ -235,36 +225,38 @@ namespace SqExpress.SqlParser
                 }
             }
 
-            var usedExtraIndexes = new HashSet<int>();
-            for (var m = 0; m < missingColumnsRaw.Count; m++)
+            var matchedProvidedOnlyIndexes = new HashSet<int>();
+            var matchedParsedOnlyIndexes = new HashSet<int>();
+            for (var m = 0; m < parsedOnlyColumns.Count; m++)
             {
-                var missing = missingColumnsRaw[m];
-                var missingLower = missing.ColumnName.Name.ToLowerInvariant();
-                for (var e = 0; e < extraColumnsRaw.Count; e++)
+                var parsedOnly = parsedOnlyColumns[m];
+                var parsedOnlyLower = parsedOnly.ColumnName.Name.ToLowerInvariant();
+                for (var e = 0; e < providedOnlyColumns.Count; e++)
                 {
-                    if (usedExtraIndexes.Contains(e))
+                    if (matchedProvidedOnlyIndexes.Contains(e))
                     {
                         continue;
                     }
 
-                    var extra = extraColumnsRaw[e];
-                    if (!string.Equals(extra.ColumnName.Name.ToLowerInvariant(), missingLower, StringComparison.Ordinal))
+                    var providedOnly = providedOnlyColumns[e];
+                    if (!string.Equals(providedOnly.ColumnName.Name.ToLowerInvariant(), parsedOnlyLower, StringComparison.Ordinal))
                     {
                         continue;
                     }
 
-                    if (!string.Equals(extra.ColumnName.Name, missing.ColumnName.Name, StringComparison.Ordinal))
+                    if (!string.Equals(providedOnly.ColumnName.Name, parsedOnly.ColumnName.Name, StringComparison.Ordinal))
                     {
-                        changedColumns.Add($"[{missing.ColumnName.Name}] ({TableColumnComparison.DifferentName})");
+                        changedColumns.Add($"[{parsedOnly.ColumnName.Name}] ({TableColumnComparison.DifferentName})");
                     }
 
-                    usedExtraIndexes.Add(e);
+                    matchedProvidedOnlyIndexes.Add(e);
+                    matchedParsedOnlyIndexes.Add(m);
                     break;
                 }
             }
 
-            var extraColumns = extraColumnsRaw
-                .Where((_, i) => !usedExtraIndexes.Contains(i))
+            var extraColumns = parsedOnlyColumns
+                .Where((_, i) => !matchedParsedOnlyIndexes.Contains(i))
                 .Select(i => $"[{i.ColumnName.Name}]")
                 .OrderBy(i => i, StringComparer.OrdinalIgnoreCase)
                 .ToList();

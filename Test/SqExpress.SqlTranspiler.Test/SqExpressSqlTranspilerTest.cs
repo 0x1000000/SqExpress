@@ -1586,6 +1586,40 @@ namespace SqExpress.SqlTranspiler.Test
         }
 
         [Test]
+        public void Transpile_WhenDerivedAliasConflictsWithParameter_UsesDistinctVariableNames()
+        {
+            var transpiler = new SqExpressSqlTranspiler();
+            var result = transpiler.Transpile(
+                """
+                SELECT 
+                   CustomerName.[Customer Name],
+                   COUNT(1) As OrdersNum
+                FROM 
+                (
+                   SELECT 
+                       C.CustomerId,
+                       CASE WHEN U.UserId IS NOT NULL
+                           THEN U.FirstName + ' ' + U.LastName
+                           ELSE Co.CompanyName
+                           END
+                           AS 'Customer Name'
+                   FROM Customer C
+                   LEFT JOIN [User] U ON U.UserId = C.UserId
+                   LEFT JOIN [Company] Co ON Co.CompanyId = C.CompanyId
+                   WHERE U.UserId IS NULL OR U.UserId > @userId
+                ) AS CustomerName
+                INNER JOIN ItOrder Ord ON Ord.CustomerId = CustomerName.CustomerId
+                WHERE CustomerName.[Customer Name] <> @customerName
+                GROUP BY CustomerName.[Customer Name]
+                """);
+
+            Assert.That(result.QueryCSharpCode, Does.Contain("var customerName = \"\";"));
+            Assert.That(result.QueryCSharpCode, Does.Contain("Build(out CustomerNameSubQuery customerName1"));
+            Assert.That(result.QueryCSharpCode, Does.Not.Contain("Build(out CustomerNameSubQuery customerName,"));
+            AssertCompilesAndSql(result, result.CanonicalSql, assemblyName: "GeneratedTranspilerAliasParameterConflictTests");
+        }
+
+        [Test]
         public void Transpile_RejectsUnsupportedStatement()
         {
             var transpiler = new SqExpressSqlTranspiler();

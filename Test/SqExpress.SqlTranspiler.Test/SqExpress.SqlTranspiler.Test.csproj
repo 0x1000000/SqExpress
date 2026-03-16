@@ -21,6 +21,7 @@
     <ProjectReference Include="..\..\SqExpress.SqlTranspiler.Blazor\SqExpress.SqlTranspiler.Blazor.csproj" />
     <ProjectReference Include="..\..\SqExpress.SqlTranspiler\SqExpress.SqlTranspiler.csproj" />
     <ProjectReference Include="..\..\SqExpress\SqExpress.csproj" />
+    <ProjectReference Include="..\SqExpress.IntTest\SqExpress.IntTest.csproj" />
   </ItemGroup>
 
 </Project>

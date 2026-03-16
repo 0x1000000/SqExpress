@@ -141,7 +141,7 @@ using SqExpress.SqlParser;
 
 static void Main()
 {
-    var expr = SqTSqlParser.Parse("SELECT 'Hi,' + @userName + '!'", []).WithParams(("userName", "John"));
+    var expr = SqTSqlParser.Parse("SELECT 'Hi,' + @userName + '!'", []).WithParamsAsQuery(("userName", "John"));
 
     Console.WriteLine(expr.ToSql(TSqlExporter.Default));
 }
@@ -1484,7 +1484,7 @@ var expr = SqTSqlParser.Parse(
     "SELECT 'Hi,' + @userName + '!'",
     existingTables: []);
 
-var query = expr.WithParams(("userName", "John"));
+var query = expr.WithParamsAsQuery(("userName", "John"));
 
 Console.WriteLine(query.ToSql(TSqlExporter.Default));
 // SELECT 'Hi,'+'John'+'!'
@@ -1545,7 +1545,9 @@ catch (SqExpressTSqlParserException ex)
 Notes:
 - `SqTSqlParser` parses one statement at a time.
 - Named parameters like `@userName` are represented as `ExprParameter` and can be replaced with `WithParams(...)`.
-- In `WithParams(...)`, use parameter names without `@` (for example, `"userName"`).
+- When you know the parsed expression is a `SELECT`, prefer `WithParamsAsQuery(...)`.
+- For `INSERT` / `UPDATE` / `DELETE` / `MERGE`, prefer `WithParamsAsNonQuery(...)`.
+- In parameter replacement helpers, use parameter names without `@` (for example, `"userName"`).
 
 ## Syntax Tree
 

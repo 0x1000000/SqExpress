@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using System.Composition;
 using System.Linq;
@@ -18,6 +19,8 @@ namespace SqExpress.Analyzers
     [Shared]
     public sealed class SqTSqlParserParseCodeFixProvider : CodeFixProvider
     {
+        private const string SqexErrorPrefix = "#error SQEX:";
+
         public override ImmutableArray<string> FixableDiagnosticIds
             => ImmutableArray.Create("SQEX001");
 
@@ -79,44 +82,95 @@ namespace SqExpress.Analyzers
                 return document;
             }
 
+            var scopeNode = GetErrorScopeNode(invocation);
+            if (scopeNode == null)
+            {
+                return document;
+            }
+
+            var invocationAnnotation = new SyntaxAnnotation("sqex", "invocation");
+            var scopeAnnotation = new SyntaxAnnotation("sqex", "scope");
+            var trackedRoot = root.TrackNodes(invocation, scopeNode);
+            var currentInvocation = trackedRoot.GetCurrentNode(invocation);
+            var currentScope = trackedRoot.GetCurrentNode(scopeNode);
+            if (currentInvocation == null || currentScope == null)
+            {
+                return document;
+            }
+
+            var annotatedScope = currentScope
+                .ReplaceNode(currentInvocation, currentInvocation.WithAdditionalAnnotations(invocationAnnotation))
+                .WithAdditionalAnnotations(scopeAnnotation);
+            trackedRoot = trackedRoot.ReplaceNode(currentScope, annotatedScope);
+
+            currentScope = trackedRoot.GetAnnotatedNodes(scopeAnnotation).FirstOrDefault();
+            if (currentScope == null)
+            {
+                return document;
+            }
+
+            var cleanedRoot = RemoveSqexErrors(trackedRoot, currentScope);
+            var cleanedInvocation = cleanedRoot.GetAnnotatedNodes(invocationAnnotation).OfType<InvocationExpressionSyntax>().FirstOrDefault();
+            if (cleanedInvocation == null)
+            {
+                return document;
+            }
+
+            document = document.WithSyntaxRoot(cleanedRoot);
+            root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
+            if (root == null)
+            {
+                return document;
+            }
+
+            cleanedInvocation = root.GetAnnotatedNodes(invocationAnnotation).OfType<InvocationExpressionSyntax>().FirstOrDefault();
+            if (cleanedInvocation == null)
+            {
+                return document;
+            }
+
             var semanticModel = await document.GetSemanticModelAsync(cancellationToken).ConfigureAwait(false);
             if (semanticModel == null)
             {
                 return document;
             }
 
-            if (!SqTSqlParserInvocation.TryCreate(invocation, semanticModel, cancellationToken, out var match))
+            if (!SqTSqlParserInvocation.TryCreate(cleanedInvocation, semanticModel, cancellationToken, out var match))
             {
                 return document;
             }
 
+            var anchorStatement = cleanedInvocation.FirstAncestorOrSelf<Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax>();
             var plan = await SqTSqlParserParseCodeFixHelper.TryCreatePlanAsync(document, semanticModel, match, cancellationToken).ConfigureAwait(false);
-            if (plan == null)
-            {
-                return document;
-            }
-
             var editor = await DocumentEditor.CreateAsync(document, cancellationToken).ConfigureAwait(false);
 
-            editor.ReplaceNode(plan.ReplacementRoot, plan.ReplacementExpression.WithAdditionalAnnotations(Formatter.Annotation));
-
-            for (var i = 0; i < plan.InsertedStatements.Count; i++)
+            if (plan != null)
             {
-                editor.InsertBefore(
-                    plan.AnchorStatement,
-                    plan.InsertedStatements[i]
-                        .WithLeadingTrivia(SyntaxFactory.ElasticMarker)
-                        .WithTrailingTrivia(SyntaxFactory.ElasticCarriageReturnLineFeed)
-                        .WithAdditionalAnnotations(Formatter.Annotation));
+                editor.ReplaceNode(plan.ReplacementRoot, plan.ReplacementExpression.WithAdditionalAnnotations(Formatter.Annotation));
+
+                for (var i = 0; i < plan.InsertedStatements.Count; i++)
+                {
+                    editor.InsertBefore(
+                        plan.AnchorStatement,
+                        plan.InsertedStatements[i]
+                            .WithLeadingTrivia(SyntaxFactory.ElasticMarker)
+                            .WithTrailingTrivia(SyntaxFactory.ElasticCarriageReturnLineFeed)
+                            .WithAdditionalAnnotations(Formatter.Annotation));
+                }
+
+                foreach (var nestedType in plan.NestedTypes)
+                {
+                    editor.AddMember(plan.ContainingType, nestedType.WithAdditionalAnnotations(Formatter.Annotation));
+                }
             }
-
-            foreach (var nestedType in plan.NestedTypes)
+            else if (anchorStatement != null)
             {
-                editor.AddMember(plan.ContainingType, nestedType.WithAdditionalAnnotations(Formatter.Annotation));
+                var failureMessage = await SqTSqlParserParseCodeFixHelper.GetConversionFailureMessageAsync(document, semanticModel, match, cancellationToken).ConfigureAwait(false);
+                InsertSqexError(editor, anchorStatement, failureMessage);
             }
 
             var changedRoot = editor.GetChangedRoot();
-            if (changedRoot is CompilationUnitSyntax compilationUnit)
+            if (plan != null && changedRoot is CompilationUnitSyntax compilationUnit)
             {
                 changedRoot = SqTSqlParserParseCodeFixHelper.AddRequiredUsings(compilationUnit, plan.RequiredNamespaces, plan.RequiredStaticUsing)
                     .WithAdditionalAnnotations(Formatter.Annotation)
@@ -127,6 +181,86 @@ namespace SqExpress.Analyzers
             changedDocument = await Simplifier.ReduceAsync(changedDocument, Simplifier.Annotation, cancellationToken: cancellationToken).ConfigureAwait(false);
             changedDocument = await Formatter.FormatAsync(changedDocument, Formatter.Annotation, options: null, cancellationToken: cancellationToken).ConfigureAwait(false);
             return changedDocument;
+        }
+
+        private static SyntaxNode? GetErrorScopeNode(SyntaxNode node)
+            => (SyntaxNode?)node.FirstAncestorOrSelf<BaseMethodDeclarationSyntax>()
+               ?? (SyntaxNode?)node.FirstAncestorOrSelf<AccessorDeclarationSyntax>()
+               ?? (SyntaxNode?)node.FirstAncestorOrSelf<LocalFunctionStatementSyntax>()
+               ?? (SyntaxNode?)node.FirstAncestorOrSelf<AnonymousFunctionExpressionSyntax>();
+
+        private static SyntaxNode RemoveSqexErrors(SyntaxNode root, SyntaxNode scopeNode)
+        {
+            var tokensToReplace = scopeNode.DescendantTokens(descendIntoTrivia: true)
+                .Where(i => !FilterSqexErrorTrivia(i.LeadingTrivia).Equals(i.LeadingTrivia)
+                            || !FilterSqexErrorTrivia(i.TrailingTrivia).Equals(i.TrailingTrivia))
+                .ToList();
+
+            if (tokensToReplace.Count < 1)
+            {
+                return root;
+            }
+
+            return root.ReplaceTokens(
+                tokensToReplace,
+                (original, _) => original
+                    .WithLeadingTrivia(FilterSqexErrorTrivia(original.LeadingTrivia))
+                    .WithTrailingTrivia(FilterSqexErrorTrivia(original.TrailingTrivia)));
+        }
+
+        private static SyntaxTriviaList FilterSqexErrorTrivia(SyntaxTriviaList triviaList)
+        {
+            if (triviaList.Count < 1)
+            {
+                return triviaList;
+            }
+
+            var builder = new SyntaxTriviaList();
+            for (var i = 0; i < triviaList.Count; i++)
+            {
+                var trivia = triviaList[i];
+                if (IsSqexErrorTrivia(trivia))
+                {
+                    if (i + 1 < triviaList.Count && triviaList[i + 1].IsKind(SyntaxKind.EndOfLineTrivia))
+                    {
+                        i++;
+                    }
+
+                    continue;
+                }
+
+                builder = builder.Add(trivia);
+            }
+
+            return builder;
+        }
+
+        private static bool IsSqexErrorTrivia(SyntaxTrivia trivia)
+            => trivia.GetStructure() is ErrorDirectiveTriviaSyntax errorDirective
+               && errorDirective.ToFullString().TrimStart().StartsWith(SqexErrorPrefix, StringComparison.Ordinal);
+
+        private static void InsertSqexError(DocumentEditor editor, Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax anchorStatement, string failureMessage)
+        {
+            var message = SanitizeSqexErrorMessage(failureMessage);
+            var directiveTrivia = SyntaxFactory.ParseLeadingTrivia(SqexErrorPrefix + " " + message + "\r\n");
+            editor.ReplaceNode(
+                anchorStatement,
+                anchorStatement.WithLeadingTrivia(directiveTrivia.Concat(anchorStatement.GetLeadingTrivia())));
+        }
+
+        private static string SanitizeSqexErrorMessage(string failureMessage)
+        {
+            var normalized = failureMessage
+                .Replace("\r", " ")
+                .Replace("\n", " ")
+                .Trim();
+
+            if (string.IsNullOrWhiteSpace(normalized))
+            {
+                normalized = "Unknown conversion error.";
+            }
+
+            return "Could not convert SQL to SqExpress: " + normalized;
         }
     }
 }

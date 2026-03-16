@@ -828,11 +828,23 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 throw new MapException("DELETE statement is invalid.");
             }
 
-            var fromIndex = FindFirstTopLevelKeyword(tokens, 0, "FROM");
-            if (fromIndex < 0 || fromIndex + 1 >= tokens.Count)
+            var cursor = 1;
+            if (cursor < tokens.Count && tokens[cursor].IsKeyword("TOP"))
             {
-                throw new MapException("DELETE statement must contain FROM clause.");
+                cursor++;
+                if (cursor < tokens.Count && tokens[cursor].Type == SqlTokenType.OpenParen)
+                {
+                    var close = FindMatchingCloseParen(tokens, cursor);
+                    if (close < 0)
+                    {
+                        throw new MapException("DELETE TOP clause is invalid.");
+                    }
+
+                    cursor = close + 1;
+                }
             }
+
+            var fromIndex = FindFirstTopLevelKeyword(tokens, cursor, "FROM");
 
             string? targetAlias = null;
             if ((1 < tokens.Count)
@@ -843,31 +855,79 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 targetAlias = tokens[1].IdentifierValue;
             }
 
-            var outputIndex = FindFirstTopLevelKeyword(tokens, 0, "OUTPUT");
-            var whereIndex = FindFirstTopLevelKeyword(tokens, fromIndex + 1, "WHERE");
-            var fromEnd = whereIndex >= 0 ? whereIndex : tokens.Count;
-            var fromSliceEnd = outputIndex >= 0 && outputIndex > fromIndex && outputIndex < fromEnd ? outputIndex : fromEnd;
-            var fromSql = SliceSqlByTokenRange(sql, tokens, fromIndex + 1, fromSliceEnd);
-            var source = ParseTableSourceSql(fromSql, context);
+            var outputIndex = FindFirstTopLevelKeyword(tokens, cursor, "OUTPUT");
+            var whereSearchStart = fromIndex >= 0 ? fromIndex + 1 : cursor;
+            var whereIndex = FindFirstTopLevelKeyword(tokens, whereSearchStart, "WHERE");
+
+            IExprTableSource? source = null;
+            ExprTable target;
+            if (fromIndex >= 0)
+            {
+                if (fromIndex + 1 >= tokens.Count)
+                {
+                    throw new MapException("DELETE FROM clause is invalid.");
+                }
+
+                var fromEnd = whereIndex >= 0 ? whereIndex : tokens.Count;
+                var fromSliceEnd = outputIndex >= 0 && outputIndex > fromIndex && outputIndex < fromEnd ? outputIndex : fromEnd;
+                var fromSql = SliceSqlByTokenRange(sql, tokens, fromIndex + 1, fromSliceEnd);
+                source = ParseTableSourceSql(fromSql, context);
+                target = ResolveDeleteTarget(statement, source, targetAlias, context);
+            }
+            else
+            {
+                var targetEnd = MinPositive(outputIndex, whereIndex);
+                if (targetEnd < 0)
+                {
+                    targetEnd = tokens.Count;
+                }
+
+                if (targetEnd <= cursor)
+                {
+                    throw new MapException("DELETE target table is not resolved.");
+                }
+
+                var targetSql = SliceSqlByTokenRange(sql, tokens, cursor, targetEnd);
+                source = ParseTableSourceSql(targetSql, context);
+                if (source is not ExprTable directTarget)
+                {
+                    throw new MapException("DELETE target table is not resolved.");
+                }
+
+                target = directTarget;
+            }
 
             IReadOnlyList<ExprAliasedColumn>? outputColumns = null;
             if (outputIndex >= 0)
             {
-                if (outputIndex < fromIndex)
+                if (fromIndex >= 0)
                 {
-                    outputColumns = ParseDeleteOutputColumns(tokens, outputIndex + 1, fromIndex);
-                }
-                else if (outputIndex > fromIndex && outputIndex < fromEnd)
-                {
-                    outputColumns = ParseDeleteOutputColumns(tokens, outputIndex + 1, fromEnd);
+                    var fromEnd = whereIndex >= 0 ? whereIndex : tokens.Count;
+                    if (outputIndex < fromIndex)
+                    {
+                        outputColumns = ParseDeleteOutputColumns(tokens, outputIndex + 1, fromIndex);
+                    }
+                    else if (outputIndex > fromIndex && outputIndex < fromEnd)
+                    {
+                        outputColumns = ParseDeleteOutputColumns(tokens, outputIndex + 1, fromEnd);
+                    }
+                    else
+                    {
+                        throw new MapException("DELETE OUTPUT clause is invalid.");
+                    }
                 }
                 else
                 {
-                    throw new MapException("DELETE OUTPUT clause is invalid.");
+                    var outputEnd = whereIndex >= 0 ? whereIndex : tokens.Count;
+                    if (outputEnd <= outputIndex + 1)
+                    {
+                        throw new MapException("DELETE OUTPUT clause is invalid.");
+                    }
+
+                    outputColumns = ParseDeleteOutputColumns(tokens, outputIndex + 1, outputEnd);
                 }
             }
 
-            var target = ResolveDeleteTarget(statement, source, targetAlias, context);
             var scopedContext = context.WithVisibleTableReferences(
                 GetVisibleTableReferences(source).Concat(GetVisibleTableReferences(target)));
 
@@ -1409,6 +1469,13 @@ namespace SqExpress.SqlParser.Internal.Mapping
             {
                 var first = statement.TableReferences[0];
                 return BuildTable(context, first.Schema, first.Table, first.Alias);
+            }
+
+            if (source == null)
+            {
+                return new ExprTable(
+                    BuildTableFullName(context, targetNameParts),
+                    string.IsNullOrWhiteSpace(targetAlias) ? null : new ExprTableAlias(new ExprAlias(targetAlias!)));
             }
 
             return null;

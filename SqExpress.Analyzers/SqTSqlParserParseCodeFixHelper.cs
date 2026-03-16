@@ -13,6 +13,7 @@ using SqExpress.SqlParser;
 using SqExpress.SqlTranspiler;
 using SqExpress.Syntax;
 using SqExpress.Syntax.Names;
+using SqExpress.Syntax.Update;
 using RoslynStatementSyntax = Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax;
 
 namespace SqExpress.Analyzers
@@ -84,18 +85,22 @@ namespace SqExpress.Analyzers
             SqExpressSqlInlineTranspileResult inline;
             try
             {
+                var reservedNestedTypeNames = GetReservedNestedTypeNames(semanticModel, containingType, cancellationToken);
                 inline = new SqExpressSqlTranspiler().TranspileInline(
                     match.SqlText,
                     inlineBindings,
                     new SqExpressSqlTranspilerOptions
                     {
-                        QueryVariableName = queryVariableName
+                        QueryVariableName = queryVariableName,
+                        ReservedNestedTypeNames = reservedNestedTypeNames
                     });
             }
             catch
             {
                 return null;
             }
+
+            tableDeclarations = FilterUnusedTableDeclarations(tableDeclarations, inline);
 
             var parameterOverrides = CollectParameterOverrides(replacementRoot, match.Invocation, semanticModel, cancellationToken);
             var insertedStatements = new List<RoslynStatementSyntax>(tableDeclarations.Count + inline.Parameters.Count + inline.LocalDeclarations.Count);
@@ -105,7 +110,10 @@ namespace SqExpress.Analyzers
             {
                 if (parameterOverrides.TryGetValue(parameter.ParameterName, out var parameterExpression))
                 {
-                    insertedStatements.Add(SyntaxFactory.ParseStatement("var " + parameter.VariableName + " = " + RenderParameterOverride(parameterExpression, parameter.IsList) + ";"));
+                    if (!CanReuseParameterOverrideDirectly(parameter.VariableName, parameterExpression))
+                    {
+                        insertedStatements.Add(SyntaxFactory.ParseStatement("var " + parameter.VariableName + " = " + RenderParameterOverride(parameterExpression, parameter.IsList) + ";"));
+                    }
                 }
                 else if (parameterOverrides.TryGetValue("*", out var dictionaryExpression))
                 {
@@ -145,6 +153,68 @@ namespace SqExpress.Analyzers
                 nestedTypes,
                 RequiredNamespaces.Concat(requiredNamespaces),
                 "SqExpress.SqQueryBuilder");
+        }
+
+        private static bool CanReuseParameterOverrideDirectly(string variableName, ExpressionSyntax parameterExpression)
+            => parameterExpression is IdentifierNameSyntax identifier
+               && string.Equals(identifier.Identifier.ValueText, variableName, StringComparison.Ordinal);
+
+        public static async Task<string> GetConversionFailureMessageAsync(
+            Document document,
+            SemanticModel semanticModel,
+            SqTSqlParserInvocation match,
+            CancellationToken cancellationToken)
+        {
+            if (match.Invocation.ArgumentList.Arguments.Count > 2)
+            {
+                return "SqTSqlParser.Parse conversion supports up to two arguments.";
+            }
+
+            if (!TryParseExpectedTables(match.SqlText, out var expectedTables, out var failureMessage))
+            {
+                return failureMessage;
+            }
+
+            var anchorStatement = match.Invocation.FirstAncestorOrSelf<RoslynStatementSyntax>();
+            var sourceCatalog = await BuildSourceTableCatalogAsync(document.Project.Solution, cancellationToken).ConfigureAwait(false);
+            if (!TryResolveExpectedTableBindings(
+                    semanticModel,
+                    match,
+                    expectedTables,
+                    anchorStatement,
+                    sourceCatalog,
+                    cancellationToken,
+                    out var _,
+                    out var inlineBindings,
+                    out var _,
+                    out failureMessage))
+            {
+                return failureMessage;
+            }
+
+            try
+            {
+                var queryVariableName = anchorStatement != null ? MakeUniqueLocalName(anchorStatement, "expr") : "expr";
+                var containingType = match.Invocation.FirstAncestorOrSelf<TypeDeclarationSyntax>();
+                var reservedNestedTypeNames = containingType != null
+                    ? GetReservedNestedTypeNames(semanticModel, containingType, cancellationToken)
+                    : Array.Empty<string>();
+
+                _ = new SqExpressSqlTranspiler().TranspileInline(
+                    match.SqlText,
+                    inlineBindings,
+                    new SqExpressSqlTranspilerOptions
+                    {
+                        QueryVariableName = queryVariableName,
+                        ReservedNestedTypeNames = reservedNestedTypeNames
+                    });
+            }
+            catch (Exception ex)
+            {
+                return ex.Message;
+            }
+
+            return "Could not convert SQL to SqExpress.";
         }
 
         public static bool TryGetConversionFailureMessage(
@@ -214,6 +284,57 @@ namespace SqExpress.Analyzers
             }
 
             return root;
+        }
+
+        private static IReadOnlyList<RoslynStatementSyntax> FilterUnusedTableDeclarations(
+            IReadOnlyList<RoslynStatementSyntax> tableDeclarations,
+            SqExpressSqlInlineTranspileResult inline)
+        {
+            if (tableDeclarations.Count < 1)
+            {
+                return tableDeclarations;
+            }
+
+            var usageText = string.Join("\n", inline.LocalDeclarations);
+            var result = new List<RoslynStatementSyntax>(tableDeclarations.Count);
+            foreach (var declaration in tableDeclarations)
+            {
+                var variableName = declaration
+                    .DescendantNodes()
+                    .OfType<VariableDeclaratorSyntax>()
+                    .Select(i => i.Identifier.ValueText)
+                    .FirstOrDefault();
+
+                if (string.IsNullOrWhiteSpace(variableName))
+                {
+                    result.Add(declaration);
+                    continue;
+                }
+
+                if (Regex.IsMatch(usageText, $@"\b{Regex.Escape(variableName!)}\b"))
+                {
+                    result.Add(declaration);
+                }
+            }
+
+            return result;
+        }
+
+        private static IReadOnlyList<string> GetReservedNestedTypeNames(
+            SemanticModel semanticModel,
+            TypeDeclarationSyntax containingType,
+            CancellationToken cancellationToken)
+        {
+            if (semanticModel.GetDeclaredSymbol(containingType, cancellationToken) is not INamedTypeSymbol typeSymbol)
+            {
+                return Array.Empty<string>();
+            }
+
+            return typeSymbol.GetMembers()
+                .Select(i => i.Name)
+                .Where(i => !string.IsNullOrWhiteSpace(i))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
         }
 
         private static bool TryParseExpectedTables(
@@ -474,7 +595,45 @@ namespace SqExpress.Analyzers
                 }
             }
 
+            switch (expr)
+            {
+                case ExprInsert insert:
+                    AddSyntheticExpectedTable(result, seen, insert.Target);
+                    break;
+                case ExprIdentityInsert identityInsert:
+                    AddSyntheticExpectedTable(result, seen, identityInsert.Insert.Target);
+                    break;
+                case ExprDelete delete:
+                    AddSyntheticExpectedTable(result, seen, delete.Target.FullName);
+                    break;
+                case ExprDeleteOutput deleteOutput:
+                    AddSyntheticExpectedTable(result, seen, deleteOutput.Delete.Target.FullName);
+                    break;
+                case ExprUpdate update:
+                    AddSyntheticExpectedTable(result, seen, update.Target.FullName);
+                    break;
+            }
+
             return result;
+        }
+
+        private static void AddSyntheticExpectedTable(
+            List<ExpectedTableInfo> result,
+            HashSet<string> seen,
+            IExprTableFullName fullName)
+        {
+            var exprFullName = fullName.AsExprTableFullName();
+            var alias = ToCamelCaseIdentifier(exprFullName.TableName.Name, "t");
+            if (string.IsNullOrWhiteSpace(alias))
+            {
+                return;
+            }
+
+            var tableKey = GetTableKey(exprFullName);
+            if (seen.Add(alias + "|" + tableKey))
+            {
+                result.Add(new ExpectedTableInfo(alias, tableKey));
+            }
         }
 
         private static bool TryResolveProvidedTables(
@@ -938,12 +1097,6 @@ namespace SqExpress.Analyzers
             inlineBindings = Array.Empty<SqExpressSqlInlineTableBinding>();
             requiredNamespaces = Array.Empty<string>();
             failureMessage = string.Empty;
-
-            if (expectedTables.GroupBy(i => i.TableKey, StringComparer.OrdinalIgnoreCase).Any(i => i.Count() > 1))
-            {
-                failureMessage = "Cannot convert SQL with multiple references to the same table because a unique source table binding cannot be inferred.";
-                return false;
-            }
 
             var declarations = new List<RoslynStatementSyntax>(expectedTables.Count);
             var bindings = new List<SqExpressSqlInlineTableBinding>(expectedTables.Count);

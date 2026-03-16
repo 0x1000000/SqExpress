@@ -55,6 +55,7 @@ namespace SqExpress.IntTest
                         .Then(new ScPgMergeIdentityPolyfill())
                         .Then(new ScParametrizationTypes())
                         .Then(new ScParserParamsExprValues())
+                        .Then(new ScParserTypedParams())
                         .Then(new ScParametrizationLimitBoundary())
                         .Then(new ScMergeExpr())
                         .Then(new ScMergeExprEdgeCases())

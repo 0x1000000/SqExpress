@@ -42,7 +42,7 @@ namespace SqExpress.Test.SqlParser
         }
 
         [Test]
-        public void TryParse_WithExistingTables_WhenExpectedTableMissing_ReturnsMismatchError()
+        public void TryParse_WithExistingTables_WhenProvidedTablesContainExtraEntries_StillReturnsTrue()
         {
             var sql = "SELECT [u].[Id] FROM [dbo].[Users] [u]";
             var existing = new TableBase[]
@@ -53,9 +53,9 @@ namespace SqExpress.Test.SqlParser
 
             var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
 
-            Assert.That(ok, Is.False);
-            Assert.That(expr, Is.Null);
-            Assert.That(error, Does.Contain("Missing tables: [dbo].[Orders]"));
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(error, Is.Null);
         }
 
         [Test]
@@ -328,17 +328,16 @@ namespace SqExpress.Test.SqlParser
         }
 
         [Test]
-        public void Parse_WithExistingTables_WhenTableArtifactsDoNotMatch_ThrowsSqExpressTSqlParserException()
+        public void Parse_WithExistingTables_WhenParsedTableIsMissing_ThrowsSqExpressTSqlParserException()
         {
-            var sql = "SELECT [u].[Id] FROM [dbo].[Users] [u]";
+            var sql = "SELECT [u].[Id],[o].[OrderId] FROM [dbo].[Users] [u] JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[Id]";
             var existing = new TableBase[]
             {
-                CreateTable("dbo", "Users", a => a.AppendInt32Column("Id")),
-                CreateTable("dbo", "Orders", a => a.AppendInt32Column("OrderId"))
+                CreateTable("dbo", "Users", a => a.AppendInt32Column("Id"))
             };
 
             var ex = Assert.Throws<SqExpressTSqlParserException>(() => SqTSqlParser.Parse(sql, existing));
-            Assert.That(ex!.Message, Does.Contain("Missing tables: [dbo].[Orders]"));
+            Assert.That(ex!.Message, Does.Contain("Unexpected tables: [dbo].[Orders]"));
         }
 
         private static SqTable CreateTable(
