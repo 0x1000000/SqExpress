@@ -81,6 +81,13 @@ namespace SqExpress.DbMetadata.Internal.DbManagers.MySql
                         var columnName = tStatistics.ColumnName.Read(r);
                         var collation = tStatistics.Collation.Read(r);
 
+                        if (columnName == null)
+                        {
+                            throw new SqExpressException(
+                                $"Functional or expression-based indexes are not supported in MySQL metadata retrieval: {tableSchema}.{tableName}.{indexName}"
+                            );
+                        }
+
                         var tableRef = new TableRef(tableSchema, tableName);
 
                         if (fkNames.TryGetValue(tableRef, out var fkNameList) && fkNameList.Any(
@@ -172,7 +179,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers.MySql
                 case "float":
                     return new DoubleColumnType(raw.Nullable);
                 case "double":
-                case "double prevision":
+                case "double precision":
                     return new DoubleColumnType(raw.Nullable);
                 case "bit":
                     return new BooleanColumnType(raw.Nullable);
@@ -180,6 +187,8 @@ namespace SqExpress.DbMetadata.Internal.DbManagers.MySql
                 //Date and Time Data Types
                 case "date":
                     return new DateTimeColumnType(raw.Nullable, true);
+                case "year":
+                    return new Int16ColumnType(raw.Nullable);
                 case "time":
                     return new Int64ColumnType(raw.Nullable);
                 case "datetime":
@@ -196,7 +205,9 @@ namespace SqExpress.DbMetadata.Internal.DbManagers.MySql
                         isText: false
                     );
                 case "enum":
+                case "set":
                 case "varchar":
+                case "json":
                     var (isUnicode, maxLen) = IsUnicode(raw);
                     var size = CheckSize(raw.Size);
                     return new StringColumnType(
@@ -226,6 +237,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers.MySql
                         ? new GuidColumnType(raw.Nullable)
                         : new ByteArrayColumnType(isNullable: raw.Nullable, size: CheckSize(raw.Size), isFixed: true);
                 case "varbinary":
+                case "tinyblob":
                 case "blob":
                 case "longblob":
                 case "mediumblob":

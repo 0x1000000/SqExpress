@@ -16,9 +16,9 @@
 
         public Int64TableColumn SeqInIndex { get; }
 
-        public StringTableColumn ColumnName { get; }
+        public NullableStringTableColumn ColumnName { get; }
 
-        public StringTableColumn Collation { get; }
+        public NullableStringTableColumn Collation { get; }
 
         public MySqlStatistics(Alias alias = default)
             : base("INFORMATION_SCHEMA", string.Empty, "STATISTICS", alias)
@@ -30,8 +30,8 @@
             IndexSchema = CreateStringColumn("INDEX_SCHEMA", 64, true);
             IndexName = CreateStringColumn("INDEX_NAME", 64, true);
             SeqInIndex = CreateInt64Column("SEQ_IN_INDEX");
-            ColumnName = CreateStringColumn("COLUMN_NAME", 64, true);
-            Collation = CreateStringColumn("COLLATION", 64, true);
+            ColumnName = CreateNullableStringColumn("COLUMN_NAME", 64, true);
+            Collation = CreateNullableStringColumn("COLLATION", 64, true);
         }
 
     }
