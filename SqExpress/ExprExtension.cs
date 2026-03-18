@@ -180,22 +180,16 @@ namespace SqExpress
             return result;
         }
 
-        public static IExprQuery WithParamsAsQuery(this IExpr expr, IReadOnlyDictionary<string, ParamValue> values)
-            => EnsureQuery(expr.WithParams(values));
+        public static IExprQuery AsQuery(this IExpr expr)
+            => EnsureQuery(expr);
 
-        public static IExprExec WithParamsAsNonQuery(this IExpr expr, IReadOnlyDictionary<string, ParamValue> values)
-            => EnsureNonQuery(expr.WithParams(values));
+        public static IExprExec AsNonQuery(this IExpr expr)
+            => EnsureNonQuery(expr);
 
 #if NET8_0_OR_GREATER
 
         public static T WithParams<T>(this T expr, string paramName, ParamValue paramValue) where T : IExpr 
             => WithParams(expr, [(paramName, paramValue)]);
-
-        public static IExprQuery WithParamsAsQuery(this IExpr expr, string paramName, ParamValue paramValue)
-            => EnsureQuery(expr.WithParams(paramName, paramValue));
-
-        public static IExprExec WithParamsAsNonQuery(this IExpr expr, string paramName, ParamValue paramValue)
-            => EnsureNonQuery(expr.WithParams(paramName, paramValue));
 
         public static T WithParams<T>(this T expr, params ReadOnlySpan<(string paramName, ParamValue paramExprValue)> values) where T: IExpr
         {
@@ -304,12 +298,6 @@ namespace SqExpress
 
             return expr.WithParams(dictionary);
         }
-
-        public static IExprQuery WithParamsAsQuery(this IExpr expr, params ReadOnlySpan<(string paramName, ParamValue paramExprValue)> values)
-            => EnsureQuery(expr.WithParams(values));
-
-        public static IExprExec WithParamsAsNonQuery(this IExpr expr, params ReadOnlySpan<(string paramName, ParamValue paramExprValue)> values)
-            => EnsureNonQuery(expr.WithParams(values));
 #endif
 
         private static ExprInValues ReplaceInValues(ExprInValues inValues, IReadOnlyDictionary<string, ParamValue> values)
@@ -485,7 +473,7 @@ namespace SqExpress
             }
 
             throw new SqExpressException(
-                $"Expression '{expr.GetType().Name}' is not a query. Use {nameof(WithParamsAsNonQuery)}(...) for INSERT/UPDATE/DELETE/MERGE statements.");
+                $"Expression '{expr.GetType().Name}' is not a query. Use {nameof(AsNonQuery)}() for INSERT/UPDATE/DELETE/MERGE statements.");
         }
 
         private static IExprExec EnsureNonQuery(IExpr expr)
@@ -496,7 +484,7 @@ namespace SqExpress
             }
 
             throw new SqExpressException(
-                $"Expression '{expr.GetType().Name}' is not a non-query statement. Use {nameof(WithParamsAsQuery)}(...) for SELECT statements.");
+                $"Expression '{expr.GetType().Name}' is not a non-query statement. Use {nameof(AsQuery)}() for SELECT statements.");
         }
 
 #if NET8_0_OR_GREATER

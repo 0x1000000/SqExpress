@@ -266,6 +266,7 @@ namespace SqExpress.SqlTranspiler
             private readonly string _statementKind;
             private readonly SqExpressSqlTranspilerOptions _options;
             private readonly IReadOnlyDictionary<string, string> _classNamesByTableKey;
+            private readonly Dictionary<string, Dictionary<string, string>> _columnPropertyNamesByClassName;
             private readonly Dictionary<string, Dictionary<string, string>> _columnTypesByClassName;
             private readonly IReadOnlyDictionary<string, ExprValue> _parameterDefaults;
             private readonly IReadOnlyCollection<string> _listParameters;
@@ -288,6 +289,7 @@ namespace SqExpress.SqlTranspiler
                 string statementKind,
                 SqExpressSqlTranspilerOptions options,
                 IReadOnlyDictionary<string, string> classNamesByTableKey,
+                IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> columnPropertyNamesByClassName,
                 IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> columnTypesByClassName,
                 IReadOnlyDictionary<string, ExprValue> parameterDefaults,
                 IReadOnlyCollection<string> listParameters,
@@ -297,6 +299,7 @@ namespace SqExpress.SqlTranspiler
                 this._statementKind = statementKind;
                 this._options = options;
                 this._classNamesByTableKey = classNamesByTableKey;
+                this._columnPropertyNamesByClassName = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
                 this._columnTypesByClassName = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
                 this._parameterDefaults = parameterDefaults;
                 this._listParameters = listParameters;
@@ -313,6 +316,17 @@ namespace SqExpress.SqlTranspiler
                 foreach (var pair in classNamesByTableKey)
                 {
                     this._tableClassByKey[pair.Key] = pair.Value;
+                }
+
+                foreach (var classPair in columnPropertyNamesByClassName)
+                {
+                    var byColumn = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var columnProperty in classPair.Value)
+                    {
+                        byColumn[columnProperty.Key] = columnProperty.Value;
+                    }
+
+                    this._columnPropertyNamesByClassName[classPair.Key] = byColumn;
                 }
 
                 foreach (var classPair in columnTypesByClassName)
@@ -875,6 +889,31 @@ namespace SqExpress.SqlTranspiler
                 return false;
             }
 
+            private string GetColumnMemberName(SourceBinding binding, string columnName)
+            {
+                if (!string.IsNullOrWhiteSpace(binding.ClassName)
+                    && this._columnPropertyNamesByClassName.TryGetValue(binding.ClassName!, out var byColumn)
+                    && byColumn.TryGetValue(columnName, out var memberName)
+                    && !string.IsNullOrWhiteSpace(memberName))
+                {
+                    return memberName;
+                }
+
+                return ToPascalCaseIdentifier(columnName, "Column");
+            }
+
+            private string GetColumnMemberName(string className, string columnName)
+            {
+                if (this._columnPropertyNamesByClassName.TryGetValue(className, out var byColumn)
+                    && byColumn.TryGetValue(columnName, out var memberName)
+                    && !string.IsNullOrWhiteSpace(memberName))
+                {
+                    return memberName;
+                }
+
+                return ToPascalCaseIdentifier(columnName, "Column");
+            }
+
             private bool TryGetColumnTypeFromBinding(SourceBinding binding, string columnName, out string columnType)
             {
                 columnType = string.Empty;
@@ -1221,12 +1260,12 @@ namespace SqExpress.SqlTranspiler
                     targetTable,
                     targetVariable,
                     columnName,
-                    targetVariable + "." + ToPascalCaseIdentifier(columnName.Name, "Column"));
+                    targetVariable + "." + this.ResolveTargetColumnMemberName(targetTable, columnName));
             }
 
             private string RenderTargetColumn(IExprTableFullName targetTable, string targetVariable, ExprColumnName columnName)
             {
-                return targetVariable + "." + ToPascalCaseIdentifier(columnName.Name, "Column");
+                return targetVariable + "." + this.ResolveTargetColumnMemberName(targetTable, columnName);
             }
 
             private string RenderTargetColumn(ExprTable targetTable, string targetVariable, ExprColumnName columnName, string fallback)
@@ -1234,10 +1273,32 @@ namespace SqExpress.SqlTranspiler
                 if (targetTable is TableBase tableBase
                     && tableBase.Columns.Any(c => string.Equals(c.ColumnName.Name, columnName.Name, StringComparison.OrdinalIgnoreCase)))
                 {
-                    return targetVariable + "." + ToPascalCaseIdentifier(columnName.Name, "Column");
+                    return targetVariable + "." + this.ResolveTargetColumnMemberName(targetTable, columnName);
                 }
 
                 return fallback;
+            }
+
+            private string ResolveTargetColumnMemberName(ExprTable targetTable, ExprColumnName columnName)
+            {
+                var tableKey = GetTableKey(targetTable.FullName.AsExprTableFullName());
+                if (this._tableClassByKey.TryGetValue(tableKey, out var className))
+                {
+                    return this.GetColumnMemberName(className, columnName.Name);
+                }
+
+                return ToPascalCaseIdentifier(columnName.Name, "Column");
+            }
+
+            private string ResolveTargetColumnMemberName(IExprTableFullName targetTable, ExprColumnName columnName)
+            {
+                var tableKey = GetTableKey(targetTable.AsExprTableFullName());
+                if (this._tableClassByKey.TryGetValue(tableKey, out var className))
+                {
+                    return this.GetColumnMemberName(className, columnName.Name);
+                }
+
+                return ToPascalCaseIdentifier(columnName.Name, "Column");
             }
 
             private string RenderSubQueryBuilder(
@@ -1967,7 +2028,7 @@ namespace SqExpress.SqlTranspiler
                             return binding.VariableName + ".Column(" + ToCSharpStringLiteral(column.ColumnName.Name) + ")";
                         }
 
-                        return binding.VariableName + "." + ToPascalCaseIdentifier(column.ColumnName.Name, "Column");
+                        return binding.VariableName + "." + this.GetColumnMemberName(binding, column.ColumnName.Name);
                     }
                 }
 
@@ -1978,7 +2039,7 @@ namespace SqExpress.SqlTranspiler
                         || single.SourceKind == SourceKind.Derived
                         || single.SourceKind == SourceKind.Cte)
                     {
-                        return single.VariableName + "." + ToPascalCaseIdentifier(column.ColumnName.Name, "Column");
+                        return single.VariableName + "." + this.GetColumnMemberName(single, column.ColumnName.Name);
                     }
                 }
 

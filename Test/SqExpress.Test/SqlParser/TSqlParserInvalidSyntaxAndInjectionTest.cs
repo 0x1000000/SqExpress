@@ -214,6 +214,16 @@ namespace SqExpress.Test.SqlParser
                 .SetName("MissingSelectList");
 
             yield return new TestCaseData(
+                    "SELECT * F",
+                    "Syntax error: incorrect syntax near 'F'.")
+                .SetName("WildcardCannotHaveAlias");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM",
+                    "Syntax error: FROM clause is invalid.")
+                .SetName("FromWithoutSource");
+
+            yield return new TestCaseData(
                     "UPDATE [dbo].[Users] [u] WHERE [u].[UserId]=1",
                     "Syntax error: UPDATE statement must contain SET clause.")
                 .SetName("UpdateWithoutSet");

@@ -79,6 +79,7 @@ namespace SqExpress.SqlParser.Internal.Dom
         public SqlDomSelectClause(
             IReadOnlyList<SqlDomSelectItem> items,
             SqlDomTableSource? from,
+            bool hasFromClause,
             string? whereSql,
             string? groupBySql,
             string? havingSql,
@@ -90,6 +91,7 @@ namespace SqExpress.SqlParser.Internal.Dom
         {
             this.Items = items;
             this.From = from;
+            this.HasFromClause = hasFromClause;
             this.WhereSql = whereSql;
             this.GroupBySql = groupBySql;
             this.HavingSql = havingSql;
@@ -103,6 +105,8 @@ namespace SqExpress.SqlParser.Internal.Dom
         public IReadOnlyList<SqlDomSelectItem> Items { get; }
 
         public SqlDomTableSource? From { get; }
+
+        public bool HasFromClause { get; }
 
         public string? WhereSql { get; }
 

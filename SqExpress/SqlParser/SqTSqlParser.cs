@@ -16,10 +16,10 @@ namespace SqExpress.SqlParser
     {
         private static readonly SqTSqlParserOptions DefaultOptions = new SqTSqlParserOptions();
 
-        public static IExpr Parse(string sql, IReadOnlyList<TableBase> existingTables)
+        public static IExpr Parse(string sql, IReadOnlyList<TableBase>? existingTables = null)
             => Parse(sql, existingTables, options: null);
 
-        public static IExpr Parse(string sql, IReadOnlyList<TableBase> existingTables, SqTSqlParserOptions? options)
+        public static IExpr Parse(string sql, IReadOnlyList<TableBase>? existingTables, SqTSqlParserOptions? options)
         {
             if (TryParse(sql, existingTables, options, out IExpr? expr, out var error))
             {
@@ -31,27 +31,23 @@ namespace SqExpress.SqlParser
 
         public static bool TryParse(
             string sql,
-            IReadOnlyList<TableBase> existingTables,
+            IReadOnlyList<TableBase>? existingTables,
             [NotNullWhen(true)] out IExpr? result,
             [NotNullWhen(false)] out string? error)
             => TryParse(sql, existingTables, options: null, out result, out error);
 
         public static bool TryParse(
             string sql,
-            IReadOnlyList<TableBase> existingTables,
+            IReadOnlyList<TableBase>? existingTables,
             SqTSqlParserOptions? options,
             [NotNullWhen(true)] out IExpr? result,
             [NotNullWhen(false)] out string? error)
         {
-            if (existingTables == null)
-            {
-                throw new ArgumentNullException(nameof(existingTables));
-            }
-
             var effectiveOptions = NormalizeOptions(options);
             if (TryParseCore(sql, effectiveOptions, out result, out var tables, out var errors))
             {
-                if (!TryValidateParsedTables(existingTables, tables!, effectiveOptions.DefaultSchema, out error))
+                if (existingTables != null
+                    && !TryValidateParsedTables(existingTables, tables!, effectiveOptions.DefaultSchema, out error))
                 {
                     result = null;
                     return false;

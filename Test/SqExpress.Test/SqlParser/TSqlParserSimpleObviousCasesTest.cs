@@ -26,6 +26,21 @@ namespace SqExpress.Test.SqlParser
             Assert.That(reparsed!.ToSql(TSqlExporter.Default), Is.EqualTo(exportedSql), $"Case '{name}' round-trip SQL should be stable.");
         }
 
+        [TestCaseSource(nameof(UnhappyCases))]
+        public void SimpleObviousCases_RejectMalformedSql(string name, string sql, string? expectedErrorFragment)
+        {
+            var ok = SqTSqlParser.TryParse(sql, out var expr, out var error);
+
+            Assert.That(ok, Is.False, $"Case '{name}' should be rejected, but parser returned success.");
+            Assert.That(expr, Is.Null, $"Case '{name}' should not produce expression.");
+            Assert.That(error, Is.Not.Null.And.Not.Empty, $"Case '{name}' should report an error.");
+
+            if (!string.IsNullOrWhiteSpace(expectedErrorFragment))
+            {
+                Assert.That(error, Does.Contain(expectedErrorFragment), $"Case '{name}' should mention '{expectedErrorFragment}'.");
+            }
+        }
+
         private static IEnumerable<TestCaseData> Cases()
         {
             foreach (var item in ScalarSelectCases())
@@ -64,6 +79,29 @@ namespace SqExpress.Test.SqlParser
             }
 
             foreach (var item in MergeCases())
+            {
+                yield return item;
+            }
+        }
+
+        private static IEnumerable<TestCaseData> UnhappyCases()
+        {
+            foreach (var item in MalformedSelectCases())
+            {
+                yield return item;
+            }
+
+            foreach (var item in MalformedUpdateCases())
+            {
+                yield return item;
+            }
+
+            foreach (var item in MalformedDeleteCases())
+            {
+                yield return item;
+            }
+
+            foreach (var item in MalformedMergeCases())
             {
                 yield return item;
             }
@@ -377,7 +415,294 @@ namespace SqExpress.Test.SqlParser
             return cases.Select(i => Case(i.Name, i.Sql));
         }
 
+        private static IEnumerable<TestCaseData> MalformedSelectCases()
+        {
+            var cases = new List<(string Name, string Sql, string? Error)>();
+
+            foreach (var prefix in new[]
+                     {
+                         ("SelectOnly", "SELECT"),
+                         ("SelectDistinctOnly", "SELECT DISTINCT"),
+                         ("SelectTopParenOnly", "SELECT TOP (1)"),
+                         ("SelectTopOnly", "SELECT TOP 1"),
+                     })
+            {
+                cases.Add((prefix.Item1, prefix.Item2, "SELECT list is missing"));
+                cases.Add((prefix.Item1 + "_FromUsers", prefix.Item2 + " FROM Users", "SELECT list is missing"));
+                cases.Add((prefix.Item1 + "_FromUsersAlias", prefix.Item2 + " FROM Users u", "SELECT list is missing"));
+                cases.Add((prefix.Item1 + "_Where", prefix.Item2 + " WHERE 1=1", "SELECT list is missing"));
+                cases.Add((prefix.Item1 + "_OrderBy", prefix.Item2 + " ORDER BY UserId", "SELECT list is missing"));
+            }
+
+            foreach (var projection in new[]
+                     {
+                         ("Wildcard", "*"),
+                         ("Column", "UserId"),
+                         ("QualifiedColumn", "u.UserId"),
+                         ("Const", "1"),
+                     })
+            {
+                cases.Add(("FromMissing_" + projection.Item1, "SELECT " + projection.Item2 + " FROM", "FROM clause is invalid"));
+                cases.Add(("FromWhere_" + projection.Item1, "SELECT " + projection.Item2 + " FROM WHERE UserId = 1", "FROM clause is invalid"));
+                cases.Add(("FromGroup_" + projection.Item1, "SELECT " + projection.Item2 + " FROM GROUP BY UserId", "FROM clause is invalid"));
+                cases.Add(("FromOrder_" + projection.Item1, "SELECT " + projection.Item2 + " FROM ORDER BY UserId", "FROM clause is invalid"));
+                cases.Add(("FromOffset_" + projection.Item1, "SELECT " + projection.Item2 + " FROM OFFSET 0 ROWS", "FROM clause is invalid"));
+                cases.Add(("FromUnion_" + projection.Item1, "SELECT " + projection.Item2 + " FROM UNION SELECT 1", "FROM clause is invalid"));
+            }
+
+            foreach (var invalid in new[]
+                     {
+                         ("WildcardAlias", "SELECT * F", "incorrect syntax near"),
+                         ("QualifiedWildcardAlias", "SELECT u.* F FROM Users u", "incorrect syntax near"),
+                         ("WildcardAsAlias", "SELECT * AS F", "incorrect syntax near"),
+                         ("QualifiedWildcardAsAlias", "SELECT u.* AS F FROM Users u", "incorrect syntax near"),
+                         ("DanglingPlus", "SELECT 1+", "unexpected end of statement"),
+                         ("DanglingMinus", "SELECT 1-", "unexpected end of statement"),
+                         ("DanglingMultiply", "SELECT 1*", "unexpected end of statement"),
+                         ("DanglingDivide", "SELECT 1/", "unexpected end of statement"),
+                         ("UnbalancedParen", "SELECT (1+2", "unbalanced parentheses"),
+                         ("WhereOnly", "SELECT UserId FROM Users WHERE", "unexpected end of statement"),
+                         ("WhereEq", "SELECT UserId FROM Users WHERE UserId =", "unexpected end of statement"),
+                         ("WhereAnd", "SELECT UserId FROM Users WHERE UserId = 1 AND", "unexpected end of statement"),
+                         ("WhereOr", "SELECT UserId FROM Users WHERE UserId = 1 OR", "unexpected end of statement"),
+                         ("WhereIn", "SELECT UserId FROM Users WHERE UserId IN(", "unbalanced parentheses"),
+                         ("WhereExists", "SELECT UserId FROM Users WHERE EXISTS(", "unbalanced parentheses"),
+                         ("WhereOpenParen", "SELECT UserId FROM Users WHERE (UserId = 1", "unbalanced parentheses"),
+                         ("OrderByOnly", "SELECT UserId FROM Users ORDER BY", "ORDER BY clause is invalid"),
+                         ("OrderByComma", "SELECT UserId FROM Users ORDER BY UserId,", "ORDER BY clause is invalid"),
+                         ("OrderByDoubleComma", "SELECT UserId FROM Users ORDER BY UserId,, Name", "ORDER BY clause is invalid"),
+                         ("GroupByOnly", "SELECT UserId FROM Users GROUP BY", "GROUP BY clause is invalid"),
+                         ("GroupByComma", "SELECT UserId FROM Users GROUP BY UserId,", "GROUP BY clause is invalid"),
+                         ("GroupByDoubleComma", "SELECT UserId FROM Users GROUP BY UserId,, Name", "GROUP BY clause is invalid"),
+                         ("OffsetWithoutOrder", "SELECT UserId FROM Users OFFSET 10 ROWS", "OFFSET requires ORDER BY"),
+                         ("OffsetMissingRows", "SELECT UserId FROM Users ORDER BY UserId OFFSET 10", "OFFSET/FETCH clause is invalid"),
+                         ("OffsetOnlyKeyword", "SELECT UserId FROM Users ORDER BY UserId OFFSET", "OFFSET/FETCH clause is invalid"),
+                         ("FetchWithoutOffset", "SELECT UserId FROM Users ORDER BY UserId FETCH NEXT 10 ROWS ONLY", "OFFSET/FETCH clause is invalid"),
+                         ("FetchMissingCount", "SELECT UserId FROM Users ORDER BY UserId OFFSET 0 ROWS FETCH NEXT ROWS ONLY", "OFFSET/FETCH clause is invalid"),
+                         ("FetchMissingOnly", "SELECT UserId FROM Users ORDER BY UserId OFFSET 0 ROWS FETCH NEXT 10 ROWS", "OFFSET/FETCH clause is invalid"),
+                         ("FetchExtraToken", "SELECT UserId FROM Users ORDER BY UserId OFFSET 0 ROWS FETCH NEXT 10 ROWS ONLY EXTRA", "OFFSET/FETCH clause is invalid"),
+                         ("CrossJoinWithOn", "SELECT UserId FROM Users CROSS JOIN Orders ON Users.Id = Orders.UserId", "CROSS/ APPLY join cannot contain ON"),
+                         ("CrossApplyWithOn", "SELECT UserId FROM Users CROSS APPLY Orders ON Users.Id = Orders.UserId", "CROSS/ APPLY join cannot contain ON"),
+                         ("OuterApplyWithOn", "SELECT UserId FROM Users OUTER APPLY Orders ON Users.Id = Orders.UserId", "CROSS/ APPLY join cannot contain ON"),
+                         ("InnerJoinNoOn", "SELECT UserId FROM Users INNER JOIN Orders", "JOIN clause must contain ON"),
+                         ("LeftJoinNoOn", "SELECT UserId FROM Users LEFT JOIN Orders", "JOIN clause must contain ON"),
+                         ("RightJoinNoOn", "SELECT UserId FROM Users RIGHT JOIN Orders", "JOIN clause must contain ON"),
+                         ("FullJoinNoOn", "SELECT UserId FROM Users FULL JOIN Orders", "JOIN clause must contain ON"),
+                         ("InnerJoinOnNoPredicate", "SELECT UserId FROM Users INNER JOIN Orders ON", null),
+                         ("SelectFromComma", "SELECT UserId FROM Users,", null),
+                         ("SelectDoubleFrom", "SELECT UserId FROM FROM Users", "FROM clause is invalid"),
+                         ("SelectBadSetUnion", "SELECT UserId FROM Users UNION", null),
+                         ("SelectBadSetIntersect", "SELECT UserId FROM Users INTERSECT", null),
+                         ("SelectBadSetExcept", "SELECT UserId FROM Users EXCEPT", null),
+                     })
+            {
+                cases.Add(invalid);
+            }
+
+            foreach (var joinType in new[] { "INNER", "LEFT", "RIGHT", "FULL" })
+            {
+                foreach (var left in new[] { "Users", "Users u" })
+                {
+                    foreach (var right in new[] { "Orders", "Orders o", "(SELECT 1 AS Id) d" })
+                    {
+                        cases.Add((
+                            "JoinNoPredicate_" + joinType + "_" + left.Replace(" ", "_") + "_" + right.Replace(" ", "_").Replace("(", "").Replace(")", ""),
+                            $"SELECT UserId FROM {left} {joinType} JOIN {right} ON",
+                            null));
+                    }
+                }
+            }
+
+            foreach (var clause in new[]
+                     {
+                         ("WhereUnary", " WHERE NOT"),
+                         ("WhereEqOpen", " WHERE UserId = ("),
+                         ("WhereBetweenMissingEnd", " WHERE UserId BETWEEN 1 AND"),
+                         ("WhereLikeMissingPattern", " WHERE Name LIKE"),
+                         ("WhereInEmpty", " WHERE UserId IN()"),
+                         ("WhereExistsEmpty", " WHERE EXISTS()"),
+                     })
+            {
+                cases.Add(("SelectClause_" + clause.Item1, "SELECT UserId FROM Users" + clause.Item2, null));
+                cases.Add(("SelectClauseAlias_" + clause.Item1, "SELECT u.UserId FROM Users u" + clause.Item2.Replace("UserId", "u.UserId").Replace("Name", "u.Name"), null));
+            }
+
+            return cases.Select(i => BadCase(i.Name, i.Sql, i.Error));
+        }
+
+        private static IEnumerable<TestCaseData> MalformedUpdateCases()
+        {
+            var cases = new List<(string Name, string Sql, string? Error)>();
+
+            foreach (var target in new[] { "Users", "dbo.Users", "[Users]", "u" })
+            {
+                cases.Add(("UpdateMissingSet_" + target.Replace(".", "_").Replace("[", "").Replace("]", ""), $"UPDATE {target}", "SET clause"));
+                cases.Add(("UpdateMissingSetWhere_" + target.Replace(".", "_").Replace("[", "").Replace("]", ""), $"UPDATE {target} WHERE UserId = 1", "SET clause"));
+            }
+
+            foreach (var invalid in new[]
+                     {
+                         ("UpdateSetOnly", "UPDATE Users SET", null),
+                         ("UpdateSetWhere", "UPDATE Users SET WHERE UserId = 1", null),
+                         ("UpdateNameEq", "UPDATE Users SET Name =", "unexpected end of statement"),
+                         ("UpdateNameEqComma", "UPDATE Users SET Name = , IsActive = 1", null),
+                         ("UpdateCommaOnly", "UPDATE Users SET Name = 'A',", null),
+                         ("UpdateDoubleComma", "UPDATE Users SET Name = 'A',, IsActive = 1", null),
+                         ("UpdateFromMissing", "UPDATE Users SET Name = 'A' FROM", null),
+                         ("UpdateFromWhere", "UPDATE Users SET Name = 'A' FROM WHERE UserId = 1", null),
+                         ("UpdateJoinNoOn", "UPDATE u SET u.Name = o.Title FROM Users u INNER JOIN Orders o", "JOIN clause must contain ON"),
+                         ("UpdateJoinOnOnly", "UPDATE u SET u.Name = o.Title FROM Users u INNER JOIN Orders o ON", null),
+                         ("UpdateCrossJoinOn", "UPDATE u SET u.Name = o.Title FROM Users u CROSS JOIN Orders o ON u.UserId = o.UserId", "CROSS/ APPLY join cannot contain ON"),
+                         ("UpdateCrossApplyOn", "UPDATE u SET u.Name = oa.Title FROM Users u CROSS APPLY Orders oa ON u.UserId = oa.UserId", "CROSS/ APPLY join cannot contain ON"),
+                         ("UpdateWhereOnly", "UPDATE Users SET Name = 'A' WHERE", "unexpected end of statement"),
+                         ("UpdateWhereEq", "UPDATE Users SET Name = 'A' WHERE UserId =", "unexpected end of statement"),
+                         ("UpdateWhereAnd", "UPDATE Users SET Name = 'A' WHERE UserId = 1 AND", "unexpected end of statement"),
+                         ("UpdateWhereOr", "UPDATE Users SET Name = 'A' WHERE UserId = 1 OR", "unexpected end of statement"),
+                         ("UpdateSetOpenParen", "UPDATE Users SET Name = (SELECT 1", "unbalanced parentheses"),
+                         ("UpdateTopOnly", "UPDATE TOP (5) Users", "SET clause"),
+                         ("UpdateTopPercentOnly", "UPDATE TOP (5) PERCENT Users", "SET clause"),
+                         ("UpdateSetFromComma", "UPDATE Users SET Name = 'A' FROM Users u,", null),
+                         ("UpdateSetBadFromSource", "UPDATE Users SET Name = 'A' FROM GROUP BY UserId", null),
+                         ("UpdateSetOutputInto", "UPDATE Users SET Name = 'A' OUTPUT INSERTED.Name INTO @T WHERE UserId = 1", "OUTPUT ... INTO"),
+                     })
+            {
+                cases.Add(invalid);
+            }
+
+            foreach (var assignment in new[]
+                     {
+                         "Name =",
+                         "Name = 'A',",
+                         "Name = 'A',, IsActive = 1",
+                         "Name = CASE WHEN IsActive = 1 THEN 'A'",
+                         "ModifiedAt = DATEADD(day, 1,",
+                         "Version = Version +",
+                     })
+            {
+                foreach (var where in new[] { "", " WHERE UserId = 1" })
+                {
+                    cases.Add((
+                        "UpdateAssignment_" + assignment.GetHashCode().ToString("X") + "_" + (where.Length == 0 ? "NoWhere" : "Where"),
+                        "UPDATE Users SET " + assignment + where,
+                        null));
+                }
+            }
+
+            return cases.Select(i => BadCase(i.Name, i.Sql, i.Error));
+        }
+
+        private static IEnumerable<TestCaseData> MalformedDeleteCases()
+        {
+            var cases = new List<(string Name, string Sql, string? Error)>
+            {
+                ("DeleteOnly", "DELETE", null),
+                ("DeleteFromOnly", "DELETE FROM", null),
+                ("DeleteTopOnly", "DELETE TOP (5)", null),
+                ("DeleteTopPercentOnly", "DELETE TOP (5) PERCENT", "DELETE statement must contain target"),
+                ("DeleteWhereOnly", "DELETE Users WHERE", "unexpected end of statement"),
+                ("DeleteWhereEq", "DELETE Users WHERE UserId =", "unexpected end of statement"),
+                ("DeleteWhereAnd", "DELETE Users WHERE UserId = 1 AND", "unexpected end of statement"),
+                ("DeleteWhereOr", "DELETE Users WHERE UserId = 1 OR", "unexpected end of statement"),
+                ("DeleteFromWhereOnly", "DELETE FROM Users WHERE", "unexpected end of statement"),
+                ("DeleteAliasFromMissing", "DELETE u FROM", null),
+                ("DeleteJoinNoOn", "DELETE u FROM Users u INNER JOIN Orders o", "JOIN clause must contain ON"),
+                ("DeleteJoinOnOnly", "DELETE u FROM Users u INNER JOIN Orders o ON", null),
+                ("DeleteCrossJoinOn", "DELETE u FROM Users u CROSS JOIN Orders o ON u.UserId = o.UserId", "CROSS/ APPLY join cannot contain ON"),
+                ("DeleteCrossApplyOn", "DELETE u FROM Users u CROSS APPLY Orders oa ON u.UserId = oa.UserId", "CROSS/ APPLY join cannot contain ON"),
+                ("DeleteBadFromSource", "DELETE u FROM GROUP BY UserId", null),
+                ("DeleteFromComma", "DELETE FROM Users,", null),
+                ("DeleteAliasComma", "DELETE u FROM Users u,", null),
+                ("DeleteExistsEmpty", "DELETE Users WHERE EXISTS()", null),
+                ("DeleteInEmpty", "DELETE Users WHERE UserId IN()", null),
+                ("DeleteOpenParen", "DELETE Users WHERE (UserId = 1", "unbalanced parentheses"),
+            };
+
+            foreach (var target in new[] { "Users", "dbo.Users", "[Users]", "u" })
+            {
+                cases.Add(("DeleteTargetWhereOnly_" + target.Replace(".", "_").Replace("[", "").Replace("]", ""), "DELETE " + target + " WHERE", "unexpected end of statement"));
+            }
+
+            foreach (var clause in new[]
+                     {
+                         "WHERE UserId BETWEEN 1 AND",
+                         "WHERE Name LIKE",
+                         "WHERE NOT",
+                         "WHERE UserId = (",
+                     })
+            {
+                cases.Add(("DeleteClause_" + clause.GetHashCode().ToString("X"), "DELETE Users " + clause, null));
+                cases.Add(("DeleteFromClause_" + clause.GetHashCode().ToString("X"), "DELETE FROM Users " + clause, null));
+            }
+
+            return cases.Select(i => BadCase(i.Name, i.Sql, i.Error));
+        }
+
+        private static IEnumerable<TestCaseData> MalformedMergeCases()
+        {
+            var cases = new List<(string Name, string Sql, string? Error)>
+            {
+                ("MergeOnly", "MERGE Users", "MERGE statement must contain ON clause"),
+                ("MergeNoUsing", "MERGE Users t ON t.UserId = 1 WHEN MATCHED THEN DELETE;", null),
+                ("MergeNoOn", "MERGE Users t USING UsersStaging s WHEN MATCHED THEN DELETE;", "MERGE statement must contain ON clause"),
+                ("MergeUsingOnly", "MERGE Users t USING UsersStaging s", "MERGE statement must contain ON clause"),
+                ("MergeOnOnly", "MERGE Users t USING UsersStaging s ON", null),
+                ("MergeMatchedNoAction", "MERGE Users t USING UsersStaging s ON t.UserId = s.UserId WHEN MATCHED THEN;", null),
+                ("MergeNotMatchedNoAction", "MERGE Users t USING UsersStaging s ON t.UserId = s.UserId WHEN NOT MATCHED THEN;", null),
+                ("MergeNotMatchedBySourceNoAction", "MERGE Users t USING UsersStaging s ON t.UserId = s.UserId WHEN NOT MATCHED BY SOURCE THEN;", null),
+                ("MergeInsertMissingValues", "MERGE Users t USING UsersStaging s ON t.UserId = s.UserId WHEN NOT MATCHED THEN INSERT(UserId, Name);", null),
+                ("MergeInsertOpenValues", "MERGE Users t USING UsersStaging s ON t.UserId = s.UserId WHEN NOT MATCHED THEN INSERT(UserId, Name) VALUES(", "unbalanced parentheses"),
+                ("MergeUpdateMissingSet", "MERGE Users t USING UsersStaging s ON t.UserId = s.UserId WHEN MATCHED THEN UPDATE;", null),
+                ("MergeUpdateEmptySet", "MERGE Users t USING UsersStaging s ON t.UserId = s.UserId WHEN MATCHED THEN UPDATE SET;", null),
+                ("MergeDeleteGarbage", "MERGE Users t USING UsersStaging s ON t.UserId = s.UserId WHEN MATCHED THEN DELETE EXTRA;", null),
+                ("MergeUsingMissingSource", "MERGE Users t USING ON t.UserId = 1 WHEN MATCHED THEN DELETE;", null),
+                ("MergeUsingBadSource", "MERGE Users t USING WHERE t.UserId = 1 ON t.UserId = 1 WHEN MATCHED THEN DELETE;", null),
+                ("MergeUsingJoinNoOn", "MERGE Users t USING UsersStaging s INNER JOIN Orders o ON t.UserId = s.UserId WHEN MATCHED THEN DELETE;", null),
+                ("MergeConditionAndOnly", "MERGE Users t USING UsersStaging s ON t.UserId = s.UserId WHEN MATCHED AND THEN DELETE;", null),
+                ("MergeInsertDefaultValuesGarbage", "MERGE Users t USING UsersStaging s ON t.UserId = s.UserId WHEN NOT MATCHED THEN INSERT DEFAULT VALUES EXTRA;", null),
+                ("MergeUnbalancedUsingSelect", "MERGE Users t USING (SELECT s.UserId FROM UsersStaging s ON t.UserId = s.UserId WHEN MATCHED THEN DELETE;", "unbalanced parentheses"),
+            };
+
+            foreach (var action in new[]
+                     {
+                         "WHEN MATCHED THEN UPDATE SET Name =",
+                         "WHEN MATCHED THEN UPDATE SET Name = s.Name,",
+                         "WHEN MATCHED THEN UPDATE SET Name = CASE WHEN s.IsDeleted = 1 THEN 'X'",
+                         "WHEN NOT MATCHED THEN INSERT(UserId, Name) VALUES(s.UserId,",
+                         "WHEN NOT MATCHED THEN INSERT(UserId, Name) VALUES(",
+                         "WHEN NOT MATCHED BY SOURCE THEN UPDATE SET IsActive =",
+                     })
+            {
+                cases.Add((
+                    "MergeAction_" + action.GetHashCode().ToString("X"),
+                    "MERGE Users t USING UsersStaging s ON t.UserId = s.UserId " + action + ";",
+                    null));
+            }
+
+            foreach (var usingSource in new[]
+                     {
+                         "UsersStaging",
+                         "UsersStaging s",
+                         "(SELECT UserId FROM UsersStaging)",
+                         "(VALUES (1)) s(UserId)",
+                     })
+            {
+                cases.Add((
+                    "MergeMissingAction_" + usingSource.GetHashCode().ToString("X"),
+                    "MERGE Users t USING " + usingSource + " ON t.UserId = s.UserId;",
+                    null));
+                cases.Add((
+                    "MergeBadSemicolon_" + usingSource.GetHashCode().ToString("X"),
+                    "MERGE Users t USING " + usingSource + " ON t.UserId = s.UserId WHEN MATCHED THEN DELETE",
+                    null));
+            }
+
+            return cases.Select(i => BadCase(i.Name, i.Sql, i.Error));
+        }
+
         private static TestCaseData Case(string name, string sql)
             => new TestCaseData(name, sql).SetName(name);
+
+        private static TestCaseData BadCase(string name, string sql, string? expectedErrorFragment)
+            => new TestCaseData(name, sql, expectedErrorFragment).SetName(name);
     }
 }

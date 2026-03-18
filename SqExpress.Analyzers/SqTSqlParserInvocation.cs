@@ -1,7 +1,6 @@
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System.Linq;
 
 namespace SqExpress.Analyzers
 {

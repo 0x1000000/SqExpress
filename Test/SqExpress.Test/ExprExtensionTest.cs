@@ -155,30 +155,30 @@ namespace SqExpress.Test
         }
 
         [Test]
-        public void WithParamsAsQuery_Dictionary_ReturnsQuery()
+        public void AsQuery_ReturnsQuery()
         {
             const string sql = "SELECT @id [Id]";
             Assert.That(SqTSqlParser.TryParse(sql, out IExpr? expr, out var error), Is.True, error);
 
-            var replaced = expr!.WithParamsAsQuery(new Dictionary<string, ParamValue>
+            var replaced = expr!.WithParams(new Dictionary<string, ParamValue>
             {
                 {"id", Literal(1)}
-            });
+            }).AsQuery();
 
             Assert.That(replaced, Is.InstanceOf<IExprQuery>());
             Assert.That(replaced.ToSql(), Does.Contain("1 [Id]"));
         }
 
         [Test]
-        public void WithParamsAsNonQuery_Dictionary_ReturnsExec()
+        public void AsNonQuery_ReturnsExec()
         {
             var user = new User();
             var expr = SqTSqlParser.Parse("DELETE [User] WHERE UserId = @userId", [user]);
 
-            var replaced = expr.WithParamsAsNonQuery(new Dictionary<string, ParamValue>
+            var replaced = expr.WithParams(new Dictionary<string, ParamValue>
             {
                 {"userId", Literal(1)}
-            });
+            }).AsNonQuery();
 
             Assert.That(replaced, Is.InstanceOf<IExprExec>());
             Assert.That(replaced.ToSql(), Does.Contain("DELETE"));
@@ -186,31 +186,31 @@ namespace SqExpress.Test
         }
 
         [Test]
-        public void WithParamsAsNonQuery_Dictionary_ThrowsForQuery()
+        public void AsNonQuery_ThrowsForQuery()
         {
             const string sql = "SELECT @id [Id]";
             Assert.That(SqTSqlParser.TryParse(sql, out IExpr? expr, out var error), Is.True, error);
 
-            var ex = Assert.Throws<SqExpressException>(() => expr!.WithParamsAsNonQuery(new Dictionary<string, ParamValue>
+            var ex = Assert.Throws<SqExpressException>(() => expr!.WithParams(new Dictionary<string, ParamValue>
             {
                 {"id", Literal(1)}
-            }));
+            }).AsNonQuery());
 
-            Assert.That(ex!.Message, Is.EqualTo("Expression 'ExprQuerySpecification' is not a non-query statement. Use WithParamsAsQuery(...) for SELECT statements."));
+            Assert.That(ex!.Message, Is.EqualTo("Expression 'ExprQuerySpecification' is not a non-query statement. Use AsQuery() for SELECT statements."));
         }
 
         [Test]
-        public void WithParamsAsQuery_Dictionary_ThrowsForNonQuery()
+        public void AsQuery_ThrowsForNonQuery()
         {
             var user = new User();
             var expr = SqTSqlParser.Parse("DELETE [User] WHERE UserId = @userId", [user]);
 
-            var ex = Assert.Throws<SqExpressException>(() => expr.WithParamsAsQuery(new Dictionary<string, ParamValue>
+            var ex = Assert.Throws<SqExpressException>(() => expr.WithParams(new Dictionary<string, ParamValue>
             {
                 {"userId", Literal(1)}
-            }));
+            }).AsQuery());
 
-            Assert.That(ex!.Message, Is.EqualTo("Expression 'ExprDelete' is not a query. Use WithParamsAsNonQuery(...) for INSERT/UPDATE/DELETE/MERGE statements."));
+            Assert.That(ex!.Message, Is.EqualTo("Expression 'ExprDelete' is not a query. Use AsNonQuery() for INSERT/UPDATE/DELETE/MERGE statements."));
         }
 
         [Test]
@@ -330,24 +330,26 @@ namespace SqExpress.Test
         }
 
         [Test]
-        public void WithParamsAsNonQuery_SingleParameter_ReturnsExec()
+        public void AsNonQuery_SingleParameter_ReturnsExec()
         {
             var u = new User();
 
             var expr = SqTSqlParser
                 .Parse("DELETE [User] WHERE UserId = @users", [u])
-                .WithParamsAsNonQuery("@users", 1);
+                .WithParams("@users", 1)
+                .AsNonQuery();
 
             Assert.That(expr, Is.InstanceOf<IExprExec>());
             Assert.That(expr.ToSql(), Does.Contain("[UserId]=1"));
         }
 
         [Test]
-        public void WithParamsAsQuery_SingleParameter_ReturnsQuery()
+        public void AsQuery_SingleParameter_ReturnsQuery()
         {
             var expr = SqTSqlParser
                 .Parse("SELECT @users [Id]", [])
-                .WithParamsAsQuery("@users", 1);
+                .WithParams("@users", 1)
+                .AsQuery();
 
             Assert.That(expr, Is.InstanceOf<IExprQuery>());
             Assert.That(expr.ToSql(), Does.Contain("1 [Id]"));

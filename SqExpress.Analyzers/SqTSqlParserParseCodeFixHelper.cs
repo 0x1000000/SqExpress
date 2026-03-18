@@ -241,7 +241,7 @@ namespace SqExpress.Analyzers
                     match,
                     expectedTables,
                     anchorStatement: null,
-                    BuildSourceTableCatalog(semanticModel.Compilation, cancellationToken),
+                    SqTSqlParserSourceTableCatalogHelper.BuildSourceTableCatalog(semanticModel.Compilation, cancellationToken),
                     cancellationToken,
                     out var _,
                     out var _,
@@ -252,6 +252,74 @@ namespace SqExpress.Analyzers
             }
 
             return false;
+        }
+
+        public static bool TryGetSqlParseFailureMessage(
+            SqTSqlParserInvocation match,
+            out string failureMessage)
+        {
+            failureMessage = string.Empty;
+            if (!TryParseExpectedTables(match.SqlText, out var _, out failureMessage))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        public static bool TryGetExistingTablesFailureMessage(
+            SemanticModel semanticModel,
+            SqTSqlParserInvocation match,
+            CancellationToken cancellationToken,
+            out string failureMessage)
+        {
+            failureMessage = string.Empty;
+
+            if (match.Invocation.ArgumentList.Arguments.Count < 2)
+            {
+                return false;
+            }
+
+            if (!TryParseExpectedTables(match.SqlText, out var expectedTables, out var _))
+            {
+                return false;
+            }
+
+            if (!TryResolveProvidedTables(
+                    match.Invocation.ArgumentList.Arguments[1].Expression,
+                    semanticModel,
+                    cancellationToken,
+                    out var providedTables))
+            {
+                return false;
+            }
+
+            var expectedKeys = expectedTables
+                .Select(i => i.TableKey)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (expectedKeys.Count < 1)
+            {
+                return false;
+            }
+
+            var providedKeys = new HashSet<string>(
+                providedTables.Select(i => i.TableKey),
+                StringComparer.OrdinalIgnoreCase);
+
+            var missing = expectedKeys
+                .Where(i => !providedKeys.Contains(i))
+                .Select(FormatTableKey)
+                .OrderBy(i => i, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (missing.Count < 1)
+            {
+                return false;
+            }
+
+            failureMessage = "Provided existingTables do not cover SQL tables: " + string.Join(", ", missing) + ".";
+            return true;
         }
 
         public static CompilationUnitSyntax AddRequiredUsings(
@@ -411,7 +479,8 @@ namespace SqExpress.Analyzers
             while (replacementRoot.Parent is MemberAccessExpressionSyntax memberAccess
                    && memberAccess.Expression == replacementRoot
                    && memberAccess.Parent is InvocationExpressionSyntax invocation
-                   && IsWithParamsInvocation(invocation, semanticModel, cancellationToken))
+                   && (IsWithParamsInvocation(invocation, semanticModel, cancellationToken)
+                       || IsNarrowingInvocation(invocation, semanticModel, cancellationToken)))
             {
                 replacementRoot = invocation;
             }
@@ -431,6 +500,25 @@ namespace SqExpress.Analyzers
 
             return string.Equals(method.Name, "WithParams", StringComparison.Ordinal)
                    && string.Equals(method.ContainingType?.ToDisplayString(), "SqExpress.ExprExtension", StringComparison.Ordinal);
+        }
+
+        private static bool IsNarrowingInvocation(
+            InvocationExpressionSyntax invocation,
+            SemanticModel semanticModel,
+            CancellationToken cancellationToken)
+        {
+            if (semanticModel.GetSymbolInfo(invocation, cancellationToken).Symbol is not IMethodSymbol method)
+            {
+                return false;
+            }
+
+            if (!string.Equals(method.ContainingType?.ToDisplayString(), "SqExpress.ExprExtension", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            return string.Equals(method.Name, "AsQuery", StringComparison.Ordinal)
+                   || string.Equals(method.Name, "AsNonQuery", StringComparison.Ordinal);
         }
 
         private static Dictionary<string, ExpressionSyntax> CollectParameterOverrides(
@@ -580,8 +668,9 @@ namespace SqExpress.Analyzers
 
             foreach (var table in expr.SyntaxTree().DescendantsAndSelf().OfType<ExprTable>())
             {
-                var alias = table.Alias != null
-                    ? GetAliasName(table.Alias.Alias)
+                var hasExplicitAlias = table.Alias != null;
+                var alias = hasExplicitAlias
+                    ? GetAliasName(table.Alias!.Alias)
                     : ToCamelCaseIdentifier(table.FullName.AsExprTableFullName().TableName.Name, "t");
                 if (string.IsNullOrWhiteSpace(alias))
                 {
@@ -591,7 +680,7 @@ namespace SqExpress.Analyzers
                 var tableKey = GetTableKey(table.FullName.AsExprTableFullName());
                 if (seen.Add(alias + "|" + tableKey))
                 {
-                    result.Add(new ExpectedTableInfo(alias, tableKey));
+                    result.Add(new ExpectedTableInfo(alias, tableKey, hasExplicitAlias));
                 }
             }
 
@@ -632,7 +721,7 @@ namespace SqExpress.Analyzers
             var tableKey = GetTableKey(exprFullName);
             if (seen.Add(alias + "|" + tableKey))
             {
-                result.Add(new ExpectedTableInfo(alias, tableKey));
+                result.Add(new ExpectedTableInfo(alias, tableKey, false));
             }
         }
 
@@ -881,11 +970,6 @@ namespace SqExpress.Analyzers
                 return false;
             }
 
-            if (methodSymbol.Parameters.Length > 0)
-            {
-                return false;
-            }
-
             foreach (var syntaxRef in methodSymbol.DeclaringSyntaxReferences)
             {
                 switch (syntaxRef.GetSyntax(cancellationToken))
@@ -980,7 +1064,7 @@ namespace SqExpress.Analyzers
                 return false;
             }
 
-            if (args.Value.Count >= 3
+            if (args.Value.Count >= 2
                 && TryGetConstantString(args.Value[0].Expression, semanticModel, cancellationToken, out schema)
                 && TryGetConstantString(args.Value[1].Expression, semanticModel, cancellationToken, out tableName))
             {
@@ -1137,11 +1221,29 @@ namespace SqExpress.Analyzers
 
                 var variableName = MakeUniqueLocalName(usedNames, candidate.VariableBaseName);
                 var descriptorTypeName = candidate.PreferredTypeName;
-                var creationExpression = candidate.SupportsAliasConstructor
-                    ? "new " + descriptorTypeName + "(" + ToCSharpStringLiteral(expected.Alias) + ")"
+                var creationExpression = expected.HasExplicitAlias
+                    ? candidate.SupportsAliasConstructor
+                        ? "new " + descriptorTypeName + "(" + ToCSharpStringLiteral(expected.Alias) + ")"
+                        : "new " + descriptorTypeName + "()"
                     : "new " + descriptorTypeName + "()";
+                var columnPropertyNames = candidate.ColumnsByName.ToDictionary(
+                    i => i.Key,
+                    i => i.Value.MemberName,
+                    StringComparer.OrdinalIgnoreCase);
+                var columnTypeNames = candidate.ColumnsByName
+                    .Where(i => !string.IsNullOrWhiteSpace(i.Value.TypeName))
+                    .ToDictionary(
+                        i => i.Key,
+                        i => i.Value.TypeName!,
+                        StringComparer.OrdinalIgnoreCase);
                 declarations.Add(SyntaxFactory.ParseStatement("var " + variableName + " = " + creationExpression + ";"));
-                bindings.Add(new SqExpressSqlInlineTableBinding(expected.TableKey, expected.Alias, variableName, descriptorTypeName));
+                bindings.Add(new SqExpressSqlInlineTableBinding(
+                    expected.TableKey,
+                    expected.Alias,
+                    variableName,
+                    descriptorTypeName,
+                    columnPropertyNames,
+                    columnTypeNames));
                 if (!string.IsNullOrWhiteSpace(candidate.NamespaceName))
                 {
                     usedNamespaces.Add(candidate.NamespaceName!);
@@ -1169,110 +1271,25 @@ namespace SqExpress.Analyzers
                     continue;
                 }
 
-                VisitNamespace(compilation.Assembly.GlobalNamespace, compilation, cancellationToken, byKey);
-            }
-
-            return byKey.ToDictionary(i => i.Key, i => (IReadOnlyList<SourceTableInfo>)i.Value, StringComparer.OrdinalIgnoreCase);
-        }
-
-        private static IReadOnlyDictionary<string, IReadOnlyList<SourceTableInfo>> BuildSourceTableCatalog(
-            Compilation compilation,
-            CancellationToken cancellationToken)
-        {
-            var byKey = new Dictionary<string, List<SourceTableInfo>>(StringComparer.OrdinalIgnoreCase);
-            VisitNamespace(compilation.Assembly.GlobalNamespace, compilation, cancellationToken, byKey);
-            return byKey.ToDictionary(i => i.Key, i => (IReadOnlyList<SourceTableInfo>)i.Value, StringComparer.OrdinalIgnoreCase);
-        }
-
-        private static void VisitNamespace(
-            INamespaceSymbol namespaceSymbol,
-            Compilation compilation,
-            CancellationToken cancellationToken,
-            IDictionary<string, List<SourceTableInfo>> byKey)
-        {
-            foreach (var member in namespaceSymbol.GetMembers())
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                if (member is INamespaceSymbol nestedNamespace)
+                foreach (var pair in SqTSqlParserSourceTableCatalogHelper.BuildSourceTableCatalog(compilation, cancellationToken))
                 {
-                    VisitNamespace(nestedNamespace, compilation, cancellationToken, byKey);
-                }
-                else if (member is INamedTypeSymbol namedType)
-                {
-                    VisitNamedType(namedType, compilation, cancellationToken, byKey);
-                }
-            }
-        }
-
-        private static void VisitNamedType(
-            INamedTypeSymbol namedType,
-            Compilation compilation,
-            CancellationToken cancellationToken,
-            IDictionary<string, List<SourceTableInfo>> byKey)
-        {
-            if (namedType.TypeKind is TypeKind.Class && !namedType.IsAbstract && DerivesFromTableBase(namedType))
-            {
-                if (TryCreateSourceTableInfo(namedType, compilation, cancellationToken, out var info))
-                {
-                    if (!byKey.TryGetValue(info.TableKey, out var items))
+                    if (!byKey.TryGetValue(pair.Key, out var items))
                     {
                         items = new List<SourceTableInfo>();
-                        byKey[info.TableKey] = items;
+                        byKey[pair.Key] = items;
                     }
 
-                    items.Add(info);
+                    foreach (var candidate in pair.Value)
+                    {
+                        if (!items.Any(i => string.Equals(i.TypeName, candidate.TypeName, StringComparison.Ordinal)))
+                        {
+                            items.Add(candidate);
+                        }
+                    }
                 }
             }
 
-            foreach (var nested in namedType.GetTypeMembers())
-            {
-                VisitNamedType(nested, compilation, cancellationToken, byKey);
-            }
-        }
-
-        private static bool TryCreateSourceTableInfo(
-            INamedTypeSymbol namedType,
-            Compilation compilation,
-            CancellationToken cancellationToken,
-            out SourceTableInfo info)
-        {
-            info = default!;
-
-            var constructors = namedType.InstanceConstructors
-                .Where(i => i.DeclaredAccessibility == Accessibility.Public)
-                .ToList();
-
-            string? tableKey = null;
-            foreach (var constructor in constructors)
-            {
-                if (TryResolveTableInfoFromConstructor(constructor, compilation, cancellationToken, out var resolvedKey))
-                {
-                    tableKey = resolvedKey;
-                    break;
-                }
-            }
-
-            if (string.IsNullOrWhiteSpace(tableKey))
-            {
-                return false;
-            }
-
-            var supportsParameterlessConstructor = constructors.Any(i => i.Parameters.Length == 0);
-            var supportsAliasConstructor = constructors.Any(i =>
-                i.Parameters.Length == 1
-                && string.Equals(i.Parameters[0].Type.ToDisplayString(), "SqExpress.Alias", StringComparison.Ordinal));
-
-            var resolvedTableKey = tableKey!;
-            info = new SourceTableInfo(
-                resolvedTableKey,
-                namedType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-                namedType.Name,
-                namedType.ContainingNamespace?.IsGlobalNamespace == false ? namedType.ContainingNamespace.ToDisplayString() : null,
-                ToCamelCaseIdentifier(namedType.Name, "table"),
-                supportsParameterlessConstructor,
-                supportsAliasConstructor);
-            return true;
+            return byKey.ToDictionary(i => i.Key, i => (IReadOnlyList<SourceTableInfo>)i.Value, StringComparer.OrdinalIgnoreCase);
         }
 
         private static bool TryGetConstantString(
@@ -1432,15 +1449,18 @@ namespace SqExpress.Analyzers
 
         private readonly struct ExpectedTableInfo
         {
-            public ExpectedTableInfo(string alias, string tableKey)
+            public ExpectedTableInfo(string alias, string tableKey, bool hasExplicitAlias)
             {
                 this.Alias = alias;
                 this.TableKey = tableKey;
+                this.HasExplicitAlias = hasExplicitAlias;
             }
 
             public string Alias { get; }
 
             public string TableKey { get; }
+
+            public bool HasExplicitAlias { get; }
         }
 
         private readonly struct ProvidedTableInfo
@@ -1476,43 +1496,6 @@ namespace SqExpress.Analyzers
             public string TableKey { get; }
 
             public string? Alias { get; }
-        }
-
-        private readonly struct SourceTableInfo
-        {
-            public SourceTableInfo(
-                string tableKey,
-                string typeName,
-                string simpleTypeName,
-                string? namespaceName,
-                string variableBaseName,
-                bool supportsParameterlessConstructor,
-                bool supportsAliasConstructor)
-            {
-                this.TableKey = tableKey;
-                this.TypeName = typeName;
-                this.SimpleTypeName = simpleTypeName;
-                this.NamespaceName = namespaceName;
-                this.VariableBaseName = variableBaseName;
-                this.SupportsParameterlessConstructor = supportsParameterlessConstructor;
-                this.SupportsAliasConstructor = supportsAliasConstructor;
-            }
-
-            public string TableKey { get; }
-
-            public string TypeName { get; }
-
-            public string SimpleTypeName { get; }
-
-            public string? NamespaceName { get; }
-
-            public string VariableBaseName { get; }
-
-            public bool SupportsParameterlessConstructor { get; }
-
-            public bool SupportsAliasConstructor { get; }
-
-            public string PreferredTypeName => this.SimpleTypeName;
         }
 
         private readonly struct TupleArgumentInfo

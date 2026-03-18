@@ -34,7 +34,8 @@ public class ScParserTypedParams : IScenario
             var parsedQuery = SqTSqlParser.Parse(
                     "SELECT U.LastName FROM dbo.ItUser U WHERE U.UserId = @userId",
                     allTables)
-                .WithParamsAsQuery(("userId", sample.UserId));
+                .WithParams(("userId", sample.UserId))
+                .AsQuery();
 
             var parsedValueBefore = Convert.ToString(await parsedQuery.QueryScalar(context.Database)) ?? string.Empty;
             if (parsedValueBefore != originalLastName)
@@ -45,9 +46,10 @@ public class ScParserTypedParams : IScenario
             await SqTSqlParser.Parse(
                     "UPDATE dbo.ItUser SET LastName = @lastName WHERE UserId = @userId",
                     allTables)
-                .WithParamsAsNonQuery(
+                .WithParams(
                     ("userId", sample.UserId),
                     ("lastName", updatedLastName))
+                .AsNonQuery()
                 .Exec(context.Database);
 
             var parsedValueAfter = Convert.ToString(await parsedQuery.QueryScalar(context.Database)) ?? string.Empty;
@@ -63,9 +65,10 @@ public class ScParserTypedParams : IScenario
             await SqTSqlParser.Parse(
                     "UPDATE dbo.ItUser SET LastName = @lastName WHERE UserId = @userId",
                     allTables)
-                .WithParamsAsNonQuery(
+                .WithParams(
                     ("userId", sample.UserId),
                     ("lastName", originalLastName))
+                .AsNonQuery()
                 .Exec(context.Database);
         }
     }

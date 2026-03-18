@@ -59,9 +59,8 @@ namespace SqExpress.Analyzers.Test
 
             var diagnostics = await GetDiagnosticsAsync(source);
 
-            Assert.That(diagnostics.Length, Is.EqualTo(1));
-            Assert.That(diagnostics[0].Id, Is.EqualTo("SQEX001"));
-            Assert.That(diagnostics[0].GetMessage(), Does.Contain("Parse"));
+            Assert.That(diagnostics.Select(i => i.Id), Contains.Item("SQEX001"));
+            Assert.That(diagnostics.Single(i => i.Id == "SQEX001").GetMessage(), Does.Contain("Parse"));
         }
 
         [Test]
@@ -103,8 +102,7 @@ namespace SqExpress.Analyzers.Test
 
             var diagnostics = await GetDiagnosticsAsync(source);
 
-            Assert.That(diagnostics.Length, Is.EqualTo(1));
-            Assert.That(diagnostics[0].Id, Is.EqualTo("SQEX001"));
+            Assert.That(diagnostics.Select(i => i.Id), Contains.Item("SQEX001"));
         }
 
         [Test]
@@ -163,8 +161,144 @@ namespace SqExpress.Analyzers.Test
 
             var diagnostics = await GetDiagnosticsAsync(source);
 
-            Assert.That(diagnostics.Length, Is.EqualTo(1));
-            Assert.That(diagnostics[0].Id, Is.EqualTo("SQEX001"));
+            Assert.That(diagnostics.Select(i => i.Id), Contains.Item("SQEX001"));
+            Assert.That(diagnostics.Select(i => i.Id), Contains.Item("SQEX011"));
+            Assert.That(diagnostics.Single(i => i.Id == "SQEX011").GetMessage(), Does.Contain("[dbo].[Users]"));
+        }
+
+        [Test]
+        public async Task Analyze_WhenSqlIsInvalid_ReportsParserWarning()
+        {
+            var source = CommonTypes + """
+
+                public sealed class Host
+                {
+                    public object M()
+                    {
+                        var u = new UsersTable("u");
+                        return SqTSqlParser.Parse("SELECT FROM dbo.Users u", [u]);
+                    }
+                }
+                """;
+
+            var diagnostics = await GetDiagnosticsAsync(source);
+
+            Assert.That(diagnostics.Select(i => i.Id), Contains.Item("SQEX001"));
+            Assert.That(diagnostics.Select(i => i.Id), Contains.Item("SQEX010"));
+            Assert.That(diagnostics.Single(i => i.Id == "SQEX010").GetMessage(), Does.Contain("Could not parse SQL."));
+        }
+
+        [Test]
+        public async Task Analyze_WhenSqlIsJustIdentifier_ReportsParserWarning()
+        {
+            var source = """
+                using SqExpress.SqlParser;
+
+                public sealed class Host
+                {
+                    public object M()
+                    {
+                        return SqTSqlParser.Parse("aaaa");
+                    }
+                }
+                """;
+
+            var diagnostics = await GetDiagnosticsAsync(source);
+
+            Assert.That(diagnostics.Select(i => i.Id), Contains.Item("SQEX001"));
+            Assert.That(diagnostics.Select(i => i.Id), Contains.Item("SQEX010"));
+        }
+
+        [Test]
+        public async Task Analyze_WhenExistingTablesMissReferencedTable_ReportsExistingTablesWarning()
+        {
+            var source = """
+                using SqExpress;
+                using SqExpress.SqlParser;
+
+                public sealed class OrdersTable : TableBase
+                {
+                    public OrdersTable() : base("dbo", "Orders")
+                    {
+                    }
+                }
+
+                public sealed class Host
+                {
+                    public object M()
+                    {
+                        var orders = new OrdersTable();
+                        return SqTSqlParser.Parse("SELECT u.UserId FROM dbo.Users u", [orders]);
+                    }
+                }
+                """;
+
+            var diagnostics = await GetDiagnosticsAsync(source);
+
+            Assert.That(diagnostics.Select(i => i.Id), Contains.Item("SQEX011"));
+            Assert.That(diagnostics.Single(i => i.Id == "SQEX011").GetMessage(), Does.Contain("[dbo].[Users]"));
+        }
+
+        [Test]
+        public async Task Analyze_WhenExistingTablesComeFromParameterizedHelper_ReportsExistingTablesWarning()
+        {
+            var source = """
+                using SqExpress;
+                using SqExpress.SqlParser;
+
+                public enum Dialect
+                {
+                    TSql
+                }
+
+                public sealed class OrdersTable : TableBase
+                {
+                    public OrdersTable() : base("dbo", "Orders")
+                    {
+                    }
+                }
+
+                public static class AllTables
+                {
+                    public static TableBase[] BuildAllTableList(Dialect dialect) => [BuildOrders(dialect)];
+
+                    public static OrdersTable BuildOrders(Dialect dialect) => new OrdersTable();
+                }
+
+                public sealed class Host
+                {
+                    public object M()
+                    {
+                        var allTables = AllTables.BuildAllTableList(Dialect.TSql);
+                        return SqTSqlParser.Parse("SELECT u.UserId FROM dbo.Users u", allTables);
+                    }
+                }
+                """;
+
+            var diagnostics = await GetDiagnosticsAsync(source);
+
+            Assert.That(diagnostics.Select(i => i.Id), Contains.Item("SQEX011"));
+            Assert.That(diagnostics.Single(i => i.Id == "SQEX011").GetMessage(), Does.Contain("[dbo].[Users]"));
+        }
+
+        [Test]
+        public async Task Analyze_WhenReferencedSqlColumnHasNoMatchingMember_ReportsColumnWarning()
+        {
+            var source = CommonTypes + """
+
+                public sealed class Host
+                {
+                    public object M()
+                    {
+                        return SqTSqlParser.Parse("SELECT u.LastName FROM dbo.Users u");
+                    }
+                }
+                """;
+
+            var diagnostics = await GetDiagnosticsAsync(source);
+
+            Assert.That(diagnostics.Select(i => i.Id), Contains.Item("SQEX012"));
+            Assert.That(diagnostics.Single(i => i.Id == "SQEX012").GetMessage(), Is.EqualTo("Could not find Column [LastName] in table [dbo].[Users]."));
         }
 
         [Test]
@@ -189,6 +323,70 @@ namespace SqExpress.Analyzers.Test
             Assert.That(fixedSource, Does.Contain("var userId = id;"));
             Assert.That(fixedSource, Does.Contain("var usersTable = new UsersTable(\"u\");"));
             Assert.That(fixedSource, Does.Contain("var expr = Select(usersTable.UserId)"));
+            await AssertCompilesAsync(fixedSource);
+        }
+
+        [Test]
+        public async Task CodeFix_WhenDiscoveredTableMemberNameDiffersFromSqlColumn_UsesRealDescriptorMember()
+        {
+            var source = """
+                using SqExpress;
+                using SqExpress.SqlParser;
+
+                public sealed class UsersTable : TableBase
+                {
+                    public Int32TableColumn Id { get; }
+
+                    public UsersTable() : this(default)
+                    {
+                    }
+
+                    public UsersTable(Alias alias) : base("dbo", "Users", alias)
+                    {
+                        this.Id = this.CreateInt32Column("UserId");
+                    }
+                }
+
+                public sealed class Host
+                {
+                    public object M(int id)
+                    {
+                        return SqTSqlParser.Parse("SELECT u.UserId FROM dbo.Users u WHERE u.UserId = @userId")
+                            .WithParams("userId", id);
+                    }
+                }
+                """;
+
+            var fixedSource = await ApplyCodeFixAsync(source);
+
+            Assert.That(fixedSource, Does.Contain("Select(usersTable.Id)"));
+            Assert.That(fixedSource, Does.Contain("Where(usersTable.Id == userId)"));
+            await AssertCompilesAsync(fixedSource);
+        }
+
+        [Test]
+        public async Task CodeFix_WhenParseChainEndsWithAsQuery_RemovesAsQuery()
+        {
+            var source = CommonTypes + """
+
+                public sealed class Host
+                {
+                    public string M(int id)
+                    {
+                        var u = new UsersTable("u");
+                        return SqTSqlParser.Parse("SELECT u.UserId FROM dbo.Users u WHERE u.UserId = @userId", [u])
+                            .WithParams("userId", id)
+                            .AsQuery()
+                            .ToSql(SqExpress.SqlExport.TSqlExporter.Default);
+                    }
+                }
+                """;
+
+            var fixedSource = await ApplyCodeFixAsync(source);
+
+            Assert.That(fixedSource, Does.Not.Contain(".AsQuery()"));
+            Assert.That(fixedSource, Does.Not.Contain("SqTSqlParser.Parse"));
+            Assert.That(fixedSource, Does.Contain("var sql = expr.ToSql(SqExpress.SqlExport.TSqlExporter.Default);").Or.Contain("return expr.ToSql(SqExpress.SqlExport.TSqlExporter.Default);"));
             await AssertCompilesAsync(fixedSource);
         }
 
@@ -244,6 +442,34 @@ namespace SqExpress.Analyzers.Test
             Assert.That(fixedSource, Does.Contain("var userId = id;"));
             Assert.That(fixedSource, Does.Contain("Delete("));
             Assert.That(fixedSource, Does.Contain(".Where("));
+            await AssertCompilesAsync(fixedSource);
+        }
+
+        [Test]
+        public async Task CodeFix_WhenParseChainEndsWithAsNonQuery_RemovesAsNonQuery()
+        {
+            var source = CommonTypes + """
+
+                public sealed class Host
+                {
+                    public string M(int id)
+                    {
+                        var u = new UsersTable("u");
+                        var sql = SqTSqlParser.Parse("DELETE u FROM dbo.Users u WHERE u.UserId = @userId", [u])
+                            .WithParams("userId", id)
+                            .AsNonQuery()
+                            .ToSql(SqExpress.SqlExport.TSqlExporter.Default);
+
+                        return sql;
+                    }
+                }
+                """;
+
+            var fixedSource = await ApplyCodeFixAsync(source);
+
+            Assert.That(fixedSource, Does.Not.Contain(".AsNonQuery()"));
+            Assert.That(fixedSource, Does.Not.Contain("SqTSqlParser.Parse"));
+            Assert.That(fixedSource, Does.Contain("var sql = expr.ToSql(SqExpress.SqlExport.TSqlExporter.Default);"));
             await AssertCompilesAsync(fixedSource);
         }
 
@@ -494,6 +720,47 @@ namespace SqExpress.Analyzers.Test
         }
 
         [Test]
+        public async Task CodeFix_WhenSqlHasNoExplicitAlias_DoesNotInventConstructorAlias()
+        {
+            var source = """
+                using SqExpress;
+                using SqExpress.SqlExport;
+                using SqExpress.SqlParser;
+
+                public sealed class TableCity : TableBase
+                {
+                    public Int32TableColumn ID { get; }
+                    public StringTableColumn Name { get; }
+
+                    public TableCity() : this(default)
+                    {
+                    }
+
+                    public TableCity(Alias alias) : base("world", "City", alias)
+                    {
+                        this.ID = this.CreateInt32Column("ID");
+                        this.Name = this.CreateStringColumn("Name", 64);
+                    }
+                }
+
+                public sealed class Host
+                {
+                    public string M()
+                    {
+                        return SqTSqlParser.Parse("SELECT ID, Name FROM world.City WHERE Name LIKE 'Saint%'", [])
+                            .ToSql(TSqlExporter.Default);
+                    }
+                }
+                """;
+
+            var fixedSource = await ApplyCodeFixAsync(source);
+
+            Assert.That(fixedSource, Does.Contain("var tableCity = new TableCity();"));
+            Assert.That(fixedSource, Does.Not.Contain("new TableCity(\"city\")"));
+            await AssertCompilesAsync(fixedSource);
+        }
+
+        [Test]
         public async Task CodeFix_WhenListParameterUsesCollectionExpression_EmitsArrayInitializer()
         {
             var source = """
@@ -613,13 +880,13 @@ namespace SqExpress.Analyzers.Test
         {
             var document = CreateDocument(source);
             var diagnostics = await GetDiagnosticsAsync(source);
-            Assert.That(diagnostics, Is.Not.Empty);
+            var migrationDiagnostic = diagnostics.Single(i => i.Id == "SQEX001");
 
             var provider = new SqTSqlParserParseCodeFixProvider();
             var actions = new List<CodeAction>();
             var context = new CodeFixContext(
                 document,
-                diagnostics[0],
+                migrationDiagnostic,
                 (action, _) => actions.Add(action),
                 CancellationToken.None);
 

@@ -24,6 +24,10 @@
 - Added an optional SQL-import workflow via `SqTSqlParser.Parse(...)`, including:
   - support for T-SQL named parameters (`@name`) mapped to `ExprParameter` with `WithParams(...)` replacement helpers
   - mapping for common T-SQL functions (`LEN`, `DATALENGTH`, `CHARINDEX`, `LEFT`, `RIGHT`, `REPLICATE`, date-part/current date-time functions) to portable AST nodes for PostgreSQL/MySQL export
+- Added a built-in Roslyn analyzer and code fix for `SqTSqlParser.Parse(...)`:
+  - validates raw SQL during compilation
+  - checks discovered SqExpress table descriptors
+  - can convert supported `SqTSqlParser.Parse(...)` calls into generated SqExpress C# code
 - Added column-shape extraction helpers used by the `MERGE` polyfill to infer projected column names and SQL types from subqueries and table sources.
 - Added `TypedColumn` as a shared typed-column abstraction for table and custom columns.
 

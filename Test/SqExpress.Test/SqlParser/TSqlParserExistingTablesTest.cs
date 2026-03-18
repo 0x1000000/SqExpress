@@ -302,16 +302,29 @@ namespace SqExpress.Test.SqlParser
         }
 
         [Test]
-        public void TryParse_WithExistingTables_WhenArgumentIsNull_Throws()
+        public void TryParse_WithExistingTables_WhenArgumentIsNull_SkipsValidationAndReturnsTrue()
         {
-            var sql = "SELECT 1";
+            var sql = "SELECT [u].[Id],[o].[OrderId] FROM [dbo].[Users] [u] JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[Id]";
             IExpr? expr;
             string? error;
 
-            Assert.Throws<ArgumentNullException>(() =>
-            {
-                SqTSqlParser.TryParse(sql, (System.Collections.Generic.IReadOnlyList<TableBase>)null!, out expr, out error);
-            });
+            var ok = SqTSqlParser.TryParse(sql, (System.Collections.Generic.IReadOnlyList<TableBase>?)null, out expr, out error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(error, Is.Null);
+        }
+
+        [Test]
+        public void Parse_WhenExistingTablesAreNotProvided_SkipsValidationAndReturnsExpression()
+        {
+            var sql = "SELECT [u].[Id],[o].[OrderId] FROM [dbo].[Users] [u] JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[Id]";
+
+            #pragma warning disable SQEX011
+            var expr = SqTSqlParser.Parse(sql);
+            #pragma warning restore SQEX011
+
+            Assert.That(expr, Is.Not.Null);
         }
 
         [Test]
@@ -323,7 +336,9 @@ namespace SqExpress.Test.SqlParser
                 CreateTable("dbo", "Users", a => a.AppendInt32Column("Id"))
             };
 
+            #pragma warning disable SQEX010
             var ex = Assert.Throws<SqExpressTSqlParserException>(() => SqTSqlParser.Parse(sql, existing));
+            #pragma warning restore SQEX010
             Assert.That(ex!.Message, Does.Contain("SELECT list is missing"));
         }
 
@@ -336,7 +351,9 @@ namespace SqExpress.Test.SqlParser
                 CreateTable("dbo", "Users", a => a.AppendInt32Column("Id"))
             };
 
+            #pragma warning disable SQEX011
             var ex = Assert.Throws<SqExpressTSqlParserException>(() => SqTSqlParser.Parse(sql, existing));
+            #pragma warning restore SQEX011
             Assert.That(ex!.Message, Does.Contain("Unexpected tables: [dbo].[Orders]"));
         }
 

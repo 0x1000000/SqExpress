@@ -234,6 +234,7 @@ namespace SqExpress.SqlTranspiler
                 statementKind,
                 options,
                 classNamesByTableKey,
+                new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.OrdinalIgnoreCase),
                 columnTypesByClassName,
                 parameterDefaults,
                 listParameters);

@@ -961,6 +961,11 @@ namespace SqExpress.SqlParser.Internal.Mapping
         private static IExpr MapMerge(SqlDomStatement statement, MappingContext context)
         {
             var sql = statement.RawSql;
+            if (!sql.TrimEnd().EndsWith(";", StringComparison.Ordinal))
+            {
+                throw new MapException("MERGE statement must be terminated by semicolon.");
+            }
+
             var tokens = SqlLexer.Tokenize(sql)
                 .Where(t => t.Type != SqlTokenType.EndOfFile && t.Type != SqlTokenType.Semicolon)
                 .ToList();
@@ -1221,6 +1226,11 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 var actionIndex = thenIndex + 1;
                 if (tokens[actionIndex].IsKeyword("DELETE"))
                 {
+                    if (actionIndex + 1 != clauseEnd)
+                    {
+                        throw new MapException("MERGE DELETE action is invalid.");
+                    }
+
                     whenMatched = new ExprMergeMatchedDelete(and);
                     return;
                 }
@@ -1274,6 +1284,11 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 {
                     if (tokens[actionIndex].IsKeyword("DELETE"))
                     {
+                        if (actionIndex + 1 != clauseEnd)
+                        {
+                            throw new MapException("MERGE DELETE action is invalid.");
+                        }
+
                         whenNotMatchedBySource = new ExprMergeMatchedDelete(and);
                         return;
                     }
@@ -1333,6 +1348,11 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     && (actionCursor + 1) < clauseEnd
                     && tokens[actionCursor + 1].IsKeyword("VALUES"))
                 {
+                    if (actionCursor + 2 != clauseEnd)
+                    {
+                        throw new MapException("MERGE INSERT DEFAULT VALUES action is invalid.");
+                    }
+
                     whenNotMatchedByTarget = new ExprExprMergeNotMatchedInsertDefault(and);
                     return;
                 }
@@ -1365,7 +1385,19 @@ namespace SqExpress.SqlParser.Internal.Mapping
         }
 
         private static IReadOnlyList<ExprColumnSetClause> ParseSetClauses(string setSql, MappingContext context)
-            => SplitComma(setSql)
+        {
+            if (string.IsNullOrWhiteSpace(setSql))
+            {
+                throw new MapException("Invalid SET clause.");
+            }
+
+            var tokens = SqlLexer.Tokenize(setSql).Where(i => i.Type != SqlTokenType.EndOfFile).ToList();
+            if (tokens.Count < 1 || tokens.Last().Type == SqlTokenType.Comma || HasEmptyTopLevelCommaSegment(tokens))
+            {
+                throw new MapException("Invalid SET clause.");
+            }
+
+            return SplitComma(setSql)
                 .Select(i =>
                 {
                     var eq = i.IndexOf('=');
@@ -1384,6 +1416,49 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     return new ExprColumnSetClause(leftColumn, right);
                 })
                 .ToList();
+        }
+
+        private static bool HasEmptyTopLevelCommaSegment(IReadOnlyList<SqlToken> tokens)
+        {
+            var depth = 0;
+            var hasToken = false;
+            for (var i = 0; i < tokens.Count; i++)
+            {
+                var token = tokens[i];
+                if (token.Type == SqlTokenType.OpenParen)
+                {
+                    depth++;
+                    hasToken = true;
+                    continue;
+                }
+
+                if (token.Type == SqlTokenType.CloseParen)
+                {
+                    if (depth > 0)
+                    {
+                        depth--;
+                    }
+
+                    hasToken = true;
+                    continue;
+                }
+
+                if (depth == 0 && token.Type == SqlTokenType.Comma)
+                {
+                    if (!hasToken)
+                    {
+                        return true;
+                    }
+
+                    hasToken = false;
+                    continue;
+                }
+
+                hasToken = true;
+            }
+
+            return !hasToken;
+        }
 
         private static IReadOnlyList<ExprColumnSetClause> ParseSetClauses(string setSql)
             => ParseSetClauses(setSql, new MappingContext(null));

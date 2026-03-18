@@ -95,13 +95,28 @@ namespace SqExpress.SqlTranspiler
             var classNamesByTableKey = buildUsages
                 .GroupBy(i => i.TableKey, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(i => i.Key, i => i.First().ClassName, StringComparer.OrdinalIgnoreCase);
+            var columnPropertyNamesByClassName = tableBindings
+                .Where(i => i.ColumnPropertyNames.Count > 0)
+                .GroupBy(i => i.TypeName, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    i => i.Key,
+                    i => (IReadOnlyDictionary<string, string>)i.First().ColumnPropertyNames.ToDictionary(p => p.Key, p => p.Value, StringComparer.OrdinalIgnoreCase),
+                    StringComparer.OrdinalIgnoreCase);
+            var columnTypesByClassName = tableBindings
+                .Where(i => i.ColumnTypeNames.Count > 0)
+                .GroupBy(i => i.TypeName, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    i => i.Key,
+                    i => (IReadOnlyDictionary<string, string>)i.First().ColumnTypeNames.ToDictionary(p => p.Key, p => p.Value, StringComparer.OrdinalIgnoreCase),
+                    StringComparer.OrdinalIgnoreCase);
 
             var emitter = new QueryPreviewEmitter(
                 previewExpr,
                 statementKind,
                 effectiveOptions,
                 classNamesByTableKey,
-                new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.OrdinalIgnoreCase),
+                columnPropertyNamesByClassName,
+                columnTypesByClassName,
                 parameterDefaults,
                 listParameters,
                 reuseProvidedTopLevelSources: true);

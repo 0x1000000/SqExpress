@@ -50,12 +50,20 @@ namespace SqExpress.SqlTranspiler
 
     public sealed class SqExpressSqlInlineTableBinding
     {
-        public SqExpressSqlInlineTableBinding(string tableKey, string alias, string variableName, string typeName)
+        public SqExpressSqlInlineTableBinding(
+            string tableKey,
+            string alias,
+            string variableName,
+            string typeName,
+            IReadOnlyDictionary<string, string>? columnPropertyNames = null,
+            IReadOnlyDictionary<string, string>? columnTypeNames = null)
         {
             this.TableKey = tableKey;
             this.Alias = alias;
             this.VariableName = variableName;
             this.TypeName = typeName;
+            this.ColumnPropertyNames = columnPropertyNames ?? new Dictionary<string, string>();
+            this.ColumnTypeNames = columnTypeNames ?? new Dictionary<string, string>();
         }
 
         public string TableKey { get; }
@@ -65,5 +73,9 @@ namespace SqExpress.SqlTranspiler
         public string VariableName { get; }
 
         public string TypeName { get; }
+
+        public IReadOnlyDictionary<string, string> ColumnPropertyNames { get; }
+
+        public IReadOnlyDictionary<string, string> ColumnTypeNames { get; }
     }
 }

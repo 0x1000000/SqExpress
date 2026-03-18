@@ -11,7 +11,11 @@ namespace SqExpress.Analyzers
     public sealed class SqTSqlParserParseAnalyzer : DiagnosticAnalyzer
     {
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics
-            => ImmutableArray.Create(DiagnosticDescriptors.ConvertSqTSqlParserParseCall);
+            => ImmutableArray.Create(
+                DiagnosticDescriptors.ConvertSqTSqlParserParseCall,
+                DiagnosticDescriptors.SqTSqlParserParseHasInvalidSql,
+                DiagnosticDescriptors.SqTSqlParserParseExistingTablesMismatch,
+                DiagnosticDescriptors.SqTSqlParserParseExistingColumnsMismatch);
 
         public override void Initialize(AnalysisContext context)
         {
@@ -37,6 +41,49 @@ namespace SqExpress.Analyzers
                     DiagnosticDescriptors.ConvertSqTSqlParserParseCall,
                     match.Invocation.GetLocation(),
                     match.MethodName));
+
+            if (SqTSqlParserParseDiagnosticHelper.TryGetSqlParseFailureMessage(match, out var parseFailureMessage))
+            {
+                var target = match.Invocation.ArgumentList.Arguments.FirstOrDefault() ?? (SyntaxNode)match.Invocation;
+
+                context.ReportDiagnostic(
+                    Diagnostic.Create(
+                        DiagnosticDescriptors.SqTSqlParserParseHasInvalidSql,
+                        target.GetLocation(),
+                        parseFailureMessage));
+                return;
+            }
+
+            if (SqTSqlParserParseDiagnosticHelper.TryGetDiscoveredTablesFailureMessage(
+                    context.SemanticModel,
+                    match,
+                    context.CancellationToken,
+                    out var tableFailureMessage))
+            {
+                var target = match.Invocation.ArgumentList.Arguments.FirstOrDefault() ?? (SyntaxNode)match.Invocation;
+
+                context.ReportDiagnostic(
+                    Diagnostic.Create(
+                        DiagnosticDescriptors.SqTSqlParserParseExistingTablesMismatch,
+                        target.GetLocation(),
+                        tableFailureMessage));
+                return;
+            }
+
+            if (SqTSqlParserParseDiagnosticHelper.TryGetDiscoveredColumnsFailureMessage(
+                    context.SemanticModel,
+                    match,
+                    context.CancellationToken,
+                    out var columnFailureMessage))
+            {
+                var target = match.Invocation.ArgumentList.Arguments.FirstOrDefault() ?? (SyntaxNode)match.Invocation;
+
+                context.ReportDiagnostic(
+                    Diagnostic.Create(
+                        DiagnosticDescriptors.SqTSqlParserParseExistingColumnsMismatch,
+                        target.GetLocation(),
+                        columnFailureMessage));
+            }
         }
     }
 }
