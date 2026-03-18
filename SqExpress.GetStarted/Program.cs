@@ -32,7 +32,7 @@ namespace SqExpress.GetStarted
             {
                 await RunMsSql("Data Source = (local); Initial Catalog = TestDatabase; Integrated Security = True");
                 await RunPostgreSql("Host=localhost;Port=5432;Username=postgres;Password=test;Database=test");
-                await RunMySql("server=127.0.0.1;uid=test;pwd=test;database=test");
+                await RunMySql("server=127.0.0.1;port=3307;uid=test;pwd=test;database=test");
             }
             catch (Exception e)
             {
@@ -133,7 +133,7 @@ namespace SqExpress.GetStarted
                 using (var database = new SqDatabase<MySqlConnection>(
                            connection: connection,
                            commandFactory: MySqlCommandFactory,
-                           sqlExporter: new MySqlExporter(builderOptions: SqlBuilderOptions.Default),
+                           sqlExporter: new MySqlExporter(builderOptions: SqlBuilderOptions.Default, MySqlFlavor.MariaDb),
                            parametrizationMode: ParametrizationMode.LiteralFallback
                        ))
                 {
