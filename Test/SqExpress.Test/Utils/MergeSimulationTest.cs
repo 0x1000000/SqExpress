@@ -38,5 +38,43 @@ namespace SqExpress.Test.Utils
 
             Assert.AreEqual(expected, actualSlq);
         }
+
+        [Test]
+        public void DerivedQuerySource()
+        {
+            var target = Tables.User("T");
+            var sourceTable = Tables.User("U");
+            var source = Select(
+                    sourceTable.UserId.As("UserId"),
+                    sourceTable.FirstName.As("FirstName"),
+                    Literal("N/A").As("LastName"),
+                    Literal(5).As("Marker"))
+                .From(sourceTable)
+                .Where(sourceTable.UserId < 10)
+                .Done()
+                .As(TableAlias("S"));
+
+            var mergeExpr = MergeInto(target, source)
+                .On(target.UserId == source.Column("UserId"))
+                .WhenMatched()
+                    .ThenUpdate()
+                        .Set(target.LastName, source.Column("LastName"))
+                .WhenNotMatchedByTarget()
+                    .ThenInsert()
+                        .Set(target.UserId, source.Column("UserId"))
+                        .Set(target.FirstName, source.Column("FirstName"))
+                        .Set(target.LastName, source.Column("LastName"))
+                .Done();
+
+            var sql = mergeExpr.ToMySql();
+
+            Assert.That(sql, Does.StartWith("CREATE TEMPORARY TABLE `tmpMergeDataSource`(`UserId` int"));
+            Assert.That(sql, Does.Contain("`FirstName` varchar"));
+            Assert.That(sql, Does.Contain("`LastName` varchar(255) NOT NULL"));
+            Assert.That(sql, Does.Contain("`Marker` int"));
+            Assert.That(sql, Does.Contain("INSERT INTO `tmpMergeDataSource`(`UserId`,`FirstName`,`LastName`,`Marker`) SELECT `U`.`UserId` `UserId`,`U`.`FirstName` `FirstName`,'N/A' `LastName`,5 `Marker` FROM `user` `U` WHERE `U`.`UserId`<10;"));
+            Assert.That(sql, Does.Contain("JOIN `tmpMergeDataSource` `S` ON `T`.`UserId`=`S`.`UserId`"));
+            Assert.That(sql, Does.Contain("INSERT INTO `user`(`UserId`,`FirstName`,`LastName`) SELECT `S`.`UserId`,`S`.`FirstName`,`S`.`LastName` FROM `tmpMergeDataSource` `S`"));
+        }
     }
 }

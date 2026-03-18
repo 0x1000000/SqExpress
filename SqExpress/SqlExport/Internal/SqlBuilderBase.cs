@@ -405,6 +405,11 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public bool VisitExprSelectingValue(ExprSelectingValue exprSelectingValue, IExpr? parent)
+        {
+            return exprSelectingValue.Selecting.Accept(this, exprSelectingValue);
+        }
+
         public bool VisitExprValueQuery(ExprValueQuery exprValueQuery, IExpr? parent)
         {
             this.AcceptPar('(', exprValueQuery.Query, ')', exprValueQuery);
@@ -1284,7 +1289,8 @@ namespace SqExpress.SqlExport.Internal
         {
             this.AcceptPar('(', exprDerivedTableQuery.Query, ')', exprDerivedTableQuery);
             exprDerivedTableQuery.Alias.Accept(this, exprDerivedTableQuery);
-            if (exprDerivedTableQuery.Columns != null && exprDerivedTableQuery.Columns.Count > 0)
+
+            if (exprDerivedTableQuery.Columns is { Count: > 0 })
             {
                 var selectedColumns = exprDerivedTableQuery.Query.GetOutputColumnNames();
 
@@ -1582,6 +1588,20 @@ namespace SqExpress.SqlExport.Internal
             arguments![0].Accept(this, expr);
             this.Builder.Append(',');
             arguments![1].Accept(this, expr);
+            this.Builder.Append(')');
+        }
+
+        protected void AppendFunctionThreeArgs(string name, IReadOnlyList<ExprValue>? arguments, ExprPortableScalarFunction expr)
+        {
+            this.AssertArgumentsCount(arguments, 3, expr.PortableFunction);
+
+            this.Builder.Append(name);
+            this.Builder.Append('(');
+            arguments![0].Accept(this, expr);
+            this.Builder.Append(',');
+            arguments[1].Accept(this, expr);
+            this.Builder.Append(',');
+            arguments[2].Accept(this, expr);
             this.Builder.Append(')');
         }
 

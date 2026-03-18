@@ -21,6 +21,10 @@ namespace SqExpress.Syntax.Select
             => visitor.VisitExprQueryExpression(this, arg);
 
         public IReadOnlyList<string?> GetOutputColumnNames() => this.Left.GetOutputColumnNames();
+
+        public IReadOnlyList<IExprSelecting> ExtractSelecting() => this.Left.ExtractSelecting();
+
+        IExprSubQuery ISelectingSource.CreateSubQuery() => this;
     }
 
     public enum ExprQueryExpressionType

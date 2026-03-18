@@ -1,4 +1,4 @@
-﻿using EnumVisitorGenerator;
+using EnumVisitorGenerator;
 using SqExpress.DataAccess;
 using SqExpress.SqlExport;
 
@@ -26,7 +26,8 @@ namespace SqExpress.IntTest.Context
     {
         TSql,
         PgSql,
-        MySql
+        MariaDb,
+        OracleMySql
     }
 
     [VisitorToMethod("GetExporter")]
@@ -36,6 +37,8 @@ namespace SqExpress.IntTest.Context
 
         public ISqlExporter CasePgSql() => PgSqlExporter.Default;
 
-        public ISqlExporter CaseMySql() => MySqlExporter.Default;
+        public ISqlExporter CaseMariaDb() => MySqlExporter.MariaDbDefault;
+
+        public ISqlExporter CaseOracleMySql() => MySqlExporter.OracleDefault;
     }
 }

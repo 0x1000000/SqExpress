@@ -21,7 +21,7 @@ namespace SqExpress.IntTest.Scenarios
             var dto1 = new DateTimeOffset(new DateTime(2024, 01, 02, 03, 04, 05), TimeSpan.FromHours(3));
             var dto2 = new DateTimeOffset(new DateTime(2024, 01, 03, 04, 05, 06), TimeSpan.FromHours(-5));
 
-            if (context.Dialect == SqlDialect.MySql)
+            if (context.Dialect.IsMySqlFamily())
             {
                 await InsertInto(
                         table,
@@ -77,7 +77,7 @@ namespace SqExpress.IntTest.Scenarios
                 throw new Exception("Nullable DateTime parameter mapping failed");
             }
 
-            if (context.Dialect != SqlDialect.MySql)
+            if (!context.Dialect.IsMySqlFamily())
             {
                 if (!row1.DateTimeOffsetValue.HasValue || !row1.NullableDateTimeOffsetValue.HasValue)
                 {
@@ -161,7 +161,7 @@ namespace SqExpress.IntTest.Scenarios
                 this.DateTimeValue = this.CreateDateTimeColumn("DateTimeValue");
                 this.NullableDateTimeValue = this.CreateNullableDateTimeColumn("NullableDateTimeValue");
 
-                if (dialect != SqlDialect.MySql)
+                if (!dialect.IsMySqlFamily())
                 {
                     this.DateTimeOffsetValue = this.CreateDateTimeOffsetColumn("DateTimeOffsetValue");
                     this.NullableDateTimeOffsetValue = this.CreateNullableDateTimeOffsetColumn("NullableDateTimeOffsetValue");
@@ -184,3 +184,4 @@ namespace SqExpress.IntTest.Scenarios
         }
     }
 }
+

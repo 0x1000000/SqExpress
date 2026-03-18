@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Text;
 using SqExpress.SqlExport.Internal;
 using SqExpress.StatementSyntax;
@@ -10,9 +10,9 @@ namespace SqExpress.SqlExport.Statement.Internal
     {
         private readonly MySqlBuilder _exprBuilder;
 
-        public MySqlStatementBuilder(SqlBuilderOptions? options, StringBuilder? externalBuilder) : base(options, externalBuilder)
+        public MySqlStatementBuilder(SqlBuilderOptions? options, MySqlFlavor flavor, StringBuilder? externalBuilder) : base(options, externalBuilder)
         {
-            this._exprBuilder = new MySqlBuilder(this.Options, this.Builder);
+            this._exprBuilder = new MySqlBuilder(this.Options, flavor, this.Builder);
         }
 
         public string Build() => this.Builder.ToString();

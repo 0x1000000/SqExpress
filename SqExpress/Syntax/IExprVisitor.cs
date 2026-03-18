@@ -11,12 +11,12 @@ using SqExpress.Syntax.Value;
 
 namespace SqExpress.Syntax
 {
-    internal interface IExprVisitorInternal<out TRes, in TArg> : IExprVisitor<TRes, TArg>, IExprValueVisitorInternal<TRes, TArg>
+    internal interface IExprVisitorInternal<out TRes, in TArg> : IExprVisitor<TRes, TArg>, IExprValueVisitor<TRes, TArg>
     {
         TRes VisitExprStatement(ExprStatement statement, TArg arg);
     }
 
-    public interface IExprVisitor<out TRes,in TArg> : IExprValueVisitor<TRes, TArg>, IExprTypeVisitor<TRes, TArg>
+    public interface IExprVisitor<out TRes,in TArg> : IExprSelectingVisitor<TRes, TArg>, IExprTypeVisitor<TRes, TArg>
     {
         //Boolean Expressions
         TRes VisitExprBooleanAnd(ExprBooleanAnd expr, TArg arg);
@@ -86,12 +86,6 @@ namespace SqExpress.Syntax
         TRes VisitExprOutput(ExprOutput exprOutput, TArg arg);
 
         //Functions
-        TRes VisitExprAggregateFunction(ExprAggregateFunction exprAggregateFunction, TArg arg);
-
-        TRes VisitExprAggregateOverFunction(ExprAggregateOverFunction exprAggregateFunction, TArg arg);
-
-        TRes VisitExprAnalyticFunction(ExprAnalyticFunction exprAnalyticFunction, TArg arg);
-
         TRes VisitExprOver(ExprOver exprOver, TArg arg);
 
         TRes VisitExprFrameClause(ExprFrameClause exprFrameClause, TArg arg);
@@ -105,10 +99,6 @@ namespace SqExpress.Syntax
         //Meta
         TRes VisitExprTable(ExprTable exprTable, TArg arg);
 
-        TRes VisitExprAllColumns(ExprAllColumns exprAllColumns, TArg arg);
-
-        TRes VisitExprColumnName(ExprColumnName columnName, TArg arg);
-
         TRes VisitExprTableName(ExprTableName tableName, TArg arg);
 
         TRes VisitExprTableFullName(ExprTableFullName exprTableFullName, TArg arg);
@@ -118,12 +108,6 @@ namespace SqExpress.Syntax
         TRes VisitExprAliasGuid(ExprAliasGuid aliasGuid, TArg arg);
 
         TRes VisitExprColumnAlias(ExprColumnAlias exprColumnAlias, TArg arg);
-
-        TRes VisitExprAliasedColumn(ExprAliasedColumn exprAliasedColumn, TArg arg);
-
-        TRes VisitExprAliasedColumnName(ExprAliasedColumnName exprAliasedColumnName, TArg arg);
-
-        TRes VisitExprAliasedSelecting(ExprAliasedSelecting exprAliasedSelecting, TArg arg);
 
         TRes VisitExprTempTableName(ExprTempTableName tempTableName, TArg arg);
 

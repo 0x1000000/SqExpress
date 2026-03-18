@@ -128,6 +128,31 @@ namespace SqExpress.Test.QueryBuilder
             Assert.AreEqual(expected, actual);
         }
 
+        [Test]
+        public void Test_AutoNamesAnonymousDerivedTableColumns_ForTSql()
+        {
+            var user = Tables.User();
+            var source = Select(
+                    Literal(1),
+                    Literal("AA").As("BB"),
+                    user.UserId,
+                    GetUtcDate())
+                .From(user)
+                .Done()
+                .As(TableAlias("S"), "Col_1", "BB", "UserId", "Col_4");
+
+            var actual = Select(source.Column("BB"), source.Column(user.UserId.ColumnName))
+                .From(source)
+                .Done()
+                .ToSql();
+
+            var expected = "SELECT [S].[BB],[S].[UserId] " +
+                           "FROM (SELECT 1,'AA' [BB],[A0].[UserId],GETUTCDATE() FROM [dbo].[user] [A0])" +
+                           "[S]([Col_1],[BB],[UserId],[Col_4])";
+
+            Assert.AreEqual(expected, actual);
+        }
+
         private class SubQuery : DerivedTableBase
         {
             public Int32CustomColumn UserId { get; }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using NUnit.Framework;
 using static SqExpress.SqQueryBuilder;
 
@@ -52,9 +52,6 @@ namespace SqExpress.Test.QueryBuilder
             Assert.AreEqual("DELETE [A0] FROM [dbo].[user] [A0]", exprDeleteConAlias.ToSql());
             Assert.AreEqual("DELETE `user` FROM `user`", exprDeleteSinAlias.ToMySql());
 
-
-            //Join
-
             var deleteInnerJoin = Delete(tUser)
                 .From(tUser)
                 .InnerJoin(tCustomer, @on: tCustomer.UserId == tUser.UserId)
@@ -95,7 +92,6 @@ namespace SqExpress.Test.QueryBuilder
 
             Assert.AreEqual(expected, actual);
 
-            //Join Where
             actual = Delete(tUser)
                 .From(tUser)
                 .InnerJoin(tCustomer, on: tCustomer.UserId == tUser.UserId)
@@ -119,6 +115,15 @@ namespace SqExpress.Test.QueryBuilder
 
             Assert.AreEqual("DELETE [A0] OUTPUT DELETED.[UserId] FROM [dbo].[user] [A0]",
                 Delete(tUser).From(tUser).All().Output(tUser.UserId).ToSql());
+        }
+
+        [Test]
+        public void DeleteOutputOracleMySqlTest()
+        {
+            var tUser = Tables.User(Alias.Empty);
+
+            Assert.That(() => Delete(tUser).From(tUser).All().Output(tUser.UserId).ToOracleSql(),
+                Throws.Exception.With.Message.Contains("Oracle MySQL does not support generic DELETE OUTPUT/RETURNING"));
         }
 
         [Test]

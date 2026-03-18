@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using SqExpress.IntTest.Context;
 using static SqExpress.SqQueryBuilder;
@@ -87,7 +87,7 @@ namespace SqExpress.IntTest.Scenarios
                 }
             }
 
-            if (context.Dialect != SqlDialect.MySql)
+            if (!context.Dialect.IsMySqlFamily())
             {
                 //Delete All Output
                 result = await Delete(targetTable)

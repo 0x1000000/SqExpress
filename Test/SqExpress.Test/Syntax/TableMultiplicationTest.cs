@@ -1,4 +1,5 @@
 ﻿using NUnit.Framework;
+using SqExpress.Syntax.Select;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.Test.Syntax
@@ -105,6 +106,30 @@ namespace SqExpress.Test.Syntax
             Assert.AreEqual("(SELECT [A0].[CustomerId],[A0].[OrderId] FROM [dbo].[CustomerOrder] [A0])[A1]", tables[3].ToSql());
 
             Assert.AreEqual("[A0].[UserId]=[A1].[UserId] AND([A2].[CustomerId]=[A0].[CustomerId] OR [A2].[OrderId]=[A3].[OrderId])", on!.ToSql());
+        }
+
+        [Test]
+        public void DerivedTableExposesRegisteredSelectingAndUnderlyingQuery()
+        {
+            var td = new TestDerivedTable();
+
+            var selecting = td.ExtractSelecting();
+
+            Assert.AreEqual(2, selecting.Count);
+            Assert.AreSame(td.CustomerId, selecting[0]);
+            Assert.AreSame(td.OrderId, selecting[1]);
+            Assert.AreEqual("SELECT [A0].[CustomerId],[A0].[OrderId] FROM [dbo].[CustomerOrder] [A0]", td.CreateSubQuery().ToSql());
+        }
+
+        [Test]
+        public void CrossJoinedTableFallsBackToWildcardWhenOneSideHasUnknownSelecting()
+        {
+            var user = Tables.User();
+            var openJson = TableFunctionSys("OPENJSON", Literal("[]")).As(TableAlias("J"));
+
+            var sql = new ExprCrossedTable(user, openJson).CreateSubQuery().ToSql();
+
+            Assert.AreEqual("SELECT * FROM [dbo].[user] [A0] CROSS JOIN OPENJSON('[]') [J]", sql);
         }
 
         class TestDerivedTable : DerivedTableBase

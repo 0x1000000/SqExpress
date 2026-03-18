@@ -162,11 +162,6 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             return modifier.Invoke(exprIn);
         }
 
-        IExpr? IExprValueVisitorInternal<IExpr?, Func<IExpr, IExpr?>>.VisitExprParameter(ExprParameter exprIn, Func<IExpr, IExpr?> modifier)
-        {
-            return modifier.Invoke(exprIn);
-        }
-
         //CodeGenStart
         public IExpr? VisitExprAggregateFunction(ExprAggregateFunction exprIn, Func<IExpr, IExpr?> modifier)
         {
@@ -966,6 +961,15 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprParameter(ExprParameter exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newReplacedValue = this.AcceptNullableItem(exprIn.ReplacedValue, modifier);
+            if(!ReferenceEquals(exprIn.ReplacedValue, newReplacedValue))
+            {
+                exprIn = new ExprParameter(replacedValue: newReplacedValue, tagName: exprIn.TagName);
+            }
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprPortableScalarFunction(ExprPortableScalarFunction exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newArguments = this.AcceptNullCollection(exprIn.Arguments, modifier);
@@ -1039,6 +1043,15 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             if(!ReferenceEquals(exprIn.SelectQuery, newSelectQuery) || !ReferenceEquals(exprIn.OrderBy, newOrderBy))
             {
                 exprIn = new ExprSelectOffsetFetch(selectQuery: newSelectQuery, orderBy: newOrderBy);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprSelectingValue(ExprSelectingValue exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newSelecting = this.AcceptItem(exprIn.Selecting, modifier);
+            if(!ReferenceEquals(exprIn.Selecting, newSelecting))
+            {
+                exprIn = new ExprSelectingValue(selecting: newSelecting);
             }
             return modifier.Invoke(exprIn);
         }

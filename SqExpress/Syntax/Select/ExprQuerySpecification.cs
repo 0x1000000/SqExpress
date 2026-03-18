@@ -45,5 +45,12 @@ namespace SqExpress.Syntax.Select
 
             return result;
         }
+
+        public IReadOnlyList<IExprSelecting> ExtractSelecting()
+        {
+            return this.SelectList;
+        }
+
+        IExprSubQuery ISelectingSource.CreateSubQuery() => this;
     }
 }

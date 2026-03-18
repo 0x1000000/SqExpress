@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using SqExpress.IntTest.Context;
 using SqExpress.IntTest.Tables;
@@ -21,12 +21,13 @@ namespace SqExpress.IntTest.Scenarios
 
         private static async Task CaseWhenThen(IScenarioContext context)
         {
-            var result = (int?) await Select(Cast(Case()
+            var rawResult = await Select(Cast(Case()
                         .When(Literal(1) + 2 == Literal(3))
                         .Then(17)
                         .Else(2),
                     SqlType.Int32))
                 .QueryScalar(context.Database);
+            var result = rawResult == null ? (int?)null : Convert.ToInt32(rawResult);
             if (result != 17)
             {
                 throw new Exception("Something went wrong");
@@ -35,8 +36,9 @@ namespace SqExpress.IntTest.Scenarios
 
         private static async Task Arithmetic(IScenarioContext context)
         {
-            var doubleResult = (double?)await Select(Cast((Literal(7) + 3 - Literal(1)) * 2 / 6, SqlType.Double))
+            var rawResult = await Select(Cast((Literal(7) + 3 - Literal(1)) * 2 / 6, SqlType.Double))
                 .QueryScalar(context.Database);
+            var doubleResult = rawResult == null ? (double?)null : Convert.ToDouble(rawResult);
 
             if (Math.Abs((doubleResult ?? 0) - 3.0) > 0)
             {
@@ -68,8 +70,9 @@ namespace SqExpress.IntTest.Scenarios
 
         private static async Task CaseWhenThenCoalesce(IScenarioContext context)
         {
-            var result = (decimal?)await Select(Coalesce(Null, Null, 2.123456m))
+            var rawResult = await Select(Coalesce(Null, Null, 2.123456m))
                 .QueryScalar(context.Database);
+            var result = rawResult == null ? (decimal?)null : Convert.ToDecimal(rawResult);
 
             if (result != 2.123456m)
             {

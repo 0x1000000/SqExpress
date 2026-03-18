@@ -225,13 +225,13 @@ namespace SqExpress
 
         public Stream? ReadNullableStream(ISqDataRecordReader recordReader) => recordReader.GetNullableStream(this.ColumnName.Name);
 
-        public new ByteTableColumn WithSource(IExprColumnSource? source) => new ByteTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
+        public new ByteArrayTableColumn WithSource(IExprColumnSource? source) => new ByteArrayTableColumn(source, this.ColumnName, this.Table, this.SqlType, this.ColumnMeta);
 
-        public new ByteTableColumn WithColumnName(ExprColumnName columnName) => new ByteTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+        public new ByteArrayTableColumn WithColumnName(ExprColumnName columnName) => new ByteArrayTableColumn(this.Source, columnName, this.Table, this.SqlType, this.ColumnMeta);
 
-        public new ByteTableColumn WithTable(ExprTable table) => new ByteTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+        public new ByteArrayTableColumn WithTable(ExprTable table) => new ByteArrayTableColumn(this.Source, this.ColumnName, table, this.SqlType, this.ColumnMeta);
 
-        public new ByteTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new ByteTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+        public new ByteArrayTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new ByteArrayTableColumn(this.Source, this.ColumnName, this.Table, this.SqlType, columnMeta);
 
         protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
 
@@ -262,9 +262,9 @@ namespace SqExpress
             }
         }
 
-        public ByteCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new ByteCustomColumn(this.ColumnName, columnSource);
+        public ByteArrayCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new ByteArrayCustomColumn(this.ColumnName, columnSource, this.SqlType);
 
-        public ByteCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new ByteCustomColumn(this.ColumnName, derivedTable.Alias));
+        public ByteArrayCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new ByteArrayCustomColumn(this.ColumnName, derivedTable.Alias, this.SqlType));
     }
 
     public class NullableByteArrayTableColumn : TableColumn
@@ -287,13 +287,13 @@ namespace SqExpress
 
         public Stream? GetStream(ISqDataRecordReader recordReader) => recordReader.GetStream(this.ColumnName.Name);
 
-        public new ByteTableColumn WithSource(IExprColumnSource? source) => new ByteTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
+        public new NullableByteArrayTableColumn WithSource(IExprColumnSource? source) => new NullableByteArrayTableColumn(source, this.ColumnName, this.Table, this.SqlType, this.ColumnMeta);
 
-        public new ByteTableColumn WithColumnName(ExprColumnName columnName) => new ByteTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+        public new NullableByteArrayTableColumn WithColumnName(ExprColumnName columnName) => new NullableByteArrayTableColumn(this.Source, columnName, this.Table, this.SqlType, this.ColumnMeta);
 
-        public new ByteTableColumn WithTable(ExprTable table) => new ByteTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+        public new NullableByteArrayTableColumn WithTable(ExprTable table) => new NullableByteArrayTableColumn(this.Source, this.ColumnName, table, this.SqlType, this.ColumnMeta);
 
-        public new ByteTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new ByteTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+        public new NullableByteArrayTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableByteArrayTableColumn(this.Source, this.ColumnName, this.Table, this.SqlType, columnMeta);
 
         protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
 
@@ -324,9 +324,9 @@ namespace SqExpress
             }
         }
 
-        public ByteCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new ByteCustomColumn(this.ColumnName, columnSource);
+        public NullableByteArrayCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableByteArrayCustomColumn(this.ColumnName, columnSource, this.SqlType);
 
-        public ByteCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new ByteCustomColumn(this.ColumnName, derivedTable.Alias));
+        public NullableByteArrayCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableByteArrayCustomColumn(this.ColumnName, derivedTable.Alias, this.SqlType));
     }
 
     public class Int16TableColumn : TableColumn
@@ -662,9 +662,9 @@ namespace SqExpress
                     ? SqQueryBuilder.Literal(result)
                     : throw new SqExpressException($"Could not parse '{value}' as decimal for column '{this.ColumnName.Name}'.");
 
-        public DecimalCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new DecimalCustomColumn(this.ColumnName, columnSource);
+        public DecimalCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new DecimalCustomColumn(this.ColumnName, columnSource, new ExprTypeDecimal(this.PrecisionScale));
 
-        public DecimalCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new DecimalCustomColumn(this.ColumnName, derivedTable.Alias));
+        public DecimalCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new DecimalCustomColumn(this.ColumnName, derivedTable.Alias, new ExprTypeDecimal(this.PrecisionScale)));
     }
 
     public class NullableDecimalTableColumn : TableColumn
@@ -709,9 +709,9 @@ namespace SqExpress
                 : decimal.TryParse(value, NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var result)
                     ? SqQueryBuilder.Literal(result)
                     : throw new SqExpressException($"Could not parse '{value}' as decimal for column '{this.ColumnName.Name}'.");
-        public NullableDecimalCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableDecimalCustomColumn(this.ColumnName, columnSource);
+        public NullableDecimalCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableDecimalCustomColumn(this.ColumnName, columnSource, new ExprTypeDecimal(this.PrecisionScale));
 
-        public NullableDecimalCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableDecimalCustomColumn(this.ColumnName, derivedTable.Alias));
+        public NullableDecimalCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableDecimalCustomColumn(this.ColumnName, derivedTable.Alias, new ExprTypeDecimal(this.PrecisionScale)));
     }
 
     public class DoubleTableColumn : TableColumn
@@ -867,9 +867,9 @@ namespace SqExpress
                     ? SqQueryBuilder.Literal(result)
                     : throw new SqExpressException($"Could not parse '{value}' as date(time) for column '{this.ColumnName.Name}'.");
 
-        public DateTimeCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new DateTimeCustomColumn(this.ColumnName, columnSource);
+        public DateTimeCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new DateTimeCustomColumn(this.ColumnName, columnSource, new ExprTypeDateTime(this.IsDate));
 
-        public DateTimeCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new DateTimeCustomColumn(this.ColumnName, derivedTable.Alias));
+        public DateTimeCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new DateTimeCustomColumn(this.ColumnName, derivedTable.Alias, new ExprTypeDateTime(this.IsDate)));
     }
 
     public class NullableDateTimeTableColumn : TableColumn
@@ -919,9 +919,9 @@ namespace SqExpress
                     ? SqQueryBuilder.Literal(result)
                     : throw new SqExpressException($"Could not parse '{value}' as date(time) for column '{this.ColumnName.Name}'.");
 
-        public NullableDateTimeCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableDateTimeCustomColumn(this.ColumnName, columnSource);
+        public NullableDateTimeCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableDateTimeCustomColumn(this.ColumnName, columnSource, new ExprTypeDateTime(this.IsDate));
 
-        public NullableDateTimeCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableDateTimeCustomColumn(this.ColumnName, derivedTable.Alias));
+        public NullableDateTimeCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableDateTimeCustomColumn(this.ColumnName, derivedTable.Alias, new ExprTypeDateTime(this.IsDate)));
     }
 
     public class GuidTableColumn : TableColumn
@@ -1067,9 +1067,9 @@ namespace SqExpress
                 ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
                 : SqQueryBuilder.Literal(value);
 
-        public StringCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new StringCustomColumn(this.ColumnName, columnSource);
+        public StringCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new StringCustomColumn(this.ColumnName, columnSource, this.SqlType);
 
-        public StringCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new StringCustomColumn(this.ColumnName, derivedTable.Alias));
+        public StringCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new StringCustomColumn(this.ColumnName, derivedTable.Alias, this.SqlType));
 
         public static ExprStringConcat operator +(ExprStringConcat a, StringTableColumn b)
             => new ExprStringConcat(a, b);
@@ -1122,9 +1122,9 @@ namespace SqExpress
                 ? SqQueryBuilder.Literal((string?)null)
                 : SqQueryBuilder.Literal(value);
 
-        public NullableStringCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableStringCustomColumn(this.ColumnName, columnSource);
+        public NullableStringCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableStringCustomColumn(this.ColumnName, columnSource, this.SqlType);
 
-        public NullableStringCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableStringCustomColumn(this.ColumnName, derivedTable.Alias));
+        public NullableStringCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableStringCustomColumn(this.ColumnName, derivedTable.Alias, this.SqlType));
     }
 
     public class DateTimeOffsetTableColumn : TableColumn
@@ -1182,9 +1182,9 @@ namespace SqExpress
                     ? SqQueryBuilder.Literal(result)
                     : throw new SqExpressException($"Could not parse '{value}' as datetimeoffset for column '{this.ColumnName.Name}'.");
 
-        public DateTimeCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new DateTimeCustomColumn(this.ColumnName, columnSource);
+        public DateTimeOffsetCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new DateTimeOffsetCustomColumn(this.ColumnName, columnSource);
 
-        public DateTimeCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new DateTimeCustomColumn(this.ColumnName, derivedTable.Alias));
+        public DateTimeOffsetCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new DateTimeOffsetCustomColumn(this.ColumnName, derivedTable.Alias));
     }
 
     public class NullableDateTimeOffsetTableColumn : TableColumn
@@ -1227,8 +1227,8 @@ namespace SqExpress
                     ? SqQueryBuilder.Literal(result)
                     : throw new SqExpressException($"Could not parse '{value}' as datetimeoffset for column '{this.ColumnName.Name}'.");
 
-        public NullableDateTimeCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableDateTimeCustomColumn(this.ColumnName, columnSource);
+        public NullableDateTimeOffsetCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableDateTimeOffsetCustomColumn(this.ColumnName, columnSource);
 
-        public NullableDateTimeCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableDateTimeCustomColumn(this.ColumnName, derivedTable.Alias));
+        public NullableDateTimeOffsetCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableDateTimeOffsetCustomColumn(this.ColumnName, derivedTable.Alias));
     }
 }

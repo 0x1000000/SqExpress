@@ -77,5 +77,13 @@ namespace SqExpress.Test.QueryBuilder
         {
             Assert.AreEqual("SELECT 'Wh' + 'at ever'", Select(UnsafeValue("'Wh' + 'at ever'")).Done().ToSql());
         }
+
+        [Test]
+        public void OracleMySql_Hour_UsesSqlDateTimeLiteralFormat()
+        {
+            var sql = Select(Hour(new DateTime(2020, 2, 3, 4, 5, 6))).Done().ToOracleSql();
+
+            Assert.AreEqual("SELECT HOUR('2020-02-03 04:05:06.000')", sql);
+        }
     }
 }

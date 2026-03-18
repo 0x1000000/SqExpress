@@ -1,6 +1,11 @@
 @page "/"
 @using Microsoft.JSInterop
+@using SqExpress.DbMetadata
+@using SqExpress.SqlExport
 @using SqExpress.SqlTranspiler
+@using SqExpress.SqlParser
+@using SqExpress.Syntax
+@using SqExpress.Syntax.Names
 @implements IAsyncDisposable
 @inject IJSRuntime JsRuntime
 
@@ -10,12 +15,19 @@
     <header class="workspace-header">
         <div class="workspace-title-row">
             <h1>T-SQL to SqExpress C# Transpiler</h1>
-            <a class="github-link" href="https://github.com/0x1000000/SqExpress" target="_blank" rel="noopener noreferrer">GitHub Project</a>
+            <div class="header-links">
+                <a class="bug-report-link" href="https://github.com/0x1000000/SqExpress/issues" target="_blank" rel="noopener noreferrer">Report a bug</a>
+                <a class="github-link" href="https://github.com/0x1000000/SqExpress" target="_blank" rel="noopener noreferrer">GitHub Project</a>
+            </div>
         </div>
         <p>
             Accepts T-SQL statements with SELECT, nested subqueries, CTE, INSERT, UPDATE, DELETE, and MERGE,
             including variables like <code>&#64;name</code> and list variables for <code>IN (&#64;items)</code>.
         </p>
+        <div class="privacy-box">
+            <strong>Runs locally in your browser.</strong>
+            This is a Blazor WebAssembly app, so your SQL and generated code stay on your device and are not sent anywhere by this tool.
+        </div>
     </header>
 
     <div class="editor-card">
@@ -27,6 +39,23 @@
             </div>
         </div>
         <div id="sql-editor" class="sql-editor"></div>
+        <details class="showcase-panel">
+            <summary class="showcase-panel-summary">Showcase Query</summary>
+            <div class="showcase-field">
+                <span class="showcase-label">Choose an example</span>
+                <div class="showcase-toolbar">
+                    <label class="showcase-picker">
+                    <select value="@this._selectedShowcaseSampleId" @onchange="this.OnShowcaseSampleChanged">
+                        @foreach (var sample in ShowcaseSamples)
+                        {
+                            <option value="@sample.Id">@sample.Title</option>
+                        }
+                    </select>
+                    </label>
+                    <button class="action-button action-button-secondary" @onclick="this.LoadSelectedShowcaseSampleAsync">Load Example</button>
+                </div>
+            </div>
+        </details>
     </div>
 
     <div class="settings-card">
@@ -75,16 +104,46 @@
         For accurate table descriptors, use the scaffolding/codegen tool included in SqExpress.
     </div>
 
-    <div class="outputs-grid">
-        <div class="output-card">
-            <h2>SqQuery Output</h2>
-            <div id="query-output-editor" class="csharp-output-editor"></div>
+    <section class="stack-section">
+        <div class="section-heading">
+            <h2>C# Output</h2>
+            <p>Generated SqExpress code from the parsed T-SQL statement.</p>
         </div>
-        <div class="output-card">
-            <h2>Declarations Output</h2>
-            <div id="declarations-output-editor" class="csharp-output-editor"></div>
+        <div class="outputs-grid">
+            <div class="output-card">
+                <h2>SqQuery Output</h2>
+                <div id="query-output-editor" class="csharp-output-editor"></div>
+            </div>
+            <div class="output-card">
+                <h2>Declarations Output</h2>
+                <div id="declarations-output-editor" class="csharp-output-editor"></div>
+            </div>
         </div>
-    </div>
+    </section>
+
+    <section class="stack-section">
+        <div class="section-heading">
+            <h2>SQL Output</h2>
+            <p>Read-only preview generated from the parsed T-SQL for <strong>@this.GetDialectLabel(this._selectedDialect)</strong>.</p>
+        </div>
+        <div class="output-card sql-preview-card">
+            <div class="dialect-tabs" role="tablist" aria-label="SQL output dialect">
+                @foreach (var dialect in Dialects)
+                {
+                    var isSelected = this._selectedDialect == dialect.Kind;
+                    <button
+                        type="button"
+                        class="dialect-tab @(isSelected ? "dialect-tab-active" : null)"
+                        role="tab"
+                        aria-selected="@(isSelected ? "true" : "false")"
+                        @onclick="() => this.OnDialectSelectedAsync(dialect.Kind)">
+                        @dialect.Label
+                    </button>
+                }
+            </div>
+            <div id="sql-preview-editor" class="sql-output-editor"></div>
+        </div>
+    </section>
 </section>
 
 @code
@@ -92,16 +151,27 @@
     private const string EditorElementId = "sql-editor";
     private const string QueryOutputElementId = "query-output-editor";
     private const string DeclarationsOutputElementId = "declarations-output-editor";
+    private const string SqlPreviewElementId = "sql-preview-editor";
     private const string PrefixStorageKey = "sqexpress.transpiler.tablePrefix";
     private const string SuffixStorageKey = "sqexpress.transpiler.tableSuffix";
     private const string DefaultSchemaStorageKey = "sqexpress.transpiler.defaultSchema";
     private const string UseStaticSqQueryBuilderUsingStorageKey = "sqexpress.transpiler.useStaticSqQueryBuilderUsing";
+    private const string SqlPreviewDialectStorageKey = "sqexpress.transpiler.sqlPreviewDialect";
+    private static readonly IReadOnlyList<DialectOption> Dialects = new[]
+    {
+        new DialectOption(SqlPreviewDialect.TSql, "T-SQL"),
+        new DialectOption(SqlPreviewDialect.PgSql, "PG-SQL"),
+        new DialectOption(SqlPreviewDialect.MySqlOracle, "MySQL Oracle"),
+        new DialectOption(SqlPreviewDialect.MySqlMariaDb, "MySQL MariaDB")
+    };
+    private static readonly IReadOnlyList<ShowcaseSample> ShowcaseSamples = ShowcaseCatalog.All;
     private DotNetObjectReference<Home>? _dotNetRef;
     private string _sqlText =
         "SELECT u.UserId, u.Name AS UserName " +
         "FROM dbo.Users u " +
         "WHERE u.IsActive = 1 " +
         "ORDER BY u.Name DESC";
+    private string _selectedShowcaseSampleId = ShowcaseSamples[0].Id;
     private string _tableDescriptorPrefix = "Table";
     private string _tableDescriptorSuffix = string.Empty;
     private string _defaultSchemaName = "dbo";
@@ -109,9 +179,13 @@
 
     private string _queryOutput = string.Empty;
     private string _declarationsOutput = string.Empty;
+    private string _sqlPreviewOutput = string.Empty;
     private string? _error;
     private bool _editorInitialized;
     private bool _outputEditorsInitialized;
+    private SqlPreviewDialect _selectedDialect = SqlPreviewDialect.TSql;
+    private ShowcaseSample SelectedShowcaseSample
+        => ShowcaseSamples.FirstOrDefault(i => i.Id == this._selectedShowcaseSampleId) ?? ShowcaseSamples[0];
 
     [JSInvokable]
     public Task OnSqlChangedFromJs(string sqlText)
@@ -132,8 +206,9 @@
         this.StateHasChanged();
         await JsRuntime.InvokeVoidAsync("sqExpressSqlEditor.initialize", EditorElementId, this._dotNetRef, this._sqlText);
         this._editorInitialized = true;
-        await JsRuntime.InvokeVoidAsync("sqExpressCodeOutput.initialize", QueryOutputElementId, this._queryOutput);
-        await JsRuntime.InvokeVoidAsync("sqExpressCodeOutput.initialize", DeclarationsOutputElementId, this._declarationsOutput);
+        await JsRuntime.InvokeVoidAsync("sqExpressCodeOutput.initialize", QueryOutputElementId, this._queryOutput, "csharp", "ace/theme/tomorrow_night");
+        await JsRuntime.InvokeVoidAsync("sqExpressCodeOutput.initialize", DeclarationsOutputElementId, this._declarationsOutput, "csharp", "ace/theme/tomorrow_night");
+        await JsRuntime.InvokeVoidAsync("sqExpressCodeOutput.initialize", SqlPreviewElementId, this._sqlPreviewOutput, "sql", "ace/theme/tomorrow");
         this._outputEditorsInitialized = true;
         await this.TranspileAsync();
     }
@@ -159,12 +234,22 @@
 
             this._queryOutput = result.QueryCSharpCode;
             this._declarationsOutput = result.DeclarationsCSharpCode;
-            this._error = null;
+            try
+            {
+                this._sqlPreviewOutput = BuildSqlPreview(result.CanonicalSql, options.DefaultSchemaName, this._selectedDialect);
+                this._error = null;
+            }
+            catch (Exception ex)
+            {
+                this._sqlPreviewOutput = string.Empty;
+                this._error = "Could not build SQL preview. " + ex.Message;
+            }
         }
         catch (Exception ex)
         {
             this._queryOutput = string.Empty;
             this._declarationsOutput = string.Empty;
+            this._sqlPreviewOutput = string.Empty;
             this._error = ex.Message;
         }
 
@@ -172,6 +257,7 @@
         {
             await JsRuntime.InvokeVoidAsync("sqExpressCodeOutput.setValue", QueryOutputElementId, this._queryOutput);
             await JsRuntime.InvokeVoidAsync("sqExpressCodeOutput.setValue", DeclarationsOutputElementId, this._declarationsOutput);
+            await JsRuntime.InvokeVoidAsync("sqExpressCodeOutput.setValue", SqlPreviewElementId, this._sqlPreviewOutput);
         }
     }
 
@@ -223,6 +309,18 @@
         await this.PersistUiSettingsAsync();
     }
 
+    private async Task OnDialectSelectedAsync(SqlPreviewDialect dialect)
+    {
+        if (this._selectedDialect == dialect)
+        {
+            return;
+        }
+
+        this._selectedDialect = dialect;
+        await this.PersistUiSettingsAsync();
+        await this.TranspileAsync();
+    }
+
     private async Task LoadUiSettingsAsync()
     {
         this._tableDescriptorPrefix = await this.GetStoredSettingAsync(PrefixStorageKey, this._tableDescriptorPrefix);
@@ -230,6 +328,8 @@
         this._defaultSchemaName = await this.GetStoredSettingAsync(DefaultSchemaStorageKey, this._defaultSchemaName);
         this._useStaticSqQueryBuilderUsing =
             await this.GetStoredBoolSettingAsync(UseStaticSqQueryBuilderUsingStorageKey, this._useStaticSqQueryBuilderUsing);
+        this._selectedDialect = this.GetDialectFromStorageValue(
+            await this.GetStoredSettingAsync(SqlPreviewDialectStorageKey, this._selectedDialect.ToString()));
     }
 
     private async Task PersistUiSettingsAsync()
@@ -240,6 +340,7 @@
         await this.SetStoredSettingAsync(
             UseStaticSqQueryBuilderUsingStorageKey,
             this._useStaticSqQueryBuilderUsing ? "true" : "false");
+        await this.SetStoredSettingAsync(SqlPreviewDialectStorageKey, this._selectedDialect.ToString());
     }
 
     private async Task<bool> GetStoredBoolSettingAsync(string key, bool fallback)
@@ -273,6 +374,88 @@
         }
     }
 
+    private void OnShowcaseSampleChanged(ChangeEventArgs args)
+    {
+        this._selectedShowcaseSampleId = args.Value?.ToString() ?? ShowcaseSamples[0].Id;
+    }
+
+    private async Task LoadSelectedShowcaseSampleAsync()
+    {
+        this._sqlText = this.SelectedShowcaseSample.SqlText;
+        this._error = null;
+
+        if (this._editorInitialized)
+        {
+            await JsRuntime.InvokeVoidAsync("sqExpressSqlEditor.setValue", EditorElementId, this._sqlText);
+        }
+
+        await this.TranspileAsync();
+    }
+
+    private string GetDialectLabel(SqlPreviewDialect dialect)
+        => Dialects.First(i => i.Kind == dialect).Label;
+
+    private SqlPreviewDialect GetDialectFromStorageValue(string? value)
+        => Enum.TryParse<SqlPreviewDialect>(value, ignoreCase: true, out var dialect)
+            ? dialect
+            : SqlPreviewDialect.TSql;
+
+    private static string BuildSqlPreview(string canonicalSql, string? defaultSchemaName, SqlPreviewDialect dialect)
+    {
+        var parserOptions = new SqTSqlParserOptions
+        {
+            DefaultSchema = string.IsNullOrWhiteSpace(defaultSchemaName) ? null : defaultSchemaName
+        };
+
+        if (!SqTSqlParser.TryParse(canonicalSql, parserOptions, out IExpr? expr, out IReadOnlyList<SqTable>? tables, out string? error))
+        {
+            throw new InvalidOperationException("Could not build SQL preview. " + (error ?? "Unknown parser error."));
+        }
+
+        expr = RebindTables(expr!, tables!);
+
+        return dialect switch
+        {
+            SqlPreviewDialect.TSql => expr.ToSql(TSqlExporter.Default),
+            SqlPreviewDialect.PgSql => expr.ToSql(PgSqlExporter.Default),
+            SqlPreviewDialect.MySqlOracle => expr.ToSql(MySqlExporter.OracleDefault),
+            SqlPreviewDialect.MySqlMariaDb => expr.ToSql(MySqlExporter.MariaDbDefault),
+            _ => expr.ToSql(TSqlExporter.Default)
+        };
+    }
+
+    private static IExpr RebindTables(IExpr expr, IReadOnlyList<SqTable> tables)
+    {
+        if (tables.Count < 1)
+        {
+            return expr;
+        }
+
+        var tablesByKey = new Dictionary<string, SqTable>(StringComparer.OrdinalIgnoreCase);
+        foreach (var table in tables)
+        {
+            tablesByKey[BuildTableKey(table.FullName)] = table;
+        }
+
+        return expr.SyntaxTree().Modify<ExprTable>(tableExpr =>
+        {
+            if (tableExpr is TableBase)
+            {
+                return tableExpr;
+            }
+
+            return tablesByKey.TryGetValue(BuildTableKey(tableExpr.FullName), out var sqTable)
+                ? sqTable.With(tableExpr.Alias, tableExpr.FullName)
+                : tableExpr;
+        }) as IExpr ?? expr;
+    }
+
+    private static string BuildTableKey(IExprTableFullName fullName)
+    {
+        var schema = fullName.SchemaName ?? string.Empty;
+        return schema + "|" + fullName.TableName;
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (this._editorInitialized)
@@ -284,8 +467,30 @@
         {
             await JsRuntime.InvokeVoidAsync("sqExpressCodeOutput.dispose", QueryOutputElementId);
             await JsRuntime.InvokeVoidAsync("sqExpressCodeOutput.dispose", DeclarationsOutputElementId);
+            await JsRuntime.InvokeVoidAsync("sqExpressCodeOutput.dispose", SqlPreviewElementId);
         }
 
         this._dotNetRef?.Dispose();
+    }
+
+    private sealed class DialectOption
+    {
+        public DialectOption(SqlPreviewDialect kind, string label)
+        {
+            this.Kind = kind;
+            this.Label = label;
+        }
+
+        public SqlPreviewDialect Kind { get; }
+
+        public string Label { get; }
+    }
+
+    private enum SqlPreviewDialect
+    {
+        TSql,
+        PgSql,
+        MySqlOracle,
+        MySqlMariaDb
     }
 }

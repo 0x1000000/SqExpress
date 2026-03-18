@@ -3,7 +3,6 @@ using SqExpress.Syntax;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
-using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Value;
@@ -23,7 +22,7 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         }
     }
 
-    internal class ExprValueVisitorTypeAnalyzer<TRes, TCtx> : IExprValueVisitorInternal<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>, IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>, IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>
+    internal class ExprValueVisitorTypeAnalyzer<TRes, TCtx> : IExprValueVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>, IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>, IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>
     {
         public static readonly ExprValueVisitorTypeAnalyzer<TRes, TCtx> Instance = new ExprValueVisitorTypeAnalyzer<TRes, TCtx>();
 
@@ -107,6 +106,23 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         public TRes VisitExprUnsafeValue(ExprUnsafeValue exprUnsafeValue, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
         {
             return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+        }
+
+        public TRes VisitExprSelectingValue(ExprSelectingValue exprSelectingValue, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            switch (exprSelectingValue.Selecting)
+            {
+                case ExprValue value:
+                    return value.Accept(this, ctx);
+                case ExprAggregateFunction aggregateFunction:
+                    return this.VisitExprAggregateFunction(aggregateFunction, ctx);
+                case ExprAggregateOverFunction aggregateOverFunction:
+                    return this.VisitExprAggregateOverFunction(aggregateOverFunction, ctx);
+                case ExprAnalyticFunction analyticFunction:
+                    return this.VisitExprAnalyticFunction(analyticFunction, ctx);
+                default:
+                    return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+            }
         }
 
         public TRes VisitExprValueQuery(ExprValueQuery exprValueQuery, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
@@ -229,6 +245,56 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             return exprCast.SqlType.Accept(this, ctx);
         }
 
+        private TRes VisitExprAggregateFunction(ExprAggregateFunction exprAggregateFunction, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            switch (exprAggregateFunction.Name.Name.ToUpperInvariant())
+            {
+                case "COUNT":
+                    return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
+
+                case "MIN":
+                case "MAX":
+                case "SUM":
+                case "AVG":
+                    return exprAggregateFunction.Expression.Accept(this, ctx);
+
+                default:
+                    return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+            }
+        }
+
+        private TRes VisitExprAggregateOverFunction(ExprAggregateOverFunction exprAggregateOverFunction, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return this.VisitExprAggregateFunction(exprAggregateOverFunction.Function, ctx);
+        }
+
+        private TRes VisitExprAnalyticFunction(ExprAnalyticFunction exprAnalyticFunction, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            switch (exprAnalyticFunction.Name.Name.ToUpperInvariant())
+            {
+                case "ROW_NUMBER":
+                case "RANK":
+                case "DENSE_RANK":
+                case "NTILE":
+                    return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
+
+                case "CUME_DIST":
+                case "PERCENT_RANK":
+                    return ctx.ValueVisitor.VisitDouble(ctx.Ctx, false);
+
+                case "FIRST_VALUE":
+                case "LAST_VALUE":
+                case "LAG":
+                case "LEAD":
+                    return exprAnalyticFunction.Arguments != null && exprAnalyticFunction.Arguments.Count > 0
+                        ? exprAnalyticFunction.Arguments[0].Accept(this, ctx)
+                        : ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+
+                default:
+                    return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+            }
+        }
+
         //Implementation to analyze in "VisitExprCast" and "VisitExprColumn"
 
         TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeBoolean(ExprTypeBoolean exprTypeBoolean, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
@@ -306,7 +372,7 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             return ctx.ValueVisitor.VisitXml(ctx.Ctx, null);
         }
 
-        TRes IExprValueVisitorInternal<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprParameter(ExprParameter exprParameter, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        TRes IExprValueVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprParameter(ExprParameter exprParameter, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
         {
             if (!ReferenceEquals(exprParameter.ReplacedValue,null))
             {
@@ -318,6 +384,66 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseLen(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
         {
             return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseNullIf(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseAbs(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseLower(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseUpper(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseTrim(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseLTrim(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseRTrim(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseReplace(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseSubstring(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseRound(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseFloor(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+        }
+
+        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseCeiling(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        {
+            return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
         }
 
         TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseDataLen(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
@@ -353,21 +479,6 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseSecond(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
         {
             return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseCurrentDate(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitDateTime(ctx.Ctx, false);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseCurrentTime(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitDateTime(ctx.Ctx, false);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseCurrentTimestamp(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitDateTime(ctx.Ctx, false);
         }
 
         TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseIndexOf(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)

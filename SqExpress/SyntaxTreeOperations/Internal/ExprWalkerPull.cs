@@ -288,18 +288,6 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
         }
 
-        bool IExprValueVisitorInternal<bool, object?>.VisitExprParameter(ExprParameter expr, object? arg)
-        {
-            switch (this.Peek().State)
-            {
-                case 1:
-                    return this.Pop();
-                default:
-                    throw new SqExpressException("Incorrect enumerator visitor state");
-            }
-        }
-
-
         //CodeGenStart
         public bool VisitExprAggregateFunction(ExprAggregateFunction expr, object? arg)
         {
@@ -1513,6 +1501,18 @@ namespace SqExpress.SyntaxTreeOperations.Internal
                     throw new SqExpressException("Incorrect enumerator visitor state");
             }
         }
+        public bool VisitExprParameter(ExprParameter expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.ReplacedValue);
+                case 2:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
         public bool VisitExprPortableScalarFunction(ExprPortableScalarFunction expr, object? arg)
         {
             switch (this.Peek().State)
@@ -1620,6 +1620,18 @@ namespace SqExpress.SyntaxTreeOperations.Internal
                 case 2:
                     return this.SetCurrent(expr.OrderBy);
                 case 3:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
+        public bool VisitExprSelectingValue(ExprSelectingValue expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.Selecting);
+                case 2:
                     return this.Pop();
                 default:
                     throw new SqExpressException("Incorrect enumerator visitor state");

@@ -5,13 +5,12 @@ using SqExpress.Syntax.Value;
 
 namespace SqExpress
 {
-    public abstract class TableColumn : ExprColumn
+    public abstract class TableColumn : TypedColumn
     {
-        protected TableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ExprType sqlType, bool isNullable, ColumnMeta? columnMeta) : base(source, columnName)
+        protected TableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ExprType sqlType, bool isNullable, ColumnMeta? columnMeta)
+            : base(source, columnName, sqlType, isNullable)
         {
             this.Table = table;
-            this.SqlType = sqlType;
-            this.IsNullable = isNullable;
             this.ColumnMeta = columnMeta;
         }
 
@@ -34,10 +33,6 @@ namespace SqExpress
         protected abstract TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta);
 
         public ExprTable Table { get; }
-
-        public ExprType SqlType { get; }
-
-        public bool IsNullable { get; }
 
         public ColumnMeta? ColumnMeta { get; }
 

@@ -24,7 +24,8 @@ namespace SqExpress.IntTest
         {
             const string msSqlConnectionString = "Data Source=(local);Initial Catalog=TestDatabase;Integrated Security=True";
             const string pgSqlConnectionString = "Host=localhost;Port=5432;Username=postgres;Password=test;Database=test";
-            const string mySqlConnectionString = "server=127.0.0.1;uid=test;pwd=test;database=test";
+            const string oracleMySqlConnectionString = "server=127.0.0.1;port=3306;uid=test;pwd=test;database=test";
+            const string mariaDbConnectionString = "server=127.0.0.1;port=3307;uid=test;pwd=test;database=test";
             try
             {
                 var scenario = customScenario ?? new ScCreateTables()
@@ -54,8 +55,10 @@ namespace SqExpress.IntTest
                         .Then(new ScPgMergeIdentityPolyfill())
                         .Then(new ScParametrizationTypes())
                         .Then(new ScParserParamsExprValues())
+                        .Then(new ScParserTypedParams())
                         .Then(new ScParametrizationLimitBoundary())
                         .Then(new ScMergeExpr())
+                        .Then(new ScMergeExprEdgeCases())
                         .Then(new ScModelSelector())
                         .Then(new ScCancellation())
                         .Then(new ScCte())
@@ -68,20 +71,18 @@ namespace SqExpress.IntTest
                         .Then(new ScCreateDynamicTable())
                         .Then(new ScPortableScalarFunctions());
 
-                //scenario = new ScPlayground();
-
                 await ExecScenarioAll(
                     scenario: scenario,
                     msSqlConnectionString: msSqlConnectionString,
                     pgSqlConnectionString: pgSqlConnectionString,
-                    mySqlConnectionString: mySqlConnectionString,
+                    oracleMySqlConnectionString: oracleMySqlConnectionString,
+                    mariaDbConnectionString: mariaDbConnectionString,
                     parametrizationMode
                 );
 
                 await ExecCrossDbScenario(
                     msSqlConnectionString: msSqlConnectionString,
                     pgSqlConnectionString: pgSqlConnectionString,
-                    mySqlConnectionString: mySqlConnectionString,
                     parametrizationMode
                 );
             }
@@ -100,7 +101,8 @@ namespace SqExpress.IntTest
             IScenario scenario,
             string msSqlConnectionString,
             string pgSqlConnectionString,
-            string mySqlConnectionString,
+            string oracleMySqlConnectionString,
+            string mariaDbConnectionString,
             ParametrizationMode parametrizationMode)
         {
             Stopwatch stopwatch = new Stopwatch();
@@ -113,26 +115,31 @@ namespace SqExpress.IntTest
             Console.WriteLine($"-MS SQL Test End: {stopwatch.ElapsedMilliseconds} ms");
 
             Console.WriteLine("-Postgres Test-----");
-            stopwatch.Start();
+            stopwatch.Restart();
             await ExecNpgSql(scenario, pgSqlConnectionString, parametrizationMode);
             stopwatch.Stop();
             Console.WriteLine($"-Postgres Test End: {stopwatch.ElapsedMilliseconds} ms");
 
             Console.WriteLine();
-            Console.WriteLine("-MY SQL Test-------");
+            Console.WriteLine("-Oracle MySQL Test-");
             stopwatch.Restart();
-            await ExecMySql(scenario, mySqlConnectionString, parametrizationMode);
+            await ExecMySql(scenario, oracleMySqlConnectionString, MySqlExporter.OracleDefault, SqlDialect.OracleMySql, parametrizationMode);
             stopwatch.Stop();
-            Console.WriteLine($"-MY SQL Test End: {stopwatch.ElapsedMilliseconds} ms");
+            Console.WriteLine($"-Oracle MySQL Test End: {stopwatch.ElapsedMilliseconds} ms");
+
+            Console.WriteLine();
+            Console.WriteLine("-MariaDB Test------");
+            stopwatch.Restart();
+            await ExecMySql(scenario, mariaDbConnectionString, MySqlExporter.MariaDbDefault, SqlDialect.MariaDb, parametrizationMode);
+            stopwatch.Stop();
+            Console.WriteLine($"-MariaDB Test End: {stopwatch.ElapsedMilliseconds} ms");
         }
 
         private static async Task ExecCrossDbScenario(
             string msSqlConnectionString,
             string pgSqlConnectionString,
-            string mySqlConnectionString,
             ParametrizationMode parametrizationMode)
         {
-
             using var msSqlDb = GetMsSqlDatabase(msSqlConnectionString, TSqlExporter.Default, parametrizationMode);
             using var pgSqlDb = GetPgSqlDatabase(pgSqlConnectionString, PgSqlExporter.Default, parametrizationMode);
 
@@ -173,16 +180,14 @@ namespace SqExpress.IntTest
             );
         }
 
-        private static async Task ExecMySql(IScenario scenario, string connectionString, ParametrizationMode parametrizationMode)
+        private static async Task ExecMySql(IScenario scenario, string connectionString, MySqlExporter sqlExporter, SqlDialect dialect, ParametrizationMode parametrizationMode)
         {
-            var sqlExporter = MySqlExporter.Default;
-
             await using var database = GetMySqlDatabase(connectionString, sqlExporter, parametrizationMode);
 
             await scenario.Exec(
                 new ScenarioContext(
                     database,
-                    SqlDialect.MySql,
+                    dialect,
                     () => GetMySqlDatabase(connectionString, sqlExporter, parametrizationMode),
                     sqlExporter,
                     parametrizationMode
@@ -218,4 +223,3 @@ namespace SqExpress.IntTest
             );
     }
 }
-

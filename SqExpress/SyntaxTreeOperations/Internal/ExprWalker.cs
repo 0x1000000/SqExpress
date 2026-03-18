@@ -201,13 +201,6 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             return walkResult != WalkResult.Stop;
         }
 
-        bool IExprValueVisitorInternal<bool, WalkerContext<TCtx>>.VisitExprParameter(ExprParameter expr, WalkerContext<TCtx> arg)
-        {
-            var walkResult = this.Visit(expr, "Parameter", arg, out var argOut);
-            this.EndVisit(expr, argOut.Context);
-            return walkResult != WalkResult.Stop;
-        }
-
         //CodeGenStart
         public bool VisitExprAggregateFunction(ExprAggregateFunction expr, WalkerContext<TCtx> arg)
         {
@@ -1151,6 +1144,18 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             this.EndVisit(expr, argOut.Context);
             return res && walkResult != WalkResult.Stop;
         }
+        public bool VisitExprParameter(ExprParameter expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "Parameter", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("ReplacedValue",expr.ReplacedValue, argOut);
+            }
+            this.VisitPlainProperty("TagName",expr.TagName, argOut.Context);
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
         public bool VisitExprPortableScalarFunction(ExprPortableScalarFunction expr, WalkerContext<TCtx> arg)
         {
             var res = true;
@@ -1234,6 +1239,17 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             if(walkResult == WalkResult.Continue)
             {
                 res = this.Accept("SelectQuery",expr.SelectQuery, argOut) && this.Accept("OrderBy",expr.OrderBy, argOut);
+            }
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
+        public bool VisitExprSelectingValue(ExprSelectingValue expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "SelectingValue", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("Selecting",expr.Selecting, argOut);
             }
             this.EndVisit(expr, argOut.Context);
             return res && walkResult != WalkResult.Stop;

@@ -11,12 +11,15 @@ using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
+using SqExpress.Syntax.Functions.Known;
 using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Select.SelectItems;
+using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Update;
 using SqExpress.Syntax.Value;
+using SqExpress.SyntaxTreeOperations;
 
 namespace SqExpress.SqlParser.Internal.Mapping
 {
@@ -24,6 +27,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
     {
         public static bool TryMap(
             SqlDomStatement statement,
+            string? defaultSchema,
             [NotNullWhen(true)] out IExpr? result,
             out IReadOnlyList<SqTable>? tables,
             [NotNullWhen(false)] out string? error)
@@ -31,7 +35,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
             tables = null;
             try
             {
-                var context = new MappingContext(statement.WithClause);
+                var context = new MappingContext(statement.WithClause, defaultSchema);
                 result = statement.Kind switch
                 {
                     SqlDomStatementKind.Select => MapSelect(statement, context),
@@ -80,13 +84,18 @@ namespace SqExpress.SqlParser.Internal.Mapping
             private readonly Dictionary<string, IExprSubQuery> _resolved;
             private readonly Dictionary<string, DeferredSubQuery> _deferred;
             private readonly HashSet<string> _resolving;
+            private readonly HashSet<string> _visibleTableReferences;
+            private readonly bool _allowOuterTableReferencesInDerivedTables;
 
-            public MappingContext(SqlDomWithClause? withClause)
+            public MappingContext(SqlDomWithClause? withClause, string? defaultSchema = "dbo")
             {
+                this.DefaultSchema = string.IsNullOrWhiteSpace(defaultSchema) ? null : defaultSchema;
                 this._domCtes = new Dictionary<string, SqlDomCte>(StringComparer.OrdinalIgnoreCase);
                 this._resolved = new Dictionary<string, IExprSubQuery>(StringComparer.OrdinalIgnoreCase);
                 this._deferred = new Dictionary<string, DeferredSubQuery>(StringComparer.OrdinalIgnoreCase);
                 this._resolving = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                this._visibleTableReferences = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                this._allowOuterTableReferencesInDerivedTables = false;
 
                 if (withClause == null)
                 {
@@ -98,6 +107,90 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     this._domCtes[withClause.Ctes[i].Name] = withClause.Ctes[i];
                 }
             }
+
+            private MappingContext(
+                Dictionary<string, SqlDomCte> domCtes,
+                Dictionary<string, IExprSubQuery> resolved,
+                Dictionary<string, DeferredSubQuery> deferred,
+                HashSet<string> resolving,
+                HashSet<string> visibleTableReferences,
+                bool allowOuterTableReferencesInDerivedTables,
+                string? defaultSchema)
+            {
+                this.DefaultSchema = defaultSchema;
+                this._domCtes = domCtes;
+                this._resolved = resolved;
+                this._deferred = deferred;
+                this._resolving = resolving;
+                this._visibleTableReferences = visibleTableReferences;
+                this._allowOuterTableReferencesInDerivedTables = allowOuterTableReferencesInDerivedTables;
+            }
+
+            public string? DefaultSchema { get; }
+
+            public MappingContext WithVisibleTableReferences(IEnumerable<string> visibleTableReferences)
+            {
+                var merged = new HashSet<string>(this._visibleTableReferences, StringComparer.OrdinalIgnoreCase);
+                foreach (var visibleTableReference in visibleTableReferences)
+                {
+                    if (!string.IsNullOrWhiteSpace(visibleTableReference))
+                    {
+                        merged.Add(visibleTableReference);
+                    }
+                }
+
+                return new MappingContext(
+                    this._domCtes,
+                    this._resolved,
+                    this._deferred,
+                    this._resolving,
+                    merged,
+                    this._allowOuterTableReferencesInDerivedTables,
+                    this.DefaultSchema);
+            }
+
+            public MappingContext WithVisibleTableReferenceScope(IEnumerable<string> visibleTableReferences)
+            {
+                var scoped = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var visibleTableReference in visibleTableReferences)
+                {
+                    if (!string.IsNullOrWhiteSpace(visibleTableReference))
+                    {
+                        scoped.Add(visibleTableReference);
+                    }
+                }
+
+                return new MappingContext(
+                    this._domCtes,
+                    this._resolved,
+                    this._deferred,
+                    this._resolving,
+                    scoped,
+                    this._allowOuterTableReferencesInDerivedTables,
+                    this.DefaultSchema);
+            }
+
+            public MappingContext WithDerivedTableOuterReferenceAllowance(bool allowOuterTableReferencesInDerivedTables)
+            {
+                return new MappingContext(
+                    this._domCtes,
+                    this._resolved,
+                    this._deferred,
+                    this._resolving,
+                    new HashSet<string>(this._visibleTableReferences, StringComparer.OrdinalIgnoreCase),
+                    allowOuterTableReferencesInDerivedTables,
+                    this.DefaultSchema);
+            }
+
+            public bool IsVisibleTableReference(string name)
+                => this._visibleTableReferences.Contains(name);
+
+            public int VisibleTableReferenceCount
+                => this._visibleTableReferences.Count;
+
+            public bool AllowOuterTableReferencesInDerivedTables
+                => this._allowOuterTableReferencesInDerivedTables;
+
 
             public bool TryGetCteReference(string name, string? alias, [NotNullWhen(true)] out ExprCteQuery? cte)
             {
@@ -184,11 +277,99 @@ namespace SqExpress.SqlParser.Internal.Mapping
             public IReadOnlyList<string?> GetOutputColumnNames()
                 => this.Resolve().GetOutputColumnNames();
 
+            public IReadOnlyList<IExprSelecting> ExtractSelecting()
+                => this.Resolve().ExtractSelecting();
+
+            public IExprSubQuery CreateSubQuery()
+                => this.Resolve();
+
             public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
                 => this.Resolve().Accept(visitor, arg);
 
             private IExprSubQuery Resolve()
                 => this._resolver() ?? throw new MapException($"CTE '{this._cteName}' could not be resolved.");
+        }
+
+        private sealed class GroupedSelectInspection : ExprVisitorBase
+        {
+            private readonly List<ExprColumn> _nonAggregatedColumns = new List<ExprColumn>();
+            private int _plainAggregateDepth;
+            private int _windowAggregateDepth;
+
+            public bool ContainsPlainAggregate { get; private set; }
+
+            public bool ContainsWildcard { get; private set; }
+
+            public IReadOnlyList<ExprColumn> NonAggregatedColumns => this._nonAggregatedColumns;
+
+            public static GroupedSelectInspection Inspect(IExprSelecting selecting)
+            {
+                var inspection = new GroupedSelectInspection();
+                inspection.Accept(selecting);
+                return inspection;
+            }
+
+            public override void VisitExprAggregateFunction(ExprAggregateFunction expr)
+            {
+                if (this._windowAggregateDepth > 0)
+                {
+                    return;
+                }
+
+                this.ContainsPlainAggregate = true;
+                this._plainAggregateDepth++;
+                try
+                {
+                    this.Accept(expr.Name);
+                }
+                finally
+                {
+                    this._plainAggregateDepth--;
+                }
+            }
+
+            public override void VisitExprAggregateOverFunction(ExprAggregateOverFunction expr)
+            {
+                this._windowAggregateDepth++;
+                try
+                {
+                    this.Accept(expr.Over);
+                }
+                finally
+                {
+                    this._windowAggregateDepth--;
+                }
+            }
+
+            public override void VisitExprAllColumns(ExprAllColumns expr)
+            {
+                this.ContainsWildcard = true;
+            }
+
+            public override void VisitExprColumn(ExprColumn expr)
+            {
+                if (this._plainAggregateDepth == 0)
+                {
+                    this._nonAggregatedColumns.Add(expr);
+                }
+            }
+
+            public override void VisitExprExists(ExprExists expr)
+            {
+            }
+
+            public override void VisitExprInSubQuery(ExprInSubQuery expr)
+            {
+                this.Accept(expr.TestExpression);
+            }
+
+            public override void VisitExprValueQuery(ExprValueQuery expr)
+            {
+            }
+
+            public override void VisitExprQuerySpecification(ExprQuerySpecification expr)
+            {
+            }
         }
 
         private static IExpr MapSelect(SqlDomStatement statement, MappingContext context)
@@ -204,29 +385,34 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 return MapSelectWithSetOperation(statement.RawSql, context);
             }
 
-            var selectList = top.Items.Select(i => ParseSelectItem(i, context)).ToList();
             IExprTableSource? from = top.From == null ? null : ParseTableSource(top.From, context);
-            ExprBoolean? where = string.IsNullOrWhiteSpace(top.WhereSql) ? null : ParseBoolean(top.WhereSql!, context);
+            var scopedContext = context.WithVisibleTableReferences(GetVisibleTableReferences(from));
+            var selectList = top.Items.Select(i => ParseSelectItem(i, scopedContext)).ToList();
+            var selectAliases = BuildSelectAliasLookup(selectList);
+            ExprBoolean? where = string.IsNullOrWhiteSpace(top.WhereSql) ? null : ParseBoolean(top.WhereSql!, scopedContext);
             IReadOnlyList<ExprColumn>? groupBy = null;
             if (!string.IsNullOrWhiteSpace(top.GroupBySql))
             {
-                groupBy = SplitComma(top.GroupBySql!).Select(i => ParseValue(i, context) as ExprColumn ?? throw new MapException("GROUP BY supports only columns.")).ToList();
+                EnsureGroupByDoesNotReferenceSelectAliases(top.GroupBySql!, selectAliases);
+                groupBy = SplitComma(top.GroupBySql!).Select(i => ParseValue(i, scopedContext) as ExprColumn ?? throw new MapException("GROUP BY supports only columns.")).ToList();
             }
+
+            ValidateGroupedSelectList(selectList, groupBy);
 
             ExprValue? topExpr = null;
             if (!string.IsNullOrWhiteSpace(top.TopSql))
             {
-                topExpr = ParseValue(top.TopSql!, context);
+                topExpr = ParseValue(top.TopSql!, scopedContext);
             }
 
             IExprSubQuery query = new ExprQuerySpecification(selectList, topExpr, top.IsDistinct, from, where, groupBy);
 
             if (!string.IsNullOrWhiteSpace(top.OrderBySql))
             {
-                var order = ParseOrderBy(top.OrderBySql!, context);
+                var order = ParseOrderBy(top.OrderBySql!, scopedContext, selectAliases);
                 if (!string.IsNullOrWhiteSpace(top.OffsetFetchSql))
                 {
-                    var (offset, fetch) = ParseOffsetFetch(top.OffsetFetchSql!, context);
+                    var (offset, fetch) = ParseOffsetFetch(top.OffsetFetchSql!, scopedContext);
                     return new ExprSelectOffsetFetch(query, new ExprOrderByOffsetFetch(order.OrderList, new ExprOffsetFetch(offset, fetch)));
                 }
 
@@ -448,9 +634,6 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 throw new MapException("Invalid UPDATE SET clause.");
             }
 
-            var setSql = SliceSqlByTokenRange(sql, tokens, setPos + 1, setEnd);
-            var setList = ParseSetClauses(setSql, context);
-
             if (outputPos >= 0)
             {
                 throw new MapException("Feature 'OUTPUT' is not supported by SqExpress parser for UPDATE statements.");
@@ -506,16 +689,22 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 source = ParseTableSourceSql(fromSql, context);
             }
 
-            var target = ResolveUpdateTarget(targetParts, targetAlias, source, statement);
+            var target = ResolveUpdateTarget(targetParts, targetAlias, source, statement, context);
             if (target == null)
             {
                 throw new MapException("UPDATE target table is not resolved.");
             }
 
+            var scopedContext = context.WithVisibleTableReferences(
+                GetVisibleTableReferences(source).Concat(GetVisibleTableReferences(target)));
+
+            var setSql = SliceSqlByTokenRange(sql, tokens, setPos + 1, setEnd);
+            var setList = ParseSetClauses(setSql, scopedContext);
+
             ExprBoolean? filter = null;
             if (wherePos >= 0)
             {
-                filter = ParseBoolean(SliceSqlByTokenRange(sql, tokens, wherePos + 1, tokens.Count), context);
+                filter = ParseBoolean(SliceSqlByTokenRange(sql, tokens, wherePos + 1, tokens.Count), scopedContext);
             }
 
             return new ExprUpdate(target, setList, source, filter);
@@ -548,7 +737,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 throw new MapException("INSERT target table is not resolved.");
             }
 
-            var target = BuildTableFullName(nameParts);
+            var target = BuildTableFullName(context, nameParts);
 
             IReadOnlyList<ExprColumnName>? targetColumns = null;
             if (cursor < tokens.Count && tokens[cursor].Type == SqlTokenType.OpenParen)
@@ -639,11 +828,23 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 throw new MapException("DELETE statement is invalid.");
             }
 
-            var fromIndex = FindFirstTopLevelKeyword(tokens, 0, "FROM");
-            if (fromIndex < 0 || fromIndex + 1 >= tokens.Count)
+            var cursor = 1;
+            if (cursor < tokens.Count && tokens[cursor].IsKeyword("TOP"))
             {
-                throw new MapException("DELETE statement must contain FROM clause.");
+                cursor++;
+                if (cursor < tokens.Count && tokens[cursor].Type == SqlTokenType.OpenParen)
+                {
+                    var close = FindMatchingCloseParen(tokens, cursor);
+                    if (close < 0)
+                    {
+                        throw new MapException("DELETE TOP clause is invalid.");
+                    }
+
+                    cursor = close + 1;
+                }
             }
+
+            var fromIndex = FindFirstTopLevelKeyword(tokens, cursor, "FROM");
 
             string? targetAlias = null;
             if ((1 < tokens.Count)
@@ -654,38 +855,88 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 targetAlias = tokens[1].IdentifierValue;
             }
 
-            var outputIndex = FindFirstTopLevelKeyword(tokens, 0, "OUTPUT");
-            var whereIndex = FindFirstTopLevelKeyword(tokens, fromIndex + 1, "WHERE");
-            var fromEnd = whereIndex >= 0 ? whereIndex : tokens.Count;
-            var fromSliceEnd = outputIndex >= 0 && outputIndex > fromIndex && outputIndex < fromEnd ? outputIndex : fromEnd;
-            var fromSql = SliceSqlByTokenRange(sql, tokens, fromIndex + 1, fromSliceEnd);
-            var source = ParseTableSourceSql(fromSql, context);
+            var outputIndex = FindFirstTopLevelKeyword(tokens, cursor, "OUTPUT");
+            var whereSearchStart = fromIndex >= 0 ? fromIndex + 1 : cursor;
+            var whereIndex = FindFirstTopLevelKeyword(tokens, whereSearchStart, "WHERE");
+
+            IExprTableSource? source = null;
+            ExprTable target;
+            if (fromIndex >= 0)
+            {
+                if (fromIndex + 1 >= tokens.Count)
+                {
+                    throw new MapException("DELETE FROM clause is invalid.");
+                }
+
+                var fromEnd = whereIndex >= 0 ? whereIndex : tokens.Count;
+                var fromSliceEnd = outputIndex >= 0 && outputIndex > fromIndex && outputIndex < fromEnd ? outputIndex : fromEnd;
+                var fromSql = SliceSqlByTokenRange(sql, tokens, fromIndex + 1, fromSliceEnd);
+                source = ParseTableSourceSql(fromSql, context);
+                target = ResolveDeleteTarget(statement, source, targetAlias, context);
+            }
+            else
+            {
+                var targetEnd = MinPositive(outputIndex, whereIndex);
+                if (targetEnd < 0)
+                {
+                    targetEnd = tokens.Count;
+                }
+
+                if (targetEnd <= cursor)
+                {
+                    throw new MapException("DELETE target table is not resolved.");
+                }
+
+                var targetSql = SliceSqlByTokenRange(sql, tokens, cursor, targetEnd);
+                source = ParseTableSourceSql(targetSql, context);
+                if (source is not ExprTable directTarget)
+                {
+                    throw new MapException("DELETE target table is not resolved.");
+                }
+
+                target = directTarget;
+            }
 
             IReadOnlyList<ExprAliasedColumn>? outputColumns = null;
             if (outputIndex >= 0)
             {
-                if (outputIndex < fromIndex)
+                if (fromIndex >= 0)
                 {
-                    outputColumns = ParseDeleteOutputColumns(tokens, outputIndex + 1, fromIndex);
-                }
-                else if (outputIndex > fromIndex && outputIndex < fromEnd)
-                {
-                    outputColumns = ParseDeleteOutputColumns(tokens, outputIndex + 1, fromEnd);
+                    var fromEnd = whereIndex >= 0 ? whereIndex : tokens.Count;
+                    if (outputIndex < fromIndex)
+                    {
+                        outputColumns = ParseDeleteOutputColumns(tokens, outputIndex + 1, fromIndex);
+                    }
+                    else if (outputIndex > fromIndex && outputIndex < fromEnd)
+                    {
+                        outputColumns = ParseDeleteOutputColumns(tokens, outputIndex + 1, fromEnd);
+                    }
+                    else
+                    {
+                        throw new MapException("DELETE OUTPUT clause is invalid.");
+                    }
                 }
                 else
                 {
-                    throw new MapException("DELETE OUTPUT clause is invalid.");
+                    var outputEnd = whereIndex >= 0 ? whereIndex : tokens.Count;
+                    if (outputEnd <= outputIndex + 1)
+                    {
+                        throw new MapException("DELETE OUTPUT clause is invalid.");
+                    }
+
+                    outputColumns = ParseDeleteOutputColumns(tokens, outputIndex + 1, outputEnd);
                 }
             }
+
+            var scopedContext = context.WithVisibleTableReferences(
+                GetVisibleTableReferences(source).Concat(GetVisibleTableReferences(target)));
 
             ExprBoolean? filter = null;
             if (whereIndex >= 0)
             {
                 var whereSql = SliceSqlByTokenRange(sql, tokens, whereIndex + 1, tokens.Count);
-                filter = ParseBoolean(whereSql, context);
+                filter = ParseBoolean(whereSql, scopedContext);
             }
-
-            var target = ResolveDeleteTarget(statement, source, targetAlias);
 
             IExprTableSource? deleteSource = source;
             if (source is ExprTable tableSource
@@ -710,6 +961,11 @@ namespace SqExpress.SqlParser.Internal.Mapping
         private static IExpr MapMerge(SqlDomStatement statement, MappingContext context)
         {
             var sql = statement.RawSql;
+            if (!sql.TrimEnd().EndsWith(";", StringComparison.Ordinal))
+            {
+                throw new MapException("MERGE statement must be terminated by semicolon.");
+            }
+
             var tokens = SqlLexer.Tokenize(sql)
                 .Where(t => t.Type != SqlTokenType.EndOfFile && t.Type != SqlTokenType.Semicolon)
                 .ToList();
@@ -747,11 +1003,13 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 ? tokens[targetCursor].IdentifierValue
                 : targetParts[targetParts.Count - 1];
             var targetTable = new ExprTable(
-                BuildTableFullName(targetParts),
+                BuildTableFullName(context, targetParts),
                 new ExprTableAlias(new ExprAlias(targetAlias)));
 
             var sourceSql = SliceSqlByTokenRange(sql, tokens, usingIndex + 1, onIndex);
             var source = ParseTableSourceSql(sourceSql, context);
+            var scopedContext = context.WithVisibleTableReferences(
+                GetVisibleTableReferences(targetTable).Concat(GetVisibleTableReferences(source)));
 
             var firstWhen = FindFirstTopLevelKeyword(tokens, onIndex + 1, "WHEN");
             if (firstWhen < 0)
@@ -760,7 +1018,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
             }
 
             var onSql = SliceSqlByTokenRange(sql, tokens, onIndex + 1, firstWhen);
-            var on = ParseBoolean(onSql, context);
+            var on = ParseBoolean(onSql, scopedContext);
 
             IExprMergeMatched? whenMatched = null;
             IExprMergeNotMatched? whenNotMatchedByTarget = null;
@@ -776,7 +1034,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     tokens,
                     clauseStart,
                     clauseEnd,
-                    context,
+                    scopedContext,
                     ref whenMatched,
                     ref whenNotMatchedByTarget,
                     ref whenNotMatchedBySource);
@@ -968,6 +1226,11 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 var actionIndex = thenIndex + 1;
                 if (tokens[actionIndex].IsKeyword("DELETE"))
                 {
+                    if (actionIndex + 1 != clauseEnd)
+                    {
+                        throw new MapException("MERGE DELETE action is invalid.");
+                    }
+
                     whenMatched = new ExprMergeMatchedDelete(and);
                     return;
                 }
@@ -1021,6 +1284,11 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 {
                     if (tokens[actionIndex].IsKeyword("DELETE"))
                     {
+                        if (actionIndex + 1 != clauseEnd)
+                        {
+                            throw new MapException("MERGE DELETE action is invalid.");
+                        }
+
                         whenNotMatchedBySource = new ExprMergeMatchedDelete(and);
                         return;
                     }
@@ -1080,6 +1348,11 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     && (actionCursor + 1) < clauseEnd
                     && tokens[actionCursor + 1].IsKeyword("VALUES"))
                 {
+                    if (actionCursor + 2 != clauseEnd)
+                    {
+                        throw new MapException("MERGE INSERT DEFAULT VALUES action is invalid.");
+                    }
+
                     whenNotMatchedByTarget = new ExprExprMergeNotMatchedInsertDefault(and);
                     return;
                 }
@@ -1112,7 +1385,19 @@ namespace SqExpress.SqlParser.Internal.Mapping
         }
 
         private static IReadOnlyList<ExprColumnSetClause> ParseSetClauses(string setSql, MappingContext context)
-            => SplitComma(setSql)
+        {
+            if (string.IsNullOrWhiteSpace(setSql))
+            {
+                throw new MapException("Invalid SET clause.");
+            }
+
+            var tokens = SqlLexer.Tokenize(setSql).Where(i => i.Type != SqlTokenType.EndOfFile).ToList();
+            if (tokens.Count < 1 || tokens.Last().Type == SqlTokenType.Comma || HasEmptyTopLevelCommaSegment(tokens))
+            {
+                throw new MapException("Invalid SET clause.");
+            }
+
+            return SplitComma(setSql)
                 .Select(i =>
                 {
                     var eq = i.IndexOf('=');
@@ -1131,11 +1416,54 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     return new ExprColumnSetClause(leftColumn, right);
                 })
                 .ToList();
+        }
+
+        private static bool HasEmptyTopLevelCommaSegment(IReadOnlyList<SqlToken> tokens)
+        {
+            var depth = 0;
+            var hasToken = false;
+            for (var i = 0; i < tokens.Count; i++)
+            {
+                var token = tokens[i];
+                if (token.Type == SqlTokenType.OpenParen)
+                {
+                    depth++;
+                    hasToken = true;
+                    continue;
+                }
+
+                if (token.Type == SqlTokenType.CloseParen)
+                {
+                    if (depth > 0)
+                    {
+                        depth--;
+                    }
+
+                    hasToken = true;
+                    continue;
+                }
+
+                if (depth == 0 && token.Type == SqlTokenType.Comma)
+                {
+                    if (!hasToken)
+                    {
+                        return true;
+                    }
+
+                    hasToken = false;
+                    continue;
+                }
+
+                hasToken = true;
+            }
+
+            return !hasToken;
+        }
 
         private static IReadOnlyList<ExprColumnSetClause> ParseSetClauses(string setSql)
             => ParseSetClauses(setSql, new MappingContext(null));
 
-        private static ExprTable ResolveDeleteTarget(SqlDomStatement statement, IExprTableSource source, string? targetAlias)
+        private static ExprTable ResolveDeleteTarget(SqlDomStatement statement, IExprTableSource source, string? targetAlias, MappingContext context)
         {
             if (!string.IsNullOrWhiteSpace(targetAlias))
             {
@@ -1143,7 +1471,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     .FirstOrDefault(t => string.Equals(t.Alias, targetAlias, StringComparison.OrdinalIgnoreCase));
                 if (byAlias != null)
                 {
-                    return BuildTable(byAlias.Schema, byAlias.Table, byAlias.Alias);
+                    return BuildTable(context, byAlias.Schema, byAlias.Table, byAlias.Alias);
                 }
 
                 if (TryFindTableByAlias(source, targetAlias!, out var sourceTable))
@@ -1160,7 +1488,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
             if (statement.TableReferences.Count > 0)
             {
                 var table = statement.TableReferences[0];
-                return BuildTable(table.Schema, table.Table, table.Alias);
+                return BuildTable(context, table.Schema, table.Table, table.Alias);
             }
 
             throw new MapException("DELETE target table is not resolved.");
@@ -1170,7 +1498,8 @@ namespace SqExpress.SqlParser.Internal.Mapping
             IReadOnlyList<string> targetNameParts,
             string? targetAlias,
             IExprTableSource? source,
-            SqlDomStatement statement)
+            SqlDomStatement statement,
+            MappingContext context)
         {
             if (source != null)
             {
@@ -1195,26 +1524,33 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 var byAlias = statement.TableReferences.FirstOrDefault(i => string.Equals(i.Alias, token, StringComparison.OrdinalIgnoreCase));
                 if (byAlias != null)
                 {
-                    return BuildTable(byAlias.Schema, byAlias.Table, byAlias.Alias);
+                    return BuildTable(context, byAlias.Schema, byAlias.Table, byAlias.Alias);
                 }
 
                 var byTable = statement.TableReferences.FirstOrDefault(i => string.Equals(i.Table, token, StringComparison.OrdinalIgnoreCase));
                 if (byTable != null)
                 {
-                    return BuildTable(byTable.Schema, byTable.Table, byTable.Alias);
+                    return BuildTable(context, byTable.Schema, byTable.Table, byTable.Alias);
                 }
             }
             else
             {
                 return new ExprTable(
-                    BuildTableFullName(targetNameParts),
+                    BuildTableFullName(context, targetNameParts),
                     string.IsNullOrWhiteSpace(targetAlias) ? null : new ExprTableAlias(new ExprAlias(targetAlias!)));
             }
 
             if (statement.TableReferences.Count > 0)
             {
                 var first = statement.TableReferences[0];
-                return BuildTable(first.Schema, first.Table, first.Alias);
+                return BuildTable(context, first.Schema, first.Table, first.Alias);
+            }
+
+            if (source == null)
+            {
+                return new ExprTable(
+                    BuildTableFullName(context, targetNameParts),
+                    string.IsNullOrWhiteSpace(targetAlias) ? null : new ExprTableAlias(new ExprAlias(targetAlias!)));
             }
 
             return null;
@@ -1321,6 +1657,96 @@ namespace SqExpress.SqlParser.Internal.Mapping
         private static string? GetAliasName(ExprTableAlias? alias)
             => alias?.Alias is ExprAlias exprAlias ? exprAlias.Name : null;
 
+        private static IEnumerable<string> GetVisibleTableReferences(IExprTableSource? source)
+        {
+            if (source == null)
+            {
+                yield break;
+            }
+
+            switch (source)
+            {
+                case ExprTable table:
+                    yield return GetAliasName(table.Alias) ?? table.FullName.AsExprTableFullName().TableName.Name;
+                    yield break;
+                case ExprCte cte:
+                    yield return GetAliasName(cte.Alias) ?? cte.Name;
+                    yield break;
+                case ExprDerivedTable derived:
+                    yield return ((ExprAlias)derived.Alias.Alias).Name;
+                    yield break;
+                case ExprAliasedTableFunction function:
+                    yield return ((ExprAlias)function.Alias.Alias).Name;
+                    yield break;
+                case ExprJoinedTable join:
+                    foreach (var visibleTableReference in GetVisibleTableReferences(join.Left))
+                    {
+                        yield return visibleTableReference;
+                    }
+
+                    foreach (var visibleTableReference in GetVisibleTableReferences(join.Right))
+                    {
+                        yield return visibleTableReference;
+                    }
+
+                    yield break;
+                case ExprCrossedTable cross:
+                    foreach (var visibleTableReference in GetVisibleTableReferences(cross.Left))
+                    {
+                        yield return visibleTableReference;
+                    }
+
+                    foreach (var visibleTableReference in GetVisibleTableReferences(cross.Right))
+                    {
+                        yield return visibleTableReference;
+                    }
+
+                    yield break;
+                case ExprLateralCrossedTable lateral:
+                    foreach (var visibleTableReference in GetVisibleTableReferences(lateral.Left))
+                    {
+                        yield return visibleTableReference;
+                    }
+
+                    foreach (var visibleTableReference in GetVisibleTableReferences(lateral.Right))
+                    {
+                        yield return visibleTableReference;
+                    }
+
+                    yield break;
+                default:
+                    yield break;
+            }
+        }
+
+        private static void EnsureNoDuplicateVisibleTableReferences(
+            IReadOnlyList<string> leftVisibleReferences,
+            IReadOnlyList<string> rightVisibleReferences)
+        {
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (var i = 0; i < leftVisibleReferences.Count; i++)
+            {
+                if (!string.IsNullOrWhiteSpace(leftVisibleReferences[i]))
+                {
+                    seen.Add(leftVisibleReferences[i]);
+                }
+            }
+
+            for (var i = 0; i < rightVisibleReferences.Count; i++)
+            {
+                var visibleReference = rightVisibleReferences[i];
+                if (string.IsNullOrWhiteSpace(visibleReference))
+                {
+                    continue;
+                }
+
+                if (!seen.Add(visibleReference))
+                {
+                    throw new MapException("Duplicate table alias or name in scope: " + visibleReference + ".");
+                }
+            }
+        }
+
         private static IExprTableSource ParseTableSourceSql(string fromSql, MappingContext context)
         {
             if (!SqlDomParser.TryParseSingleStatement("SELECT 1 FROM " + fromSql, out var statement, out _)
@@ -1336,14 +1762,17 @@ namespace SqExpress.SqlParser.Internal.Mapping
         private static IExprTableSource ParseTableSourceSql(string fromSql)
             => ParseTableSourceSql(fromSql, new MappingContext(null));
 
-        private static ExprTable BuildTable(string? schema, string table, string? alias)
-            => new ExprTable(
+        private static ExprTable BuildTable(MappingContext context, string? schema, string table, string? alias)
+        {
+            var effectiveSchema = string.IsNullOrWhiteSpace(schema) ? context.DefaultSchema : schema;
+            return new ExprTable(
                 new ExprTableFullName(
-                    new ExprDbSchema(null, new ExprSchemaName(string.IsNullOrWhiteSpace(schema) ? "dbo" : schema!)),
+                    effectiveSchema == null ? null : new ExprDbSchema(null, new ExprSchemaName(effectiveSchema)),
                     new ExprTableName(table)),
                 string.IsNullOrWhiteSpace(alias) ? null : new ExprTableAlias(new ExprAlias(alias!)));
+        }
 
-        private static ExprTableFullName BuildTableFullName(IReadOnlyList<string> nameParts)
+        private static ExprTableFullName BuildTableFullName(MappingContext context, IReadOnlyList<string> nameParts)
         {
             if (nameParts.Count < 1)
             {
@@ -1351,9 +1780,9 @@ namespace SqExpress.SqlParser.Internal.Mapping
             }
 
             var table = nameParts[nameParts.Count - 1];
-            var schema = nameParts.Count >= 2 ? nameParts[nameParts.Count - 2] : "dbo";
+            var schema = nameParts.Count >= 2 ? nameParts[nameParts.Count - 2] : context.DefaultSchema;
             return new ExprTableFullName(
-                new ExprDbSchema(null, new ExprSchemaName(schema)),
+                schema == null ? null : new ExprDbSchema(null, new ExprSchemaName(schema)),
                 new ExprTableName(table));
         }
 
@@ -1485,6 +1914,10 @@ namespace SqExpress.SqlParser.Internal.Mapping
             try
             {
                 value = ParseSelectingExpression(itemSql, context);
+                if (value is ExprSelectingValue selectingValue)
+                {
+                    value = selectingValue.Selecting;
+                }
             }
             catch (MapException ex)
             {
@@ -1531,40 +1964,6 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 && tokens[2].Text == "*")
             {
                 return new ExprAllColumns(new ExprTableAlias(new ExprAlias(tokens[0].IdentifierValue)));
-            }
-
-            if (TryParseTopLevelFunction(tokens, out var fnParts, out var argTokens, out var tailTokens))
-            {
-                var functionName = fnParts[fnParts.Count - 1];
-                var upperName = functionName.ToUpperInvariant();
-                var args = ParseFunctionArgs(argTokens, context);
-
-                if (tailTokens.Count > 0 && tailTokens[0].IsKeyword("OVER"))
-                {
-                    var overTokens = ExtractOverTokens(tailTokens);
-                    var over = ParseOverClause(overTokens, context);
-                    return new ExprAnalyticFunction(new ExprFunctionName(true, functionName), args, over);
-                }
-
-                if (tailTokens.Count == 0 && (upperName == "COUNT" || upperName == "SUM" || upperName == "AVG" || upperName == "MIN" || upperName == "MAX"))
-                {
-                    var distinct = false;
-                    ExprValue argument;
-                    if (args == null || args.Count < 1)
-                    {
-                        argument = new ExprInt32Literal(1);
-                    }
-                    else
-                    {
-                        argument = args[0];
-                        if (argTokens.Count > 0 && argTokens[0].IsKeyword("DISTINCT"))
-                        {
-                            distinct = true;
-                        }
-                    }
-
-                    return new ExprAggregateFunction(distinct, new ExprFunctionName(true, functionName), argument);
-                }
             }
 
             return ParseValue(sql, context);
@@ -1743,7 +2142,25 @@ namespace SqExpress.SqlParser.Internal.Mapping
             }
 
             var last = tokens[tokens.Count - 1];
+            if (last.Type == SqlTokenType.StringLiteral)
+            {
+                var prevString = tokens[tokens.Count - 2];
+                if (!prevString.IsKeyword("AS") || tokens.Count < 3)
+                {
+                    return false;
+                }
+
+                alias = ParseAliasToken(last);
+                body = tokens.Take(tokens.Count - 2).ToList();
+                return true;
+            }
+
             if (!last.IsIdentifierLike)
+            {
+                return false;
+            }
+
+            if (last.IdentifierValue.StartsWith("@", StringComparison.Ordinal))
             {
                 return false;
             }
@@ -1774,6 +2191,20 @@ namespace SqExpress.SqlParser.Internal.Mapping
             alias = last.IdentifierValue;
             body = tokens.Take(tokens.Count - 1).ToList();
             return true;
+        }
+
+        private static string ParseAliasToken(SqlToken token)
+        {
+            if (token.Type != SqlTokenType.StringLiteral)
+            {
+                return token.IdentifierValue;
+            }
+
+            return token.Text.Length >= 3 && (token.Text[0] == 'N' || token.Text[0] == 'n') && token.Text[1] == '\''
+                ? token.Text.Substring(2, token.Text.Length - 3).Replace("''", "'")
+                : token.Text.Length >= 2
+                    ? token.Text.Substring(1, token.Text.Length - 2).Replace("''", "'")
+                    : string.Empty;
         }
 
         private static bool IsNonAliasTerminalKeyword(string text)
@@ -1824,21 +2255,30 @@ namespace SqExpress.SqlParser.Internal.Mapping
                         return cte;
                     }
 
+                    var schema = named.Schema ?? context.DefaultSchema;
                     return new ExprTable(
-                        new ExprTableFullName(new ExprDbSchema(null, new ExprSchemaName(named.Schema ?? "dbo")), new ExprTableName(named.Table)),
+                        new ExprTableFullName(schema == null ? null : new ExprDbSchema(null, new ExprSchemaName(schema)), new ExprTableName(named.Table)),
                         named.Alias == null ? null : new ExprTableAlias(new ExprAlias(named.Alias)));
                 case SqlDomJoinedTableSource join:
                     var left = ParseTableSource(join.Left, context);
-                    var right = ParseTableSource(join.Right, context);
+                    var rightContext = join.JoinType == SqlDomJoinType.CrossApply || join.JoinType == SqlDomJoinType.OuterApply
+                        ? context.WithVisibleTableReferences(GetVisibleTableReferences(left)).WithDerivedTableOuterReferenceAllowance(true)
+                        : context;
+                    var right = ParseTableSource(join.Right, rightContext);
+                    var leftVisibleReferences = GetVisibleTableReferences(left).ToList();
+                    var rightVisibleReferences = GetVisibleTableReferences(right).ToList();
+                    EnsureNoDuplicateVisibleTableReferences(leftVisibleReferences, rightVisibleReferences);
+                    var joinContext = context.WithVisibleTableReferences(
+                        leftVisibleReferences.Concat(rightVisibleReferences));
                     return join.JoinType switch
                     {
                         SqlDomJoinType.Cross => new ExprCrossedTable(left, right),
                         SqlDomJoinType.CrossApply => new ExprLateralCrossedTable(left, right, false),
                         SqlDomJoinType.OuterApply => new ExprLateralCrossedTable(left, right, true),
-                        SqlDomJoinType.Inner => new ExprJoinedTable(left, ExprJoinedTable.ExprJoinType.Inner, right, ParseBoolean(join.OnSql ?? "1=1", context)),
-                        SqlDomJoinType.Left => new ExprJoinedTable(left, ExprJoinedTable.ExprJoinType.Left, right, ParseBoolean(join.OnSql ?? "1=1", context)),
-                        SqlDomJoinType.Right => new ExprJoinedTable(left, ExprJoinedTable.ExprJoinType.Right, right, ParseBoolean(join.OnSql ?? "1=1", context)),
-                        SqlDomJoinType.Full => new ExprJoinedTable(left, ExprJoinedTable.ExprJoinType.Full, right, ParseBoolean(join.OnSql ?? "1=1", context)),
+                        SqlDomJoinType.Inner => new ExprJoinedTable(left, ExprJoinedTable.ExprJoinType.Inner, right, ParseBoolean(join.OnSql ?? throw new MapException("JOIN clause must contain ON condition."), joinContext)),
+                        SqlDomJoinType.Left => new ExprJoinedTable(left, ExprJoinedTable.ExprJoinType.Left, right, ParseBoolean(join.OnSql ?? throw new MapException("JOIN clause must contain ON condition."), joinContext)),
+                        SqlDomJoinType.Right => new ExprJoinedTable(left, ExprJoinedTable.ExprJoinType.Right, right, ParseBoolean(join.OnSql ?? throw new MapException("JOIN clause must contain ON condition."), joinContext)),
+                        SqlDomJoinType.Full => new ExprJoinedTable(left, ExprJoinedTable.ExprJoinType.Full, right, ParseBoolean(join.OnSql ?? throw new MapException("JOIN clause must contain ON condition."), joinContext)),
                         _ => throw new MapException("Join type is not supported.")
                     };
                 case SqlDomDerivedTableSource derived:
@@ -1847,7 +2287,11 @@ namespace SqExpress.SqlParser.Internal.Mapping
                         throw new MapException("Derived table must have an alias.");
                     }
                     return new ExprDerivedTableQuery(
-                        ParseNestedSubQuery(derived.Sql, context),
+                        ParseNestedSubQuery(
+                            derived.Sql,
+                            context.AllowOuterTableReferencesInDerivedTables
+                                ? context
+                                : context.WithVisibleTableReferenceScope(Array.Empty<string>())),
                         new ExprTableAlias(new ExprAlias(derived.Alias)),
                         null);
                 case SqlDomValuesTableSource values:
@@ -1922,7 +2366,40 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 throw new MapException("Derived table query must be SELECT.");
             }
 
-            return (IExprSubQuery)MapSelect((SqlDomStatement)statement!, context);
+            var mapped = MapSelect((SqlDomStatement)statement!, context);
+            if (mapped is IExprSubQuery subQuery)
+            {
+                return subQuery;
+            }
+
+            if (mapped is ExprSelect select)
+            {
+                if (select.OrderBy.OrderList.Count < 1 && select.SelectQuery is IExprSubQuery innerSubQuery)
+                {
+                    return innerSubQuery;
+                }
+
+                if (select.SelectQuery is ExprQuerySpecification specification && specification.Top is ExprValue top)
+                {
+                    var queryWithoutTop = new ExprQuerySpecification(
+                        specification.SelectList,
+                        top: null,
+                        specification.Distinct,
+                        specification.From,
+                        specification.Where,
+                        specification.GroupBy);
+
+                    return new ExprSelectOffsetFetch(
+                        queryWithoutTop,
+                        new ExprOrderByOffsetFetch(
+                            select.OrderBy.OrderList,
+                            new ExprOffsetFetch(new ExprInt32Literal(0), top)));
+                }
+
+                throw new MapException("Derived table query with ORDER BY is not supported in this form.");
+            }
+
+            throw new MapException("Derived table query cannot be represented as subquery.");
         }
 
         private static IExprSubQuery ParseNestedSubQuery(string sql)
@@ -1972,6 +2449,14 @@ namespace SqExpress.SqlParser.Internal.Mapping
 
         private static ExprOrderBy ParseOrderBy(string sql, MappingContext context)
         {
+            return ParseOrderBy(sql, context, null);
+        }
+
+        private static ExprOrderBy ParseOrderBy(
+            string sql,
+            MappingContext context,
+            ISet<string>? selectAliases)
+        {
             var trimmed = sql.Trim();
             if (trimmed.StartsWith("ORDER BY", StringComparison.OrdinalIgnoreCase))
             {
@@ -1984,7 +2469,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 var p = part.Trim();
                 var desc = p.EndsWith(" DESC", StringComparison.OrdinalIgnoreCase);
                 var core = desc || p.EndsWith(" ASC", StringComparison.OrdinalIgnoreCase) ? p.Substring(0, p.LastIndexOf(' ')).Trim() : p;
-                items.Add(new ExprOrderByItem(ParseValue(core, context), desc));
+                items.Add(new ExprOrderByItem(ParseOrderByValue(core, context, selectAliases), desc));
             }
 
             return new ExprOrderBy(items);
@@ -1992,6 +2477,154 @@ namespace SqExpress.SqlParser.Internal.Mapping
 
         private static ExprOrderBy ParseOrderBy(string sql)
             => ParseOrderBy(sql, new MappingContext(null));
+
+        private static ExprValue ParseOrderByValue(
+            string sql,
+            MappingContext context,
+            ISet<string>? selectAliases)
+        {
+            var tokens = SqlLexer.Tokenize(sql).Where(i => i.Type != SqlTokenType.EndOfFile).ToList();
+            if (tokens.Count == 1 && tokens[0].IsIdentifierLike)
+            {
+                var name = tokens[0].IdentifierValue;
+                if (selectAliases != null && selectAliases.Contains(name))
+                {
+                    return new ExprColumn(null, new ExprColumnName(name));
+                }
+
+                if (context.IsVisibleTableReference(name))
+                {
+                    throw new MapException("ORDER BY item cannot reference table alias without column: " + name + ".");
+                }
+            }
+
+            return ParseValue(sql, context);
+        }
+
+        private static ISet<string> BuildSelectAliasLookup(IReadOnlyList<IExprSelecting> selectList)
+        {
+            var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (var i = 0; i < selectList.Count; i++)
+            {
+                if (TryGetSelectingAlias(selectList[i], out var alias))
+                {
+                    if (result.Contains(alias))
+                    {
+                        throw new MapException("Duplicate select alias in scope: " + alias + ".");
+                    }
+
+                    result.Add(alias);
+                }
+            }
+
+            return result;
+        }
+
+        private static bool TryGetSelectingAlias(
+            IExprSelecting selecting,
+            [NotNullWhen(true)] out string? alias)
+        {
+            switch (selecting)
+            {
+                case ExprAliasedColumn aliasedColumn:
+                    alias = aliasedColumn.Alias?.Name;
+                    return alias != null;
+                case ExprAliasedSelecting aliasedSelecting:
+                    alias = aliasedSelecting.Alias.Name;
+                    return true;
+                default:
+                    alias = null;
+                    return false;
+            }
+        }
+
+        private static void EnsureGroupByDoesNotReferenceSelectAliases(string groupBySql, ISet<string> selectAliases)
+        {
+            foreach (var segment in SplitComma(groupBySql))
+            {
+                var tokens = SqlLexer.Tokenize(segment).Where(i => i.Type != SqlTokenType.EndOfFile).ToList();
+                if (tokens.Count == 1 && tokens[0].IsIdentifierLike)
+                {
+                    var name = tokens[0].IdentifierValue;
+                    if (selectAliases.Contains(name))
+                    {
+                        throw new MapException("GROUP BY clause cannot reference select alias: " + name + ".");
+                    }
+                }
+            }
+        }
+
+        private static void ValidateGroupedSelectList(IReadOnlyList<IExprSelecting> selectList, IReadOnlyList<ExprColumn>? groupBy)
+        {
+            var inspections = selectList.Select(GroupedSelectInspection.Inspect).ToList();
+            if (!inspections.Any(i => i.ContainsPlainAggregate) && (groupBy == null || groupBy.Count < 1))
+            {
+                return;
+            }
+
+            for (var i = 0; i < inspections.Count; i++)
+            {
+                var inspection = inspections[i];
+                if (inspection.ContainsWildcard)
+                {
+                    throw new MapException("SELECT list contains wildcard that is not allowed in grouped or aggregate query.");
+                }
+
+                for (var j = 0; j < inspection.NonAggregatedColumns.Count; j++)
+                {
+                    var column = inspection.NonAggregatedColumns[j];
+                    if (!IsGroupedColumn(column, groupBy))
+                    {
+                        throw new MapException("SELECT list contains column that is neither grouped nor aggregated: " + FormatColumnReference(column) + ".");
+                    }
+                }
+            }
+        }
+
+        private static bool IsGroupedColumn(ExprColumn column, IReadOnlyList<ExprColumn>? groupBy)
+        {
+            if (groupBy == null || groupBy.Count < 1)
+            {
+                return false;
+            }
+
+            var columnSource = GetColumnSourceName(column);
+            for (var i = 0; i < groupBy.Count; i++)
+            {
+                var groupedColumn = groupBy[i];
+                if (!string.Equals(groupedColumn.ColumnName.Name, column.ColumnName.Name, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var groupedSource = GetColumnSourceName(groupedColumn);
+                if (columnSource == null || groupedSource == null || string.Equals(groupedSource, columnSource, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static string? GetColumnSourceName(ExprColumn column)
+        {
+            switch (column.Source)
+            {
+                case ExprTableAlias alias:
+                    return ((ExprAlias)alias.Alias).Name;
+                case IExprTableFullName fullName:
+                    return fullName.AsExprTableFullName().TableName.Name;
+                default:
+                    return null;
+            }
+        }
+
+        private static string FormatColumnReference(ExprColumn column)
+        {
+            var source = GetColumnSourceName(column);
+            return source == null ? column.ColumnName.Name : source + "." + column.ColumnName.Name;
+        }
 
         private static (ExprValue offset, ExprValue? fetch) ParseOffsetFetch(string sql, MappingContext context)
         {
@@ -2027,6 +2660,47 @@ namespace SqExpress.SqlParser.Internal.Mapping
 
         private static ExprValue ParseValue(string sql)
             => ParseValue(sql, new MappingContext(null));
+
+        private static ExprSelectingValue WrapSelectingAsValue(IExprSelecting selecting)
+            => new ExprSelectingValue(selecting);
+
+        private static bool IsAggregateFunctionName(string functionName)
+        {
+            switch (functionName)
+            {
+                case "COUNT":
+                case "SUM":
+                case "AVG":
+                case "MIN":
+                case "MAX":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static ExprAggregateFunction CreateAggregateFunction(
+            string functionName,
+            IReadOnlyList<SqlToken> argTokens,
+            IReadOnlyList<ExprValue>? args)
+        {
+            var distinct = false;
+            ExprValue argument;
+            if (args == null || args.Count < 1)
+            {
+                argument = new ExprInt32Literal(1);
+            }
+            else
+            {
+                argument = args[0];
+                if (argTokens.Count > 0 && argTokens[0].IsKeyword("DISTINCT"))
+                {
+                    distinct = true;
+                }
+            }
+
+            return new ExprAggregateFunction(distinct, new ExprFunctionName(true, functionName), argument);
+        }
 
         private static IReadOnlyList<string> SplitComma(string sql)
             => SplitComma(SqlLexer.Tokenize(sql).Where(i => i.Type != SqlTokenType.EndOfFile).ToList())
@@ -2250,10 +2924,15 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     return this.ParseCase();
                 }
 
+                if (current.IsKeyword("CAST"))
+                {
+                    return this.ParseCast();
+                }
+
                 if (current.Type == SqlTokenType.StringLiteral)
                 {
                     this._index++;
-                    return new ExprStringLiteral(current.Text.Length >= 2 ? current.Text.Substring(1, current.Text.Length - 2).Replace("''", "'") : string.Empty);
+                    return new ExprStringLiteral(current.Text.Length >= 3 && (current.Text[0] == 'N' || current.Text[0] == 'n') && current.Text[1] == '\'' ? current.Text.Substring(2, current.Text.Length - 3).Replace("''", "'") : current.Text.Length >= 2 ? current.Text.Substring(1, current.Text.Length - 2).Replace("''", "'") : string.Empty);
                 }
 
                 if (current.Type == SqlTokenType.NumberLiteral)
@@ -2297,15 +2976,43 @@ namespace SqExpress.SqlParser.Internal.Mapping
                         parts.Add(this.NextIdentifier());
                     }
 
-	                    if (this.TryType(SqlTokenType.OpenParen))
-	                    {
-	                        var argsTokens = this.ReadBalancedInner();
-	                        var args = argsTokens.Count == 0
-	                            ? null
-	                            : SplitComma(argsTokens).Select(i => new ExprParser(string.Join(" ", i.Select(t => t.Text)), this._context).ParseValue()).ToList();
+                    if (this.TryType(SqlTokenType.OpenParen))
+                    {
+                        var argsTokens = this.ReadBalancedInner();
+                        var argSegments = argsTokens.Count == 0
+                            ? null
+                            : SplitComma(argsTokens);
+                        var args = ParseFunctionArgs(argsTokens, this._context);
+                        var functionName = parts[parts.Count - 1];
+                        var upperName = functionName.ToUpperInvariant();
 
-	                        if (parts.Count == 1)
-	                        {
+                        if (!this.IsEnd && this.Current.IsKeyword("OVER"))
+                        {
+                            this._index++;
+                            this.ExpectType(SqlTokenType.OpenParen, "OVER clause should contain opening parenthesis.");
+                            var overTokens = this.ReadBalancedInner();
+                            var over = ParseOverClause(overTokens, this._context);
+
+                            if (IsAggregateFunctionName(upperName))
+                            {
+                                return WrapSelectingAsValue(new ExprAggregateOverFunction(CreateAggregateFunction(functionName, argsTokens, args), over));
+                            }
+
+                            return WrapSelectingAsValue(new ExprAnalyticFunction(new ExprFunctionName(true, functionName), args, over));
+                        }
+
+                        if (parts.Count == 1 && IsAggregateFunctionName(upperName))
+                        {
+                            return WrapSelectingAsValue(CreateAggregateFunction(functionName, argsTokens, args));
+                        }
+
+                        if (parts.Count == 1)
+                        {
+                            if (TryMapKnownScalarFunction(parts[0], argSegments, args, out var known))
+                            {
+                                return known;
+                            }
+
 	                            if (TryMapPortableScalarFunction(parts[0], args, out var portable))
 	                            {
 	                                return portable;
@@ -2327,14 +3034,649 @@ namespace SqExpress.SqlParser.Internal.Mapping
 
                     if (parts.Count == 1)
                     {
+                        if (this._context.VisibleTableReferenceCount > 1)
+                        {
+                            throw new MapException("Unqualified column reference is ambiguous in multi-table scope: " + parts[0] + ".");
+                        }
+
                         return new ExprColumn(null, new ExprColumnName(parts[0]));
                     }
 
-	                    return new ExprColumn(new ExprTableAlias(new ExprAlias(parts[parts.Count - 2])), new ExprColumnName(parts[parts.Count - 1]));
+                    var tableReference = parts[parts.Count - 2];
+                    if (!this._context.IsVisibleTableReference(tableReference))
+                    {
+                        throw new MapException("Unknown table alias or name: " + tableReference + ".");
+                    }
+
+	                    return new ExprColumn(new ExprTableAlias(new ExprAlias(tableReference)), new ExprColumnName(parts[parts.Count - 1]));
 	                }
 
 	                throw new MapException("Value token is not supported: " + current.Text + " in [" + this._sourceSql + "]");
 	            }
+
+            private ExprCast ParseCast()
+            {
+                this.ExpectKeyword("CAST", "CAST expression should start with CAST keyword.");
+                this.ExpectType(SqlTokenType.OpenParen, "CAST expression should contain '(' after CAST.");
+                var inner = this.ReadBalancedInner();
+                if (inner.Count < 3)
+                {
+                    throw new MapException("CAST expression is invalid.");
+                }
+
+                var asIndex = FindTopLevelAsIndex(inner);
+                if (asIndex <= 0 || asIndex >= inner.Count - 1)
+                {
+                    throw new MapException("CAST expression should contain 'AS <type>'.");
+                }
+
+                var valueSql = string.Join(" ", inner.Take(asIndex).Select(i => i.Text));
+                var valueExpr = new ExprParser(valueSql, this._context).ParseValue();
+                var typeTokens = inner.Skip(asIndex + 1).ToList();
+                var type = ParseCastType(typeTokens);
+
+                return new ExprCast(valueExpr, type);
+            }
+
+            private static int FindTopLevelAsIndex(IReadOnlyList<SqlToken> tokens)
+            {
+                var depth = 0;
+                for (var i = 0; i < tokens.Count; i++)
+                {
+                    if (tokens[i].Type == SqlTokenType.OpenParen)
+                    {
+                        depth++;
+                        continue;
+                    }
+
+                    if (tokens[i].Type == SqlTokenType.CloseParen)
+                    {
+                        if (depth > 0)
+                        {
+                            depth--;
+                        }
+
+                        continue;
+                    }
+
+                    if (depth == 0 && tokens[i].IsKeyword("AS"))
+                    {
+                        return i;
+                    }
+                }
+
+                return -1;
+            }
+
+            private static ExprType ParseCastType(IReadOnlyList<SqlToken> tokens)
+            {
+                if (tokens.Count < 1 || !tokens[0].IsIdentifierLike)
+                {
+                    throw new MapException("CAST target type is invalid.");
+                }
+
+                var index = 0;
+                var typeName = tokens[index].IdentifierValue;
+                index++;
+
+                while (index + 1 < tokens.Count
+                       && tokens[index].Type == SqlTokenType.Dot
+                       && tokens[index + 1].IsIdentifierLike)
+                {
+                    typeName = tokens[index + 1].IdentifierValue;
+                    index += 2;
+                }
+
+                IReadOnlyList<SqlToken>? argTokens = null;
+                if (index < tokens.Count)
+                {
+                    if (tokens[index].Type != SqlTokenType.OpenParen)
+                    {
+                        throw new MapException("CAST target type is invalid.");
+                    }
+
+                    argTokens = ReadParenthesizedTokens(tokens, ref index);
+                }
+
+                if (index != tokens.Count)
+                {
+                    throw new MapException("CAST target type is invalid.");
+                }
+
+                var normalized = typeName.ToUpperInvariant();
+                switch (normalized)
+                {
+                    case "BIT":
+                        AssertNoArguments(argTokens, typeName);
+                        return ExprTypeBoolean.Instance;
+
+                    case "TINYINT":
+                        AssertNoArguments(argTokens, typeName);
+                        return ExprTypeByte.Instance;
+
+                    case "SMALLINT":
+                        AssertNoArguments(argTokens, typeName);
+                        return ExprTypeInt16.Instance;
+
+                    case "INT":
+                    case "INTEGER":
+                        AssertNoArguments(argTokens, typeName);
+                        return ExprTypeInt32.Instance;
+
+                    case "BIGINT":
+                        AssertNoArguments(argTokens, typeName);
+                        return ExprTypeInt64.Instance;
+
+                    case "DECIMAL":
+                    case "NUMERIC":
+                        return new ExprTypeDecimal(ParseDecimalPrecisionScale(argTokens, typeName));
+
+                    case "FLOAT":
+                    case "REAL":
+                        AssertNoArguments(argTokens, typeName);
+                        return ExprTypeDouble.Instance;
+
+                    case "DATE":
+                        AssertNoArguments(argTokens, typeName);
+                        return new ExprTypeDateTime(isDate: true);
+
+                    case "DATETIME":
+                    case "SMALLDATETIME":
+                        AssertNoArguments(argTokens, typeName);
+                        return new ExprTypeDateTime(isDate: false);
+
+                    case "DATETIME2":
+                        AssertOptionalSingleIntArgument(argTokens, typeName, minInclusive: 0, maxInclusive: 7);
+                        return new ExprTypeDateTime(isDate: false);
+
+                    case "DATETIMEOFFSET":
+                        AssertOptionalSingleIntArgument(argTokens, typeName, minInclusive: 0, maxInclusive: 7);
+                        return ExprTypeDateTimeOffset.Instance;
+
+                    case "UNIQUEIDENTIFIER":
+                        AssertNoArguments(argTokens, typeName);
+                        return ExprTypeGuid.Instance;
+
+                    case "VARCHAR":
+                        return new ExprTypeString(ParseLengthOrMax(argTokens, typeName, allowMax: true, defaultLength: 30), isUnicode: false, isText: false);
+
+                    case "NVARCHAR":
+                        return new ExprTypeString(ParseLengthOrMax(argTokens, typeName, allowMax: true, defaultLength: 30), isUnicode: true, isText: false);
+
+                    case "CHAR":
+                        return new ExprTypeFixSizeString(ParseRequiredLength(argTokens, typeName, defaultLength: 30), isUnicode: false);
+
+                    case "NCHAR":
+                        return new ExprTypeFixSizeString(ParseRequiredLength(argTokens, typeName, defaultLength: 30), isUnicode: true);
+
+                    case "TEXT":
+                        AssertNoArguments(argTokens, typeName);
+                        return new ExprTypeString(size: null, isUnicode: false, isText: true);
+
+                    case "NTEXT":
+                        AssertNoArguments(argTokens, typeName);
+                        return new ExprTypeString(size: null, isUnicode: true, isText: true);
+
+                    case "BINARY":
+                        return new ExprTypeFixSizeByteArray(ParseRequiredLength(argTokens, typeName, defaultLength: 30));
+
+                    case "VARBINARY":
+                        return new ExprTypeByteArray(ParseLengthOrMax(argTokens, typeName, allowMax: true, defaultLength: 30));
+
+                    case "XML":
+                        AssertNoArguments(argTokens, typeName);
+                        return ExprTypeXml.Instance;
+
+                    default:
+                        throw new MapException("CAST type '" + typeName + "' is not supported by SqExpress parser.");
+                }
+            }
+
+            private static IReadOnlyList<SqlToken> ReadParenthesizedTokens(IReadOnlyList<SqlToken> tokens, ref int index)
+            {
+                index++;
+                var depth = 1;
+                var result = new List<SqlToken>();
+
+                while (index < tokens.Count)
+                {
+                    var token = tokens[index];
+                    index++;
+
+                    if (token.Type == SqlTokenType.OpenParen)
+                    {
+                        depth++;
+                        result.Add(token);
+                        continue;
+                    }
+
+                    if (token.Type == SqlTokenType.CloseParen)
+                    {
+                        depth--;
+                        if (depth == 0)
+                        {
+                            return result;
+                        }
+
+                        result.Add(token);
+                        continue;
+                    }
+
+                    result.Add(token);
+                }
+
+                throw new MapException("CAST target type arguments are invalid.");
+            }
+
+            private static DecimalPrecisionScale? ParseDecimalPrecisionScale(IReadOnlyList<SqlToken>? argTokens, string typeName)
+            {
+                if (argTokens == null || argTokens.Count < 1)
+                {
+                    return null;
+                }
+
+                var args = SplitComma(argTokens);
+                if (args.Count != 1 && args.Count != 2)
+                {
+                    throw new MapException("Type '" + typeName + "' expects one or two numeric arguments.");
+                }
+
+                var precision = ParseSingleIntToken(args[0], typeName, minInclusive: 1);
+                int? scale = null;
+                if (args.Count == 2)
+                {
+                    scale = ParseSingleIntToken(args[1], typeName, minInclusive: 0);
+                    if (scale.Value > precision)
+                    {
+                        throw new MapException("Type '" + typeName + "' scale cannot be greater than precision.");
+                    }
+                }
+
+                return new DecimalPrecisionScale(precision, scale);
+            }
+
+            private static int ParseRequiredLength(IReadOnlyList<SqlToken>? argTokens, string typeName, int defaultLength)
+            {
+                return ParseLengthOrMax(argTokens, typeName, allowMax: false, defaultLength)
+                       ?? throw new MapException("Type '" + typeName + "' cannot use MAX length.");
+            }
+
+            private static int? ParseLengthOrMax(IReadOnlyList<SqlToken>? argTokens, string typeName, bool allowMax, int defaultLength)
+            {
+                if (argTokens == null || argTokens.Count < 1)
+                {
+                    return defaultLength;
+                }
+
+                var args = SplitComma(argTokens);
+                if (args.Count != 1)
+                {
+                    throw new MapException("Type '" + typeName + "' expects a single length argument.");
+                }
+
+                var valueToken = args[0];
+                if (valueToken.Count != 1)
+                {
+                    throw new MapException("Type '" + typeName + "' length argument is invalid.");
+                }
+
+                var single = valueToken[0];
+                if (single.IsKeyword("MAX"))
+                {
+                    if (!allowMax)
+                    {
+                        throw new MapException("Type '" + typeName + "' cannot use MAX length.");
+                    }
+
+                    return null;
+                }
+
+                if (single.Type != SqlTokenType.NumberLiteral
+                    || !int.TryParse(single.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var size)
+                    || size < 1)
+                {
+                    throw new MapException("Type '" + typeName + "' length argument is invalid.");
+                }
+
+                return size;
+            }
+
+            private static void AssertNoArguments(IReadOnlyList<SqlToken>? argTokens, string typeName)
+            {
+                if (argTokens != null && argTokens.Count > 0)
+                {
+                    throw new MapException("Type '" + typeName + "' does not accept arguments.");
+                }
+            }
+
+            private static void AssertOptionalSingleIntArgument(
+                IReadOnlyList<SqlToken>? argTokens,
+                string typeName,
+                int minInclusive,
+                int maxInclusive)
+            {
+                if (argTokens == null || argTokens.Count < 1)
+                {
+                    return;
+                }
+
+                var args = SplitComma(argTokens);
+                if (args.Count != 1)
+                {
+                    throw new MapException("Type '" + typeName + "' expects a single numeric argument.");
+                }
+
+                _ = ParseSingleIntToken(args[0], typeName, minInclusive, maxInclusive);
+            }
+
+            private static int ParseSingleIntToken(
+                IReadOnlyList<SqlToken> arg,
+                string typeName,
+                int minInclusive,
+                int? maxInclusive = null)
+            {
+                if (arg.Count != 1
+                    || arg[0].Type != SqlTokenType.NumberLiteral
+                    || !int.TryParse(arg[0].Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
+                {
+                    throw new MapException("Type '" + typeName + "' numeric argument is invalid.");
+                }
+
+                if (value < minInclusive || (maxInclusive.HasValue && value > maxInclusive.Value))
+                {
+                    throw new MapException("Type '" + typeName + "' numeric argument is out of range.");
+                }
+
+                return value;
+            }
+
+            private static bool TryMapKnownScalarFunction(
+                string name,
+                IReadOnlyList<IReadOnlyList<SqlToken>>? argSegments,
+                IReadOnlyList<ExprValue>? args,
+                [NotNullWhen(true)] out ExprValue? result)
+            {
+                result = null;
+                var normalized = name.ToUpperInvariant();
+
+                switch (normalized)
+                {
+                    case "GETDATE":
+                    case "SYSDATETIME":
+                    case "CURRENT_TIMESTAMP":
+                        if (argSegments == null || argSegments.Count == 0)
+                        {
+                            result = ExprGetDate.Instance;
+                            return true;
+                        }
+
+                        return false;
+
+                    case "GETUTCDATE":
+                    case "SYSUTCDATETIME":
+                    case "GETUTCNOW":
+                        if (argSegments == null || argSegments.Count == 0)
+                        {
+                            result = ExprGetUtcDate.Instance;
+                            return true;
+                        }
+
+                        return false;
+
+                    case "DATEADD":
+                        return TryMapDateAdd(argSegments, args, out result);
+
+                    case "DATEDIFF":
+                        return TryMapDateDiff(argSegments, args, out result);
+
+                    case "ISNULL":
+                        return TryMapIsNull(args, out result);
+
+                    case "COALESCE":
+                        return TryMapCoalesce(args, out result);
+
+                    default:
+                        return false;
+                }
+            }
+
+            private static bool TryMapDateAdd(
+                IReadOnlyList<IReadOnlyList<SqlToken>>? argSegments,
+                IReadOnlyList<ExprValue>? args,
+                [NotNullWhen(true)] out ExprValue? result)
+            {
+                result = null;
+                if (argSegments == null || args == null || argSegments.Count != 3 || args.Count != 3)
+                {
+                    return false;
+                }
+
+                if (!TryParseDateAddPart(argSegments[0], out var part))
+                {
+                    return false;
+                }
+
+                if (!TryParseIntConstant(argSegments[1], out var number))
+                {
+                    return false;
+                }
+
+                result = new ExprDateAdd(part, number, args[2]);
+                return true;
+            }
+
+            private static bool TryMapDateDiff(
+                IReadOnlyList<IReadOnlyList<SqlToken>>? argSegments,
+                IReadOnlyList<ExprValue>? args,
+                [NotNullWhen(true)] out ExprValue? result)
+            {
+                result = null;
+                if (argSegments == null || args == null || argSegments.Count != 3 || args.Count != 3)
+                {
+                    return false;
+                }
+
+                if (!TryParseDateDiffPart(argSegments[0], out var part))
+                {
+                    return false;
+                }
+
+                result = new ExprDateDiff(part, args[1], args[2]);
+                return true;
+            }
+
+            private static bool TryMapIsNull(
+                IReadOnlyList<ExprValue>? args,
+                [NotNullWhen(true)] out ExprValue? result)
+            {
+                result = null;
+                if (args == null || args.Count != 2)
+                {
+                    return false;
+                }
+
+                result = new ExprFuncIsNull(args[0], args[1]);
+                return true;
+            }
+
+            private static bool TryMapCoalesce(
+                IReadOnlyList<ExprValue>? args,
+                [NotNullWhen(true)] out ExprValue? result)
+            {
+                result = null;
+                if (args == null || args.Count < 2)
+                {
+                    return false;
+                }
+
+                result = new ExprFuncCoalesce(args[0], args.Skip(1).ToList());
+                return true;
+            }
+
+            private static bool TryParseDateAddPart(IReadOnlyList<SqlToken> tokens, out DateAddDatePart part)
+            {
+                if (!TryGetDatePartTokenValue(tokens, out var value))
+                {
+                    part = default;
+                    return false;
+                }
+
+                switch (value.ToUpperInvariant())
+                {
+                    case "YEAR":
+                    case "YY":
+                    case "YYYY":
+                        part = DateAddDatePart.Year;
+                        return true;
+
+                    case "MONTH":
+                    case "MM":
+                    case "M":
+                        part = DateAddDatePart.Month;
+                        return true;
+
+                    case "DAY":
+                    case "DD":
+                    case "D":
+                        part = DateAddDatePart.Day;
+                        return true;
+
+                    case "WEEK":
+                    case "WK":
+                    case "WW":
+                        part = DateAddDatePart.Week;
+                        return true;
+
+                    case "HOUR":
+                    case "HH":
+                        part = DateAddDatePart.Hour;
+                        return true;
+
+                    case "MINUTE":
+                    case "MI":
+                    case "N":
+                        part = DateAddDatePart.Minute;
+                        return true;
+
+                    case "SECOND":
+                    case "SS":
+                    case "S":
+                        part = DateAddDatePart.Second;
+                        return true;
+
+                    case "MILLISECOND":
+                    case "MS":
+                        part = DateAddDatePart.Millisecond;
+                        return true;
+
+                    default:
+                        part = default;
+                        return false;
+                }
+            }
+
+            private static bool TryParseDateDiffPart(IReadOnlyList<SqlToken> tokens, out DateDiffDatePart part)
+            {
+                if (!TryGetDatePartTokenValue(tokens, out var value))
+                {
+                    part = default;
+                    return false;
+                }
+
+                switch (value.ToUpperInvariant())
+                {
+                    case "YEAR":
+                    case "YY":
+                    case "YYYY":
+                        part = DateDiffDatePart.Year;
+                        return true;
+
+                    case "MONTH":
+                    case "MM":
+                    case "M":
+                        part = DateDiffDatePart.Month;
+                        return true;
+
+                    case "DAY":
+                    case "DD":
+                    case "D":
+                        part = DateDiffDatePart.Day;
+                        return true;
+
+                    case "HOUR":
+                    case "HH":
+                        part = DateDiffDatePart.Hour;
+                        return true;
+
+                    case "MINUTE":
+                    case "MI":
+                    case "N":
+                        part = DateDiffDatePart.Minute;
+                        return true;
+
+                    case "SECOND":
+                    case "SS":
+                    case "S":
+                        part = DateDiffDatePart.Second;
+                        return true;
+
+                    case "MILLISECOND":
+                    case "MS":
+                        part = DateDiffDatePart.Millisecond;
+                        return true;
+
+                    default:
+                        part = default;
+                        return false;
+                }
+            }
+
+            private static bool TryGetDatePartTokenValue(IReadOnlyList<SqlToken> tokens, [NotNullWhen(true)] out string? value)
+            {
+                value = null;
+                if (tokens.Count != 1)
+                {
+                    return false;
+                }
+
+                var token = tokens[0];
+                if (token.IsIdentifierLike)
+                {
+                    value = token.IdentifierValue;
+                    return true;
+                }
+
+                if (token.Type == SqlTokenType.StringLiteral)
+                {
+                    value = token.Text.Length >= 3 && (token.Text[0] == 'N' || token.Text[0] == 'n') && token.Text[1] == '\'' ? token.Text.Substring(2, token.Text.Length - 3).Replace("''", "'") : token.Text.Length >= 2 ? token.Text.Substring(1, token.Text.Length - 2).Replace("''", "'") : string.Empty;
+                    return true;
+                }
+
+                return false;
+            }
+
+            private static bool TryParseIntConstant(IReadOnlyList<SqlToken> tokens, out int value)
+            {
+                value = 0;
+                if (tokens.Count == 1
+                    && tokens[0].Type == SqlTokenType.NumberLiteral
+                    && int.TryParse(tokens[0].Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
+                {
+                    return true;
+                }
+
+                if (tokens.Count == 2
+                    && tokens[0].Type == SqlTokenType.Operator
+                    && (tokens[0].Text == "-" || tokens[0].Text == "+")
+                    && tokens[1].Type == SqlTokenType.NumberLiteral
+                    && int.TryParse(tokens[1].Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n))
+                {
+                    value = tokens[0].Text == "-" ? -n : n;
+                    return true;
+                }
+
+                return false;
+            }
 
 	            private static bool TryMapPortableScalarFunction(string name, IReadOnlyList<ExprValue>? args, [NotNullWhen(true)] out ExprPortableScalarFunction? result)
 	            {
@@ -2343,6 +3685,42 @@ namespace SqExpress.SqlParser.Internal.Mapping
 
 	                switch (normalized)
 	                {
+	                    case "NULLIF":
+	                        return TryCreateTwoArgs(PortableScalarFunction.NullIf, args, out result);
+
+	                    case "ABS":
+	                        return TryCreateSingleArg(PortableScalarFunction.Abs, args, out result);
+
+	                    case "LOWER":
+	                        return TryCreateSingleArg(PortableScalarFunction.Lower, args, out result);
+
+	                    case "UPPER":
+	                        return TryCreateSingleArg(PortableScalarFunction.Upper, args, out result);
+
+	                    case "TRIM":
+	                        return TryCreateSingleArg(PortableScalarFunction.Trim, args, out result);
+
+	                    case "LTRIM":
+	                        return TryCreateSingleArg(PortableScalarFunction.LTrim, args, out result);
+
+	                    case "RTRIM":
+	                        return TryCreateSingleArg(PortableScalarFunction.RTrim, args, out result);
+
+	                    case "REPLACE":
+	                        return TryCreateThreeArgs(PortableScalarFunction.Replace, args, out result);
+
+	                    case "SUBSTRING":
+	                        return TryCreateThreeArgs(PortableScalarFunction.Substring, args, out result);
+
+	                    case "ROUND":
+	                        return TryCreateTwoArgs(PortableScalarFunction.Round, args, out result);
+
+	                    case "FLOOR":
+	                        return TryCreateSingleArg(PortableScalarFunction.Floor, args, out result);
+
+	                    case "CEILING":
+	                        return TryCreateSingleArg(PortableScalarFunction.Ceiling, args, out result);
+
 	                    case "LEN":
 	                    case "CHAR_LENGTH":
 	                        return TryCreateSingleArg(PortableScalarFunction.Len, args, out result);
@@ -2391,29 +3769,8 @@ namespace SqExpress.SqlParser.Internal.Mapping
 	                        }
 	                        return false;
 
-	                    case "CURRENT_DATE":
-	                        return TryCreateNoArg(PortableScalarFunction.CurrentDate, args, out result);
-
-	                    case "CURRENT_TIME":
-	                        return TryCreateNoArg(PortableScalarFunction.CurrentTime, args, out result);
-
-	                    case "CURRENT_TIMESTAMP":
-	                        return TryCreateNoArg(PortableScalarFunction.CurrentTimestamp, args, out result);
-
 	                    default:
 	                        return false;
-	                }
-
-	                static bool TryCreateNoArg(PortableScalarFunction function, IReadOnlyList<ExprValue>? args0, [NotNullWhen(true)] out ExprPortableScalarFunction? res0)
-	                {
-	                    if (args0 == null || args0.Count == 0)
-	                    {
-	                        res0 = new ExprPortableScalarFunction(function, null);
-	                        return true;
-	                    }
-
-	                    res0 = null;
-	                    return false;
 	                }
 
 	                static bool TryCreateSingleArg(PortableScalarFunction function, IReadOnlyList<ExprValue>? args1, [NotNullWhen(true)] out ExprPortableScalarFunction? res1)
@@ -2437,6 +3794,18 @@ namespace SqExpress.SqlParser.Internal.Mapping
 	                    }
 
 	                    res2 = null;
+	                    return false;
+	                }
+
+	                static bool TryCreateThreeArgs(PortableScalarFunction function, IReadOnlyList<ExprValue>? args3, [NotNullWhen(true)] out ExprPortableScalarFunction? res3)
+	                {
+	                    if (args3?.Count == 3)
+	                    {
+	                        res3 = new ExprPortableScalarFunction(function, args3);
+	                        return true;
+	                    }
+
+	                    res3 = null;
 	                    return false;
 	                }
 	            }

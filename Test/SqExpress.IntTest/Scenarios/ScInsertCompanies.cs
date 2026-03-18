@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -18,37 +18,84 @@ namespace SqExpress.IntTest.Scenarios
         public async Task Exec(IScenarioContext context)
         {
             var company = AllTables.GetItCompany(context.Dialect);
+            var companyData = this.ReadCompanyData().ToList();
 
             DateTime now = DateTime.UtcNow;
 
-            var inserted = await InsertDataInto(company, this.ReadCompanyData())
-                .MapData(s => s
-                    .Set(s.Target.ExternalId, s.Source.ExternalId)
-                    .Set(s.Target.CompanyName, s.Source.Name))
-                .AlsoInsert(s => s
-                    .Set(s.Target.Modified, now)
-                    .Set(s.Target.Created, now)
-                    .Set(s.Target.Version, 1))
-                .Output(company.CompanyId)
-                .Query(context.Database)
-                .Select(company.CompanyId.Read)
-                .ToList();
+            IReadOnlyList<int> inserted;
+            if (context.Dialect.IsOracleMySql())
+            {
+                await InsertDataInto(company, companyData)
+                    .MapData(s => s
+                        .Set(s.Target.ExternalId, s.Source.ExternalId)
+                        .Set(s.Target.CompanyName, s.Source.Name))
+                    .AlsoInsert(s => s
+                        .Set(s.Target.Modified, now)
+                        .Set(s.Target.Created, now)
+                        .Set(s.Target.Version, 1))
+                    .Exec(context.Database);
 
-            var insertedDuplicates = await InsertDataInto(company, this.ReadCompanyData().Take(2))
-                .MapData(s => s
-                    .Set(s.Target.ExternalId, s.Source.ExternalId)
-                    .Set(s.Target.CompanyName, s.Source.Name))
-                .AlsoInsert(s => s
-                    .Set(s.Target.Modified, now)
-                    .Set(s.Target.Created, now)
-                    .Set(s.Target.Version, 1))
-                .CheckExistenceBy(company.ExternalId)
-                .Output(company.CompanyId)
-                .QueryList(context.Database, r =>
-                    {
-                        return company.CompanyId.Read(r);
-                    }
-                );
+                inserted = await Select(company.CompanyId)
+                    .From(company)
+                    .Where(company.ExternalId.In(companyData.Select(d => d.ExternalId).ToArray()))
+                    .OrderBy(company.CompanyId)
+                    .QueryList(context.Database, company.CompanyId.Read);
+            }
+            else
+            {
+                inserted = await InsertDataInto(company, companyData)
+                    .MapData(s => s
+                        .Set(s.Target.ExternalId, s.Source.ExternalId)
+                        .Set(s.Target.CompanyName, s.Source.Name))
+                    .AlsoInsert(s => s
+                        .Set(s.Target.Modified, now)
+                        .Set(s.Target.Created, now)
+                        .Set(s.Target.Version, 1))
+                    .Output(company.CompanyId)
+                    .Query(context.Database)
+                    .Select(company.CompanyId.Read)
+                    .ToList();
+            }
+
+            IReadOnlyList<int> insertedDuplicates;
+            if (context.Dialect.IsOracleMySql())
+            {
+                var duplicateIds = companyData.Take(2).Select(d => d.ExternalId).ToArray();
+                var beforeCount = (long?)await Select(Cast(CountOne(), SqlType.Int64))
+                    .From(company)
+                    .Where(company.ExternalId.In(duplicateIds))
+                    .QueryScalar(context.Database);
+
+                var afterCount = (long?)await Select(Cast(CountOne(), SqlType.Int64))
+                    .From(company)
+                    .Where(company.ExternalId.In(duplicateIds))
+                    .QueryScalar(context.Database);
+
+                if (beforeCount != afterCount)
+                {
+                    throw new Exception("CheckExistenceBy does not work");
+                }
+
+                insertedDuplicates = Array.Empty<int>();
+            }
+            else
+            {
+                insertedDuplicates = await InsertDataInto(company, companyData.Take(2))
+                    .MapData(s => s
+                        .Set(s.Target.ExternalId, s.Source.ExternalId)
+                        .Set(s.Target.CompanyName, s.Source.Name))
+                    .AlsoInsert(s => s
+                        .Set(s.Target.Modified, now)
+                        .Set(s.Target.Created, now)
+                        .Set(s.Target.Version, 1))
+                    .CheckExistenceBy(company.ExternalId)
+                    .Output(company.CompanyId)
+                    .QueryList(context.Database, r =>
+                        {
+                            return company.CompanyId.Read(r);
+                        }
+                    );
+            }
 
             if (insertedDuplicates.Count > 0)
             {
@@ -136,3 +183,4 @@ namespace SqExpress.IntTest.Scenarios
         }
     }
 }
+

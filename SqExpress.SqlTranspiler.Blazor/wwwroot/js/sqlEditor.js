@@ -49,10 +49,10 @@
     };
 
     window.sqExpressCodeOutput = {
-        initialize: function (editorElementId, initialValue) {
+        initialize: function (editorElementId, initialValue, mode, theme) {
             const editor = ace.edit(editorElementId);
-            editor.setTheme("ace/theme/tomorrow_night");
-            editor.session.setMode("ace/mode/csharp");
+            editor.setTheme(theme || "ace/theme/tomorrow_night");
+            editor.session.setMode("ace/mode/" + (mode || "csharp"));
             editor.setFontSize(13);
             editor.setShowPrintMargin(false);
             editor.setOption("wrap", false);

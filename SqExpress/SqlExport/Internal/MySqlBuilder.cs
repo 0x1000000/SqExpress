@@ -10,7 +10,6 @@ using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
-using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Select.SelectItems;
@@ -24,18 +23,22 @@ namespace SqExpress.SqlExport.Internal
 {
     internal class MySqlBuilder : SqlBuilderBase, IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>
     {
-        public MySqlBuilder(SqlBuilderOptions? options = null, StringBuilder? externalBuilder = null) : base(options, externalBuilder, new SqlAliasGenerator(), false)
+        public MySqlBuilder(SqlBuilderOptions? options = null, MySqlFlavor flavor = MySqlFlavor.MariaDb, StringBuilder? externalBuilder = null) : base(options, externalBuilder, new SqlAliasGenerator(), false)
         {
+            this.Flavor = flavor;
         }
 
-        private MySqlBuilder(SqlBuilderOptions? options, StringBuilder? externalBuilder, SqlAliasGenerator aliasGenerator, bool dismissCteInject) 
+        private MySqlBuilder(SqlBuilderOptions? options, StringBuilder? externalBuilder, SqlAliasGenerator aliasGenerator, bool dismissCteInject, MySqlFlavor flavor) 
             : base(options, externalBuilder, aliasGenerator, dismissCteInject)
         {
+            this.Flavor = flavor;
         }
+
+        public MySqlFlavor Flavor { get; }
 
         protected override SqlBuilderBase CreateInstance(SqlAliasGenerator aliasGenerator, bool dismissCteInject)
         {
-            return new MySqlBuilder(this.Options, new StringBuilder(), aliasGenerator, dismissCteInject);
+            return new MySqlBuilder(this.Options, new StringBuilder(), aliasGenerator, dismissCteInject, this.Flavor);
         }
 
         public override bool VisitExprGuidLiteral(ExprGuidLiteral exprGuidLiteral, IExpr? parent)
@@ -66,6 +69,29 @@ namespace SqExpress.SqlExport.Internal
         public override bool VisitExprDateTimeOffsetLiteral(ExprDateTimeOffsetLiteral dateTimeLiteral, IExpr? arg)
         {
             throw new SqExpressException("My SQL does not support DateTimeOffset type");
+        }
+
+        public override bool VisitExprDateTimeLiteral(ExprDateTimeLiteral dateTimeLiteral, IExpr? parent)
+        {
+            if (!dateTimeLiteral.Value.HasValue)
+            {
+                this.AppendNull();
+            }
+            else
+            {
+                this.Builder.Append('\'');
+                if (dateTimeLiteral.Value.Value.TimeOfDay != TimeSpan.Zero)
+                {
+                    this.Builder.Append(dateTimeLiteral.Value.Value.ToString("yyyy-MM-dd HH:mm:ss.fff"));
+                }
+                else
+                {
+                    this.Builder.Append(dateTimeLiteral.Value.Value.ToString("yyyy-MM-dd"));
+                }
+                this.Builder.Append('\'');
+            }
+
+            return true;
         }
 
         public override bool VisitExprBoolLiteral(ExprBoolLiteral boolLiteral, IExpr? parent)
@@ -362,7 +388,8 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprMerge(ExprMerge merge, IExpr? parent)
         {
-            MergeSimulation.ConvertMerge(merge, "tmpMergeDataSource").Accept(this, parent);
+            var useJoinBasedInsertAntiMatch = this.Flavor == MySqlFlavor.Oracle;
+            MergeSimulation.ConvertMerge(merge, "tmpMergeDataSource", useJoinBasedInsertAntiMatch).Accept(this, parent);
             return true;
         }
 
@@ -464,6 +491,11 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprInsertOutput(ExprInsertOutput exprInsertOutput, IExpr? parent)
         {
+            if (this.Flavor == MySqlFlavor.Oracle)
+            {
+                throw new SqExpressException("Oracle MySQL does not support generic INSERT OUTPUT/RETURNING");
+            }
+
             var insertExpr = PrepareGenericInsert(exprInsertOutput.Insert, out var middleBuilder);
 
             this.GenericInsert(insertExpr,
@@ -658,6 +690,11 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprDeleteOutput(ExprDeleteOutput exprDeleteOutput, IExpr? parent)
         {
+            if (this.Flavor == MySqlFlavor.Oracle)
+            {
+                throw new SqExpressException("Oracle MySQL does not support generic DELETE OUTPUT/RETURNING");
+            }
+
             exprDeleteOutput.Delete.Accept(this, exprDeleteOutput);
             var columns = exprDeleteOutput.OutputColumns;
             this.AssertNotEmptyList(columns, "Output list in 'DELETE' statement cannot be empty");
@@ -700,10 +737,25 @@ namespace SqExpress.SqlExport.Internal
                     exprCast.Expression.Accept(this, exprCast);
                     break;
                 case ExprTypeDateTime _:
-                case ExprTypeString _:
+                    return this.VisitExprCastCommon(exprCast, parent);
+                case ExprTypeString exprTypeString:
+                    if (this.Flavor == MySqlFlavor.Oracle)
+                    {
+                        this.Builder.Append("CAST(");
+                        exprCast.Expression.Accept(this, exprCast);
+                        this.Builder.Append(" AS CHAR");
+                        if (exprTypeString.Size.HasValue)
+                        {
+                            this.Builder.Append('(');
+                            this.Builder.Append(exprTypeString.Size.Value);
+                            this.Builder.Append(')');
+                        }
+                        this.Builder.Append(')');
+                        return true;
+                    }
                     return this.VisitExprCastCommon(exprCast, parent);
                 default:
-                    throw new SqExpressException("MySQL does not support casting to " + MySqlExporter.Default.ToSql(exprCast.SqlType));
+                    throw new SqExpressException("MySQL does not support casting to " + MySqlExporter.MariaDbDefault.ToSql(exprCast.SqlType));
             }
 
             return true;
@@ -843,7 +895,7 @@ namespace SqExpress.SqlExport.Internal
             }
             else
             {
-                int max = exprTypeString.IsUnicode ? 21844 : 65535;
+                int max = exprTypeString.IsUnicode ? 16383 : 65535;
                 this.Builder.Append("varchar");
                 this.Builder.Append('(');
                 this.Builder.Append(exprTypeString.Size ?? max);
@@ -853,7 +905,7 @@ namespace SqExpress.SqlExport.Internal
 
             if (exprTypeString.IsUnicode)
             {
-                this.Builder.Append(" character set utf8");
+                this.Builder.Append(" character set utf8mb4");
             }
 
             return true;
@@ -869,7 +921,7 @@ namespace SqExpress.SqlExport.Internal
 
             if (exprTypeFixSizeString.IsUnicode)
             {
-                this.Builder.Append(" character set utf8");
+                this.Builder.Append(" character set utf8mb4");
             }
 
             return true;
@@ -877,7 +929,7 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprTypeXml(ExprTypeXml exprTypeXml, IExpr? arg)
         {
-            this.Builder.Append("text character set utf8");
+            this.Builder.Append("text character set utf8mb4");
             return true;
         }
 
@@ -889,6 +941,78 @@ namespace SqExpress.SqlExport.Internal
         bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseLen(ExprPortableScalarFunction ctx)
         {
             this.AppendFunctionSingleArg("CHAR_LENGTH", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseNullIf(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionTwoArgs("NULLIF", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseAbs(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("ABS", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseLower(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("LOWER", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseUpper(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("UPPER", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseTrim(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("TRIM", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseLTrim(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("LTRIM", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseRTrim(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("RTRIM", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseReplace(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionThreeArgs("REPLACE", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseSubstring(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionThreeArgs("SUBSTRING", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseRound(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionTwoArgs("ROUND", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseFloor(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("FLOOR", ctx.Arguments, ctx);
+            return true;
+        }
+
+        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseCeiling(ExprPortableScalarFunction ctx)
+        {
+            this.AppendFunctionSingleArg("CEILING", ctx.Arguments, ctx);
             return true;
         }
 
@@ -931,27 +1055,6 @@ namespace SqExpress.SqlExport.Internal
         bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseSecond(ExprPortableScalarFunction ctx)
         {
             this.AppendFunctionSingleArg("SECOND", ctx.Arguments, ctx);
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseCurrentDate(ExprPortableScalarFunction ctx)
-        {
-            this.AssertArgumentsCount(ctx.Arguments, 0, ctx.PortableFunction);
-            this.Builder.Append("CURRENT_DATE()");
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseCurrentTime(ExprPortableScalarFunction ctx)
-        {
-            this.AssertArgumentsCount(ctx.Arguments, 0, ctx.PortableFunction);
-            this.Builder.Append("CURRENT_TIME()");
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseCurrentTimestamp(ExprPortableScalarFunction ctx)
-        {
-            this.AssertArgumentsCount(ctx.Arguments, 0, ctx.PortableFunction);
-            this.Builder.Append("CURRENT_TIMESTAMP()");
             return true;
         }
 
@@ -1011,7 +1114,7 @@ namespace SqExpress.SqlExport.Internal
         }
 
         protected override IStatementVisitor CreateStatementSqlBuilder() 
-            => new MySqlStatementBuilder(this.Options, this.Builder);
+            => new MySqlStatementBuilder(this.Options, this.Flavor, this.Builder);
 
         private static TExpr ModifySourceJoins<TExpr>(TExpr exprUpdate, IExprTableSource tableSource) where TExpr : IExpr
         {
@@ -1072,3 +1175,5 @@ namespace SqExpress.SqlExport.Internal
         }
     }
 }
+
+

@@ -27,7 +27,7 @@ public class ScParserParamsExprValues : IScenario
         var bytesValue = new byte[] { 0, 1, 2, 3, 255 };
         var dateTimeOffsetValue = new DateTimeOffset(new DateTime(2024, 11, 12, 13, 14, 15), TimeSpan.FromHours(3));
 
-        var sql = context.Dialect == SqlDialect.MySql
+        var sql = context.Dialect.IsMySqlFamily()
             ? "SELECT @pBool [BoolV],@pByte [ByteV],@pInt16 [Int16V],@pInt32 [Int32V],@pInt64 [Int64V],@pDecimal [DecimalV],@pDouble [DoubleV],@pString [StringV],@pGuid [GuidV],@pDateTime [DateTimeV],@pBytes [BytesV],@pNull [NullV]"
             : "SELECT @pBool [BoolV],@pByte [ByteV],@pInt16 [Int16V],@pInt32 [Int32V],@pInt64 [Int64V],@pDecimal [DecimalV],@pDouble [DoubleV],@pString [StringV],@pGuid [GuidV],@pDateTime [DateTimeV],@pDateTimeOffset [DateTimeOffsetV],@pBytes [BytesV],@pNull [NullV]";
 
@@ -37,7 +37,7 @@ public class ScParserParamsExprValues : IScenario
         }
 
         IExpr boundExpr;
-        if (context.Dialect == SqlDialect.MySql)
+        if (context.Dialect.IsMySqlFamily())
         {
             boundExpr = parsedExpr!.WithParams(
                 ("pBool", boolValue),
@@ -104,7 +104,7 @@ public class ScParserParamsExprValues : IScenario
         AssertValue(row, "DateTimeV", dateTimeValue, ReadDateTime);
         AssertValue(row, "BytesV", bytesValue, ReadBytes, ByteArrayComparer.Instance);
 
-        if (context.Dialect != SqlDialect.MySql)
+        if (!context.Dialect.IsMySqlFamily())
         {
             AssertDateTimeOffsetValue(row, "DateTimeOffsetV", dateTimeOffsetValue);
         }
@@ -305,3 +305,4 @@ public class ScParserParamsExprValues : IScenario
         }
     }
 }
+

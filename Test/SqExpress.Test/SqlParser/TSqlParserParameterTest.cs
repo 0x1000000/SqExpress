@@ -2,7 +2,7 @@ using System.Linq;
 using NUnit.Framework;
 using SqExpress.SqlParser;
 using SqExpress.Syntax;
-using SqExpress.Syntax.Internal;
+using SqExpress.Syntax.Value;
 
 namespace SqExpress.Test.SqlParser
 {

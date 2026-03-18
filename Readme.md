@@ -141,7 +141,9 @@ using SqExpress.SqlParser;
 
 static void Main()
 {
-    var expr = SqTSqlParser.Parse("SELECT 'Hi,' + @userName + '!'", []).WithParams(("userName", "John"));
+    var expr = SqTSqlParser.Parse("SELECT 'Hi,' + @userName + '!'", [])
+        .WithParams(("userName", "John"))
+        .AsQuery();
 
     Console.WriteLine(expr.ToSql(TSqlExporter.Default));
 }
@@ -169,6 +171,10 @@ The result will be:
 ```
 SELECT 'Hello World!'
 ```
+
+SqExpress also includes a built-in Roslyn analyzer for `SqTSqlParser.Parse(...)`. It validates raw SQL and checks referenced tables against discovered SqExpress descriptors, but when possible it is better to use the `Convert SQL to SqExpress` code fix and replace raw SQL with generated C#.
+
+![Convert SQL to SqExpress](sql-to-sqexpress.gif)
 
 ## When to Use SqExpress (and When Not)
 
@@ -1484,10 +1490,22 @@ var expr = SqTSqlParser.Parse(
     "SELECT 'Hi,' + @userName + '!'",
     existingTables: []);
 
-var query = expr.WithParams(("userName", "John"));
+var query = expr.WithParams(("userName", "John")).AsQuery();
 
 Console.WriteLine(query.ToSql(TSqlExporter.Default));
 // SELECT 'Hi,'+'John'+'!'
+```
+
+For data modification statements, bind parameters and then narrow to `IExprExec`:
+
+```cs
+var delete = SqTSqlParser.Parse(
+    "DELETE [User] WHERE UserId = @userId",
+    existingTables: [new TableUser()])
+    .WithParams(("userId", 1))
+    .AsNonQuery();
+
+await delete.Exec(database);
 ```
 
 Validation overloads are also available:
@@ -1545,7 +1563,9 @@ catch (SqExpressTSqlParserException ex)
 Notes:
 - `SqTSqlParser` parses one statement at a time.
 - Named parameters like `@userName` are represented as `ExprParameter` and can be replaced with `WithParams(...)`.
-- In `WithParams(...)`, use parameter names without `@` (for example, `"userName"`).
+- After replacing parameters, use `AsQuery()` when the parsed expression is a `SELECT`.
+- After replacing parameters, use `AsNonQuery()` for `INSERT` / `UPDATE` / `DELETE` / `MERGE`.
+- In parameter replacement helpers, use parameter names without `@` (for example, `"userName"`).
 
 ## Syntax Tree
 

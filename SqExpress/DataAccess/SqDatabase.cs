@@ -1,4 +1,4 @@
-﻿using SqExpress.DataAccess.Internal;
+using SqExpress.DataAccess.Internal;
 using SqExpress.DbMetadata;
 using SqExpress.DbMetadata.Internal;
 using SqExpress.DbMetadata.Internal.DbManagers;
@@ -398,7 +398,7 @@ namespace SqExpress.DataAccess
             {
                 TSqlExporter => new MsSqlDbStrategy(this, this._connection.Database),
                 PgSqlExporter => new PgSqlDbStrategy(this, this._connection.Database),
-                MySqlExporter => new MySqlDbStrategy(this, this._connection.Database),
+                MySqlExporter e => new MySqlDbStrategy(this, this._connection.Database, e.Flavor),
                 _ => throw new SqExpressException("Unknown sqlExporter")
             };
 

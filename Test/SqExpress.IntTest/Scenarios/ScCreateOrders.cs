@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using SqExpress.IntTest.Context;
@@ -34,11 +34,27 @@ namespace SqExpress.IntTest.Scenarios
             context.WriteLine("Orders are inserted: " + count);
 
             //Delete % 7
-            await Delete(tOrder)
-                .Where(tOrder.OrderId.In(Select(tOrderSub2.OrderId)
-                    .From(tOrderSub2)
-                    .Where(tOrderSub2.OrderId % 7 == 0)))
-                .Exec(context.Database);
+            if (context.Dialect.IsOracleMySql())
+            {
+                var deleteOrderIds = TableAlias();
+                await Delete(tOrder)
+                    .Where(tOrder.OrderId.In(
+                        Select(tOrderSub2.OrderId.WithSource(deleteOrderIds))
+                            .From(
+                                Select(tOrderSub2.OrderId)
+                                    .From(tOrderSub2)
+                                    .Where(tOrderSub2.OrderId % 7 == 0)
+                                    .As(deleteOrderIds))))
+                    .Exec(context.Database);
+            }
+            else
+            {
+                await Delete(tOrder)
+                    .Where(tOrder.OrderId.In(Select(tOrderSub2.OrderId)
+                        .From(tOrderSub2)
+                        .Where(tOrderSub2.OrderId % 7 == 0)))
+                    .Exec(context.Database);
+            }
 
             count = await Select(Count(1)).From(tOrder).QueryScalar(context.Database);
             context.WriteLine("Some Orders are deleted. Current count: " + count);

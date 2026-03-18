@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace SqExpress.SqlParser.Internal.Parsing
@@ -6,7 +7,17 @@ namespace SqExpress.SqlParser.Internal.Parsing
     {
         public static List<SqlToken> Tokenize(string sql)
         {
-            var result = new List<SqlToken>();
+            if (!TryTokenize(sql, out var result, out var error))
+            {
+                throw new InvalidOperationException(error ?? "SQL tokenization failed.");
+            }
+
+            return result!;
+        }
+
+        public static bool TryTokenize(string sql, out List<SqlToken>? result, out string? error)
+        {
+            result = new List<SqlToken>();
             var index = 0;
 
             while (index < sql.Length)
@@ -32,15 +43,24 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 if (ch == '/' && (index + 1) < sql.Length && sql[index + 1] == '*')
                 {
                     index += 2;
+                    var closed = false;
                     while ((index + 1) < sql.Length)
                     {
                         if (sql[index] == '*' && sql[index + 1] == '/')
                         {
                             index += 2;
+                            closed = true;
                             break;
                         }
 
                         index++;
+                    }
+
+                    if (!closed)
+                    {
+                        result = null;
+                        error = "Syntax error: unterminated block comment.";
+                        return false;
                     }
 
                     continue;
@@ -50,6 +70,7 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 {
                     var start = index;
                     index++;
+                    var closed = false;
                     while (index < sql.Length)
                     {
                         if (sql[index] == ']')
@@ -61,38 +82,45 @@ namespace SqExpress.SqlParser.Internal.Parsing
                             }
 
                             index++;
+                            closed = true;
                             break;
                         }
 
                         index++;
+                    }
+
+                    if (!closed)
+                    {
+                        result = null;
+                        error = "Syntax error: unterminated bracket identifier.";
+                        return false;
                     }
 
                     result.Add(new SqlToken(SqlTokenType.BracketIdentifier, sql.Substring(start, index - start), start, index - start));
                     continue;
                 }
 
-                if (ch == '\'')
+                if ((ch == 'N' || ch == 'n') && (index + 1) < sql.Length && sql[index + 1] == '\'')
                 {
-                    var start = index;
-                    index++;
-                    while (index < sql.Length)
+                    if (!TryReadStringLiteral(sql, ref index, true, out var token, out error))
                     {
-                        if (sql[index] == '\'')
-                        {
-                            if ((index + 1) < sql.Length && sql[index + 1] == '\'')
-                            {
-                                index += 2;
-                                continue;
-                            }
-
-                            index++;
-                            break;
-                        }
-
-                        index++;
+                        result = null;
+                        return false;
                     }
 
-                    result.Add(new SqlToken(SqlTokenType.StringLiteral, sql.Substring(start, index - start), start, index - start));
+                    result.Add(token);
+                    continue;
+                }
+
+                if (ch == '\'')
+                {
+                    if (!TryReadStringLiteral(sql, ref index, false, out var token, out error))
+                    {
+                        result = null;
+                        return false;
+                    }
+
+                    result.Add(token);
                     continue;
                 }
 
@@ -176,7 +204,8 @@ namespace SqExpress.SqlParser.Internal.Parsing
             }
 
             result.Add(new SqlToken(SqlTokenType.EndOfFile, string.Empty, sql.Length, 0));
-            return result;
+            error = null;
+            return true;
         }
 
         private static bool IsIdentifierStart(char ch)
@@ -184,5 +213,33 @@ namespace SqExpress.SqlParser.Internal.Parsing
 
         private static bool IsIdentifierPart(char ch)
             => char.IsLetterOrDigit(ch) || ch == '_' || ch == '#' || ch == '@' || ch == '$';
+
+        private static bool TryReadStringLiteral(string sql, ref int index, bool hasUnicodePrefix, out SqlToken token, out string? error)
+        {
+            var start = index;
+            index += hasUnicodePrefix ? 2 : 1;
+            while (index < sql.Length)
+            {
+                if (sql[index] == '\'')
+                {
+                    if ((index + 1) < sql.Length && sql[index + 1] == '\'')
+                    {
+                        index += 2;
+                        continue;
+                    }
+
+                    index++;
+                    token = new SqlToken(SqlTokenType.StringLiteral, sql.Substring(start, index - start), start, index - start);
+                    error = null;
+                    return true;
+                }
+
+                index++;
+            }
+
+            token = default;
+            error = "Syntax error: unterminated string literal.";
+            return false;
+        }
     }
 }

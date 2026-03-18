@@ -42,7 +42,7 @@ namespace SqExpress.Test.SqlParser
         }
 
         [Test]
-        public void TryParse_WithExistingTables_WhenExpectedTableMissing_ReturnsMismatchError()
+        public void TryParse_WithExistingTables_WhenProvidedTablesContainExtraEntries_StillReturnsTrue()
         {
             var sql = "SELECT [u].[Id] FROM [dbo].[Users] [u]";
             var existing = new TableBase[]
@@ -53,9 +53,9 @@ namespace SqExpress.Test.SqlParser
 
             var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
 
-            Assert.That(ok, Is.False);
-            Assert.That(expr, Is.Null);
-            Assert.That(error, Does.Contain("Missing tables: [dbo].[Orders]"));
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(error, Is.Null);
         }
 
         [Test]
@@ -75,7 +75,7 @@ namespace SqExpress.Test.SqlParser
         }
 
         [Test]
-        public void TryParse_WithExistingTables_WhenExpectedColumnMissing_ReturnsMismatchError()
+        public void TryParse_WithExistingTables_WhenExpectedHasMoreColumns_StillReturnsTrue()
         {
             var sql = "SELECT [u].[Id],[u].[Name] FROM [dbo].[Users] [u]";
             var existing = new TableBase[]
@@ -88,9 +88,9 @@ namespace SqExpress.Test.SqlParser
 
             var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
 
-            Assert.That(ok, Is.False);
-            Assert.That(expr, Is.Null);
-            Assert.That(error, Does.Contain("missing columns: [Email]"));
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(error, Is.Null);
         }
 
         [Test]
@@ -110,35 +110,132 @@ namespace SqExpress.Test.SqlParser
         }
 
         [Test]
-        public void TryParse_WithExistingTables_WhenColumnTypeDiffers_ReturnsMismatchError()
+        public void TryParse_WithExistingTables_WhenWildcardQueryReferencesKnownColumn_ReturnsTrue()
         {
-            var sql = "SELECT [u].[Id] FROM [dbo].[Users] [u]";
+            var sql = "SELECT * FROM [dbo].[Users] WHERE [UserId] = @userId";
             var existing = new TableBase[]
             {
-                CreateTable("dbo", "Users", a => a.AppendStringColumn("Id", 255, isUnicode: true))
+                CreateTable("dbo", "Users", a => a
+                    .AppendInt32Column("UserId")
+                    .AppendStringColumn("Name", 255, isUnicode: true)
+                    .AppendBooleanColumn("IsActive"))
             };
 
             var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
 
-            Assert.That(ok, Is.False);
-            Assert.That(expr, Is.Null);
-            Assert.That(error, Does.Contain("changed columns: [Id] (DifferentType)"));
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(error, Is.Null);
         }
 
         [Test]
-        public void TryParse_WithExistingTables_WhenColumnNullabilityDiffers_ReturnsMismatchError()
+        public void TryParse_WithExistingTables_WhenWildcardQueryReferencesUnknownColumn_ReturnsMismatchError()
         {
-            var sql = "SELECT [u].[Id] FROM [dbo].[Users] [u] WHERE [u].[Id] IS NULL";
+            var sql = "SELECT * FROM [dbo].[Users] WHERE [UserKey] = @userId";
             var existing = new TableBase[]
             {
-                CreateTable("dbo", "Users", a => a.AppendInt32Column("Id"))
+                CreateTable("dbo", "Users", a => a
+                    .AppendInt32Column("UserId")
+                    .AppendStringColumn("Name", 255, isUnicode: true))
             };
 
             var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
 
             Assert.That(ok, Is.False);
             Assert.That(expr, Is.Null);
-            Assert.That(error, Does.Contain("DifferentNullability"));
+            Assert.That(error, Does.Contain("extra columns: [UserKey]"));
+        }
+
+        [Test]
+        public void TryParse_WithExistingTables_WhenColumnTypeDiffers_StillReturnsTrue()
+        {
+            var sql = "SELECT [u].[Id],[o].[OrderId] FROM [dbo].[Users] [u] JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[Id]";
+            var existing = new TableBase[]
+            {
+                CreateTable("dbo", "Users", a => a.AppendStringColumn("Id", 255, isUnicode: true)),
+                CreateTable("dbo", "Orders", a => a.AppendInt32Column("OrderId").AppendInt32Column("UserId"))
+            };
+
+            var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(error, Is.Null);
+        }
+
+        [Test]
+        public void TryParse_WithExistingTables_WhenColumnNullabilityDiffers_StillReturnsTrue()
+        {
+            var sql = "SELECT [u].[Id],[o].[OrderId] FROM [dbo].[Users] [u] JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[Id] WHERE [u].[Id] IS NULL";
+            var existing = new TableBase[]
+            {
+                CreateTable("dbo", "Users", a => a.AppendInt32Column("Id")),
+                CreateTable("dbo", "Orders", a => a.AppendInt32Column("OrderId").AppendInt32Column("UserId"))
+            };
+
+            var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(error, Is.Null);
+        }
+
+        [Test]
+        public void TryParse_WithExistingTables_WhenSimpleUpdateWithoutFrom_UsesUpdateTargetTableForValidation()
+        {
+            var sql = "UPDATE [dbo].[Users] SET [Name]='X' WHERE [Id]=1";
+            var existing = new TableBase[]
+            {
+                CreateTable("dbo", "Users", a => a
+                    .AppendInt32Column("Id")
+                    .AppendStringColumn("Name", 255, isUnicode: true))
+            };
+            var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(error, Is.Null);
+        }
+
+        [Test]
+        public void TryParse_WithExistingTables_WhenCustomDefaultSchemaMatchesUnqualifiedTable_ReturnsTrue()
+        {
+            var sql = "SELECT [u].[Id] FROM [Users] [u]";
+            var existing = new TableBase[]
+            {
+                CreateTable("sales", "Users", a => a.AppendInt32Column("Id"))
+            };
+
+            var ok = SqTSqlParser.TryParse(
+                sql,
+                existing,
+                new SqTSqlParserOptions { DefaultSchema = "sales" },
+                out IExpr? expr,
+                out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(error, Is.Null);
+        }
+
+        [Test]
+        public void TryParse_WithExistingTables_WhenDefaultSchemaIsNull_MatchesSchemaLessTable()
+        {
+            var sql = "SELECT [u].[Id] FROM [Users] [u]";
+            var existing = new TableBase[]
+            {
+                CreateTable(null, "Users", a => a.AppendInt32Column("Id"))
+            };
+
+            var ok = SqTSqlParser.TryParse(
+                sql,
+                existing,
+                new SqTSqlParserOptions { DefaultSchema = null },
+                out IExpr? expr,
+                out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(error, Is.Null);
         }
 
         [Test]
@@ -189,7 +286,7 @@ namespace SqExpress.Test.SqlParser
         }
 
         [Test]
-        public void TryParse_WithExistingTables_WhenSqlHasNoTablesButExpectedNotEmpty_ReturnsMismatchError()
+        public void TryParse_WithExistingTables_WhenSqlHasNoTablesButExpectedNotEmpty_ReturnsTrue()
         {
             var sql = "SELECT 1";
             var existing = new TableBase[]
@@ -199,22 +296,35 @@ namespace SqExpress.Test.SqlParser
 
             var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
 
-            Assert.That(ok, Is.False);
-            Assert.That(expr, Is.Null);
-            Assert.That(error, Does.Contain("Missing tables: [dbo].[Users]"));
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(error, Is.Null);
         }
 
         [Test]
-        public void TryParse_WithExistingTables_WhenArgumentIsNull_Throws()
+        public void TryParse_WithExistingTables_WhenArgumentIsNull_SkipsValidationAndReturnsTrue()
         {
-            var sql = "SELECT 1";
+            var sql = "SELECT [u].[Id],[o].[OrderId] FROM [dbo].[Users] [u] JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[Id]";
             IExpr? expr;
             string? error;
 
-            Assert.Throws<ArgumentNullException>(() =>
-            {
-                SqTSqlParser.TryParse(sql, null!, out expr, out error);
-            });
+            var ok = SqTSqlParser.TryParse(sql, (System.Collections.Generic.IReadOnlyList<TableBase>?)null, out expr, out error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(error, Is.Null);
+        }
+
+        [Test]
+        public void Parse_WhenExistingTablesAreNotProvided_SkipsValidationAndReturnsExpression()
+        {
+            var sql = "SELECT [u].[Id],[o].[OrderId] FROM [dbo].[Users] [u] JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[Id]";
+
+            #pragma warning disable SQEX011
+            var expr = SqTSqlParser.Parse(sql);
+            #pragma warning restore SQEX011
+
+            Assert.That(expr, Is.Not.Null);
         }
 
         [Test]
@@ -226,28 +336,33 @@ namespace SqExpress.Test.SqlParser
                 CreateTable("dbo", "Users", a => a.AppendInt32Column("Id"))
             };
 
+            #pragma warning disable SQEX010
             var ex = Assert.Throws<SqExpressTSqlParserException>(() => SqTSqlParser.Parse(sql, existing));
+            #pragma warning restore SQEX010
             Assert.That(ex!.Message, Does.Contain("SELECT list is missing"));
         }
 
         [Test]
-        public void Parse_WithExistingTables_WhenTableArtifactsDoNotMatch_ThrowsSqExpressTSqlParserException()
+        public void Parse_WithExistingTables_WhenParsedTableIsMissing_ThrowsSqExpressTSqlParserException()
         {
-            var sql = "SELECT [u].[Id] FROM [dbo].[Users] [u]";
+            var sql = "SELECT [u].[Id],[o].[OrderId] FROM [dbo].[Users] [u] JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[Id]";
             var existing = new TableBase[]
             {
-                CreateTable("dbo", "Users", a => a.AppendInt32Column("Id")),
-                CreateTable("dbo", "Orders", a => a.AppendInt32Column("OrderId"))
+                CreateTable("dbo", "Users", a => a.AppendInt32Column("Id"))
             };
 
+            #pragma warning disable SQEX011
             var ex = Assert.Throws<SqExpressTSqlParserException>(() => SqTSqlParser.Parse(sql, existing));
-            Assert.That(ex!.Message, Does.Contain("Missing tables: [dbo].[Orders]"));
+            #pragma warning restore SQEX011
+            Assert.That(ex!.Message, Does.Contain("Unexpected tables: [dbo].[Orders]"));
         }
 
         private static SqTable CreateTable(
-            string schema,
+            string? schema,
             string tableName,
             Func<ITableColumnAppender, ITableColumnAppender> columns)
             => SqTable.Create(schema, tableName, a => columns(a));
     }
 }
+
+

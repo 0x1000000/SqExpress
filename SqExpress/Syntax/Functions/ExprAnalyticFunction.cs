@@ -22,5 +22,8 @@ namespace SqExpress.Syntax.Functions
 
         public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprAnalyticFunction(this, arg);
+
+        public TRes Accept<TRes, TArg>(IExprSelectingVisitor<TRes, TArg> visitor, TArg arg)
+            => visitor.VisitExprAnalyticFunction(this, arg);
     }
 }

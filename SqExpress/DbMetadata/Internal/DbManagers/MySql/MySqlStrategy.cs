@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
@@ -16,7 +16,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers.MySql
     {
         private readonly string _databaseName;
 
-        internal MySqlDbStrategy(ISqDatabase database, string databaseName) : base(database)
+        internal MySqlDbStrategy(ISqDatabase database, string databaseName, MySqlFlavor flavor) : base(database)
         {
             _databaseName = databaseName;
         }
@@ -28,11 +28,11 @@ namespace SqExpress.DbMetadata.Internal.DbManagers.MySql
                 var database = new SqDatabase<DbConnection>(
                     connection,
                     CommandFactory,
-                    MySqlExporter.Default,
+                    MySqlExporter.MariaDbDefault,
                     ParametrizationMode.None
                 );
 
-                return new DbManager(new MySqlDbStrategy(database, connection.Database), connection, options);
+                return new DbManager(new MySqlDbStrategy(database, connection.Database, MySqlFlavor.MariaDb), connection, options);
             }
             catch
             {
@@ -80,6 +80,13 @@ namespace SqExpress.DbMetadata.Internal.DbManagers.MySql
                         var indexName = tStatistics.IndexName.Read(r);
                         var columnName = tStatistics.ColumnName.Read(r);
                         var collation = tStatistics.Collation.Read(r);
+
+                        if (columnName == null)
+                        {
+                            throw new SqExpressException(
+                                $"Functional or expression-based indexes are not supported in MySQL metadata retrieval: {tableSchema}.{tableName}.{indexName}"
+                            );
+                        }
 
                         var tableRef = new TableRef(tableSchema, tableName);
 
@@ -172,7 +179,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers.MySql
                 case "float":
                     return new DoubleColumnType(raw.Nullable);
                 case "double":
-                case "double prevision":
+                case "double precision":
                     return new DoubleColumnType(raw.Nullable);
                 case "bit":
                     return new BooleanColumnType(raw.Nullable);
@@ -180,6 +187,8 @@ namespace SqExpress.DbMetadata.Internal.DbManagers.MySql
                 //Date and Time Data Types
                 case "date":
                     return new DateTimeColumnType(raw.Nullable, true);
+                case "year":
+                    return new Int16ColumnType(raw.Nullable);
                 case "time":
                     return new Int64ColumnType(raw.Nullable);
                 case "datetime":
@@ -196,7 +205,9 @@ namespace SqExpress.DbMetadata.Internal.DbManagers.MySql
                         isText: false
                     );
                 case "enum":
+                case "set":
                 case "varchar":
+                case "json":
                     var (isUnicode, maxLen) = IsUnicode(raw);
                     var size = CheckSize(raw.Size);
                     return new StringColumnType(
@@ -226,6 +237,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers.MySql
                         ? new GuidColumnType(raw.Nullable)
                         : new ByteArrayColumnType(isNullable: raw.Nullable, size: CheckSize(raw.Size), isFixed: true);
                 case "varbinary":
+                case "tinyblob":
                 case "blob":
                 case "longblob":
                 case "mediumblob":
@@ -469,3 +481,4 @@ namespace SqExpress.DbMetadata.Internal.DbManagers.MySql
         }
     }
 }
+

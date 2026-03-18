@@ -178,6 +178,7 @@ namespace SqExpress.SyntaxTreeOperations
                 case "OutputColumnDeleted": return new ExprOutputColumnDeleted(columnName: GetSubNode<TNode, ExprAliasedColumnName>(rootElement, reader, "ColumnName"));
                 case "OutputColumnInserted": return new ExprOutputColumnInserted(columnName: GetSubNode<TNode, ExprAliasedColumnName>(rootElement, reader, "ColumnName"));
                 case "Over": return new ExprOver(partitions: GetNullableSubNodeList<TNode, ExprValue>(rootElement, reader, "Partitions"), orderBy: GetNullableSubNode<TNode, ExprOrderBy>(rootElement, reader, "OrderBy"), frameClause: GetNullableSubNode<TNode, ExprFrameClause>(rootElement, reader, "FrameClause"));
+                case "Parameter": return new ExprParameter(replacedValue: GetNullableSubNode<TNode, ExprValue>(rootElement, reader, "ReplacedValue"), tagName: ReadNullableString(rootElement, reader, "TagName"));
                 case "PortableScalarFunction": return new ExprPortableScalarFunction(arguments: GetNullableSubNodeList<TNode, ExprValue>(rootElement, reader, "Arguments"), PortableFunction: ReadPortableScalarFunction(rootElement, reader, "PortableFunction"));
                 case "QueryExpression": return new ExprQueryExpression(left: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "Left"), right: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "Right"), queryExpressionType: ReadExprQueryExpressionType(rootElement, reader, "QueryExpressionType"));
                 case "QueryList": return new ExprQueryList(expressions: GetSubNodeList<TNode, IExprComplete>(rootElement, reader, "Expressions"));
@@ -186,6 +187,7 @@ namespace SqExpress.SyntaxTreeOperations
                 case "SchemaName": return new ExprSchemaName(name: ReadString(rootElement, reader, "Name"));
                 case "Select": return new ExprSelect(selectQuery: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "SelectQuery"), orderBy: GetSubNode<TNode, ExprOrderBy>(rootElement, reader, "OrderBy"));
                 case "SelectOffsetFetch": return new ExprSelectOffsetFetch(selectQuery: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "SelectQuery"), orderBy: GetSubNode<TNode, ExprOrderByOffsetFetch>(rootElement, reader, "OrderBy"));
+                case "SelectingValue": return new ExprSelectingValue(selecting: GetSubNode<TNode, IExprSelecting>(rootElement, reader, "Selecting"));
                 case "StringConcat": return new ExprStringConcat(left: GetSubNode<TNode, ExprValue>(rootElement, reader, "Left"), right: GetSubNode<TNode, ExprValue>(rootElement, reader, "Right"));
                 case "StringLiteral": return new ExprStringLiteral(value: ReadNullableString(rootElement, reader, "Value"));
                 case "Sub": return new ExprSub(left: GetSubNode<TNode, ExprValue>(rootElement, reader, "Left"), right: GetSubNode<TNode, ExprValue>(rootElement, reader, "Right"));

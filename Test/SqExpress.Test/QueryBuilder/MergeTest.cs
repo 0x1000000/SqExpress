@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using NUnit.Framework;
 
 namespace SqExpress.Test.QueryBuilder;
@@ -40,6 +40,11 @@ public class MergeTest
         expected = "CREATE TEMPORARY TABLE `tmpMergeDataSource`(`UserId` int NOT NULL,`FirstName` varchar(255) NOT NULL);INSERT INTO `tmpMergeDataSource`(`UserId`,`FirstName`) VALUES (1,'Alice'),(2,'Bob');UPDATE `user` `A0` JOIN `tmpMergeDataSource` `A1` ON `A0`.`UserId`=`A1`.`UserId` SET `A0`.`FirstName`=`A1`.`FirstName`,`A0`.`Modified`=UTC_TIMESTAMP() WHERE `A0`.`FirstName`!=`A1`.`FirstName`;INSERT INTO `user`(`UserId`,`FirstName`,`Modified`,`Created`) SELECT `A1`.`UserId`,`A1`.`FirstName`,UTC_TIMESTAMP(),UTC_TIMESTAMP() FROM `tmpMergeDataSource` `A1` WHERE NOT EXISTS(SELECT 1 FROM `user` `A0` WHERE `A0`.`UserId`=`A1`.`UserId`);UPDATE `user` `A0` SET `A0`.`Modified`=UTC_TIMESTAMP() WHERE NOT EXISTS(SELECT 1 FROM `tmpMergeDataSource` `A1` WHERE `A0`.`UserId`=`A1`.`UserId`);DROP TABLE `tmpMergeDataSource`;";
 
         Assert.AreEqual(expected, expr.ToMySql());
+
+        var oracleSql = expr.ToOracleSql();
+        Assert.That(oracleSql, Does.Contain("DELETE `A1` FROM `tmpMergeDataSource`"));
+        Assert.That(oracleSql, Does.Not.Contain("LEFT JOIN `user`"));
+        Assert.That(oracleSql, Does.Not.Contain("WHERE NOT EXISTS(SELECT 1 FROM `user`"));
     }
 
     [Test]
@@ -93,4 +98,39 @@ public class MergeTest
         Assert.AreEqual(expected, sql);
     }
 
+    [Test]
+    public void PgMergePolyfill_NamesAnonymousSourceColumns()
+    {
+        var target = Tables.User("T");
+        var sourceTable = Tables.User("U");
+        var source = SqQueryBuilder.Select(
+                SqQueryBuilder.Literal(1),
+                SqQueryBuilder.Literal("AA").As("BB"),
+                sourceTable.UserId,
+                SqQueryBuilder.GetUtcDate())
+            .From(sourceTable)
+            .Where((SqQueryBuilder.Literal(1) == SqQueryBuilder.Literal(1)) & sourceTable.UserId.In(1, 2))
+            .Done()
+            .As(SqQueryBuilder.TableAlias("S"));
+
+        var sql = SqQueryBuilder.MergeInto(target, source)
+            .On(target.UserId == source.Column(sourceTable.UserId.ColumnName))
+            .WhenMatched()
+                .ThenUpdate()
+                .Set(target.FirstName, source.Column("BB"))
+                .Set(target.Version, target.Version + 1)
+            .WhenNotMatchedByTarget()
+                .ThenInsert()
+                .Set(target.UserId, source.Column(sourceTable.UserId.ColumnName))
+                .Set(target.FirstName, source.Column("BB"))
+                .Set(target.Modified, target.Modified)
+            .Done()
+            .ToPgSql();
+
+        Assert.That(sql, Does.Contain("WITH \"__sqexpress_merge_source\"(\"Expr1\",\"BB\",\"UserId\",\"Expr4\") AS("));
+        Assert.That(sql, Does.Contain("FROM \"__sqexpress_merge_source\" \"S\""));
+    }
+
 }
+
+

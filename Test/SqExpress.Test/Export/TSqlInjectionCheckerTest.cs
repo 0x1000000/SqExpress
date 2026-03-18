@@ -11,7 +11,7 @@ namespace SqExpress.Test.Export
     [TestFixture]
     public class TSqlInjectionCheckerTest
     {
-        private static readonly ISqlExporter[] Exporters = { TSqlExporter.Default, PgSqlExporter.Default, MySqlExporter.Default };
+        private static readonly ISqlExporter[] Exporters = { TSqlExporter.Default, PgSqlExporter.Default, MySqlExporter.MariaDbDefault };
 
         [Test]
         public void AppendStringEscape_Basic()
@@ -358,3 +358,4 @@ namespace SqExpress.Test.Export
         }
     }
 }
+

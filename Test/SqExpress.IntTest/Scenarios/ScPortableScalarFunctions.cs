@@ -14,6 +14,7 @@ public class ScPortableScalarFunctions : IScenario
     {
         var baseDate = new DateTime(2020, 2, 3, 4, 5, 6);
         var monthEnd = new DateTime(2020, 1, 31);
+        const string unicodeSample = "\u0416";
         var leapDay = new DateTime(2020, 2, 29);
         // T-SQL OctetLength maps to DATALENGTH; for parameterized strings SQL Server uses nvarchar,
         // so ASCII "abc" is 6 bytes (2 bytes per char) instead of 3 bytes for a non-Unicode literal.
@@ -48,19 +49,19 @@ public class ScPortableScalarFunctions : IScenario
                 Repeat("ab", 0).As("RepeatZeroV"),
                 Len("abc").As("CharLenV"),
                 Len("").As("CharLenEmptyV"),
-                Len("Ж").As("CharLenUnicodeV"),
+                Len(unicodeSample).As("CharLenUnicodeV"),
                 DataLength("abc").As("OctetLenV"),
                 DataLength("").As("OctetLenEmptyV"),
-                DataLength("Ж").As("OctetLenUnicodeV"),
+                DataLength(unicodeSample).As("OctetLenUnicodeV"),
                 Year(baseDate).As("YearV"),
                 Month(baseDate).As("MonthV"),
                 Day(baseDate).As("DayV"),
                 Hour(baseDate).As("HourV"),
                 Minute(baseDate).As("MinuteV"),
                 Second(baseDate).As("SecondV"),
-                CurrentDate().As("CurrentDateV"),
-                CurrentTime().As("CurrentTimeV"),
-                CurrentTimestamp().As("CurrentTimestampV"),
+                GetDate().As("CurrentDateV"),
+                GetDate().As("CurrentTimeV"),
+                GetUtcDate().As("CurrentTimestampV"),
                 AddYears(1, baseDate).As("AddYearsV"),
                 AddMonths(1, baseDate).As("AddMonthsV"),
                 AddDays(1, baseDate).As("AddDaysV"),

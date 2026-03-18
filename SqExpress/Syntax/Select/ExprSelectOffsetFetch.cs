@@ -1,22 +1,28 @@
 ﻿using System.Collections.Generic;
 
-namespace SqExpress.Syntax.Select
+namespace SqExpress.Syntax.Select;
+
+public class ExprSelectOffsetFetch : IExprSubQuery
 {
-    public class ExprSelectOffsetFetch : IExprSubQuery
+    public ExprSelectOffsetFetch(IExprSubQuery selectQuery, ExprOrderByOffsetFetch orderBy)
     {
-        public ExprSelectOffsetFetch(IExprSubQuery selectQuery, ExprOrderByOffsetFetch orderBy)
-        {
-            this.SelectQuery = selectQuery;
-            this.OrderBy = orderBy;
-        }
-
-        public IExprSubQuery SelectQuery { get; }
-
-        public ExprOrderByOffsetFetch OrderBy { get; }
-
-        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
-            => visitor.VisitExprSelectOffsetFetch(this, arg);
-
-        public IReadOnlyList<string?> GetOutputColumnNames() => this.SelectQuery.GetOutputColumnNames();
+        this.SelectQuery = selectQuery;
+        this.OrderBy = orderBy;
     }
+
+    public IExprSubQuery SelectQuery { get; }
+
+    public ExprOrderByOffsetFetch OrderBy { get; }
+
+    public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        => visitor.VisitExprSelectOffsetFetch(this, arg);
+
+    public IReadOnlyList<string?> GetOutputColumnNames() => this.SelectQuery.GetOutputColumnNames();
+
+    public IReadOnlyList<IExprSelecting> ExtractSelecting()
+    {
+        return this.SelectQuery.ExtractSelecting();
+    }
+
+    IExprSubQuery ISelectingSource.CreateSubQuery() => this;
 }

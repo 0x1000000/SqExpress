@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Value;
@@ -20,10 +20,22 @@ public class ExprTableFunction : IExprTableSource
 
     public IReadOnlyList<ExprValue>? Arguments { get; }
 
+    ExprTableAlias? IExprTableSource.Alias => null;
+
     public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg) 
         => visitor.VisitExprTableFunction(this, arg);
 
     public TableMultiplication ToTableMultiplication() => new(new[] { this }, null);
+
+    public IReadOnlyList<IExprSelecting> ExtractSelecting()
+    {
+        return [];
+    }
+
+    public IExprSubQuery CreateSubQuery()
+    {
+        return SqQueryBuilder.Select(SqQueryBuilder.AllColumns()).From(this).Done();
+    }
 }
 
 public class ExprAliasedTableFunction : IExprTableSource
@@ -42,4 +54,14 @@ public class ExprAliasedTableFunction : IExprTableSource
         => visitor.VisitExprAliasedTableFunction(this, arg);
 
     public TableMultiplication ToTableMultiplication() => this.Function.ToTableMultiplication();
+
+    public IReadOnlyList<IExprSelecting> ExtractSelecting()
+    {
+        return [];
+    }
+
+    public IExprSubQuery CreateSubQuery()
+    {
+        return SqQueryBuilder.Select(SqQueryBuilder.AllColumns()).From(this).Done();
+    }
 }

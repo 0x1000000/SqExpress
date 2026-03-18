@@ -12,12 +12,27 @@ public static class Helpers
 {
     public static bool IsUnicode(bool value, SqlDialect dialect)
     {
-        return dialect == SqlDialect.PgSql || dialect == SqlDialect.MySql || value;
+        return dialect == SqlDialect.PgSql || dialect.IsMySqlFamily() || value;
     }
 
     public static int? ArrayLimit(int? value, SqlDialect dialect)
     {
         return dialect == SqlDialect.PgSql ? null : value;
+    }
+
+    public static bool IsMySqlFamily(this SqlDialect dialect)
+    {
+        return dialect == SqlDialect.MariaDb || dialect == SqlDialect.OracleMySql;
+    }
+
+    public static bool IsOracleMySql(this SqlDialect dialect)
+    {
+        return dialect == SqlDialect.OracleMySql;
+    }
+
+    public static bool IsMariaDb(this SqlDialect dialect)
+    {
+        return dialect == SqlDialect.MariaDb;
     }
 
     public static async Task CompareDatabases(ISqDatabase db1, ISqDatabase db2)

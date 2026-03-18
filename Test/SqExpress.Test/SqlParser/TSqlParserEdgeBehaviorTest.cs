@@ -133,6 +133,46 @@ namespace SqExpress.Test.SqlParser
         }
 
         [Test]
+        public void CustomDefaultSchemaIsUsedForUnqualifiedTables()
+        {
+            var sql = "SELECT U.Id FROM Users U";
+
+            var ok = SqTSqlParser.TryParse(
+                sql,
+                new SqTSqlParserOptions { DefaultSchema = "sales" },
+                out var expr,
+                out var tables,
+                out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(tables, Is.Not.Null);
+            Assert.That(tables!.Count, Is.EqualTo(1));
+            Assert.That(tables[0].FullName.AsExprTableFullName().DbSchema!.Schema.Name, Is.EqualTo("sales"));
+            Assert.That(expr!.ToSql(TSqlExporter.Default), Is.EqualTo("SELECT [U].[Id] FROM [sales].[Users] [U]"));
+        }
+
+        [Test]
+        public void NullDefaultSchemaKeepsUnqualifiedTablesSchemaLess()
+        {
+            var sql = "SELECT U.Id FROM Users U";
+
+            var ok = SqTSqlParser.TryParse(
+                sql,
+                new SqTSqlParserOptions { DefaultSchema = null },
+                out var expr,
+                out var tables,
+                out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(tables, Is.Not.Null);
+            Assert.That(tables!.Count, Is.EqualTo(1));
+            Assert.That(tables[0].FullName.AsExprTableFullName().DbSchema, Is.Null);
+            Assert.That(expr!.ToSql(TSqlExporter.Default), Is.EqualTo("SELECT [U].[Id] FROM [Users] [U]"));
+        }
+
+        [Test]
         public void UpdateJoinOnPredicateIsPreserved()
         {
             var sql = "UPDATE [u] SET [u].[Name]=[o].[Title] FROM [dbo].[Users] [u] JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[UserId] WHERE [o].[Title] LIKE 'A%'";
@@ -200,6 +240,122 @@ namespace SqExpress.Test.SqlParser
                 .Single(i => i.FullName.AsExprTableFullName().TableName.Name == "Users");
             Assert.That(userTable.Alias, Is.Null);
             Assert.That(parsedExpr.ToSql(TSqlExporter.Default), Is.EqualTo("SELECT COUNT(1) [Total] FROM [dbo].[Users]"));
+        }
+
+        [Test]
+        public void OrderByCanUseSelectAliasInMultiTableScope()
+        {
+            var sql = "SELECT [u].[Name] [UserName],[o].[OrderId] FROM [dbo].[Users] [u] INNER JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[UserId] ORDER BY [UserName]";
+
+            var ok = SqTSqlParser.TryParse(sql, out var expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.TypeOf<ExprSelect>());
+
+            var select = (ExprSelect)expr!;
+            Assert.That(select.OrderBy.OrderList.Count, Is.EqualTo(1));
+            var orderBy = select.OrderBy.OrderList[0].Value as ExprColumn;
+            Assert.That(orderBy, Is.Not.Null);
+            Assert.That(orderBy!.Source, Is.Null);
+            Assert.That(orderBy.ColumnName.Name, Is.EqualTo("UserName"));
+        }
+
+        [Test]
+        public void CrossApplyDerivedTableCanReferenceLeftTable()
+        {
+            var sql = "SELECT [u].[UserId],[x].[UserId] FROM [dbo].[Users] [u] CROSS APPLY (SELECT [u].[UserId] [UserId]) [x]";
+
+            var ok = SqTSqlParser.TryParse(sql, out var expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(expr!.ToSql(TSqlExporter.Default), Does.Contain("CROSS APPLY"));
+        }
+
+        [Test]
+        public void AggregateArithmeticInSelectListRoundTrips()
+        {
+            var sql = "SELECT SUM([o].[TotalAmount])+1 [AdjustedRevenue] FROM [dbo].[Orders] [o]";
+
+            var ok = SqTSqlParser.TryParse(sql, out var expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(expr!.ToSql(TSqlExporter.Default), Is.EqualTo("SELECT SUM([o].[TotalAmount])+1 [AdjustedRevenue] FROM [dbo].[Orders] [o]"));
+        }
+
+        [Test]
+        public void WindowAggregateArithmeticInSelectListRoundTrips()
+        {
+            var sql = "SELECT SUM([o].[TotalAmount]) OVER()-[o].[Discount] [RemainingRevenue] FROM [dbo].[Orders] [o]";
+
+            var ok = SqTSqlParser.TryParse(sql, out var expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(expr!.ToSql(TSqlExporter.Default), Is.EqualTo("SELECT SUM([o].[TotalAmount])OVER()-[o].[Discount] [RemainingRevenue] FROM [dbo].[Orders] [o]"));
+        }
+
+        [Test]
+        public void ParameterArithmeticInSelectListParsesWithoutAliasTruncation()
+        {
+            var sql = "SELECT @a+@b FROM [dbo].[Users] [u] WHERE @a>0 AND @b>0";
+
+            var ok = SqTSqlParser.TryParse(sql, out var expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+        }
+
+        [Test]
+        public void DerivedTableGroupByQuery_WithSingleQuotedInnerAlias_Parses()
+        {
+            var sql = """
+                SELECT 
+                	CustomerName.CustomerName,
+                	COUNT(1) As OrdersNum
+                FROM 
+                (
+                	SELECT 
+                		C.CustomerId,
+                		CASE WHEN U.UserId IS NOT NULL
+                			THEN U.FirstName + ' ' + U.LastName
+                			ELSE Co.CompanyName
+                			END
+                			AS 'CustomerName'
+                	FROM Customer C
+                	LEFT JOIN [User] U ON U.UserId = C.UserId
+                	LEFT JOIN [Company] Co ON Co.CompanyId = C.CompanyId
+                ) AS CustomerName
+                INNER JOIN ItOrder Ord ON Ord.CustomerId = CustomerName.CustomerId
+                GROUP BY CustomerName.CustomerName
+                """;
+
+            var ok = SqTSqlParser.TryParse(sql, out var expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+
+            var exportedSql = expr!.ToSql(TSqlExporter.Default);
+            Assert.That(exportedSql, Does.Contain("END [CustomerName]"));
+            Assert.That(exportedSql, Does.Contain("GROUP BY [CustomerName].[CustomerName]"));
+        }
+
+        [Test]
+        public void DeleteWithoutFromClause_Parses()
+        {
+            var sql = """
+                DELETE [User] WHERE UserId = @userId
+                """;
+
+            var ok = SqTSqlParser.TryParse(sql, out var expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.TypeOf<ExprDelete>());
+            var delete = (ExprDelete)expr!;
+            Assert.That(delete.Source, Is.Null);
+            Assert.That(delete.Target.FullName.AsExprTableFullName().TableName.Name, Is.EqualTo("User"));
+            Assert.That(delete.Filter, Is.Not.Null);
         }
     }
 }

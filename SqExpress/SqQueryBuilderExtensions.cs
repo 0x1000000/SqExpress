@@ -25,14 +25,23 @@ namespace SqExpress
         public static ExprDerivedTableQuery As(this IExprSubQueryFinal expressionBuilder, ExprTableAlias tableAlias) 
             => new ExprDerivedTableQuery(expressionBuilder.Done(), tableAlias, null);
 
+        public static ExprDerivedTableQuery As(this IExprSubQueryFinal expressionBuilder, ExprTableAlias tableAlias, params ExprColumnName[] columns)
+            => new ExprDerivedTableQuery(expressionBuilder.Done(), tableAlias, columns);
+
         public static ExprDerivedTableQuery As(this IExprSubQuery expressionBuilder, ExprTableAlias tableAlias) 
             => new ExprDerivedTableQuery(expressionBuilder, tableAlias, null);
+
+        public static ExprDerivedTableQuery As(this IExprSubQuery expressionBuilder, ExprTableAlias tableAlias, params ExprColumnName[] columns)
+            => new ExprDerivedTableQuery(expressionBuilder, tableAlias, columns);
 
         public static ExprAliasedColumn As(this ExprColumn column, ExprColumnAlias alias) =>
             new ExprAliasedColumn(column, alias);
 
         public static ExprAliasedSelecting As(this IExprSelecting value, ExprColumnAlias alias) =>
             new ExprAliasedSelecting(value, alias);
+
+        public static ExprSelectingValue AsValue(this IExprSelecting selecting)
+            => new ExprSelectingValue(selecting);
 
         public static ExprDerivedTableValues As(this ExprTableValueConstructor valueConstructor, Alias alias, params ExprColumnName[] columns)
             => new ExprDerivedTableValues(valueConstructor, new ExprTableAlias(alias.BuildAliasExpression() ?? throw new SqExpressException("Derived Table Values has to have not empty alias")), columns);

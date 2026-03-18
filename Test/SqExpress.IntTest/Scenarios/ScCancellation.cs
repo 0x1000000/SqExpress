@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using SqExpress.IntTest.Context;
@@ -10,7 +10,13 @@ namespace SqExpress.IntTest.Scenarios
     {
         public async Task Exec(IScenarioContext context)
         {
-            if (context.Dialect != SqlDialect.MySql)
+            if (context.Dialect.IsOracleMySql())
+            {
+                context.WriteLine("Skipped: cancellation behavior is provider-specific on Oracle MySQL");
+                return;
+            }
+
+            if (!context.Dialect.IsMariaDb())
             {
                 return;
             }

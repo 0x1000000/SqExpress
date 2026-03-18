@@ -1240,6 +1240,19 @@ namespace SqExpress.Syntax
                 this._nodeHandler?.OnLeaveNode();
             }
         }
+        public object? VisitExprParameter(ExprParameter expr, object? arg)
+        {
+            this._nodeHandler?.OnEnterNode(expr);
+            try
+            {
+                this._visitor.VisitExprParameter(expr);
+                return null;
+            }
+            finally
+            {
+                this._nodeHandler?.OnLeaveNode();
+            }
+        }
         public object? VisitExprPortableScalarFunction(ExprPortableScalarFunction expr, object? arg)
         {
             this._nodeHandler?.OnEnterNode(expr);
@@ -1337,6 +1350,19 @@ namespace SqExpress.Syntax
             try
             {
                 this._visitor.VisitExprSelectOffsetFetch(expr);
+                return null;
+            }
+            finally
+            {
+                this._nodeHandler?.OnLeaveNode();
+            }
+        }
+        public object? VisitExprSelectingValue(ExprSelectingValue expr, object? arg)
+        {
+            this._nodeHandler?.OnEnterNode(expr);
+            try
+            {
+                this._visitor.VisitExprSelectingValue(expr);
                 return null;
             }
             finally

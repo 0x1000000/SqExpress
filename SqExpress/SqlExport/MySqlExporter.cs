@@ -1,4 +1,5 @@
-﻿using SqExpress.SqlExport.Internal;
+using System;
+using SqExpress.SqlExport.Internal;
 using SqExpress.SqlExport.Statement.Internal;
 using SqExpress.StatementSyntax;
 using SqExpress.Syntax;
@@ -8,13 +9,36 @@ namespace SqExpress.SqlExport
 {
     public class MySqlExporter : ISqlExporterInternal
     {
-        public static readonly MySqlExporter Default = new MySqlExporter(SqlBuilderOptions.Default);
+        public static readonly MySqlExporter MariaDbDefault = new MySqlExporter(MySqlExporterOptions.MariaDbDefault);
+
+        public static readonly MySqlExporter OracleDefault = new MySqlExporter(MySqlExporterOptions.OracleDefault);
+
+        [System.Obsolete("Use MySqlExporter.MariaDbDefault or MySqlExporter.OracleDefault explicitly.")]
+        public static readonly MySqlExporter Default = MariaDbDefault;
 
         private readonly SqlBuilderOptions _builderOptions;
 
-        public MySqlExporter(SqlBuilderOptions builderOptions)
+        public MySqlFlavor Flavor { get; }
+
+        public MySqlExporter(MySqlExporterOptions options)
         {
-            this._builderOptions = builderOptions;
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+
+            this._builderOptions = options.BuilderOptions;
+            this.Flavor = options.Flavor;
+        }
+
+        public MySqlExporter(SqlBuilderOptions builderOptions)
+            : this(new MySqlExporterOptions(builderOptions, MySqlFlavor.MariaDb))
+        {
+        }
+
+        public MySqlExporter(SqlBuilderOptions builderOptions, MySqlFlavor flavor)
+            : this(new MySqlExporterOptions(builderOptions, flavor))
+        {
         }
 
         public string ToSql(IExpr expr)
@@ -24,14 +48,14 @@ namespace SqExpress.SqlExport
 
         public string ToSql(IStatement statement)
         {
-            var builder = new MySqlStatementBuilder(this._builderOptions, null);
+            var builder = new MySqlStatementBuilder(this._builderOptions, this.Flavor, null);
             statement.Accept(builder);
             return builder.Build();
         }
 
         string ISqlExporterInternal.ToSql(IExpr expr, out IReadOnlyList<DbParameterValue>? parameters)
         {
-            var sqlExporter = new MySqlBuilder(this._builderOptions);
+            var sqlExporter = new MySqlBuilder(this._builderOptions, this.Flavor);
             if (expr.Accept(sqlExporter, null))
             {
                 var sql = sqlExporter.ToString();

@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace SqExpress.SqlTranspiler
 {
     public sealed class SqExpressSqlTranspilerOptions
@@ -16,9 +18,11 @@ namespace SqExpress.SqlTranspiler
 
         public string TableDescriptorClassSuffix { get; set; } = string.Empty;
 
-        public string DefaultSchemaName { get; set; } = "dbo";
+        public string? DefaultSchemaName { get; set; } = "dbo";
 
         public bool UseStaticSqQueryBuilderUsing { get; set; } = true;
+
+        public IReadOnlyCollection<string> ReservedNestedTypeNames { get; set; } = System.Array.Empty<string>();
 
         internal string EffectiveDeclarationsNamespaceName =>
             string.IsNullOrWhiteSpace(this.DeclarationsNamespaceName)
