@@ -32,6 +32,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqExpress.Analyzers", "SqEx
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqExpress.Analyzers.Test", "Test\SqExpress.Analyzers.Test\SqExpress.Analyzers.Test.csproj", "{BF4BECD8-B626-4B7D-A898-1CE74D1E9D4A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqExpress.CodeGen.Shared", "SqExpress.CodeGen.Shared\SqExpress.CodeGen.Shared.csproj", "{4345DFF1-6CA9-41EA-84E1-B221F7E0FB1D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -162,6 +164,18 @@ Global
 		{BF4BECD8-B626-4B7D-A898-1CE74D1E9D4A}.Release|x64.Build.0 = Release|Any CPU
 		{BF4BECD8-B626-4B7D-A898-1CE74D1E9D4A}.Release|x86.ActiveCfg = Release|Any CPU
 		{BF4BECD8-B626-4B7D-A898-1CE74D1E9D4A}.Release|x86.Build.0 = Release|Any CPU
+		{4345DFF1-6CA9-41EA-84E1-B221F7E0FB1D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4345DFF1-6CA9-41EA-84E1-B221F7E0FB1D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4345DFF1-6CA9-41EA-84E1-B221F7E0FB1D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{4345DFF1-6CA9-41EA-84E1-B221F7E0FB1D}.Debug|x64.Build.0 = Debug|Any CPU
+		{4345DFF1-6CA9-41EA-84E1-B221F7E0FB1D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{4345DFF1-6CA9-41EA-84E1-B221F7E0FB1D}.Debug|x86.Build.0 = Debug|Any CPU
+		{4345DFF1-6CA9-41EA-84E1-B221F7E0FB1D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4345DFF1-6CA9-41EA-84E1-B221F7E0FB1D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4345DFF1-6CA9-41EA-84E1-B221F7E0FB1D}.Release|x64.ActiveCfg = Release|Any CPU
+		{4345DFF1-6CA9-41EA-84E1-B221F7E0FB1D}.Release|x64.Build.0 = Release|Any CPU
+		{4345DFF1-6CA9-41EA-84E1-B221F7E0FB1D}.Release|x86.ActiveCfg = Release|Any CPU
+		{4345DFF1-6CA9-41EA-84E1-B221F7E0FB1D}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

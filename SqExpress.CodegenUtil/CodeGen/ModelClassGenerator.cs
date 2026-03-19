@@ -92,7 +92,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
 
                 foreach (var usingDirectiveSyntax in result.Usings)
                 {
-                    var existingUsing = usingDirectiveSyntax.Name.ToFullString();
+                    var existingUsing = usingDirectiveSyntax.Name?.ToFullString() ?? string.Empty;
                     var index = namespaces.IndexOf(existingUsing);
                     if (index >= 0)
                     {

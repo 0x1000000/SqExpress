@@ -20,7 +20,7 @@ namespace SqExpress.Analyzers.Test
                 using SqExpress;
 
                 [TableDescriptor("dbo", "User")]
-                [Int32Column("UserId", Pk = true, Identity = true)]
+                [Int32Column("UserId", Pk = true, Identity = true, DefaultValue = "1")]
                 [StringColumn("Name", Unicode = true, MaxLength = 255)]
                 [NullableStringColumn("Display Name", PropertyName = "DisplayName", Unicode = true, MaxLength = 255)]
                 [Index("Name")]
@@ -33,10 +33,12 @@ namespace SqExpress.Analyzers.Test
             var generated = GetGeneratedSource(result, "User");
 
             Assert.That(result.Diagnostics, Is.Empty, FormatDiagnostics(result.Diagnostics));
-            Assert.That(generated, Does.Contain("partial class User : global::SqExpress.TableBase"));
-            Assert.That(generated, Does.Contain("public User() : this(alias: global::SqExpress.Alias.Auto)"));
-            Assert.That(generated, Does.Contain("public User(global::SqExpress.Alias alias) : base(\"dbo\", \"User\", alias)"));
-            Assert.That(generated, Does.Contain("this.UserId = this.CreateInt32Column(\"UserId\", global::SqExpress.ColumnMeta.PrimaryKey().Identity());"));
+            Assert.That(generated, Does.Contain("using SqExpress;"));
+            Assert.That(generated, Does.Contain("using SqExpress.Syntax.Type;"));
+            Assert.That(generated, Does.Contain("partial class User : TableBase"));
+            Assert.That(generated, Does.Contain("public User() : this(alias: SqExpress.Alias.Auto)"));
+            Assert.That(generated, Does.Contain("public User(Alias alias) : base(\"dbo\", \"User\", alias)"));
+            Assert.That(generated, Does.Contain("this.UserId = this.CreateInt32Column(\"UserId\", ColumnMeta.PrimaryKey().Identity().DefaultValue(1));"));
             Assert.That(generated, Does.Contain("this.Name = this.CreateStringColumn(name: \"Name\", size: 255, isUnicode: true, isText: false, columnMeta: null);"));
             Assert.That(generated, Does.Contain("this.DisplayName = this.CreateNullableStringColumn(name: \"Display Name\", size: 255, isUnicode: true, isText: false, columnMeta: null);"));
             Assert.That(generated, Does.Contain("this.AddIndex(this.Name);"));
@@ -72,6 +74,7 @@ namespace SqExpress.Analyzers.Test
                 [GuidColumn("GuidValue")]
                 [NullableGuidColumn("NullableGuidValue")]
                 [StringColumn("Title", MaxLength = 128, Unicode = true)]
+                [StringColumn("Code", MaxLength = 16, Unicode = false, FixedLength = true)]
                 [NullableStringColumn("Body", Text = true)]
                 [XmlColumn("Payload")]
                 [NullableXmlColumn("NullablePayload")]
@@ -81,9 +84,14 @@ namespace SqExpress.Analyzers.Test
                 """;
 
             var result = RunGenerator(source);
+            var generated = GetGeneratedSource(result, "EveryType");
 
             Assert.That(result.Diagnostics, Is.Empty, FormatDiagnostics(result.Diagnostics));
             Assert.That(result.OutputCompilation.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error), Is.Empty, FormatDiagnostics(result.OutputCompilation.GetDiagnostics()));
+            Assert.That(generated, Does.Contain("this.Title = this.CreateStringColumn(name: \"Title\", size: 128, isUnicode: true, isText: false, columnMeta: null);"));
+            Assert.That(generated, Does.Contain("this.Code = this.CreateFixedSizeStringColumn(name: \"Code\", size: 16, isUnicode: false, columnMeta: null);"));
+            Assert.That(generated, Does.Not.Contain("this.Code = this.CreateFixedSizeStringColumn(name: \"Code\", size: 16, isUnicode: false, isText: false, columnMeta: null);"));
+            Assert.That(generated, Does.Contain("this.NullableBlob = this.CreateNullableFixedSizeByteArrayColumn(\"NullableBlob\", 64, null);"));
         }
 
         [Test]
@@ -110,8 +118,52 @@ namespace SqExpress.Analyzers.Test
             var generated = GetGeneratedSource(result, "User");
 
             Assert.That(result.Diagnostics, Is.Empty, FormatDiagnostics(result.Diagnostics));
-            Assert.That(generated, Does.Not.Contain("ColumnMeta.ForeignKey<global::User>(t => t.CompanyId)"));
-            Assert.That(generated, Does.Contain("ColumnMeta.ForeignKey<global::Company>(t => t.CompanyId)"));
+            Assert.That(generated, Does.Not.Contain("ColumnMeta.ForeignKey<User>(t => t.CompanyId)"));
+            Assert.That(generated, Does.Contain("ColumnMeta.ForeignKey<Company>(t => t.CompanyId)"));
+        }
+
+        [Test]
+        public void Generate_WhenPredefinedDefaultsAreUsed_UsesExpectedExpressions()
+        {
+            var source = """
+                using SqExpress;
+
+                [TableDescriptor("dbo", "Audit")]
+                [NullableDateTimeColumn("CreatedUtc", DefaultValue = "$utcNow")]
+                [NullableDateTimeColumn("CreatedLocal", DefaultValue = "$now")]
+                [NullableStringColumn("DeletedBy", DefaultValue = "$null")]
+                public partial class Audit
+                {
+                }
+                """;
+
+            var result = RunGenerator(source);
+            var generated = GetGeneratedSource(result, "Audit");
+
+            Assert.That(result.Diagnostics, Is.Empty, FormatDiagnostics(result.Diagnostics));
+            Assert.That(generated, Does.Contain("this.CreatedUtc = this.CreateNullableDateTimeColumn(\"CreatedUtc\", false, ColumnMeta.DefaultValue(SqQueryBuilder.GetUtcDate()));"));
+            Assert.That(generated, Does.Contain("this.CreatedLocal = this.CreateNullableDateTimeColumn(\"CreatedLocal\", false, ColumnMeta.DefaultValue(SqQueryBuilder.GetDate()));"));
+            Assert.That(generated, Does.Contain("this.DeletedBy = this.CreateNullableStringColumn(name: \"DeletedBy\", size: null, isUnicode: false, isText: false, columnMeta: ColumnMeta.DefaultValue(SqQueryBuilder.Null));"));
+        }
+
+        [Test]
+        public void Generate_WhenDefaultValueCannotBeParsed_ReportsDiagnostic()
+        {
+            var source = """
+                using SqExpress;
+
+                [TableDescriptor("dbo", "User")]
+                [Int32Column("UserId", DefaultValue = "abc")]
+                public partial class User
+                {
+                }
+                """;
+
+            var result = RunGenerator(source);
+
+            Assert.That(result.Diagnostics.Select(static d => d.Id), Contains.Item("SQEX114"));
+            Assert.That(FormatDiagnostics(result.Diagnostics), Does.Contain("invalid for Int32Column"));
+            Assert.That(FormatDiagnostics(result.Diagnostics), Does.Contain("Supported predefined values for this column: $null"));
         }
 
         [Test]

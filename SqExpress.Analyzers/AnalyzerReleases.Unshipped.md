@@ -22,3 +22,4 @@ SQEX110 | SourceGeneration | Error | An index references an unknown SQL column.
 SQEX111 | SourceGeneration | Error | A descending index column is not part of the index definition.
 SQEX112 | SourceGeneration | Error | Foreign key target table could not be resolved.
 SQEX113 | SourceGeneration | Error | Foreign key target column could not be resolved.
+SQEX114 | SourceGeneration | Error | A table descriptor default value cannot be parsed for the declared column type.

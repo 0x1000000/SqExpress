@@ -9,6 +9,7 @@ using CommandLine;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MySqlConnector;
 using Npgsql;
+using SqExpress.CodeGen.Shared;
 using SqExpress.CodeGenUtil.CodeGen;
 using SqExpress.CodeGenUtil.Logger;
 using SqExpress.DbMetadata.Internal.DbManagers;
@@ -127,15 +128,13 @@ namespace SqExpress.CodeGenUtil
             logger.LogNormal("Code generation...");
             IReadOnlyDictionary<TableRef, TableModel> tableMap = tables.ToDictionary(t => t.DbName);
 
-            var tableClassGenerator = new TableClassGenerator(tableMap, options.Namespace, existingCode);
-
             foreach (var table in tables)
             {
                 string filePath = Path.Combine(directory, $"{table.Name}.cs");
 
                 if(logger.IsDetailed) logger.LogDetailed($"{table.DbName} to \"{filePath}\".");
 
-                var text = tableClassGenerator.Generate(table, out var existing).ToFullString();
+                var text = CodeGenTableDescriptorSupport.GenerateTableDescriptor(table, tableMap, options.Namespace, existingCode, out var existing).ToFullString();
                 await File.WriteAllTextAsync(filePath, text);
 
                 if (logger.IsDetailed) logger.LogDetailed(existing ? "Existing file updated." : "New file created.");

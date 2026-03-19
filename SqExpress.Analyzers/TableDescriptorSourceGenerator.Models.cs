@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Globalization;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using SqExpress;
 using SqExpress.Analyzers.Diagnostics;
+using SqExpress.CodeGen.Shared;
 
 namespace SqExpress.Analyzers
 {
@@ -25,8 +25,8 @@ namespace SqExpress.Analyzers
                 return null;
             }
 
-            var columns = ImmutableArray.CreateBuilder<ColumnDescriptor>();
-            var indexes = ImmutableArray.CreateBuilder<IndexDescriptor>();
+            var columns = ImmutableArray.CreateBuilder<CodeGenColumnModel>();
+            var indexes = ImmutableArray.CreateBuilder<CodeGenIndexModel>();
             var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
 
             if (classSymbol.TypeKind != TypeKind.Class)
@@ -77,9 +77,13 @@ namespace SqExpress.Analyzers
 
                 if (InheritsFrom(attributeClass, ColumnAttributeBaseName))
                 {
-                    if (TryReadColumnDescriptor(attribute, out var columnDescriptor))
+                    if (TryReadColumnDescriptor(attribute, classSymbol, out var columnDescriptor, out var defaultValueDiagnostic))
                     {
                         columns.Add(columnDescriptor);
+                    }
+                    else if (defaultValueDiagnostic != null)
+                    {
+                        diagnostics.Add(defaultValueDiagnostic);
                     }
 
                     continue;
@@ -91,88 +95,17 @@ namespace SqExpress.Analyzers
                 }
             }
 
-            return new TableDescriptorCandidate(
-                classSymbol,
+            var model = new CodeGenTableModel(
                 databaseName,
                 schemaName,
                 tableName,
+                classSymbol.Name,
+                classSymbol.ContainingNamespace.IsGlobalNamespace ? null : classSymbol.ContainingNamespace.ToDisplayString(),
+                classSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
                 columns.ToImmutable(),
-                indexes.ToImmutable(),
-                diagnostics.ToImmutable());
-        }
+                indexes.ToImmutable());
 
-        private static ValidationResult ValidateCandidate(
-            TableDescriptorCandidate candidate,
-            IReadOnlyDictionary<string, TableDescriptorCandidate> allTables)
-        {
-            var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
-            var propertyNamesBySqlName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            var propertyNames = new HashSet<string>(StringComparer.Ordinal);
-            var sqlNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var column in candidate.Columns)
-            {
-                if (!sqlNames.Add(column.SqlName))
-                {
-                    diagnostics.Add(CreateDiagnostic(DiagnosticDescriptors.TableDescriptorDuplicateColumn, candidate.Symbol, column.SqlName, candidate.TableDisplayName));
-                    continue;
-                }
-
-                var propertyName = string.IsNullOrWhiteSpace(column.PropertyName) ? ToIdentifier(column.SqlName) : column.PropertyName!;
-                if (!SyntaxFacts.IsValidIdentifier(propertyName))
-                {
-                    diagnostics.Add(CreateDiagnostic(DiagnosticDescriptors.TableDescriptorHasInvalidPropertyName, candidate.Symbol, propertyName, column.SqlName, candidate.Symbol.Name));
-                    continue;
-                }
-
-                if (!propertyNames.Add(propertyName))
-                {
-                    diagnostics.Add(CreateDiagnostic(DiagnosticDescriptors.TableDescriptorDuplicatePropertyName, candidate.Symbol, propertyName, candidate.Symbol.Name));
-                    continue;
-                }
-
-                propertyNamesBySqlName[column.SqlName] = propertyName;
-            }
-
-            foreach (var index in candidate.Indexes)
-            {
-                foreach (var columnName in index.Columns)
-                {
-                    if (!propertyNamesBySqlName.ContainsKey(columnName))
-                    {
-                        diagnostics.Add(CreateDiagnostic(DiagnosticDescriptors.TableDescriptorUnknownIndexColumn, candidate.Symbol, columnName, candidate.TableDisplayName));
-                    }
-                }
-
-                foreach (var columnName in index.DescendingColumns)
-                {
-                    if (!propertyNamesBySqlName.ContainsKey(columnName))
-                    {
-                        diagnostics.Add(CreateDiagnostic(DiagnosticDescriptors.TableDescriptorUnknownIndexColumn, candidate.Symbol, columnName, candidate.TableDisplayName));
-                    }
-                    else if (!index.Columns.Contains(columnName, StringComparer.OrdinalIgnoreCase))
-                    {
-                        diagnostics.Add(CreateDiagnostic(DiagnosticDescriptors.TableDescriptorDescendingColumnMustBeIndexed, candidate.Symbol, columnName, candidate.TableDisplayName));
-                    }
-                }
-            }
-
-            foreach (var column in candidate.Columns.Where(static c => !string.IsNullOrWhiteSpace(c.ForeignKeyTable) && !string.IsNullOrWhiteSpace(c.ForeignKeyColumn)))
-            {
-                var targetKey = BuildTableKey(column.ForeignKeyDatabase, column.ForeignKeySchema ?? candidate.SchemaName, column.ForeignKeyTable!);
-                if (!allTables.TryGetValue(targetKey, out var targetTable))
-                {
-                    diagnostics.Add(CreateDiagnostic(DiagnosticDescriptors.TableDescriptorForeignKeyTableNotFound, candidate.Symbol, column.ForeignKeyTable!, candidate.TableDisplayName, column.SqlName));
-                    continue;
-                }
-
-                if (!targetTable.Columns.Any(c => string.Equals(c.SqlName, column.ForeignKeyColumn, StringComparison.OrdinalIgnoreCase)))
-                {
-                    diagnostics.Add(CreateDiagnostic(DiagnosticDescriptors.TableDescriptorForeignKeyColumnNotFound, candidate.Symbol, column.ForeignKeyColumn!, targetTable.TableDisplayName, column.SqlName));
-                }
-            }
-
-            return new ValidationResult(propertyNamesBySqlName.ToImmutableDictionary(StringComparer.OrdinalIgnoreCase), diagnostics.ToImmutable());
+            return new TableDescriptorCandidate(classSymbol, model, diagnostics.ToImmutable());
         }
 
         private static bool TryReadTableIdentity(AttributeData attribute, out string? databaseName, out string? schemaName, out string tableName)
@@ -200,9 +133,10 @@ namespace SqExpress.Analyzers
             }
         }
 
-        private static bool TryReadColumnDescriptor(AttributeData attribute, out ColumnDescriptor columnDescriptor)
+        private static bool TryReadColumnDescriptor(AttributeData attribute, INamedTypeSymbol classSymbol, out CodeGenColumnModel columnDescriptor, out Diagnostic? diagnostic)
         {
-            columnDescriptor = default;
+            columnDescriptor = null!;
+            diagnostic = null;
             var sqlName = attribute.ConstructorArguments.FirstOrDefault().Value as string;
             if (string.IsNullOrWhiteSpace(sqlName))
             {
@@ -215,7 +149,21 @@ namespace SqExpress.Analyzers
                 return false;
             }
 
-            columnDescriptor = new ColumnDescriptor(
+            var defaultValue = GetNamedString(attribute, "DefaultValue");
+            if (!TryInferDefaultValue(kind.Value, defaultValue, out var defaultValueKind, out var normalizedDefaultValue))
+            {
+                diagnostic = CreateDiagnostic(
+                    DiagnosticDescriptors.TableDescriptorInvalidDefaultValue,
+                    classSymbol,
+                    defaultValue ?? string.Empty,
+                    sqlName!,
+                    classSymbol.Name,
+                    GetColumnKindDisplayName(kind.Value),
+                    GetSupportedPredefinedValuesText(kind.Value));
+                return false;
+            }
+
+            columnDescriptor = new CodeGenColumnModel(
                 kind.Value,
                 sqlName!,
                 GetNamedString(attribute, "PropertyName"),
@@ -225,8 +173,8 @@ namespace SqExpress.Analyzers
                 GetNamedString(attribute, "FkSchema"),
                 GetNamedString(attribute, "FkTable"),
                 GetNamedString(attribute, "FkColumn"),
-                GetNamedEnumValue<TableColumnDefaultValueKind>(attribute, "DefaultValueKind"),
-                GetNamedString(attribute, "DefaultValue"),
+                defaultValueKind,
+                normalizedDefaultValue,
                 GetNamedBool(attribute, "Unicode"),
                 GetNamedNullableInt(attribute, "MaxLength"),
                 GetNamedBool(attribute, "FixedLength"),
@@ -237,9 +185,9 @@ namespace SqExpress.Analyzers
             return true;
         }
 
-        private static bool TryReadIndexDescriptor(AttributeData attribute, out IndexDescriptor descriptor)
+        private static bool TryReadIndexDescriptor(AttributeData attribute, out CodeGenIndexModel descriptor)
         {
-            descriptor = default;
+            descriptor = null!;
             if (attribute.ConstructorArguments.Length == 0)
             {
                 return false;
@@ -263,7 +211,7 @@ namespace SqExpress.Analyzers
                 return false;
             }
 
-            descriptor = new IndexDescriptor(
+            descriptor = new CodeGenIndexModel(
                 columns.ToImmutableArray(),
                 GetNamedArray(attribute, "DescendingColumns"),
                 GetNamedString(attribute, "Name"),
@@ -272,36 +220,36 @@ namespace SqExpress.Analyzers
             return true;
         }
 
-        private static ColumnKind? TryMapColumnKind(string? attributeName)
+        private static CodeGenColumnKind? TryMapColumnKind(string? attributeName)
         {
             return attributeName switch
             {
-                "BooleanColumnAttribute" => ColumnKind.Boolean,
-                "NullableBooleanColumnAttribute" => ColumnKind.NullableBoolean,
-                "ByteColumnAttribute" => ColumnKind.Byte,
-                "NullableByteColumnAttribute" => ColumnKind.NullableByte,
-                "ByteArrayColumnAttribute" => ColumnKind.ByteArray,
-                "NullableByteArrayColumnAttribute" => ColumnKind.NullableByteArray,
-                "Int16ColumnAttribute" => ColumnKind.Int16,
-                "NullableInt16ColumnAttribute" => ColumnKind.NullableInt16,
-                "Int32ColumnAttribute" => ColumnKind.Int32,
-                "NullableInt32ColumnAttribute" => ColumnKind.NullableInt32,
-                "Int64ColumnAttribute" => ColumnKind.Int64,
-                "NullableInt64ColumnAttribute" => ColumnKind.NullableInt64,
-                "DoubleColumnAttribute" => ColumnKind.Double,
-                "NullableDoubleColumnAttribute" => ColumnKind.NullableDouble,
-                "DecimalColumnAttribute" => ColumnKind.Decimal,
-                "NullableDecimalColumnAttribute" => ColumnKind.NullableDecimal,
-                "DateTimeColumnAttribute" => ColumnKind.DateTime,
-                "NullableDateTimeColumnAttribute" => ColumnKind.NullableDateTime,
-                "DateTimeOffsetColumnAttribute" => ColumnKind.DateTimeOffset,
-                "NullableDateTimeOffsetColumnAttribute" => ColumnKind.NullableDateTimeOffset,
-                "GuidColumnAttribute" => ColumnKind.Guid,
-                "NullableGuidColumnAttribute" => ColumnKind.NullableGuid,
-                "StringColumnAttribute" => ColumnKind.String,
-                "NullableStringColumnAttribute" => ColumnKind.NullableString,
-                "XmlColumnAttribute" => ColumnKind.Xml,
-                "NullableXmlColumnAttribute" => ColumnKind.NullableXml,
+                "BooleanColumnAttribute" => CodeGenColumnKind.Boolean,
+                "NullableBooleanColumnAttribute" => CodeGenColumnKind.NullableBoolean,
+                "ByteColumnAttribute" => CodeGenColumnKind.Byte,
+                "NullableByteColumnAttribute" => CodeGenColumnKind.NullableByte,
+                "ByteArrayColumnAttribute" => CodeGenColumnKind.ByteArray,
+                "NullableByteArrayColumnAttribute" => CodeGenColumnKind.NullableByteArray,
+                "Int16ColumnAttribute" => CodeGenColumnKind.Int16,
+                "NullableInt16ColumnAttribute" => CodeGenColumnKind.NullableInt16,
+                "Int32ColumnAttribute" => CodeGenColumnKind.Int32,
+                "NullableInt32ColumnAttribute" => CodeGenColumnKind.NullableInt32,
+                "Int64ColumnAttribute" => CodeGenColumnKind.Int64,
+                "NullableInt64ColumnAttribute" => CodeGenColumnKind.NullableInt64,
+                "DoubleColumnAttribute" => CodeGenColumnKind.Double,
+                "NullableDoubleColumnAttribute" => CodeGenColumnKind.NullableDouble,
+                "DecimalColumnAttribute" => CodeGenColumnKind.Decimal,
+                "NullableDecimalColumnAttribute" => CodeGenColumnKind.NullableDecimal,
+                "DateTimeColumnAttribute" => CodeGenColumnKind.DateTime,
+                "NullableDateTimeColumnAttribute" => CodeGenColumnKind.NullableDateTime,
+                "DateTimeOffsetColumnAttribute" => CodeGenColumnKind.DateTimeOffset,
+                "NullableDateTimeOffsetColumnAttribute" => CodeGenColumnKind.NullableDateTimeOffset,
+                "GuidColumnAttribute" => CodeGenColumnKind.Guid,
+                "NullableGuidColumnAttribute" => CodeGenColumnKind.NullableGuid,
+                "StringColumnAttribute" => CodeGenColumnKind.String,
+                "NullableStringColumnAttribute" => CodeGenColumnKind.NullableString,
+                "XmlColumnAttribute" => CodeGenColumnKind.Xml,
+                "NullableXmlColumnAttribute" => CodeGenColumnKind.NullableXml,
                 _ => null
             };
         }
@@ -330,6 +278,200 @@ namespace SqExpress.Analyzers
         private static int GetNamedInt(AttributeData attribute, string name)
             => attribute.NamedArguments.FirstOrDefault(i => i.Key == name).Value.Value as int? ?? 0;
 
+        private static bool TryInferDefaultValue(CodeGenColumnKind columnKind, string? value, out int defaultValueKind, out string? normalizedValue)
+        {
+            defaultValueKind = 0;
+            normalizedValue = value;
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return true;
+            }
+
+            if (string.Equals(value, "$null", StringComparison.OrdinalIgnoreCase))
+            {
+                defaultValueKind = 2;
+                normalizedValue = null;
+                return true;
+            }
+
+            if (string.Equals(value, "$utcNow", StringComparison.OrdinalIgnoreCase))
+            {
+                defaultValueKind = 6;
+                normalizedValue = null;
+                return columnKind is CodeGenColumnKind.DateTime or CodeGenColumnKind.NullableDateTime or CodeGenColumnKind.DateTimeOffset or CodeGenColumnKind.NullableDateTimeOffset;
+            }
+
+            if (string.Equals(value, "$now", StringComparison.OrdinalIgnoreCase))
+            {
+                defaultValueKind = 7;
+                normalizedValue = null;
+                return columnKind is CodeGenColumnKind.DateTime or CodeGenColumnKind.NullableDateTime or CodeGenColumnKind.DateTimeOffset or CodeGenColumnKind.NullableDateTimeOffset;
+            }
+
+            switch (columnKind)
+            {
+                case CodeGenColumnKind.Boolean:
+                case CodeGenColumnKind.NullableBoolean:
+                    if (bool.TryParse(value, out var boolValue))
+                    {
+                        defaultValueKind = 4;
+                        normalizedValue = boolValue ? "true" : "false";
+                        return true;
+                    }
+
+                    if (value == "0" || value == "1")
+                    {
+                        defaultValueKind = 4;
+                        normalizedValue = value;
+                        return true;
+                    }
+
+                    return false;
+                case CodeGenColumnKind.Byte:
+                case CodeGenColumnKind.NullableByte:
+                    if (byte.TryParse(value, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var byteValue))
+                    {
+                        defaultValueKind = 8;
+                        normalizedValue = byteValue.ToString();
+                        return true;
+                    }
+
+                    return false;
+                case CodeGenColumnKind.Int16:
+                case CodeGenColumnKind.NullableInt16:
+                    if (short.TryParse(value, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var shortValue))
+                    {
+                        defaultValueKind = 9;
+                        normalizedValue = shortValue.ToString();
+                        return true;
+                    }
+
+                    return false;
+                case CodeGenColumnKind.Int32:
+                case CodeGenColumnKind.NullableInt32:
+                    if (int.TryParse(value, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var intValue))
+                    {
+                        defaultValueKind = 3;
+                        normalizedValue = intValue.ToString();
+                        return true;
+                    }
+
+                    return false;
+                case CodeGenColumnKind.Int64:
+                case CodeGenColumnKind.NullableInt64:
+                    if (long.TryParse(value, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var longValue))
+                    {
+                        defaultValueKind = 10;
+                        normalizedValue = longValue.ToString();
+                        return true;
+                    }
+
+                    return false;
+                case CodeGenColumnKind.Decimal:
+                case CodeGenColumnKind.NullableDecimal:
+                    if (decimal.TryParse(value, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var decimalValue))
+                    {
+                        defaultValueKind = 11;
+                        normalizedValue = decimalValue.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                        return true;
+                    }
+
+                    return false;
+                case CodeGenColumnKind.Double:
+                case CodeGenColumnKind.NullableDouble:
+                    if (double.TryParse(value, System.Globalization.NumberStyles.Float | System.Globalization.NumberStyles.AllowThousands, System.Globalization.CultureInfo.InvariantCulture, out var doubleValue))
+                    {
+                        defaultValueKind = 12;
+                        normalizedValue = doubleValue.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+                        return true;
+                    }
+
+                    return false;
+                case CodeGenColumnKind.Guid:
+                case CodeGenColumnKind.NullableGuid:
+                    if (Guid.TryParse(value, out var guidValue))
+                    {
+                        defaultValueKind = 13;
+                        normalizedValue = guidValue.ToString("D");
+                        return true;
+                    }
+
+                    return false;
+                case CodeGenColumnKind.DateTime:
+                case CodeGenColumnKind.NullableDateTime:
+                    if (DateTime.TryParse(value, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind, out var dateTimeValue))
+                    {
+                        defaultValueKind = 14;
+                        normalizedValue = dateTimeValue.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+                        return true;
+                    }
+
+                    return false;
+                case CodeGenColumnKind.DateTimeOffset:
+                case CodeGenColumnKind.NullableDateTimeOffset:
+                    if (DateTimeOffset.TryParse(value, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind, out var dateTimeOffsetValue))
+                    {
+                        defaultValueKind = 15;
+                        normalizedValue = dateTimeOffsetValue.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+                        return true;
+                    }
+
+                    return false;
+                case CodeGenColumnKind.String:
+                case CodeGenColumnKind.NullableString:
+                case CodeGenColumnKind.Xml:
+                case CodeGenColumnKind.NullableXml:
+                    defaultValueKind = 5;
+                    normalizedValue = value;
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static string GetColumnKindDisplayName(CodeGenColumnKind columnKind)
+            => columnKind switch
+            {
+                CodeGenColumnKind.Boolean => "BooleanColumn",
+                CodeGenColumnKind.NullableBoolean => "NullableBooleanColumn",
+                CodeGenColumnKind.Byte => "ByteColumn",
+                CodeGenColumnKind.NullableByte => "NullableByteColumn",
+                CodeGenColumnKind.ByteArray => "ByteArrayColumn",
+                CodeGenColumnKind.NullableByteArray => "NullableByteArrayColumn",
+                CodeGenColumnKind.Int16 => "Int16Column",
+                CodeGenColumnKind.NullableInt16 => "NullableInt16Column",
+                CodeGenColumnKind.Int32 => "Int32Column",
+                CodeGenColumnKind.NullableInt32 => "NullableInt32Column",
+                CodeGenColumnKind.Int64 => "Int64Column",
+                CodeGenColumnKind.NullableInt64 => "NullableInt64Column",
+                CodeGenColumnKind.Double => "DoubleColumn",
+                CodeGenColumnKind.NullableDouble => "NullableDoubleColumn",
+                CodeGenColumnKind.Decimal => "DecimalColumn",
+                CodeGenColumnKind.NullableDecimal => "NullableDecimalColumn",
+                CodeGenColumnKind.DateTime => "DateTimeColumn",
+                CodeGenColumnKind.NullableDateTime => "NullableDateTimeColumn",
+                CodeGenColumnKind.DateTimeOffset => "DateTimeOffsetColumn",
+                CodeGenColumnKind.NullableDateTimeOffset => "NullableDateTimeOffsetColumn",
+                CodeGenColumnKind.Guid => "GuidColumn",
+                CodeGenColumnKind.NullableGuid => "NullableGuidColumn",
+                CodeGenColumnKind.String => "StringColumn",
+                CodeGenColumnKind.NullableString => "NullableStringColumn",
+                CodeGenColumnKind.Xml => "XmlColumn",
+                CodeGenColumnKind.NullableXml => "NullableXmlColumn",
+                _ => columnKind.ToString()
+            };
+
+        private static string GetSupportedPredefinedValuesText(CodeGenColumnKind columnKind)
+        {
+            if (columnKind is CodeGenColumnKind.DateTime or CodeGenColumnKind.NullableDateTime or CodeGenColumnKind.DateTimeOffset or CodeGenColumnKind.NullableDateTimeOffset)
+            {
+                return "$null, $utcNow, $now";
+            }
+
+            return "$null";
+        }
+
         private static int? GetNamedNullableInt(AttributeData attribute, string name)
         {
             var value = attribute.NamedArguments.FirstOrDefault(i => i.Key == name).Value.Value as int?;
@@ -347,245 +489,49 @@ namespace SqExpress.Analyzers
             return argument.Values.Select(static i => i.Value as string).Where(static i => !string.IsNullOrWhiteSpace(i)).Cast<string>().ToImmutableArray();
         }
 
-        private static TEnum GetNamedEnumValue<TEnum>(AttributeData attribute, string name) where TEnum : struct, Enum
-        {
-            var value = attribute.NamedArguments.FirstOrDefault(i => i.Key == name).Value.Value;
-            return value is int intValue ? (TEnum)Enum.ToObject(typeof(TEnum), intValue) : default;
-        }
-
-        private static string ToIdentifier(string value)
-        {
-            var parts = value
-                .Split(new[] { ' ', '-', '.', '/', '\\', ':', ';', ',', '(', ')', '[', ']', '{', '}', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(ToPascalCasePart)
-                .Where(static i => i.Length > 0)
-                .ToArray();
-
-            var result = string.Concat(parts);
-            if (string.IsNullOrEmpty(result))
-            {
-                result = "Column";
-            }
-
-            if (char.IsDigit(result[0]))
-            {
-                result = "_" + result;
-            }
-
-            return result;
-        }
-
-        private static string ToPascalCasePart(string value)
-        {
-            var chars = value.Where(char.IsLetterOrDigit).ToArray();
-            if (chars.Length == 0)
-            {
-                return string.Empty;
-            }
-
-            var text = new string(chars);
-            return text.Length == 1 ? char.ToUpperInvariant(text[0]).ToString() : char.ToUpperInvariant(text[0]) + text.Substring(1);
-        }
-
-        private static string BuildTableKey(string? databaseName, string? schemaName, string tableName)
-            => string.IsNullOrEmpty(databaseName) ? $"[{schemaName ?? string.Empty}].[{tableName}]" : $"[{databaseName}].[{schemaName ?? string.Empty}].[{tableName}]";
-
-        private static string Literal(string? value)
-            => SymbolDisplay.FormatLiteral(value ?? string.Empty, quote: true);
-
-        private static string RenderBool(bool value)
-            => value ? "true" : "false";
-
-        private static string RenderNullableInt(int? value)
-            => value?.ToString(CultureInfo.InvariantCulture) ?? "null";
-
         private static Diagnostic CreateDiagnostic(DiagnosticDescriptor descriptor, ISymbol symbol, params object[] args)
         {
             var location = symbol.Locations.FirstOrDefault(static l => l.IsInSource) ?? Location.None;
             return Diagnostic.Create(descriptor, location, args);
         }
 
-        private readonly struct ValidationResult
+        private static Diagnostic CreateValidationDiagnostic(CodeGenValidationIssue issue, ISymbol symbol)
         {
-            public ValidationResult(ImmutableDictionary<string, string> propertyNamesBySqlName, ImmutableArray<Diagnostic> diagnostics)
+            switch (issue.Kind)
             {
-                this.PropertyNamesBySqlName = propertyNamesBySqlName;
-                this.Diagnostics = diagnostics;
+                case CodeGenValidationIssueKind.DuplicateColumn:
+                    return CreateDiagnostic(DiagnosticDescriptors.TableDescriptorDuplicateColumn, symbol, issue.Subject, issue.TableDisplayName);
+                case CodeGenValidationIssueKind.InvalidPropertyName:
+                    return CreateDiagnostic(DiagnosticDescriptors.TableDescriptorHasInvalidPropertyName, symbol, issue.Subject, issue.RelatedValue ?? string.Empty, symbol.Name);
+                case CodeGenValidationIssueKind.DuplicatePropertyName:
+                    return CreateDiagnostic(DiagnosticDescriptors.TableDescriptorDuplicatePropertyName, symbol, issue.Subject, symbol.Name);
+                case CodeGenValidationIssueKind.UnknownIndexColumn:
+                    return CreateDiagnostic(DiagnosticDescriptors.TableDescriptorUnknownIndexColumn, symbol, issue.Subject, issue.TableDisplayName);
+                case CodeGenValidationIssueKind.DescendingColumnMustBeIndexed:
+                    return CreateDiagnostic(DiagnosticDescriptors.TableDescriptorDescendingColumnMustBeIndexed, symbol, issue.Subject, issue.TableDisplayName);
+                case CodeGenValidationIssueKind.ForeignKeyTableNotFound:
+                    return CreateDiagnostic(DiagnosticDescriptors.TableDescriptorForeignKeyTableNotFound, symbol, issue.Subject, issue.TableDisplayName, issue.RelatedValue ?? string.Empty);
+                case CodeGenValidationIssueKind.ForeignKeyColumnNotFound:
+                    return CreateDiagnostic(DiagnosticDescriptors.TableDescriptorForeignKeyColumnNotFound, symbol, issue.Subject, issue.TableDisplayName, issue.RelatedValue ?? string.Empty);
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(issue.Kind), issue.Kind, null);
             }
-
-            public ImmutableDictionary<string, string> PropertyNamesBySqlName { get; }
-
-            public ImmutableArray<Diagnostic> Diagnostics { get; }
         }
 
         private sealed class TableDescriptorCandidate
         {
-            public TableDescriptorCandidate(
-                INamedTypeSymbol symbol,
-                string? databaseName,
-                string? schemaName,
-                string tableName,
-                ImmutableArray<ColumnDescriptor> columns,
-                ImmutableArray<IndexDescriptor> indexes,
-                ImmutableArray<Diagnostic> diagnostics)
+            public TableDescriptorCandidate(INamedTypeSymbol symbol, CodeGenTableModel model, ImmutableArray<Diagnostic> diagnostics)
             {
                 this.Symbol = symbol;
-                this.DatabaseName = databaseName;
-                this.SchemaName = schemaName;
-                this.TableName = tableName;
-                this.Columns = columns;
-                this.Indexes = indexes;
+                this.Model = model;
                 this.Diagnostics = diagnostics;
             }
 
             public INamedTypeSymbol Symbol { get; }
 
-            public string? DatabaseName { get; }
-
-            public string? SchemaName { get; }
-
-            public string TableName { get; }
-
-            public ImmutableArray<ColumnDescriptor> Columns { get; }
-
-            public ImmutableArray<IndexDescriptor> Indexes { get; }
+            public CodeGenTableModel Model { get; }
 
             public ImmutableArray<Diagnostic> Diagnostics { get; }
-
-            public string TableKey => BuildTableKey(this.DatabaseName, this.SchemaName, this.TableName);
-
-            public string TableDisplayName => this.TableKey;
-        }
-
-        private readonly struct IndexDescriptor
-        {
-            public IndexDescriptor(ImmutableArray<string> columns, ImmutableArray<string> descendingColumns, string? name, bool isUnique, bool isClustered)
-            {
-                this.Columns = columns;
-                this.DescendingColumns = descendingColumns;
-                this.Name = name;
-                this.IsUnique = isUnique;
-                this.IsClustered = isClustered;
-            }
-
-            public ImmutableArray<string> Columns { get; }
-
-            public ImmutableArray<string> DescendingColumns { get; }
-
-            public string? Name { get; }
-
-            public bool IsUnique { get; }
-
-            public bool IsClustered { get; }
-        }
-
-        private readonly struct ColumnDescriptor
-        {
-            public ColumnDescriptor(
-                ColumnKind kind,
-                string sqlName,
-                string? propertyName,
-                bool isPrimaryKey,
-                bool isIdentity,
-                string? foreignKeyDatabase,
-                string? foreignKeySchema,
-                string? foreignKeyTable,
-                string? foreignKeyColumn,
-                TableColumnDefaultValueKind defaultValueKind,
-                string? defaultValue,
-                bool isUnicode,
-                int? maxLength,
-                bool isFixedLength,
-                bool isText,
-                int precision,
-                int scale,
-                bool isDate)
-            {
-                this.Kind = kind;
-                this.SqlName = sqlName;
-                this.PropertyName = propertyName;
-                this.IsPrimaryKey = isPrimaryKey;
-                this.IsIdentity = isIdentity;
-                this.ForeignKeyDatabase = foreignKeyDatabase;
-                this.ForeignKeySchema = foreignKeySchema;
-                this.ForeignKeyTable = foreignKeyTable;
-                this.ForeignKeyColumn = foreignKeyColumn;
-                this.DefaultValueKind = defaultValueKind;
-                this.DefaultValue = defaultValue;
-                this.IsUnicode = isUnicode;
-                this.MaxLength = maxLength;
-                this.IsFixedLength = isFixedLength;
-                this.IsText = isText;
-                this.Precision = precision;
-                this.Scale = scale;
-                this.IsDate = isDate;
-            }
-
-            public ColumnKind Kind { get; }
-
-            public string SqlName { get; }
-
-            public string? PropertyName { get; }
-
-            public bool IsPrimaryKey { get; }
-
-            public bool IsIdentity { get; }
-
-            public string? ForeignKeyDatabase { get; }
-
-            public string? ForeignKeySchema { get; }
-
-            public string? ForeignKeyTable { get; }
-
-            public string? ForeignKeyColumn { get; }
-
-            public TableColumnDefaultValueKind DefaultValueKind { get; }
-
-            public string? DefaultValue { get; }
-
-            public bool IsUnicode { get; }
-
-            public int? MaxLength { get; }
-
-            public bool IsFixedLength { get; }
-
-            public bool IsText { get; }
-
-            public int Precision { get; }
-
-            public int Scale { get; }
-
-            public bool IsDate { get; }
-        }
-
-        private enum ColumnKind
-        {
-            Boolean,
-            NullableBoolean,
-            Byte,
-            NullableByte,
-            ByteArray,
-            NullableByteArray,
-            Int16,
-            NullableInt16,
-            Int32,
-            NullableInt32,
-            Int64,
-            NullableInt64,
-            Double,
-            NullableDouble,
-            Decimal,
-            NullableDecimal,
-            DateTime,
-            NullableDateTime,
-            DateTimeOffset,
-            NullableDateTimeOffset,
-            Guid,
-            NullableGuid,
-            String,
-            NullableString,
-            Xml,
-            NullableXml
         }
     }
 }

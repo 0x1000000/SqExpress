@@ -165,5 +165,14 @@ namespace SqExpress.Analyzers.Diagnostics
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true,
             description: "Reports foreign key attributes that point to an unknown target column.");
+
+        public static readonly DiagnosticDescriptor TableDescriptorInvalidDefaultValue = new DiagnosticDescriptor(
+            id: "SQEX114",
+            title: "Table descriptor default value is invalid",
+            messageFormat: "Default value '{0}' for column '{1}' in table descriptor '{2}' is invalid for {3}. Supported predefined values for this column: {4}.",
+            category: "SourceGeneration",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            description: "Reports table descriptor default values that cannot be parsed for the declared column type and lists the predefined values supported by that column.");
     }
 }

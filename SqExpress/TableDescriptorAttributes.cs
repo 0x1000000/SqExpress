@@ -28,17 +28,6 @@ namespace SqExpress
         public string Name { get; }
     }
 
-    public enum TableColumnDefaultValueKind
-    {
-        None,
-        Raw,
-        Null,
-        Integer,
-        Bool,
-        String,
-        GetUtcDate
-    }
-
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
     public abstract class TableColumnAttributeBase : Attribute
     {
@@ -62,8 +51,6 @@ namespace SqExpress
         public string? FkTable { get; set; }
 
         public string? FkColumn { get; set; }
-
-        public TableColumnDefaultValueKind DefaultValueKind { get; set; }
 
         public string? DefaultValue { get; set; }
     }
