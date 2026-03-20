@@ -86,11 +86,16 @@ namespace SqExpress.CodeGenUtil
             {
                 throw new SqExpressCodeGenException("Connection string cannot be empty");
             }
-            logger.LogNormal("Checking existing code...");
-            IReadOnlyDictionary<TableRef, ClassDeclarationSyntax> existingCode = ExistingCodeExplorer.FindTableDescriptors(directory, DefaultFileSystem.Instance);
-            if(logger.IsNormalOrHigher) logger.LogNormal(existingCode.Count > 0
-                ? $"Found {existingCode.Count} already existing table descriptor classes."
-                : "No table descriptor classes found.");
+            IReadOnlyDictionary<TableRef, ClassDeclarationSyntax> existingCode =
+                new Dictionary<TableRef, ClassDeclarationSyntax>();
+            if (!options.UseTableDeclarationAttributes)
+            {
+                logger.LogNormal("Checking existing code...");
+                existingCode = ExistingCodeExplorer.FindTableDescriptors(directory, DefaultFileSystem.Instance);
+                if(logger.IsNormalOrHigher) logger.LogNormal(existingCode.Count > 0
+                    ? $"Found {existingCode.Count} already existing table descriptor classes."
+                    : "No table descriptor classes found.");
+            }
 
             var sqlManager = CreateDbManager(options);
 
@@ -134,7 +139,17 @@ namespace SqExpress.CodeGenUtil
 
                 if(logger.IsDetailed) logger.LogDetailed($"{table.DbName} to \"{filePath}\".");
 
-                var text = CodeGenTableDescriptorSupport.GenerateTableDescriptor(table, tableMap, options.Namespace, existingCode, out var existing).ToFullString();
+                string text;
+                bool existing;
+                if (options.UseTableDeclarationAttributes)
+                {
+                    text = CodeGenTableDescriptorSupport.GenerateTableDeclaration(table, tableMap, options.Namespace).ToFullString();
+                    existing = File.Exists(filePath);
+                }
+                else
+                {
+                    text = CodeGenTableDescriptorSupport.GenerateTableDescriptor(table, tableMap, options.Namespace, existingCode, out existing).ToFullString();
+                }
                 await File.WriteAllTextAsync(filePath, text);
 
                 if (logger.IsDetailed) logger.LogDetailed(existing ? "Existing file updated." : "New file created.");

@@ -17,7 +17,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenDescriptorIsSimple_EmitsTableBasePattern()
         {
             var source = """
-                using SqExpress;
+                using SqExpress.TableDecalationAttributes;
 
                 [TableDescriptor("dbo", "User")]
                 [Int32Column("UserId", Pk = true, Identity = true, DefaultValue = "1")]
@@ -48,7 +48,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenAllColumnTypesAreUsed_Compiles()
         {
             var source = """
-                using SqExpress;
+                using SqExpress.TableDecalationAttributes;
 
                 [TableDescriptor("dbo", "EveryType")]
                 [BooleanColumn("BooleanValue")]
@@ -98,7 +98,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenForeignKeyIsDeclared_UsesResolvedTargetProperty()
         {
             var source = """
-                using SqExpress;
+                using SqExpress.TableDecalationAttributes;
 
                 [TableDescriptor("dbo", "Company")]
                 [Int32Column("CompanyId", Pk = true)]
@@ -126,7 +126,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenPredefinedDefaultsAreUsed_UsesExpectedExpressions()
         {
             var source = """
-                using SqExpress;
+                using SqExpress.TableDecalationAttributes;
 
                 [TableDescriptor("dbo", "Audit")]
                 [NullableDateTimeColumn("CreatedUtc", DefaultValue = "$utcNow")]
@@ -150,7 +150,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenDefaultValueCannotBeParsed_ReportsDiagnostic()
         {
             var source = """
-                using SqExpress;
+                using SqExpress.TableDecalationAttributes;
 
                 [TableDescriptor("dbo", "User")]
                 [Int32Column("UserId", DefaultValue = "abc")]
@@ -164,13 +164,15 @@ namespace SqExpress.Analyzers.Test
             Assert.That(result.Diagnostics.Select(static d => d.Id), Contains.Item("SQEX114"));
             Assert.That(FormatDiagnostics(result.Diagnostics), Does.Contain("invalid for Int32Column"));
             Assert.That(FormatDiagnostics(result.Diagnostics), Does.Contain("Supported predefined values for this column: $null"));
+            var diagnostic = result.Diagnostics.First(static d => d.Id == "SQEX114");
+            Assert.That(diagnostic.Location.GetLineSpan().StartLinePosition.Line, Is.EqualTo(3));
         }
 
         [Test]
         public void Generate_WhenDescriptorClassIsNotPartial_ReportsDiagnostic()
         {
             var source = """
-                using SqExpress;
+                using SqExpress.TableDecalationAttributes;
 
                 [TableDescriptor("dbo", "User")]
                 [Int32Column("UserId")]
@@ -188,7 +190,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenIndexColumnDoesNotExist_ReportsDiagnostic()
         {
             var source = """
-                using SqExpress;
+                using SqExpress.TableDecalationAttributes;
 
                 [TableDescriptor("dbo", "User")]
                 [Int32Column("UserId")]

@@ -11,7 +11,8 @@ function Gen-Tables
         [string] $ConnectionString,
         [string] $OutputDir,
         [string] $TableClassPrefix,
-        [string] $Namespace
+        [string] $Namespace,
+        [switch] $UseTableDeclarationAttributes
     )
 	
     CheckSqExpressReference
@@ -67,6 +68,11 @@ function Gen-Tables
     if($Namespace)
     {
         $args = $args + " -n " + $Namespace
+    }
+
+    if($UseTableDeclarationAttributes.IsPresent)
+    {
+        $args = $args + " --use-table-declaration-attributes"
     }
 
     CodeGenUtil $args

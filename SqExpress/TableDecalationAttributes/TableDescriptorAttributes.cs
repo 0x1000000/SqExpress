@@ -1,6 +1,6 @@
 using System;
 
-namespace SqExpress
+namespace SqExpress.TableDecalationAttributes
 {
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
     public sealed class TableDescriptorAttribute : Attribute

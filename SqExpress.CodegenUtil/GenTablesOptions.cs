@@ -5,7 +5,7 @@ namespace SqExpress.CodeGenUtil
     [Verb("gentables", HelpText = "Generate table descriptor classes.")]
     public class GenTablesOptions
     {
-        public GenTablesOptions(ConnectionType connectionType, string connectionString, string tableClassPrefix, string outputDir, string @namespace, Verbosity verbosity)
+        public GenTablesOptions(ConnectionType connectionType, string connectionString, string tableClassPrefix, string outputDir, string @namespace, Verbosity verbosity, bool useTableDeclarationAttributes = false)
         {
             this.ConnectionType = connectionType;
             this.ConnectionString = connectionString;
@@ -13,6 +13,7 @@ namespace SqExpress.CodeGenUtil
             this.OutputDir = outputDir;
             this.Namespace = @namespace;
             this.Verbosity = verbosity;
+            this.UseTableDeclarationAttributes = useTableDeclarationAttributes;
         }
 
         [Value(1, MetaName = "CONNECTION_TYPE", Required = true, HelpText = "Connection Type: \"mssql\" or \"mysql\" or \"pgsql\".")]
@@ -32,6 +33,9 @@ namespace SqExpress.CodeGenUtil
 
         [Option('v',"verbosity", Required = false, Default = Verbosity.Minimal, HelpText = "Allowed values are quiet, minimal, normal, detailed, and diagnostic. The default is minimal")]
         public Verbosity Verbosity { get; }
+
+        [Option("use-table-declaration-attributes", Required = false, Default = false, HelpText = "Generate attribute-based table declaration partial classes instead of direct TableBase descriptors.")]
+        public bool UseTableDeclarationAttributes { get; }
     }
 
     public enum ConnectionType

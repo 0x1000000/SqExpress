@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Microsoft.CodeAnalysis;
@@ -30,14 +31,13 @@ namespace SqExpress.CodeGenUtil.CodeGen
                     modifiedUnit = existingClassSyntax.FindParentOrDefault<CompilationUnitSyntax>()
                                    ?? throw new SqExpressCodeGenException($"Could not find compilation unit for {existingClassSyntax.Identifier.ValueText}");
 
-                    modifiedUnit = modifiedUnit.ReplaceNode(existingClassSyntax, GenerateAllTableList(tables, tablePrefix, existingClassSyntax)).NormalizeWhitespace(); ;
+                    modifiedUnit = modifiedUnit.ReplaceNode(existingClassSyntax, GenerateAllTableList(tables, tablePrefix, existingClassSyntax));
                 }
             }
 
-            return modifiedUnit?? SyntaxFactory.CompilationUnit()
-                .AddUsings(SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(nameof(SqExpress))))
-                .AddMembers(SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(defaultNamespace))
-                    .AddMembers(GenerateAllTableList(tables, tablePrefix, null)))
+            return EnsureUsings(modifiedUnit ?? SyntaxFactory.CompilationUnit()
+                    .AddMembers(SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(defaultNamespace))
+                        .AddMembers(GenerateAllTableList(tables, tablePrefix, null))))
                 .NormalizeWhitespace();
         }
 
@@ -51,12 +51,13 @@ namespace SqExpress.CodeGenUtil.CodeGen
 
         private static MemberDeclarationSyntax[] GenerateMethods(IReadOnlyList<TableModel> tables, string tablePrefix)
         {
-            var result = new List<MemberDeclarationSyntax>(tables.Count*2 + 2);
+            var result = new List<MemberDeclarationSyntax>(tables.Count * 2 + 3);
 
             var identifierAliasType = SyntaxFactory.IdentifierName(nameof(Alias));
+            var identifierTableBaseType = SyntaxFactory.IdentifierName(nameof(TableBase));
 
-            var arrayItems = tables.Select(t=> SyntaxFactory.IdentifierName(GetMethodName(t,tablePrefix)).Invoke(identifierAliasType.MemberAccess(nameof(Alias.Empty))));
-            var arrayType = SyntaxFactory.ArrayType(SyntaxFactory.IdentifierName(nameof(TableBase)),
+            var arrayItems = tables.Select(t => SyntaxFactory.IdentifierName(GetMethodName(t, tablePrefix)).Invoke(identifierAliasType.MemberAccess(nameof(Alias.Empty))));
+            var arrayType = SyntaxFactory.ArrayType(identifierTableBaseType,
                 new SyntaxList<ArrayRankSpecifierSyntax>(new[]
                 {
                     SyntaxFactory.ArrayRankSpecifier(SyntaxFactory.Token(SyntaxKind.OpenBracketToken),
@@ -70,11 +71,26 @@ namespace SqExpress.CodeGenUtil.CodeGen
             );
 
             result.Add(
+                SyntaxFactory.FieldDeclaration(
+                        SyntaxFactory.VariableDeclaration(
+                                SyntaxFactory.GenericName("IReadOnlyCollection")
+                                    .AddTypeArgumentListArguments(identifierTableBaseType))
+                            .AddVariables(
+                                SyntaxFactory.VariableDeclarator("StaticList")
+                                    .WithInitializer(
+                                        SyntaxFactory.EqualsValueClause(
+                                            SyntaxFactory.MemberAccessExpression(
+                                                    SyntaxKind.SimpleMemberAccessExpression,
+                                                    SyntaxFactory.IdentifierName(nameof(Array)),
+                                                    SyntaxFactory.IdentifierName(nameof(Array.AsReadOnly)))
+                                                .Invoke(
+                                                    SyntaxFactory.IdentifierName("BuildAllTableList").Invoke())))))
+                    .WithModifiers(SyntaxHelpers.Modifiers(SyntaxKind.PublicKeyword, SyntaxKind.StaticKeyword, SyntaxKind.ReadOnlyKeyword)));
+
+            result.Add(
                 SyntaxFactory.MethodDeclaration(arrayType, "BuildAllTableList")
                     .WithModifiers(SyntaxHelpers.Modifiers(SyntaxKind.PublicKeyword, SyntaxKind.StaticKeyword))
-                    .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(
-                        array
-                        ))
+                    .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(array))
                     .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)));
 
             foreach (var t in tables)
@@ -111,6 +127,25 @@ namespace SqExpress.CodeGenUtil.CodeGen
 
                 return "Get" + name;
             }
+        }
+
+        private static CompilationUnitSyntax EnsureUsings(CompilationUnitSyntax compilationUnit)
+        {
+            return AddUsingIfMissing(
+                AddUsingIfMissing(
+                    AddUsingIfMissing(compilationUnit, nameof(System)),
+                    "System.Collections.Generic"),
+                nameof(SqExpress));
+        }
+
+        private static CompilationUnitSyntax AddUsingIfMissing(CompilationUnitSyntax compilationUnit, string namespaceName)
+        {
+            if (compilationUnit.Usings.Any(u => string.Equals(u.Name?.ToString(), namespaceName, StringComparison.Ordinal)))
+            {
+                return compilationUnit;
+            }
+
+            return compilationUnit.AddUsings(SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(namespaceName)));
         }
     }
 }

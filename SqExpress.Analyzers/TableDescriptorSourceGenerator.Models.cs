@@ -4,7 +4,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using SqExpress;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SqExpress.Analyzers.Diagnostics;
 using SqExpress.CodeGen.Shared;
 
@@ -58,8 +58,13 @@ namespace SqExpress.Analyzers
 
             if (!TryReadTableIdentity(tableDescriptorAttribute, out var databaseName, out var schemaName, out var tableName))
             {
-                diagnostics.Add(CreateDiagnostic(DiagnosticDescriptors.TableDescriptorHasInvalidDeclaration, classSymbol, classSymbol.Name));
+                diagnostics.Add(CreateDiagnostic(DiagnosticDescriptors.TableDescriptorHasInvalidDeclaration, GetAttributeLocation(tableDescriptorAttribute, classSymbol), classSymbol.Name));
             }
+
+            var tableAttributeLocation = GetAttributeLocation(tableDescriptorAttribute, classSymbol);
+            var columnLocationsBySqlName = ImmutableDictionary.CreateBuilder<string, ImmutableArray<Location>.Builder>(StringComparer.OrdinalIgnoreCase);
+            var propertyLocationsByName = ImmutableDictionary.CreateBuilder<string, ImmutableArray<Location>.Builder>(StringComparer.Ordinal);
+            var indexLocations = ImmutableArray.CreateBuilder<IndexAttributeLocation>();
 
             foreach (var attribute in classSymbol.GetAttributes())
             {
@@ -77,9 +82,12 @@ namespace SqExpress.Analyzers
 
                 if (InheritsFrom(attributeClass, ColumnAttributeBaseName))
                 {
+                    var attributeLocation = GetAttributeLocation(attribute, classSymbol);
                     if (TryReadColumnDescriptor(attribute, classSymbol, out var columnDescriptor, out var defaultValueDiagnostic))
                     {
                         columns.Add(columnDescriptor);
+                        AddLocation(columnLocationsBySqlName, columnDescriptor.SqlName, attributeLocation);
+                        AddLocation(propertyLocationsByName, string.IsNullOrWhiteSpace(columnDescriptor.PropertyName) ? CodeGenTableDescriptorSupport.ToIdentifier(columnDescriptor.SqlName) : columnDescriptor.PropertyName!, attributeLocation);
                     }
                     else if (defaultValueDiagnostic != null)
                     {
@@ -92,6 +100,10 @@ namespace SqExpress.Analyzers
                 if (attributeTypeName == IndexAttributeName && TryReadIndexDescriptor(attribute, out var indexDescriptor))
                 {
                     indexes.Add(indexDescriptor);
+                    indexLocations.Add(new IndexAttributeLocation(
+                        GetAttributeLocation(attribute, classSymbol),
+                        indexDescriptor.Columns.ToImmutableHashSet(StringComparer.OrdinalIgnoreCase),
+                        indexDescriptor.DescendingColumns.ToImmutableHashSet(StringComparer.OrdinalIgnoreCase)));
                 }
             }
 
@@ -105,7 +117,14 @@ namespace SqExpress.Analyzers
                 columns.ToImmutable(),
                 indexes.ToImmutable());
 
-            return new TableDescriptorCandidate(classSymbol, model, diagnostics.ToImmutable());
+            return new TableDescriptorCandidate(
+                classSymbol,
+                model,
+                diagnostics.ToImmutable(),
+                tableAttributeLocation,
+                columnLocationsBySqlName.ToImmutableDictionary(static p => p.Key, static p => p.Value.ToImmutable(), StringComparer.OrdinalIgnoreCase),
+                propertyLocationsByName.ToImmutableDictionary(static p => p.Key, static p => p.Value.ToImmutable(), StringComparer.Ordinal),
+                indexLocations.ToImmutable());
         }
 
         private static bool TryReadTableIdentity(AttributeData attribute, out string? databaseName, out string? schemaName, out string tableName)
@@ -154,7 +173,7 @@ namespace SqExpress.Analyzers
             {
                 diagnostic = CreateDiagnostic(
                     DiagnosticDescriptors.TableDescriptorInvalidDefaultValue,
-                    classSymbol,
+                    GetAttributeLocation(attribute, classSymbol),
                     defaultValue ?? string.Empty,
                     sqlName!,
                     classSymbol.Name,
@@ -490,10 +509,10 @@ namespace SqExpress.Analyzers
         }
 
         private static Diagnostic CreateDiagnostic(DiagnosticDescriptor descriptor, ISymbol symbol, params object[] args)
-        {
-            var location = symbol.Locations.FirstOrDefault(static l => l.IsInSource) ?? Location.None;
-            return Diagnostic.Create(descriptor, location, args);
-        }
+            => CreateDiagnostic(descriptor, symbol.Locations.FirstOrDefault(static l => l.IsInSource) ?? Location.None, args);
+
+        private static Diagnostic CreateDiagnostic(DiagnosticDescriptor descriptor, Location location, params object[] args)
+            => Diagnostic.Create(descriptor, location, args);
 
         private static Diagnostic CreateValidationDiagnostic(CodeGenValidationIssue issue, ISymbol symbol)
         {
@@ -518,13 +537,48 @@ namespace SqExpress.Analyzers
             }
         }
 
+        private static Location GetAttributeLocation(AttributeData attributeData, ISymbol fallbackSymbol)
+        {
+            if (attributeData.ApplicationSyntaxReference?.GetSyntax() is AttributeSyntax attributeSyntax)
+            {
+                return attributeSyntax.GetLocation();
+            }
+
+            return fallbackSymbol.Locations.FirstOrDefault(static l => l.IsInSource) ?? Location.None;
+        }
+
+        private static void AddLocation(
+            ImmutableDictionary<string, ImmutableArray<Location>.Builder>.Builder map,
+            string key,
+            Location location)
+        {
+            if (!map.TryGetValue(key, out var builder))
+            {
+                builder = ImmutableArray.CreateBuilder<Location>();
+                map[key] = builder;
+            }
+
+            builder.Add(location);
+        }
+
         private sealed class TableDescriptorCandidate
         {
-            public TableDescriptorCandidate(INamedTypeSymbol symbol, CodeGenTableModel model, ImmutableArray<Diagnostic> diagnostics)
+            public TableDescriptorCandidate(
+                INamedTypeSymbol symbol,
+                CodeGenTableModel model,
+                ImmutableArray<Diagnostic> diagnostics,
+                Location tableAttributeLocation,
+                ImmutableDictionary<string, ImmutableArray<Location>> columnLocationsBySqlName,
+                ImmutableDictionary<string, ImmutableArray<Location>> propertyLocationsByName,
+                ImmutableArray<IndexAttributeLocation> indexLocations)
             {
                 this.Symbol = symbol;
                 this.Model = model;
                 this.Diagnostics = diagnostics;
+                this.TableAttributeLocation = tableAttributeLocation;
+                this.ColumnLocationsBySqlName = columnLocationsBySqlName;
+                this.PropertyLocationsByName = propertyLocationsByName;
+                this.IndexLocations = indexLocations;
             }
 
             public INamedTypeSymbol Symbol { get; }
@@ -532,6 +586,33 @@ namespace SqExpress.Analyzers
             public CodeGenTableModel Model { get; }
 
             public ImmutableArray<Diagnostic> Diagnostics { get; }
+
+            public Location TableAttributeLocation { get; }
+
+            public ImmutableDictionary<string, ImmutableArray<Location>> ColumnLocationsBySqlName { get; }
+
+            public ImmutableDictionary<string, ImmutableArray<Location>> PropertyLocationsByName { get; }
+
+            public ImmutableArray<IndexAttributeLocation> IndexLocations { get; }
+        }
+
+        private readonly struct IndexAttributeLocation
+        {
+            public IndexAttributeLocation(
+                Location location,
+                ImmutableHashSet<string> columns,
+                ImmutableHashSet<string> descendingColumns)
+            {
+                this.Location = location;
+                this.Columns = columns;
+                this.DescendingColumns = descendingColumns;
+            }
+
+            public Location Location { get; }
+
+            public ImmutableHashSet<string> Columns { get; }
+
+            public ImmutableHashSet<string> DescendingColumns { get; }
         }
     }
 }

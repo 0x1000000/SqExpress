@@ -5,9 +5,9 @@ namespace SqExpress.Analyzers
     [Generator]
     public sealed partial class TableDescriptorSourceGenerator : IIncrementalGenerator
     {
-        private const string TableDescriptorAttributeName = "SqExpress.TableDescriptorAttribute";
-        private const string ColumnAttributeBaseName = "SqExpress.TableColumnAttributeBase";
-        private const string IndexAttributeName = "SqExpress.IndexAttribute";
+        private const string TableDescriptorAttributeName = "SqExpress.TableDecalationAttributes.TableDescriptorAttribute";
+        private const string ColumnAttributeBaseName = "SqExpress.TableDecalationAttributes.TableColumnAttributeBase";
+        private const string IndexAttributeName = "SqExpress.TableDecalationAttributes.IndexAttribute";
 
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
