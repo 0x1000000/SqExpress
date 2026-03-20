@@ -267,45 +267,29 @@ If SQL is incidental, a higher-level ORM can be simpler.
 
 ## Creating Table Descriptors
 
-Ok, let's try to select some data from a real table, but first we need to describe the table:
+Ok, let's try to select some data from a real table, but first we need to describe the table.
 
-*Note: Such classes can be auto-generated (updated) using information from an existing database. [See "Table Descriptors Scaffolding"](#table-descriptors-scaffolding)*
+The primary way is now to declare the table with attributes and let the built-in source generator produce the `TableBase` implementation for you:
 
-```Cs
-public class TableUser : TableBase
+```cs
+using SqExpress.TableDecalationAttributes;
+
+[TableDescriptor("dbo", "User")]
+[Int32Column("UserId", Pk = true, Identity = true)]
+[StringColumn("FirstName", Unicode = true, MaxLength = 255)]
+[StringColumn("LastName", Unicode = true, MaxLength = 255)]
+[Int32Column("Version", DefaultValue = "0")]
+[DateTimeColumn("ModifiedAt", DefaultValue = "$utcNow")]
+[Index("FirstName")]
+[Index("LastName")]
+public partial class TableUser
 {
-    public readonly Int32TableColumn UserId;
-    public readonly StringTableColumn FirstName;
-    public readonly StringTableColumn LastName;
-    //Audit Columns
-    public readonly Int32TableColumn Version;
-    public readonly DateTimeTableColumn ModifiedAt;
-
-    public TableUser(): this(default){}
-
-    public TableUser(Alias alias) : base("dbo", "User", alias)
-    {
-        this.UserId = this.CreateInt32Column("UserId", 
-            ColumnMeta.PrimaryKey().Identity());
-
-        this.FirstName = this.CreateStringColumn("FirstName", 
-            size: 255, isUnicode: true);
-
-        this.LastName = this.CreateStringColumn("LastName", 
-            size: 255, isUnicode: true);
-
-        this.Version = this.CreateInt32Column("Version",
-            ColumnMeta.DefaultValue(0));
-
-        this.ModifiedAt = this.CreateDateTimeColumn("ModifiedAt",
-            columnMeta: ColumnMeta.DefaultValue(SqQueryBuilder.GetUtcDate()));
-
-        //Indexes
-        this.AddIndex(this.FirstName);
-        this.AddIndex(this.LastName);
-    }
 }
 ```
+
+*Note: Such classes can be auto-generated (and later updated) using information from an existing database. [See "Table Descriptors Scaffolding"](#table-descriptors-scaffolding)*
+
+*Note: Handwritten `TableBase` descriptors are still supported, but attribute-based declarations are now the recommended default.*
 
 and if the table does not exist let's create it:
 
@@ -1217,24 +1201,20 @@ DROP TABLE `tmpMergeDataSource`;
 
 ## Temporary Tables
 
-In some scenarios temporary tables might be very useful and you can create such table as follows:
+In some scenarios temporary tables might be very useful. Just like normal tables, the recommended way is now to declare them with attributes and let the source generator produce the `TempTableBase` implementation:
 
 ```cs
-public class TempTable : TempTableBase
+using SqExpress.TableDecalationAttributes;
+
+[TempTableDescriptor("tempTable")]
+[Int32Column("Id", Pk = true, Identity = true)]
+[StringColumn("Name", MaxLength = 255)]
+public partial class TempTable
 {
-    public TempTable(Alias alias = default) : base("tempTable", alias)
-    {
-        this.Id = CreateInt32Column(nameof(Id),
-            ColumnMeta.PrimaryKey().Identity());
-
-        this.Name = CreateStringColumn(nameof(Name), 255);
-    }
-
-    public readonly Int32TableColumn Id;
-
-    public readonly StringTableColumn Name;
 }
 ```
+
+*Note: Handwritten `TempTableBase` descriptors are still supported when you want full manual control.*
 
 and then use it:
 
@@ -2024,6 +2004,12 @@ SYNTAX
     Gen-Tables [-DbType] {mssql | mysql | pgsql} [-ConnectionString] <string> [-OutputDir <string>] [-TableClassPrefix <string>] [-Namespace <string>]
 ```
 
+To generate attribute-based declarations instead of direct `TableBase` classes, add:
+
+```
+    --use-table-declaration-attributes
+```
+
 ```GenerateTables.cmd```
 
 ```cmd
@@ -2034,7 +2020,7 @@ for /F "tokens=*" %%a in ('dir "%root%" /b /a:d /o:n') do set "lib=%root%\%%a"
 
 set lib=%lib%\tools\codegen\SqExpress.CodeGenUtil.dll
 
-dotnet "%lib%" gentables mssql "MyConnectionString" --table-class-prefix "Tbl" -o ".\Tables" -n "MyCompany.MyProject.Tables"
+dotnet "%lib%" gentables mssql "MyConnectionString" --table-class-prefix "Tbl" -o ".\Tables" -n "MyCompany.MyProject.Tables" --use-table-declaration-attributes
 ```
 
 ```GenerateTables.sh```
@@ -2044,10 +2030,10 @@ dotnet "%lib%" gentables mssql "MyConnectionString" --table-class-prefix "Tbl" -
 
 lib=~/.nuget/packages/sqexpress/$(ls ~/.nuget/packages/sqexpress -r|head -n 1)/tools/codegen/SqExpress.CodeGenUtil.dll
 
-dotnet $lib gentables mssql "MyConnectionString" --table-class-prefix "Tbl" -o "./Tables" -n "MyCompany.MyProject.Tables"
+dotnet $lib gentables mssql "MyConnectionString" --table-class-prefix "Tbl" -o "./Tables" -n "MyCompany.MyProject.Tables" --use-table-declaration-attributes
 ```
 
-It uses Roslyn compiler so it does not overwrite existing files - it patched it with actual columns. All kind of changes like attributes, namespaces, interfaces will remain after next runs.
+It uses Roslyn compiler so it does not overwrite existing files - it patches them with actual columns/attributes. All kinds of changes like attributes, namespaces, interfaces, and helper methods will remain after next runs.
 
 ## DTOs Scaffolding
 
