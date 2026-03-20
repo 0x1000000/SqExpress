@@ -12,8 +12,12 @@ namespace SqExpress.CodeGen.Shared
 {
     public static class CodeGenTableDescriptorSupport
     {
-        public static string BuildTableKey(string? databaseName, string? schemaName, string tableName)
-            => string.IsNullOrEmpty(databaseName) ? $"[{schemaName ?? string.Empty}].[{tableName}]" : $"[{databaseName}].[{schemaName ?? string.Empty}].[{tableName}]";
+        public static string BuildTableKey(CodeGenTableKind kind, string? databaseName, string? schemaName, string tableName)
+            => kind == CodeGenTableKind.TempTable
+                ? $"[temp].[{tableName}]"
+                : string.IsNullOrEmpty(databaseName)
+                    ? $"[{schemaName ?? string.Empty}].[{tableName}]"
+                    : $"[{databaseName}].[{schemaName ?? string.Empty}].[{tableName}]";
 
         public static string ToIdentifier(string value)
         {
@@ -95,7 +99,7 @@ namespace SqExpress.CodeGen.Shared
 
             foreach (var column in candidate.Columns.Where(static c => !string.IsNullOrWhiteSpace(c.ForeignKeyTable) && !string.IsNullOrWhiteSpace(c.ForeignKeyColumn)))
             {
-                var targetKey = BuildTableKey(column.ForeignKeyDatabase, column.ForeignKeySchema ?? candidate.SchemaName, column.ForeignKeyTable!);
+                var targetKey = BuildTableKey(CodeGenTableKind.Table, column.ForeignKeyDatabase, column.ForeignKeySchema ?? candidate.SchemaName, column.ForeignKeyTable!);
                 if (!allTables.TryGetValue(targetKey, out var targetTable))
                 {
                     issues.Add(new CodeGenValidationIssue(CodeGenValidationIssueKind.ForeignKeyTableNotFound, column.ForeignKeyTable!, candidate.TableDisplayName, column.SqlName));
@@ -151,7 +155,7 @@ namespace SqExpress.CodeGen.Shared
             var allCodeGenTables = allTables.Values
                 .Select(t => ToCodeGenTableModel(t, defaultNamespace))
                 .ToDictionary(static t => t.TableKey, static t => t, StringComparer.OrdinalIgnoreCase);
-            var candidate = allCodeGenTables[BuildTableKey(databaseName: null, schemaName: table.DbName.Schema, tableName: table.DbName.Name)];
+            var candidate = allCodeGenTables[BuildTableKey(CodeGenTableKind.Table, databaseName: null, schemaName: table.DbName.Schema, tableName: table.DbName.Name)];
 
             if (existingCode.TryGetValue(table.DbName, out var existingClass))
             {
@@ -200,7 +204,7 @@ namespace SqExpress.CodeGen.Shared
             var allCodeGenTables = allTables.Values
                 .Select(t => ToCodeGenTableModel(t, defaultNamespace))
                 .ToDictionary(static t => t.TableKey, static t => t, StringComparer.OrdinalIgnoreCase);
-            var candidate = allCodeGenTables[BuildTableKey(databaseName: null, schemaName: table.DbName.Schema, tableName: table.DbName.Name)];
+            var candidate = allCodeGenTables[BuildTableKey(CodeGenTableKind.Table, databaseName: null, schemaName: table.DbName.Schema, tableName: table.DbName.Name)];
             return GenerateTableDeclaration(candidate, allCodeGenTables, existingCompilationUnit);
         }
 
@@ -223,7 +227,7 @@ namespace SqExpress.CodeGen.Shared
             var classDeclaration = SyntaxFactory.ClassDeclaration(candidate.ClassName)
                 .WithModifiers(GetClassModifiers(options))
                 .WithBaseList(SyntaxFactory.BaseList(SyntaxFactory.SingletonSeparatedList<BaseTypeSyntax>(
-                    SyntaxFactory.SimpleBaseType(SyntaxFactory.IdentifierName("TableBase")))))
+                    SyntaxFactory.SimpleBaseType(SyntaxFactory.IdentifierName(candidate.Kind == CodeGenTableKind.TempTable ? "TempTableBase" : "TableBase")))))
                 .AddMembers(classMembers);
 
             MemberDeclarationSyntax container = classDeclaration;
@@ -404,6 +408,13 @@ namespace SqExpress.CodeGen.Shared
 
         private static IEnumerable<ArgumentSyntax> RenderBaseConstructorArguments(CodeGenTableModel candidate)
         {
+            if (candidate.Kind == CodeGenTableKind.TempTable)
+            {
+                yield return SyntaxFactory.Argument(Literal(candidate.TableName));
+                yield return SyntaxFactory.Argument(SyntaxFactory.IdentifierName("alias"));
+                yield break;
+            }
+
             if (!string.IsNullOrEmpty(candidate.DatabaseName))
             {
                 yield return SyntaxFactory.Argument(Literal(candidate.DatabaseName));
@@ -424,7 +435,7 @@ namespace SqExpress.CodeGen.Shared
         {
             yield return SyntaxFactory.AttributeList(
                 SyntaxFactory.SingletonSeparatedList(
-                    SyntaxFactory.Attribute(SyntaxFactory.IdentifierName("TableDescriptor"))
+                    SyntaxFactory.Attribute(SyntaxFactory.IdentifierName(candidate.Kind == CodeGenTableKind.TempTable ? "TempTableDescriptor" : "TableDescriptor"))
                         .WithArgumentList(SyntaxFactory.AttributeArgumentList(SyntaxFactory.SeparatedList(RenderTableDescriptorAttributeArguments(candidate))))));
 
             foreach (var column in candidate.Columns)
@@ -446,6 +457,12 @@ namespace SqExpress.CodeGen.Shared
 
         private static IEnumerable<AttributeArgumentSyntax> RenderTableDescriptorAttributeArguments(CodeGenTableModel candidate)
         {
+            if (candidate.Kind == CodeGenTableKind.TempTable)
+            {
+                yield return SyntaxFactory.AttributeArgument(Literal(candidate.TableName));
+                yield break;
+            }
+
             if (!string.IsNullOrEmpty(candidate.DatabaseName))
             {
                 yield return SyntaxFactory.AttributeArgument(Literal(candidate.DatabaseName));
@@ -683,7 +700,7 @@ namespace SqExpress.CodeGen.Shared
 
             if (!string.IsNullOrWhiteSpace(column.ForeignKeyTable) && !string.IsNullOrWhiteSpace(column.ForeignKeyColumn))
             {
-                var targetKey = BuildTableKey(column.ForeignKeyDatabase, column.ForeignKeySchema ?? candidate.SchemaName, column.ForeignKeyTable!);
+                var targetKey = BuildTableKey(CodeGenTableKind.Table, column.ForeignKeyDatabase, column.ForeignKeySchema ?? candidate.SchemaName, column.ForeignKeyTable!);
                 if (allTables.TryGetValue(targetKey, out var targetTable))
                 {
                     var targetPropertyName = targetTable.Columns
@@ -1123,6 +1140,7 @@ namespace SqExpress.CodeGen.Shared
                 : typeNamespace + "." + table.Name;
 
             return new CodeGenTableModel(
+                CodeGenTableKind.Table,
                 databaseName: null,
                 schemaName: table.DbName.Schema,
                 tableName: table.DbName.Name,

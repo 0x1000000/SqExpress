@@ -45,6 +45,32 @@ namespace SqExpress.Analyzers.Test
         }
 
         [Test]
+        public void Generate_WhenTempTableDescriptorIsSimple_EmitsTempTableBasePattern()
+        {
+            var source = """
+                using SqExpress.TableDecalationAttributes;
+
+                [TempTableDescriptor("#UserTemp")]
+                [Int32Column("UserId", Pk = true, Identity = true)]
+                [StringColumn("Name", Unicode = true, MaxLength = 255)]
+                [Index("Name")]
+                public partial class UserTemp
+                {
+                }
+                """;
+
+            var result = RunGenerator(source);
+            var generated = GetGeneratedSource(result, "UserTemp");
+
+            Assert.That(result.Diagnostics, Is.Empty, FormatDiagnostics(result.Diagnostics));
+            Assert.That(generated, Does.Contain("partial class UserTemp : TempTableBase"));
+            Assert.That(generated, Does.Contain("public UserTemp() : this(alias: SqExpress.Alias.Auto)"));
+            Assert.That(generated, Does.Contain("public UserTemp(Alias alias) : base(\"#UserTemp\", alias)"));
+            Assert.That(generated, Does.Contain("this.UserId = this.CreateInt32Column(\"UserId\", ColumnMeta.PrimaryKey().Identity());"));
+            Assert.That(generated, Does.Contain("this.AddIndex(this.Name);"));
+        }
+
+        [Test]
         public void Generate_WhenAllColumnTypesAreUsed_Compiles()
         {
             var source = """
@@ -203,6 +229,25 @@ namespace SqExpress.Analyzers.Test
             var result = RunGenerator(source);
 
             Assert.That(result.Diagnostics.Select(static d => d.Id), Contains.Item("SQEX110"));
+        }
+
+        [Test]
+        public void Generate_WhenBothTableDescriptorKindsAreDeclared_ReportsDiagnostic()
+        {
+            var source = """
+                using SqExpress.TableDecalationAttributes;
+
+                [TableDescriptor("dbo", "User")]
+                [TempTableDescriptor("#UserTemp")]
+                [Int32Column("UserId")]
+                public partial class User
+                {
+                }
+                """;
+
+            var result = RunGenerator(source);
+
+            Assert.That(result.Diagnostics.Select(static d => d.Id), Contains.Item("SQEX115"));
         }
 
         private static GeneratorRunResultData RunGenerator(string source)

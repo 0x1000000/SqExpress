@@ -174,5 +174,14 @@ namespace SqExpress.Analyzers.Diagnostics
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true,
             description: "Reports table descriptor default values that cannot be parsed for the declared column type and lists the predefined values supported by that column.");
+
+        public static readonly DiagnosticDescriptor TableDescriptorAndTempTableDescriptorAreMutuallyExclusive = new DiagnosticDescriptor(
+            id: "SQEX115",
+            title: "Table descriptor attributes are mutually exclusive",
+            messageFormat: "Class '{0}' cannot declare both [TableDescriptor] and [TempTableDescriptor]",
+            category: "SourceGeneration",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            description: "Reports classes that declare both normal-table and temp-table descriptor attributes.");
     }
 }

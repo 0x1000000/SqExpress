@@ -12,22 +12,35 @@ namespace SqExpress.Analyzers
 {
     public sealed partial class TableDescriptorSourceGenerator
     {
-        private static TableDescriptorCandidate? CreateCandidate(GeneratorAttributeSyntaxContext context)
+        private static TableDescriptorCandidate? CreateCandidate(GeneratorSyntaxContext context)
         {
-            if (context.TargetSymbol is not INamedTypeSymbol classSymbol)
+            if (context.Node is not ClassDeclarationSyntax classDeclaration ||
+                context.SemanticModel.GetDeclaredSymbol(classDeclaration) is not INamedTypeSymbol classSymbol)
             {
                 return null;
             }
 
-            var tableDescriptorAttribute = context.Attributes.FirstOrDefault(static a => a.AttributeClass?.ToDisplayString() == TableDescriptorAttributeName);
-            if (tableDescriptorAttribute == null)
+            var allAttributes = classSymbol.GetAttributes();
+            var tableDescriptorAttribute = allAttributes.FirstOrDefault(static a => a.AttributeClass?.ToDisplayString() == TableDescriptorAttributeName);
+            var tempTableDescriptorAttribute = allAttributes.FirstOrDefault(static a => a.AttributeClass?.ToDisplayString() == TempTableDescriptorAttributeName);
+
+            if (tableDescriptorAttribute == null && tempTableDescriptorAttribute == null)
             {
                 return null;
             }
+
+            var activeDescriptorAttribute = tableDescriptorAttribute ?? tempTableDescriptorAttribute!;
+            var tableKind = tempTableDescriptorAttribute != null ? CodeGenTableKind.TempTable : CodeGenTableKind.Table;
 
             var columns = ImmutableArray.CreateBuilder<CodeGenColumnModel>();
             var indexes = ImmutableArray.CreateBuilder<CodeGenIndexModel>();
             var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
+
+            if (tableDescriptorAttribute != null && tempTableDescriptorAttribute != null)
+            {
+                diagnostics.Add(CreateDiagnostic(DiagnosticDescriptors.TableDescriptorAndTempTableDescriptorAreMutuallyExclusive, GetAttributeLocation(tableDescriptorAttribute, classSymbol), classSymbol.Name));
+                diagnostics.Add(CreateDiagnostic(DiagnosticDescriptors.TableDescriptorAndTempTableDescriptorAreMutuallyExclusive, GetAttributeLocation(tempTableDescriptorAttribute, classSymbol), classSymbol.Name));
+            }
 
             if (classSymbol.TypeKind != TypeKind.Class)
             {
@@ -56,12 +69,12 @@ namespace SqExpress.Analyzers
                 diagnostics.Add(CreateDiagnostic(DiagnosticDescriptors.TableDescriptorMustNotSpecifyBaseType, classSymbol, classSymbol.Name));
             }
 
-            if (!TryReadTableIdentity(tableDescriptorAttribute, out var databaseName, out var schemaName, out var tableName))
+            if (!TryReadTableIdentity(activeDescriptorAttribute, tableKind, out var databaseName, out var schemaName, out var tableName))
             {
-                diagnostics.Add(CreateDiagnostic(DiagnosticDescriptors.TableDescriptorHasInvalidDeclaration, GetAttributeLocation(tableDescriptorAttribute, classSymbol), classSymbol.Name));
+                diagnostics.Add(CreateDiagnostic(DiagnosticDescriptors.TableDescriptorHasInvalidDeclaration, GetAttributeLocation(activeDescriptorAttribute, classSymbol), classSymbol.Name));
             }
 
-            var tableAttributeLocation = GetAttributeLocation(tableDescriptorAttribute, classSymbol);
+            var tableAttributeLocation = GetAttributeLocation(activeDescriptorAttribute, classSymbol);
             var columnLocationsBySqlName = ImmutableDictionary.CreateBuilder<string, ImmutableArray<Location>.Builder>(StringComparer.OrdinalIgnoreCase);
             var propertyLocationsByName = ImmutableDictionary.CreateBuilder<string, ImmutableArray<Location>.Builder>(StringComparer.Ordinal);
             var indexLocations = ImmutableArray.CreateBuilder<IndexAttributeLocation>();
@@ -75,7 +88,7 @@ namespace SqExpress.Analyzers
                 }
 
                 var attributeTypeName = attributeClass.ToDisplayString();
-                if (attributeTypeName == TableDescriptorAttributeName)
+                if (attributeTypeName == TableDescriptorAttributeName || attributeTypeName == TempTableDescriptorAttributeName)
                 {
                     continue;
                 }
@@ -108,6 +121,7 @@ namespace SqExpress.Analyzers
             }
 
             var model = new CodeGenTableModel(
+                tableKind,
                 databaseName,
                 schemaName,
                 tableName,
@@ -127,11 +141,17 @@ namespace SqExpress.Analyzers
                 indexLocations.ToImmutable());
         }
 
-        private static bool TryReadTableIdentity(AttributeData attribute, out string? databaseName, out string? schemaName, out string tableName)
+        private static bool TryReadTableIdentity(AttributeData attribute, CodeGenTableKind tableKind, out string? databaseName, out string? schemaName, out string tableName)
         {
             databaseName = null;
             schemaName = null;
             tableName = string.Empty;
+
+            if (tableKind == CodeGenTableKind.TempTable)
+            {
+                tableName = attribute.ConstructorArguments.Length == 1 ? attribute.ConstructorArguments[0].Value as string ?? string.Empty : string.Empty;
+                return !string.IsNullOrWhiteSpace(tableName);
+            }
 
             switch (attribute.ConstructorArguments.Length)
             {

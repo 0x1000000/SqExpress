@@ -23,3 +23,4 @@ SQEX111 | SourceGeneration | Error | A descending index column is not part of th
 SQEX112 | SourceGeneration | Error | Foreign key target table could not be resolved.
 SQEX113 | SourceGeneration | Error | Foreign key target column could not be resolved.
 SQEX114 | SourceGeneration | Error | A table descriptor default value cannot be parsed for the declared column type.
+SQEX115 | SourceGeneration | Error | `[TableDescriptor]` and `[TempTableDescriptor]` cannot be used on the same class.

@@ -2,6 +2,12 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 namespace SqExpress.CodeGen.Shared
 {
+    public enum CodeGenTableKind
+    {
+        Table,
+        TempTable
+    }
+
     public enum CodeGenColumnKind
     {
         Boolean,
@@ -46,6 +52,7 @@ namespace SqExpress.CodeGen.Shared
     public sealed class CodeGenTableModel
     {
         public CodeGenTableModel(
+            CodeGenTableKind kind,
             string? databaseName,
             string? schemaName,
             string tableName,
@@ -55,6 +62,7 @@ namespace SqExpress.CodeGen.Shared
             ImmutableArray<CodeGenColumnModel> columns,
             ImmutableArray<CodeGenIndexModel> indexes)
         {
+            this.Kind = kind;
             this.DatabaseName = databaseName;
             this.SchemaName = schemaName;
             this.TableName = tableName;
@@ -64,6 +72,8 @@ namespace SqExpress.CodeGen.Shared
             this.Columns = columns;
             this.Indexes = indexes;
         }
+
+        public CodeGenTableKind Kind { get; }
 
         public string? DatabaseName { get; }
 
@@ -81,9 +91,9 @@ namespace SqExpress.CodeGen.Shared
 
         public ImmutableArray<CodeGenIndexModel> Indexes { get; }
 
-        public string TableKey => CodeGenTableDescriptorSupport.BuildTableKey(this.DatabaseName, this.SchemaName, this.TableName);
+        public string TableKey => CodeGenTableDescriptorSupport.BuildTableKey(this.Kind, this.DatabaseName, this.SchemaName, this.TableName);
 
-        public string TableDisplayName => this.TableKey;
+        public string TableDisplayName => this.Kind == CodeGenTableKind.TempTable ? $"temp table [{this.TableName}]" : this.TableKey;
     }
 
     public sealed class CodeGenColumnModel

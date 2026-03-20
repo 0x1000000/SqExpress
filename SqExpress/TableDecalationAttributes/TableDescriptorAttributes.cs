@@ -28,6 +28,17 @@ namespace SqExpress.TableDecalationAttributes
         public string Name { get; }
     }
 
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+    public sealed class TempTableDescriptorAttribute : Attribute
+    {
+        public TempTableDescriptorAttribute(string name)
+        {
+            this.Name = name;
+        }
+
+        public string Name { get; }
+    }
+
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
     public abstract class TableColumnAttributeBase : Attribute
     {
