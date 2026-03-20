@@ -1,6 +1,7 @@
 ﻿# SqExpress
 
 ![Logo](https://github.com/0x1000000/SqExpress/blob/main/SqExpress/Icon.png)
+For those who like SQL but hate raw strings.
 
 The library provides a generic SQL syntax tree with export to MS T-SQL, PostgreSQL, and MySQL text. It includes polyfills to compensate for features lacking in certain databases, such as the "MERGE" command. It also provides a set of builders and operators that will help you build complex SQL expressions. It also includes a T-SQL parser (`SqTSqlParser`) for converting existing SQL text into SqExpress AST.
 

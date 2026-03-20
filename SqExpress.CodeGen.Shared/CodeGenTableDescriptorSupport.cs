@@ -174,7 +174,8 @@ namespace SqExpress.CodeGen.Shared
 
         public static CompilationUnitSyntax GenerateTableDeclaration(
             CodeGenTableModel candidate,
-            IReadOnlyDictionary<string, CodeGenTableModel> allTables)
+            IReadOnlyDictionary<string, CodeGenTableModel> allTables,
+            CompilationUnitSyntax? existingCompilationUnit = null)
         {
             var validation = Validate(candidate, allTables);
             if (validation.Issues.Length > 0)
@@ -182,19 +183,25 @@ namespace SqExpress.CodeGen.Shared
                 throw new InvalidOperationException(string.Join(Environment.NewLine, validation.Issues.Select(FormatValidationIssue)));
             }
 
-            return CreateTableDeclarationSyntax(candidate, validation.PropertyNamesBySqlName);
+            if (existingCompilationUnit == null)
+            {
+                return CreateTableDeclarationSyntax(candidate, validation.PropertyNamesBySqlName);
+            }
+
+            return UpdateExistingTableDeclaration(existingCompilationUnit, candidate, validation.PropertyNamesBySqlName);
         }
 
         internal static CompilationUnitSyntax GenerateTableDeclaration(
             TableModel table,
             IReadOnlyDictionary<TableRef, TableModel> allTables,
-            string defaultNamespace)
+            string defaultNamespace,
+            CompilationUnitSyntax? existingCompilationUnit = null)
         {
             var allCodeGenTables = allTables.Values
                 .Select(t => ToCodeGenTableModel(t, defaultNamespace))
                 .ToDictionary(static t => t.TableKey, static t => t, StringComparer.OrdinalIgnoreCase);
             var candidate = allCodeGenTables[BuildTableKey(databaseName: null, schemaName: table.DbName.Schema, tableName: table.DbName.Name)];
-            return GenerateTableDeclaration(candidate, allCodeGenTables);
+            return GenerateTableDeclaration(candidate, allCodeGenTables, existingCompilationUnit);
         }
 
         private static CompilationUnitSyntax CreateTableDescriptorSyntax(
@@ -1085,6 +1092,29 @@ namespace SqExpress.CodeGen.Shared
             return compilationUnit.ReplaceNode(classDeclaration, newClass).NormalizeWhitespace();
         }
 
+        private static CompilationUnitSyntax UpdateExistingTableDeclaration(
+            CompilationUnitSyntax compilationUnit,
+            CodeGenTableModel candidate,
+            IReadOnlyDictionary<string, string> propertyNamesBySqlName)
+        {
+            var classDeclaration = compilationUnit.DescendantNodes()
+                .OfType<ClassDeclarationSyntax>()
+                .FirstOrDefault(c => c.Identifier.ValueText == candidate.ClassName);
+
+            if (classDeclaration == null)
+            {
+                return CreateTableDeclarationSyntax(candidate, propertyNamesBySqlName);
+            }
+
+            var updatedClass = classDeclaration
+                .WithAttributeLists(SyntaxFactory.List(RenderTableDeclarationAttributes(candidate, propertyNamesBySqlName)));
+
+            return EnsureUsingDirective(
+                    compilationUnit.ReplaceNode(classDeclaration, updatedClass),
+                    "SqExpress.TableDecalationAttributes")
+                .NormalizeWhitespace();
+        }
+
         private static CodeGenTableModel ToCodeGenTableModel(TableModel table, string defaultNamespace)
         {
             var typeNamespace = string.IsNullOrEmpty(defaultNamespace) ? null : defaultNamespace;
@@ -1214,6 +1244,16 @@ namespace SqExpress.CodeGen.Shared
                 CodeGenValidationIssueKind.ForeignKeyColumnNotFound => $"Could not find foreign key column \"{issue.Subject}\" referenced by column \"{issue.RelatedValue}\" in table {issue.TableDisplayName}.",
                 _ => $"Unknown validation issue \"{issue.Kind}\" for table {issue.TableDisplayName}."
             };
+        }
+
+        private static CompilationUnitSyntax EnsureUsingDirective(CompilationUnitSyntax compilationUnit, string namespaceName)
+        {
+            if (compilationUnit.Usings.Any(u => string.Equals(u.Name?.ToString(), namespaceName, StringComparison.Ordinal)))
+            {
+                return compilationUnit;
+            }
+
+            return compilationUnit.AddUsings(SyntaxFactory.UsingDirective(QualifiedName(namespaceName)));
         }
     }
 }

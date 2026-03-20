@@ -11,7 +11,7 @@
     <Summary>SqExpress is a SQL query builder that allows you to create SQL expressions directly in C# code with strong typing and IntelliSense.</Summary>
     <PackageReleaseNotes>https://github.com/0x1000000/SqExpress/blob/main/CHANGELOG.md</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Description>SqExpress is a SQL query builder that allows you to create SQL expressions directly in C# code with strong typing and IntelliSense (without LINQ!). The library provides a generic SQL syntax tree with export to MS T-SQL, PostgreSQL, and MySQL text. It includes polyfills to compensate for features lacking in certain databases, such as the "MERGE" command.  It also provides a set of builders and operators that will help you build complex SQL expressions. It also includes a T-SQL parser (`SqTSqlParser`) for converting existing SQL text into SqExpress AST.
+    <Description>SqExpress is for those who like SQL but hate raw strings. It is a SQL query builder that allows you to create SQL expressions directly in C# code with strong typing and IntelliSense (without LINQ!). The library provides a generic SQL syntax tree with export to MS T-SQL, PostgreSQL, and MySQL text. It includes polyfills to compensate for features lacking in certain databases, such as the "MERGE" command.  It also provides a set of builders and operators that will help you build complex SQL expressions. It also includes a T-SQL parser (`SqTSqlParser`) for converting existing SQL text into SqExpress AST.
 
 It does not use LINQ, and your C# code will be as close to real SQL as possible. This makes it ideal when you need full SQL flexibility to create efficient DB requests.
 

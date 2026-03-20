@@ -234,6 +234,45 @@ namespace SqExpress.Test.CodeGenUtil
             Assert.That(NormalizeNewLines(allTablesSource), Does.Contain("public static TabTableA GetTableA() => new TabTableA(Alias.Auto);"));
         }
 
+        [Test]
+        public async Task AttributeDeclarationExistingClassIsMerged()
+        {
+            using var dbManager = new DbManager(new DbManagerTest(),
+                new SqlConnection("Initial Catalog=_1_2_3tbl;"),
+                new DbManagerOptions("Tab"));
+
+            var tables = await dbManager.SelectTables();
+            var tableMap = tables.ToDictionary(t => t.DbName);
+            var table = tables.Single(t => t.Name == "TabTableZ");
+
+            var existingCompilationUnit = CSharpSyntaxTree.ParseText(
+                """
+                using SqExpress.TableDecalationAttributes;
+
+                namespace MyCompany.MyProject.Tables
+                {
+                    public partial class TabTableZ
+                    {
+                        public string CustomMethod()
+                        {
+                            return "Keep me";
+                        }
+                    }
+                }
+                """).GetCompilationUnitRoot();
+
+            var updatedSource = CodeGenTableDescriptorSupport.GenerateTableDeclaration(
+                table,
+                tableMap,
+                "MyCompany.MyProject.Tables",
+                existingCompilationUnit).ToFullString();
+
+            Assert.That(NormalizeNewLines(updatedSource), Does.Contain("[TableDescriptor(\"dbo\", \"TableZ\")]"));
+            Assert.That(NormalizeNewLines(updatedSource), Does.Contain("[Int32Column(\"Id\", Pk = true, Identity = true, DefaultValue = \"0\")]"));
+            Assert.That(NormalizeNewLines(updatedSource), Does.Contain("public string CustomMethod()"));
+            Assert.That(NormalizeNewLines(updatedSource), Does.Contain("return \"Keep me\";"));
+        }
+
         private static string NormalizeNewLines(string value)
             => value.Replace("\r\n", "\n");
     }

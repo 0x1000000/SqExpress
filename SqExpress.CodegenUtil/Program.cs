@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using CommandLine;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MySqlConnector;
 using Npgsql;
@@ -143,8 +144,11 @@ namespace SqExpress.CodeGenUtil
                 bool existing;
                 if (options.UseTableDeclarationAttributes)
                 {
-                    text = CodeGenTableDescriptorSupport.GenerateTableDeclaration(table, tableMap, options.Namespace).ToFullString();
                     existing = File.Exists(filePath);
+                    var existingCompilationUnit = existing
+                        ? CSharpSyntaxTree.ParseText(await File.ReadAllTextAsync(filePath)).GetCompilationUnitRoot()
+                        : null;
+                    text = CodeGenTableDescriptorSupport.GenerateTableDeclaration(table, tableMap, options.Namespace, existingCompilationUnit).ToFullString();
                 }
                 else
                 {
