@@ -38,6 +38,8 @@
 
 ### Breaking Changes
 - Some public syntax/source interfaces gained new members, including selecting-source and alias-related APIs, so custom implementations may need to be updated.
+- `ExprOffsetFetch.Offset` and `ExprOffsetFetch.Fetch` are now `ExprValue` instead of `ExprInt32Literal`. In most existing code, the workaround is to cast explicitly to `ExprInt32Literal`.
+- `ExprLike.Test` and `ExprLike.Pattern` are now `ExprValue` instead of `ExprStringLiteral`. In most existing code, the workaround is to cast explicitly to `ExprStringLiteral`.
 
 # 1.1.1
 ### Bugfix
