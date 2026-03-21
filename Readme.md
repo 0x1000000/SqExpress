@@ -271,6 +271,8 @@ Ok, let's try to select some data from a real table, but first we need to descri
 
 The primary way is now to declare the table with attributes and let the built-in source generator produce the `TableBase` implementation for you:
 
+For the full attribute reference, see [Table Description Reference](Reference/table_description.md).
+
 ```cs
 using SqExpress.TableDecalationAttributes;
 
@@ -1202,6 +1204,8 @@ DROP TABLE `tmpMergeDataSource`;
 ## Temporary Tables
 
 In some scenarios temporary tables might be very useful. Just like normal tables, the recommended way is now to declare them with attributes and let the source generator produce the `TempTableBase` implementation:
+
+The full attribute list is documented in [Table Description Reference](Reference/table_description.md).
 
 ```cs
 using SqExpress.TableDecalationAttributes;
