@@ -175,6 +175,8 @@ SELECT 'Hello World!'
 
 SqExpress also includes a built-in Roslyn analyzer for `SqTSqlParser.Parse(...)`. It validates raw SQL and checks referenced tables against discovered SqExpress descriptors, but when possible it is better to use the `Convert SQL to SqExpress` code fix and replace raw SQL with generated C#.
 
+For an overview of the expression hierarchy behind SqExpress syntax nodes, see [AST Reference](Reference/ast_reference.md).
+
 ![Convert SQL to SqExpress](sql-to-sqexpress.gif)
 
 ## When to Use SqExpress (and When Not)
@@ -1555,6 +1557,8 @@ Notes:
 ## Syntax Tree
 
 You can go through an existing syntax tree object and modify if it is required:
+
+Reference: [AST Reference](Reference/ast_reference.md)
 
 ```cs
 //Var some external filter..

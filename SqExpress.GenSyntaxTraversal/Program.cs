@@ -9,7 +9,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace SqExpress.GenSyntaxTraversal
 {
-    class Program
+    public class Program
     {
         public static int Main(string[] args)
         {
@@ -28,10 +28,15 @@ namespace SqExpress.GenSyntaxTraversal
             }
 
 
-            IReadOnlyList<NodeModel> buffer;
+            IReadOnlyList<NodeModel> model;
+            IReadOnlyList<NodeModel> traversalBuffer;
             try
             {
-                buffer = BuildModelRoslyn(projDir);
+                model = BuildModelRoslyn(projDir);
+                traversalBuffer = model
+                    .Where(static m => m is { IsAbstract: false, IsInterface: false } && m.TypeName.StartsWith("Expr", StringComparison.Ordinal))
+                    .OrderBy(static m => m.TypeName, StringComparer.Ordinal)
+                    .ToList();
             }
             catch (Exception e)
             {
@@ -41,14 +46,15 @@ namespace SqExpress.GenSyntaxTraversal
 
             try
             {
-                Generate(projDir, @"Syntax\IExprVisitorNoArg.cs", buffer, GenerateVisitorInterfaceNoArg);
-                Generate(projDir, @"Syntax\ExprVisitorProxy.cs", buffer, GenerateVisitorProxy);
-                Generate(projDir, @"SyntaxTreeOperations\ExprDeserializer.cs", buffer, GenerateDeserializer);
-                Generate(projDir, @"SyntaxTreeOperations\ExprVisitorBase.cs", buffer, GenerateVisitorBaseNonGeneric);
-                Generate(projDir, @"SyntaxTreeOperations\Internal\ExprModifier.cs", buffer, GenerateModifier);
-                Generate(projDir, @"SyntaxTreeOperations\Internal\ExprWalker.cs", buffer, GenerateWalker);
-                Generate(projDir, @"SyntaxTreeOperations\Internal\ExprWalkerPull.cs", buffer, GenerateWalkerPull);
-                Generate(projDir, @"SyntaxModifyExtensions.cs", buffer, GenerateSyntaxModify);
+                Generate(projDir, @"Syntax\IExprVisitorNoArg.cs", traversalBuffer, GenerateVisitorInterfaceNoArg);
+                Generate(projDir, @"Syntax\ExprVisitorProxy.cs", traversalBuffer, GenerateVisitorProxy);
+                Generate(projDir, @"SyntaxTreeOperations\ExprDeserializer.cs", traversalBuffer, GenerateDeserializer);
+                Generate(projDir, @"SyntaxTreeOperations\ExprVisitorBase.cs", traversalBuffer, GenerateVisitorBaseNonGeneric);
+                Generate(projDir, @"SyntaxTreeOperations\Internal\ExprModifier.cs", traversalBuffer, GenerateModifier);
+                Generate(projDir, @"SyntaxTreeOperations\Internal\ExprWalker.cs", traversalBuffer, GenerateWalker);
+                Generate(projDir, @"SyntaxTreeOperations\Internal\ExprWalkerPull.cs", traversalBuffer, GenerateWalkerPull);
+                Generate(projDir, @"SyntaxModifyExtensions.cs", traversalBuffer, GenerateSyntaxModify);
+                Generate(projDir, @"..\Reference\ast_reference.md", model, GenerateAstReferenceMarkdown, "<!-- CodeGenStart -->", "<!-- CodeGenEnd -->");
                 Console.WriteLine("Done!");
             }
             catch (Exception e)
@@ -61,18 +67,34 @@ namespace SqExpress.GenSyntaxTraversal
         }
 
 
-        private static void Generate(string projDir, string relativePath, IReadOnlyList<NodeModel> model, Action<IReadOnlyList<NodeModel>, StringBuilder> generator)
+        private static void Generate(string projDir, string relativePath, IReadOnlyList<NodeModel> model, Action<IReadOnlyList<NodeModel>, StringBuilder> generator, string startMarker = "//CodeGenStart", string endMarker = "//CodeGenEnd")
         {
             var path = Path.Combine(projDir, relativePath);
 
+            var existingContent = File.ReadAllText(path);
+            var generatedContentBuilder = new StringBuilder();
+            generator.Invoke(model, generatedContentBuilder);
+
+            File.WriteAllText(path, ReplaceGeneratedRegion(existingContent, generatedContentBuilder.ToString(), startMarker, endMarker));
+        }
+
+        public static string ReplaceGeneratedRegion(string content, string generatedContent, string startMarker = "//CodeGenStart", string endMarker = "//CodeGenEnd")
+        {
             StringBuilder newContentBuilder = new StringBuilder();
 
             bool skip = false;
-            foreach (var line in File.ReadLines(path))
+            using var reader = new StringReader(content);
+            string? line;
+            while ((line = reader.ReadLine()) != null)
             {
-                if (line.Contains("//CodeGenEnd"))
+                if (line.Contains(endMarker))
                 {
-                    generator.Invoke(model, newContentBuilder);
+                    newContentBuilder.Append(generatedContent);
+                    if (generatedContent.Length > 0 && generatedContent[generatedContent.Length - 1] != '\n')
+                    {
+                        newContentBuilder.AppendLine();
+                    }
+
                     skip = false;
                 }
 
@@ -81,13 +103,13 @@ namespace SqExpress.GenSyntaxTraversal
                     newContentBuilder.AppendLine(line);
                 }
 
-                if (line.Contains("//CodeGenStart"))
+                if (line.Contains(startMarker))
                 {
                     skip = true;
                 }
             }
 
-            File.WriteAllText(path, newContentBuilder.ToString());
+            return newContentBuilder.ToString();
         }
 
         private static void GenerateDeserializer(IReadOnlyList<NodeModel> models, StringBuilder stringBuilder)
@@ -421,82 +443,219 @@ namespace SqExpress.GenSyntaxTraversal
             }
         }
 
+        public static void GenerateAstReferenceMarkdown(IReadOnlyList<NodeModel> models, StringBuilder stringBuilder)
+        {
+            var docModels = models.OrderBy(static m => m.TypeName, StringComparer.Ordinal).ToList();
+            var typesByName = docModels.ToDictionary(static m => m.TypeName, static m => m, StringComparer.Ordinal);
+            var childrenByBase = docModels
+                .Where(static m => !string.IsNullOrEmpty(m.BaseTypeName))
+                .GroupBy(m => m.BaseTypeName!, StringComparer.Ordinal)
+                .ToDictionary(static g => g.Key, static g => g.OrderBy(m => m.TypeName, StringComparer.Ordinal).ToList(), StringComparer.Ordinal);
+
+            stringBuilder.AppendLine("## Hierarchy");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine("- [IExpr](#iexpr)");
+            AppendHierarchyChildren(stringBuilder, "IExpr", childrenByBase, 1);
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine("## Type Reference");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine("### IExpr");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine("- Kind: interface root");
+            if (childrenByBase.TryGetValue("IExpr", out var rootChildren))
+            {
+                stringBuilder.AppendLine($"- Direct descendants: {string.Join(", ", rootChildren.Select(static c => LinkType(c.TypeName)))}");
+            }
+            stringBuilder.AppendLine();
+
+            foreach (var nodeModel in docModels)
+            {
+                stringBuilder.AppendLine($"### {nodeModel.TypeName}");
+                stringBuilder.AppendLine();
+                stringBuilder.AppendLine($"- Kind: {GetKindText(nodeModel)}");
+                stringBuilder.AppendLine($"- Base: {(string.IsNullOrEmpty(nodeModel.BaseTypeName) ? "[IExpr](#iexpr)" : LinkType(nodeModel.BaseTypeName!))}");
+                if (childrenByBase.TryGetValue(nodeModel.TypeName, out var children) && children.Count > 0)
+                {
+                    stringBuilder.AppendLine($"- Direct descendants: {string.Join(", ", children.Select(c => LinkType(c.TypeName)))}");
+                }
+                if (nodeModel.IsCustomTraversal)
+                {
+                    stringBuilder.AppendLine("- Traversal: custom");
+                }
+
+                if (nodeModel.SubNodes.Count > 0)
+                {
+                    stringBuilder.AppendLine("- Subnodes:");
+                    foreach (var subNode in nodeModel.SubNodes.OrderBy(static s => s.PropertyName, StringComparer.Ordinal))
+                    {
+                        stringBuilder.AppendLine($"  - `{subNode.PropertyName}`: {FormatPropertyType(subNode, typesByName)}");
+                    }
+                }
+
+                if (nodeModel.Properties.Count > 0)
+                {
+                    stringBuilder.AppendLine("- Plain properties:");
+                    foreach (var property in nodeModel.Properties.OrderBy(static s => s.PropertyName, StringComparer.Ordinal))
+                    {
+                        stringBuilder.AppendLine($"  - `{property.PropertyName}`: {FormatPropertyType(property, typesByName)}");
+                    }
+                }
+
+                stringBuilder.AppendLine();
+            }
+
+            static void AppendHierarchyChildren(StringBuilder builder, string parentType, IReadOnlyDictionary<string, List<NodeModel>> childrenMap, int depth)
+            {
+                if (!childrenMap.TryGetValue(parentType, out var children))
+                {
+                    return;
+                }
+
+                foreach (var child in children)
+                {
+                    builder.Append(' ', depth * 2);
+                    builder.Append("- ");
+                    builder.Append(LinkType(child.TypeName));
+                    if (child.Kind == NodeKind.Interface)
+                    {
+                        builder.Append(" _(interface)_");
+                    }
+                    else if (child.Kind == NodeKind.AbstractClass)
+                    {
+                        builder.Append(" _(abstract)_");
+                    }
+
+                    if (child.Kind == NodeKind.SingletonClass)
+                    {
+                        builder.Append(" _(singleton)_");
+                    }
+
+                    builder.AppendLine();
+                    AppendHierarchyChildren(builder, child.TypeName, childrenMap, depth + 1);
+                }
+            }
+
+            static string FormatPropertyType(SubNodeModel model, IReadOnlyDictionary<string, NodeModel> documentedTypes)
+            {
+                var typeText = documentedTypes.ContainsKey(model.PropertyType)
+                    ? LinkType(model.PropertyType)
+                    : model.PropertyType;
+
+                if (!string.IsNullOrEmpty(model.HostTypeName))
+                {
+                    typeText = $"{model.HostTypeName}.{typeText}";
+                }
+
+                if (model.IsList)
+                {
+                    typeText = $"{model.ListName}<{typeText}>";
+                }
+
+                if (model.IsNullable)
+                {
+                    typeText += "?";
+                }
+
+                return typeText;
+            }
+
+            static string GetKindText(NodeModel nodeModel)
+            {
+                var result = nodeModel.Kind switch
+                {
+                    NodeKind.Interface => "interface",
+                    NodeKind.AbstractClass => "abstract class",
+                    NodeKind.SingletonClass => "class, singleton",
+                    _ => "class"
+                };
+
+                return result;
+            }
+
+            static string LinkType(string typeName)
+                => $"[{typeName}](#{typeName.ToLowerInvariant()})";
+        }
+
         public static IReadOnlyList<NodeModel> BuildModelRoslyn(string projectFolder)
         {
             List<NodeModel> result = new List<NodeModel>();
-				
-            var files = Directory.EnumerateFiles(Path.Combine(projectFolder, "Syntax"), "*.cs", SearchOption.AllDirectories);
 
+            var files = Directory.EnumerateFiles(Path.Combine(projectFolder, "Syntax"), "*.cs", SearchOption.AllDirectories);
             files = files.Concat(Directory.EnumerateFiles(projectFolder, "IExpr*.cs"));
 
             var trees = files.Select(f => CSharpSyntaxTree.ParseText(File.ReadAllText(f))).ToList();
-            var cSharpCompilation = CSharpCompilation.Create("Syntax", trees);
+            var cSharpCompilation = CSharpCompilation.Create("SyntaxDocs", trees);
 
             foreach (var tree in trees)
             {
                 var semantic = cSharpCompilation.GetSemanticModel(tree);
 
-                foreach (var classDeclarationSyntax in tree.GetRoot().DescendantNodesAndSelf().OfType<ClassDeclarationSyntax>())
+                foreach (var typeDeclarationSyntax in tree.GetRoot().DescendantNodesAndSelf().OfType<TypeDeclarationSyntax>())
                 {
-                    var classSymbol = semantic.GetDeclaredSymbol(classDeclarationSyntax);
+                    var typeSymbol = semantic.GetDeclaredSymbol(typeDeclarationSyntax) as INamedTypeSymbol;
 
-                    var isSuitable = classSymbol != null 
-                                 && !classSymbol.IsAbstract 
-                                 && classSymbol.DeclaredAccessibility == Accessibility.Public
-                                 && IsExpr(classSymbol) 
-                                 && classSymbol.Name.StartsWith("Expr");
-                        
+                    var isSuitable = typeSymbol != null
+                                     && typeSymbol.DeclaredAccessibility == Accessibility.Public
+                                     && IsDocumentedExprType(typeSymbol)
+                                     && typeSymbol.Name != "IExpr";
+
                     if (!isSuitable)
                     {
                         continue;
                     }
 
-                    var properties = GetProperties(classSymbol);
+                    var properties = GetProperties(typeSymbol);
 
                     var subNodes = new List<SubNodeModel>();
                     var modelProps = new List<SubNodeModel>();
 
-                    foreach (var constructor in classSymbol.Constructors)
+                    foreach (var constructor in typeSymbol.Constructors)
                     {
                         foreach (var parameter in constructor.Parameters)
                         {
                             INamedTypeSymbol pType = (INamedTypeSymbol)parameter.Type;
 
                             var correspondingProperty = properties.FirstOrDefault(prop =>
-                                string.Equals(prop.Name,
-                                    parameter.Name,
-                                    StringComparison.CurrentCultureIgnoreCase));
+                                string.Equals(prop.Name, parameter.Name, StringComparison.CurrentCultureIgnoreCase));
 
                             if (correspondingProperty == null)
                             {
                                 throw new Exception(
-                                    $"Could not find a property for the constructor arg: '{parameter.Name}' in {classSymbol.Name}");
+                                    $"Could not find a property for the constructor arg: '{parameter.Name}' in {typeSymbol.Name}");
                             }
 
                             var ta = AnalyzeSymbol(ref pType);
 
-                            var subNodeModel = new SubNodeModel(correspondingProperty.Name,
+                            var subNodeModel = new SubNodeModel(
+                                correspondingProperty.Name,
                                 parameter.Name,
                                 pType.Name,
                                 ta.ListName,
                                 ta.IsNullable,
                                 ta.HostTypeName);
+
                             if (ta.Expr)
                             {
-                                subNodes.Add(subNodeModel);
+                                if (subNodes.All(s => s.PropertyName != subNodeModel.PropertyName))
+                                {
+                                    subNodes.Add(subNodeModel);
+                                }
                             }
                             else
                             {
-                                modelProps.Add(subNodeModel);
+                                if (modelProps.All(s => s.PropertyName != subNodeModel.PropertyName))
+                                {
+                                    modelProps.Add(subNodeModel);
+                                }
                             }
-
                         }
                     }
 
-                    var isCustomTraversal = classSymbol.GetAttributes().Any(a => a.AttributeClass?.Name == "SqCustomTraversalAttribute");
-
-                    result.Add(new NodeModel(classSymbol.Name,
-                        modelProps.Count == 0 && subNodes.Count == 0,
+                    var isCustomTraversal = typeSymbol.GetAttributes().Any(a => a.AttributeClass?.Name == "SqCustomTraversalAttribute");
+                    result.Add(new NodeModel(
+                        typeSymbol.Name,
+                        GetNodeKind(typeSymbol, modelProps.Count == 0 && subNodes.Count == 0),
+                        GetDirectExprBaseTypeName(typeSymbol),
                         isCustomTraversal,
                         subNodes,
                         modelProps));
@@ -504,7 +663,6 @@ namespace SqExpress.GenSyntaxTraversal
             }
 
             result.Sort((a, b) => string.CompareOrdinal(a.TypeName, b.TypeName));
-
             return result;
 
             bool IsExpr(INamedTypeSymbol symbol)
@@ -513,17 +671,18 @@ namespace SqExpress.GenSyntaxTraversal
                 {
                     return true;
                 }
+
                 while (symbol != null)
                 {
                     if (symbol.Interfaces.Any(HasA))
                     {
                         return true;
                     }
+
                     symbol = symbol.BaseType;
                 }
 
                 return false;
-
 
                 bool HasA(INamedTypeSymbol iSym)
                 {
@@ -536,16 +695,75 @@ namespace SqExpress.GenSyntaxTraversal
                 }
             }
 
+            bool IsDocumentedExprType(INamedTypeSymbol symbol)
+            {
+                return IsExpr(symbol) && symbol.TypeKind is TypeKind.Class or TypeKind.Interface;
+            }
+
             List<ISymbol> GetProperties(INamedTypeSymbol symbol)
             {
-                List<ISymbol> result = new List<ISymbol>();
-                while (symbol != null)
+                var innerResult = new List<ISymbol>();
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+
+                void AddProperties(INamedTypeSymbol current)
                 {
-                    result.AddRange(symbol.GetMembers().Where(m => m.Kind == SymbolKind.Property));
-                    symbol = symbol.BaseType;
+                    foreach (var property in current.GetMembers().Where(static m => m.Kind == SymbolKind.Property))
+                    {
+                        if (seen.Add(property.Name))
+                        {
+                            innerResult.Add(property);
+                        }
+                    }
                 }
 
-                return result;
+                var currentSymbol = symbol;
+                while (currentSymbol != null)
+                {
+                    AddProperties(currentSymbol);
+                    currentSymbol = currentSymbol.BaseType;
+                }
+
+                foreach (var interfaceSymbol in symbol.AllInterfaces.OrderBy(static i => i.Name, StringComparer.Ordinal))
+                {
+                    AddProperties(interfaceSymbol);
+                }
+
+                return innerResult;
+            }
+
+            string GetDirectExprBaseTypeName(INamedTypeSymbol symbol)
+            {
+                if (symbol.BaseType != null && IsDocumentedExprType(symbol.BaseType))
+                {
+                    return symbol.BaseType.Name;
+                }
+
+                var directInterfaces = symbol.Interfaces
+                    .Where(IsDocumentedExprType)
+                    .OrderBy(static i => i.Name, StringComparer.Ordinal)
+                    .ToList();
+
+                if (directInterfaces.Count > 0)
+                {
+                    return directInterfaces[0].Name;
+                }
+
+                return "IExpr";
+            }
+
+            NodeKind GetNodeKind(INamedTypeSymbol symbol, bool isSingleton)
+            {
+                if (symbol.TypeKind == TypeKind.Interface)
+                {
+                    return NodeKind.Interface;
+                }
+
+                if (symbol.IsAbstract)
+                {
+                    return NodeKind.AbstractClass;
+                }
+
+                return isSingleton ? NodeKind.SingletonClass : NodeKind.Class;
             }
 
             SymbolAnalysis AnalyzeSymbol(ref INamedTypeSymbol typeSymbol)
@@ -554,8 +772,7 @@ namespace SqExpress.GenSyntaxTraversal
                 string hostType = null;
                 if (typeSymbol.ContainingType != null)
                 {
-                    var host = typeSymbol.ContainingType;
-                    hostType = host.Name;
+                    hostType = typeSymbol.ContainingType.Name;
                 }
 
                 var nullable = typeSymbol.NullableAnnotation == NullableAnnotation.Annotated;
@@ -567,7 +784,7 @@ namespace SqExpress.GenSyntaxTraversal
 
                 if (typeSymbol.IsGenericType)
                 {
-                    if (typeSymbol.Name.Contains("List"))
+                    if (typeSymbol.Name.Contains("List", StringComparison.Ordinal))
                     {
                         listName = typeSymbol.Name;
                     }
@@ -631,10 +848,11 @@ namespace SqExpress.GenSyntaxTraversal
 
     public class NodeModel
     {
-        public NodeModel(string typeName, bool isSingleton, bool isCustomTraversal, IReadOnlyList<SubNodeModel> subNodes, IReadOnlyList<SubNodeModel> properties)
+        public NodeModel(string typeName, NodeKind kind, string baseTypeName, bool isCustomTraversal, IReadOnlyList<SubNodeModel> subNodes, IReadOnlyList<SubNodeModel> properties)
         {
             this.TypeName = typeName;
-            this.IsSingleton = isSingleton;
+            this.Kind = kind;
+            this.BaseTypeName = baseTypeName;
             this.IsCustomTraversal = isCustomTraversal;
             this.SubNodes = subNodes;
             this.Properties = properties;
@@ -642,13 +860,29 @@ namespace SqExpress.GenSyntaxTraversal
 
         public string TypeName { get; }
 
-        public bool IsSingleton { get; }
+        public NodeKind Kind { get; }
+
+        public bool IsAbstract => this.Kind == NodeKind.AbstractClass;
+
+        public bool IsInterface => this.Kind == NodeKind.Interface;
+
+        public bool IsSingleton => this.Kind == NodeKind.SingletonClass;
+
+        public string BaseTypeName { get; }
 
         public bool IsCustomTraversal { get; }
 
         public IReadOnlyList<SubNodeModel> SubNodes { get; }
 
         public IReadOnlyList<SubNodeModel> Properties { get; }
+    }
+
+    public enum NodeKind
+    {
+        Class,
+        SingletonClass,
+        AbstractClass,
+        Interface
     }
 
     public class SubNodeModel

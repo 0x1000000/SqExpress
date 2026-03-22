@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\SqExpress.Analyzers\SqExpress.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\SqExpress.CodegenUtil\SqExpress.CodeGenUtil.csproj" />
+    <ProjectReference Include="..\..\SqExpress.GenSyntaxTraversal\SqExpress.GenSyntaxTraversal.csproj" />
     <ProjectReference Include="..\..\SqExpress\SqExpress.csproj" />
   </ItemGroup>
 
