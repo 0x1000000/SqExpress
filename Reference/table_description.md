@@ -8,6 +8,38 @@ using SqExpress.TableDecalationAttributes;
 
 These attributes are consumed by the built-in source generator and produce `TableBase` or `TempTableBase` implementations at compile time.
 
+## Attribute Index
+
+- [`TableDescriptor`](#tabledescriptor)
+- [`TempTableDescriptor`](#temptabledescriptor)
+- [`BooleanColumn`](#boolean)
+- [`NullableBooleanColumn`](#boolean)
+- [`ByteColumn`](#byte--binary)
+- [`NullableByteColumn`](#byte--binary)
+- [`ByteArrayColumn`](#byte--binary)
+- [`NullableByteArrayColumn`](#byte--binary)
+- [`Int16Column`](#integer)
+- [`NullableInt16Column`](#integer)
+- [`Int32Column`](#integer)
+- [`NullableInt32Column`](#integer)
+- [`Int64Column`](#integer)
+- [`NullableInt64Column`](#integer)
+- [`DoubleColumn`](#floating-point--decimal)
+- [`NullableDoubleColumn`](#floating-point--decimal)
+- [`DecimalColumn`](#floating-point--decimal)
+- [`NullableDecimalColumn`](#floating-point--decimal)
+- [`DateTimeColumn`](#date--time)
+- [`NullableDateTimeColumn`](#date--time)
+- [`DateTimeOffsetColumn`](#date--time)
+- [`NullableDateTimeOffsetColumn`](#date--time)
+- [`GuidColumn`](#other-scalar-types)
+- [`NullableGuidColumn`](#other-scalar-types)
+- [`StringColumn`](#other-scalar-types)
+- [`NullableStringColumn`](#other-scalar-types)
+- [`XmlColumn`](#other-scalar-types)
+- [`NullableXmlColumn`](#other-scalar-types)
+- [`Index`](#index)
+
 ## Class-Level Descriptor Attributes
 
 Only one descriptor attribute may be used on the same class.
