@@ -11,6 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\SqExpress.CodeGen.Shared\SqExpress.CodeGen.Shared.csproj" />
     <ProjectReference Include="..\SqExpress\SqExpress.csproj" />
   </ItemGroup>
 

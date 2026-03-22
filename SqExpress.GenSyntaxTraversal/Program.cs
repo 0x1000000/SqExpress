@@ -117,7 +117,7 @@ namespace SqExpress.GenSyntaxTraversal
             CodeBuilder builder = new CodeBuilder(stringBuilder, 4);
             foreach (var nodeModel in models)
             {
-                string pr = null;
+                string? pr = null;
                 if (nodeModel.IsCustomTraversal)
                 {
                     pr = "//";
@@ -183,7 +183,7 @@ namespace SqExpress.GenSyntaxTraversal
             CodeBuilder builder = new CodeBuilder(stringBuilder, 2);
             foreach (var nodeModel in models)
             {
-                string pr = null;
+                string? pr = null;
                 if (nodeModel.IsCustomTraversal)
                 {
                     pr = "//";
@@ -259,7 +259,7 @@ namespace SqExpress.GenSyntaxTraversal
             CodeBuilder builder = new CodeBuilder(stringBuilder, 2);
             foreach (var nodeModel in models)
             {
-                string pr = null;
+                string? pr = null;
                 if (nodeModel.IsCustomTraversal)
                 {
                     pr = "//";
@@ -319,7 +319,7 @@ namespace SqExpress.GenSyntaxTraversal
             CodeBuilder builder = new CodeBuilder(stringBuilder, 2);
             foreach (var nodeModel in models)
             {
-                string pr = null;
+                string? pr = null;
                 if (nodeModel.IsCustomTraversal)
                 {
                     pr = "//";
@@ -356,7 +356,7 @@ namespace SqExpress.GenSyntaxTraversal
             CodeBuilder builder = new CodeBuilder(stringBuilder, 2);
             foreach (var nodeModel in models)
             {
-                string pr = null;
+                string? pr = null;
                 if (nodeModel.IsCustomTraversal)
                 {
                     pr = "//";
@@ -438,7 +438,7 @@ namespace SqExpress.GenSyntaxTraversal
                     }
 
                     builder.AppendLine(");");
-                    builder.AppendLine(null);
+                    builder.AppendLine(string.Empty);
                 }
             }
         }
@@ -593,13 +593,10 @@ namespace SqExpress.GenSyntaxTraversal
                 foreach (var typeDeclarationSyntax in tree.GetRoot().DescendantNodesAndSelf().OfType<TypeDeclarationSyntax>())
                 {
                     var typeSymbol = semantic.GetDeclaredSymbol(typeDeclarationSyntax) as INamedTypeSymbol;
-
-                    var isSuitable = typeSymbol != null
-                                     && typeSymbol.DeclaredAccessibility == Accessibility.Public
-                                     && IsDocumentedExprType(typeSymbol)
-                                     && typeSymbol.Name != "IExpr";
-
-                    if (!isSuitable)
+                    if (typeSymbol == null
+                        || typeSymbol.DeclaredAccessibility != Accessibility.Public
+                        || !IsDocumentedExprType(typeSymbol)
+                        || typeSymbol.Name == "IExpr")
                     {
                         continue;
                     }
@@ -672,14 +669,15 @@ namespace SqExpress.GenSyntaxTraversal
                     return true;
                 }
 
-                while (symbol != null)
+                INamedTypeSymbol? currentSymbol = symbol;
+                while (currentSymbol != null)
                 {
-                    if (symbol.Interfaces.Any(HasA))
+                    if (currentSymbol.Interfaces.Any(HasA))
                     {
                         return true;
                     }
 
-                    symbol = symbol.BaseType;
+                    currentSymbol = currentSymbol.BaseType;
                 }
 
                 return false;
@@ -768,8 +766,8 @@ namespace SqExpress.GenSyntaxTraversal
 
             SymbolAnalysis AnalyzeSymbol(ref INamedTypeSymbol typeSymbol)
             {
-                string listName = null;
-                string hostType = null;
+                string? listName = null;
+                string? hostType = null;
                 if (typeSymbol.ContainingType != null)
                 {
                     hostType = typeSymbol.ContainingType.Name;
@@ -832,11 +830,11 @@ namespace SqExpress.GenSyntaxTraversal
         class SymbolAnalysis
         {
             public readonly bool IsNullable;
-            public readonly string ListName;
+            public readonly string? ListName;
             public readonly bool Expr;
-            public readonly string HostTypeName;
+            public readonly string? HostTypeName;
 
-            public SymbolAnalysis(bool isNullable, string listName, bool expr, string hostTypeName)
+            public SymbolAnalysis(bool isNullable, string? listName, bool expr, string? hostTypeName)
             {
                 this.IsNullable = isNullable;
                 this.ListName = listName;
@@ -887,7 +885,7 @@ namespace SqExpress.GenSyntaxTraversal
 
     public class SubNodeModel
     {
-        public SubNodeModel(string propertyName, string constructorArgumentName, string propertyType, string listName, bool isNullable, string hostTypeName)
+        public SubNodeModel(string propertyName, string constructorArgumentName, string propertyType, string? listName, bool isNullable, string? hostTypeName)
         {
             this.PropertyName = propertyName;
             this.PropertyType = propertyType;
@@ -903,13 +901,13 @@ namespace SqExpress.GenSyntaxTraversal
 
         public string PropertyType { get; }
 
-        public string ListName { get; }
+        public string? ListName { get; }
 
         public bool IsList => this.ListName != null;
 
         public bool IsNullable { get; }
 
-        public string HostTypeName { get; }
+        public string? HostTypeName { get; }
 
 
         public string GetFullPropertyTypeName()

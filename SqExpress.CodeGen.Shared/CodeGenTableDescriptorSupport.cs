@@ -145,6 +145,30 @@ namespace SqExpress.CodeGen.Shared
             return UpdateExistingTableDescriptor(existingCompilationUnit, candidate, validation.PropertyNamesBySqlName, allTables);
         }
 
+        public static ClassDeclarationSyntax GenerateTableDescriptorClass(
+            CodeGenTableModel candidate,
+            IReadOnlyDictionary<string, CodeGenTableModel> allTables,
+            CodeGenTableDescriptorRenderOptions? options = null)
+        {
+            var validation = Validate(candidate, allTables);
+            return GenerateTableDescriptorClass(candidate, validation, allTables, options);
+        }
+
+        public static ClassDeclarationSyntax GenerateTableDescriptorClass(
+            CodeGenTableModel candidate,
+            CodeGenValidationResult validation,
+            IReadOnlyDictionary<string, CodeGenTableModel> allTables,
+            CodeGenTableDescriptorRenderOptions? options = null)
+        {
+            if (validation.Issues.Length > 0)
+            {
+                throw new InvalidOperationException(string.Join(Environment.NewLine, validation.Issues.Select(FormatValidationIssue)));
+            }
+
+            options ??= CodeGenTableDescriptorRenderOptions.Analyzer;
+            return CreateTableDescriptorClass(candidate, validation.PropertyNamesBySqlName, allTables, options);
+        }
+
         internal static CompilationUnitSyntax GenerateTableDescriptor(
             TableModel table,
             IReadOnlyDictionary<TableRef, TableModel> allTables,
@@ -208,6 +232,21 @@ namespace SqExpress.CodeGen.Shared
             return GenerateTableDeclaration(candidate, allCodeGenTables, existingCompilationUnit);
         }
 
+        internal static CompilationUnitSyntax GenerateTableDeclaration(
+            TableModel table,
+            IReadOnlyDictionary<TableRef, TableModel> allTables,
+            string defaultNamespace,
+            string existingFilePath,
+            IFileSystem fileSystem,
+            out bool existing)
+        {
+            existing = fileSystem.FileExists(existingFilePath);
+            var existingCompilationUnit = existing
+                ? CSharpSyntaxTree.ParseText(fileSystem.ReadAllText(existingFilePath)).GetCompilationUnitRoot()
+                : null;
+            return GenerateTableDeclaration(table, allTables, defaultNamespace, existingCompilationUnit);
+        }
+
         private static CompilationUnitSyntax CreateTableDescriptorSyntax(
             CodeGenTableModel candidate,
             IReadOnlyDictionary<string, string> propertyNamesBySqlName,
@@ -215,20 +254,7 @@ namespace SqExpress.CodeGen.Shared
             CodeGenTableDescriptorRenderOptions? options)
         {
             options ??= CodeGenTableDescriptorRenderOptions.Analyzer;
-
-            var classMembers = new MemberDeclarationSyntax[]
-                {
-                    RenderEmptyConstructor(candidate),
-                    RenderMainConstructor(candidate, propertyNamesBySqlName, allTables)
-                }
-                .Concat(RenderProperties(candidate, propertyNamesBySqlName))
-                .ToArray();
-
-            var classDeclaration = SyntaxFactory.ClassDeclaration(candidate.ClassName)
-                .WithModifiers(GetClassModifiers(options))
-                .WithBaseList(SyntaxFactory.BaseList(SyntaxFactory.SingletonSeparatedList<BaseTypeSyntax>(
-                    SyntaxFactory.SimpleBaseType(SyntaxFactory.IdentifierName(candidate.Kind == CodeGenTableKind.TempTable ? "TempTableBase" : "TableBase")))))
-                .AddMembers(classMembers);
+            var classDeclaration = CreateTableDescriptorClass(candidate, propertyNamesBySqlName, allTables, options);
 
             MemberDeclarationSyntax container = classDeclaration;
             if (!string.IsNullOrEmpty(candidate.Namespace))
@@ -257,6 +283,34 @@ namespace SqExpress.CodeGen.Shared
             }
 
             return compilationUnit.NormalizeWhitespace();
+        }
+
+        public static string GetColumnPropertyTypeName(CodeGenColumnModel column)
+        {
+            return RenderPropertyType(column).ToString();
+        }
+
+        public static string GetColumnPropertyTypeName(CodeGenColumnKind kind)
+        {
+            return GetColumnPropertyTypeName(new CodeGenColumnModel(
+                kind,
+                sqlName: "_",
+                propertyName: null,
+                isPrimaryKey: false,
+                isIdentity: false,
+                foreignKeyDatabase: null,
+                foreignKeySchema: null,
+                foreignKeyTable: null,
+                foreignKeyColumn: null,
+                defaultValueKind: 0,
+                defaultValue: null,
+                isUnicode: true,
+                maxLength: null,
+                isFixedLength: false,
+                isText: false,
+                precision: 18,
+                scale: 2,
+                isDate: false));
         }
 
         private static CompilationUnitSyntax CreateTableDeclarationSyntax(
@@ -289,6 +343,46 @@ namespace SqExpress.CodeGen.Shared
             return compilationUnit.NormalizeWhitespace();
         }
 
+        private static ClassDeclarationSyntax CreateTableDescriptorClass(
+            CodeGenTableModel candidate,
+            IReadOnlyDictionary<string, string> propertyNamesBySqlName,
+            IReadOnlyDictionary<string, CodeGenTableModel> allTables,
+            CodeGenTableDescriptorRenderOptions options)
+        {
+            var classMembers = RenderConstructors(candidate, propertyNamesBySqlName, allTables, options)
+                .Concat(RenderProperties(candidate, propertyNamesBySqlName))
+                .ToArray();
+
+            return SyntaxFactory.ClassDeclaration(candidate.ClassName)
+                .WithModifiers(GetClassModifiers(options))
+                .WithBaseList(SyntaxFactory.BaseList(SyntaxFactory.SingletonSeparatedList<BaseTypeSyntax>(
+                    SyntaxFactory.SimpleBaseType(SyntaxFactory.IdentifierName(candidate.Kind == CodeGenTableKind.TempTable ? "TempTableBase" : "TableBase")))))
+                .AddMembers(classMembers);
+        }
+
+        private static IEnumerable<MemberDeclarationSyntax> RenderConstructors(
+            CodeGenTableModel candidate,
+            IReadOnlyDictionary<string, string> propertyNamesBySqlName,
+            IReadOnlyDictionary<string, CodeGenTableModel> allTables,
+            CodeGenTableDescriptorRenderOptions options)
+        {
+            switch (options.ConstructorStyle)
+            {
+                case CodeGenTableDescriptorConstructorStyle.OptionalAliasOnly:
+                    return new MemberDeclarationSyntax[]
+                    {
+                        RenderMainConstructor(candidate, propertyNamesBySqlName, allTables, options, useOptionalAliasDefault: true)
+                    };
+                case CodeGenTableDescriptorConstructorStyle.EmptyAndAlias:
+                default:
+                    return new MemberDeclarationSyntax[]
+                    {
+                        RenderEmptyConstructor(candidate),
+                        RenderMainConstructor(candidate, propertyNamesBySqlName, allTables, options, useOptionalAliasDefault: false)
+                    };
+            }
+        }
+
         private static ConstructorDeclarationSyntax RenderEmptyConstructor(CodeGenTableModel candidate)
         {
             return SyntaxFactory.ConstructorDeclaration(candidate.ClassName)
@@ -303,7 +397,9 @@ namespace SqExpress.CodeGen.Shared
         private static ConstructorDeclarationSyntax RenderMainConstructor(
             CodeGenTableModel candidate,
             IReadOnlyDictionary<string, string> propertyNamesBySqlName,
-            IReadOnlyDictionary<string, CodeGenTableModel> allTables)
+            IReadOnlyDictionary<string, CodeGenTableModel> allTables,
+            CodeGenTableDescriptorRenderOptions options,
+            bool useOptionalAliasDefault)
         {
             var statements = new List<Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax>();
 
@@ -315,7 +411,7 @@ namespace SqExpress.CodeGen.Shared
                         MemberAccess(SyntaxFactory.ThisExpression(), propertyNamesBySqlName[column.SqlName]),
                         SyntaxFactory.InvocationExpression(
                             MemberAccess(SyntaxFactory.ThisExpression(), RenderCreateMethodName(column)),
-                            SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(RenderCreateMethodArguments(column, candidate, allTables)))))));
+                            SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(RenderCreateMethodArguments(column, candidate, allTables, options)))))));
             }
 
             foreach (var index in candidate.Indexes)
@@ -326,7 +422,7 @@ namespace SqExpress.CodeGen.Shared
                         SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(RenderIndexArguments(index, propertyNamesBySqlName))))));
             }
 
-            return SyntaxFactory.ConstructorDeclaration(candidate.ClassName)
+            var constructor = SyntaxFactory.ConstructorDeclaration(candidate.ClassName)
                 .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
                 .AddParameterListParameters(
                     SyntaxFactory.Parameter(SyntaxFactory.Identifier("alias"))
@@ -335,6 +431,19 @@ namespace SqExpress.CodeGen.Shared
                     SyntaxKind.BaseConstructorInitializer,
                     SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(RenderBaseConstructorArguments(candidate)))))
                 .WithBody(SyntaxFactory.Block(statements));
+
+            if (useOptionalAliasDefault)
+            {
+                constructor = constructor.WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SeparatedList(new[]
+                {
+                    SyntaxFactory.Parameter(SyntaxFactory.Identifier("alias"))
+                        .WithType(SyntaxFactory.IdentifierName("Alias"))
+                        .WithDefault(SyntaxFactory.EqualsValueClause(
+                            SyntaxFactory.LiteralExpression(SyntaxKind.DefaultLiteralExpression, SyntaxFactory.Token(SyntaxKind.DefaultKeyword))))
+                })));
+            }
+
+            return constructor;
         }
 
         private static PropertyDeclarationSyntax[] RenderProperties(CodeGenTableModel candidate, IReadOnlyDictionary<string, string> propertyNamesBySqlName)
@@ -361,6 +470,11 @@ namespace SqExpress.CodeGen.Shared
             if (options.IsPartial)
             {
                 tokens.Add(SyntaxFactory.Token(SyntaxKind.PartialKeyword));
+            }
+
+            if (options.IsSealed)
+            {
+                tokens.Add(SyntaxFactory.Token(SyntaxKind.SealedKeyword));
             }
 
             return SyntaxFactory.TokenList(tokens);
@@ -460,23 +574,27 @@ namespace SqExpress.CodeGen.Shared
             if (candidate.Kind == CodeGenTableKind.TempTable)
             {
                 yield return SyntaxFactory.AttributeArgument(Literal(candidate.TableName));
-                yield break;
             }
-
-            if (!string.IsNullOrEmpty(candidate.DatabaseName))
+            else if (!string.IsNullOrEmpty(candidate.DatabaseName))
             {
                 yield return SyntaxFactory.AttributeArgument(Literal(candidate.DatabaseName));
                 yield return SyntaxFactory.AttributeArgument(Literal(candidate.SchemaName));
                 yield return SyntaxFactory.AttributeArgument(Literal(candidate.TableName));
-                yield break;
             }
-
-            if (!string.IsNullOrEmpty(candidate.SchemaName))
+            else
             {
-                yield return SyntaxFactory.AttributeArgument(Literal(candidate.SchemaName));
+                if (!string.IsNullOrEmpty(candidate.SchemaName))
+                {
+                    yield return SyntaxFactory.AttributeArgument(Literal(candidate.SchemaName));
+                }
+
+                yield return SyntaxFactory.AttributeArgument(Literal(candidate.TableName));
             }
 
-            yield return SyntaxFactory.AttributeArgument(Literal(candidate.TableName));
+            if (!string.IsNullOrWhiteSpace(candidate.SqModelName))
+            {
+                yield return NamedAttributeArgument("SqModel", Literal(candidate.SqModelName));
+            }
         }
 
         private static IEnumerable<AttributeArgumentSyntax> RenderColumnAttributeArguments(CodeGenTableModel candidate, CodeGenColumnModel column, string propertyName)
@@ -556,6 +674,18 @@ namespace SqExpress.CodeGen.Shared
             {
                 yield return NamedAttributeArgument("DefaultValue", Literal(defaultValue));
             }
+
+            if (!string.IsNullOrWhiteSpace(column.SqModels))
+            {
+                yield return NamedAttributeArgument("SqModels", Literal(column.SqModels));
+            }
+
+            if (!string.IsNullOrWhiteSpace(column.SqModelCastTypeName))
+            {
+                yield return NamedAttributeArgument(
+                    "SqModelCast",
+                    SyntaxFactory.TypeOfExpression(SyntaxFactory.ParseTypeName(column.SqModelCastTypeName!)));
+            }
         }
 
         private static IEnumerable<AttributeArgumentSyntax> RenderIndexAttributeArguments(CodeGenIndexModel index)
@@ -603,9 +733,15 @@ namespace SqExpress.CodeGen.Shared
         private static IEnumerable<ArgumentSyntax> RenderCreateMethodArguments(
             CodeGenColumnModel column,
             CodeGenTableModel candidate,
-            IReadOnlyDictionary<string, CodeGenTableModel> allTables)
+            IReadOnlyDictionary<string, CodeGenTableModel> allTables,
+            CodeGenTableDescriptorRenderOptions options)
         {
             var columnMeta = RenderColumnMeta(column, candidate, allTables);
+            if (options.UseCompactColumnFactoryArguments)
+            {
+                return RenderCompactCreateMethodArguments(column, columnMeta);
+            }
+
             switch (column.Kind)
             {
                 case CodeGenColumnKind.String:
@@ -665,6 +801,93 @@ namespace SqExpress.CodeGen.Shared
                         SyntaxFactory.Argument(Literal(column.SqlName)),
                         SyntaxFactory.Argument(columnMeta)
                     };
+            }
+        }
+
+        private static IEnumerable<ArgumentSyntax> RenderCompactCreateMethodArguments(CodeGenColumnModel column, ExpressionSyntax columnMeta)
+        {
+            var includeMeta = columnMeta.Kind() != SyntaxKind.NullLiteralExpression;
+            switch (column.Kind)
+            {
+                case CodeGenColumnKind.String:
+                case CodeGenColumnKind.NullableString:
+                    if (column.IsFixedLength)
+                    {
+                        foreach (var argument in CompactArguments(
+                                     SyntaxFactory.Argument(Literal(column.SqlName)),
+                                     SyntaxFactory.Argument(NullableIntLiteral(column.MaxLength)),
+                                     column.IsUnicode ? SyntaxFactory.Argument(BoolLiteral(true)) : null,
+                                     includeMeta ? SyntaxFactory.Argument(columnMeta) : null))
+                        {
+                            yield return argument;
+                        }
+
+                        yield break;
+                    }
+
+                    foreach (var argument in CompactArguments(
+                                 SyntaxFactory.Argument(Literal(column.SqlName)),
+                                 SyntaxFactory.Argument(NullableIntLiteral(column.MaxLength)),
+                                 SyntaxFactory.Argument(BoolLiteral(column.IsUnicode)),
+                                 column.IsText ? SyntaxFactory.Argument(BoolLiteral(true)) : null,
+                                 includeMeta ? SyntaxFactory.Argument(columnMeta) : null))
+                    {
+                        yield return argument;
+                    }
+
+                    yield break;
+                case CodeGenColumnKind.ByteArray:
+                case CodeGenColumnKind.NullableByteArray:
+                    foreach (var argument in CompactArguments(
+                                 SyntaxFactory.Argument(Literal(column.SqlName)),
+                                 column.MaxLength.HasValue || !column.IsFixedLength ? SyntaxFactory.Argument(NullableIntLiteral(column.MaxLength)) : null,
+                                 includeMeta ? SyntaxFactory.Argument(columnMeta) : null))
+                    {
+                        yield return argument;
+                    }
+
+                    yield break;
+                case CodeGenColumnKind.Decimal:
+                case CodeGenColumnKind.NullableDecimal:
+                    foreach (var argument in CompactArguments(
+                                 SyntaxFactory.Argument(Literal(column.SqlName)),
+                                 includeMeta ? SyntaxFactory.Argument(columnMeta) : null))
+                    {
+                        yield return argument;
+                    }
+
+                    yield break;
+                case CodeGenColumnKind.DateTime:
+                case CodeGenColumnKind.NullableDateTime:
+                    foreach (var argument in CompactArguments(
+                                 SyntaxFactory.Argument(Literal(column.SqlName)),
+                                 column.IsDate ? SyntaxFactory.Argument(BoolLiteral(true)) : SyntaxFactory.Argument(BoolLiteral(false)),
+                                 includeMeta ? SyntaxFactory.Argument(columnMeta) : null))
+                    {
+                        yield return argument;
+                    }
+
+                    yield break;
+                default:
+                    foreach (var argument in CompactArguments(
+                                 SyntaxFactory.Argument(Literal(column.SqlName)),
+                                 includeMeta ? SyntaxFactory.Argument(columnMeta) : null))
+                    {
+                        yield return argument;
+                    }
+
+                    yield break;
+            }
+        }
+
+        private static IEnumerable<ArgumentSyntax> CompactArguments(params ArgumentSyntax?[] arguments)
+        {
+            foreach (var argument in arguments)
+            {
+                if (argument != null)
+                {
+                    yield return argument;
+                }
             }
         }
 
@@ -1043,7 +1266,7 @@ namespace SqExpress.CodeGen.Shared
                     c.Initializer.Kind() == SyntaxKind.BaseConstructorInitializer);
 
             var newClass = classDeclaration;
-            var constructorDeclaration = RenderMainConstructor(candidate, propertyNamesBySqlName, allTables);
+            var constructorDeclaration = RenderMainConstructor(candidate, propertyNamesBySqlName, allTables, CodeGenTableDescriptorRenderOptions.PublicPartial, useOptionalAliasDefault: false);
 
             if (mainConstructor != null)
             {
@@ -1114,6 +1337,8 @@ namespace SqExpress.CodeGen.Shared
             CodeGenTableModel candidate,
             IReadOnlyDictionary<string, string> propertyNamesBySqlName)
         {
+            candidate = MergeWithExistingTableDeclarationMetadata(compilationUnit, candidate);
+
             var classDeclaration = compilationUnit.DescendantNodes()
                 .OfType<ClassDeclarationSyntax>()
                 .FirstOrDefault(c => c.Identifier.ValueText == candidate.ClassName);
@@ -1130,6 +1355,134 @@ namespace SqExpress.CodeGen.Shared
                     compilationUnit.ReplaceNode(classDeclaration, updatedClass),
                     "SqExpress.TableDecalationAttributes")
                 .NormalizeWhitespace();
+        }
+
+        private static CodeGenTableModel MergeWithExistingTableDeclarationMetadata(
+            CompilationUnitSyntax compilationUnit,
+            CodeGenTableModel candidate)
+        {
+            var classDeclaration = compilationUnit.DescendantNodes()
+                .OfType<ClassDeclarationSyntax>()
+                .FirstOrDefault(c => c.Identifier.ValueText == candidate.ClassName);
+            if (classDeclaration == null)
+            {
+                return candidate;
+            }
+
+            var existingDescriptorAttribute = classDeclaration.AttributeLists
+                .SelectMany(static a => a.Attributes)
+                .FirstOrDefault(a =>
+                {
+                    var name = a.Name.ToString();
+                    return string.Equals(name, "TableDescriptor", StringComparison.Ordinal) ||
+                           string.Equals(name, "TempTableDescriptor", StringComparison.Ordinal);
+                });
+
+            var sqModelName = candidate.SqModelName;
+            if (string.IsNullOrWhiteSpace(sqModelName) &&
+                TryGetNamedStringArgument(existingDescriptorAttribute, "SqModel", out var preservedSqModelName))
+            {
+                sqModelName = preservedSqModelName;
+            }
+
+            var preservedColumnMetadata = classDeclaration.AttributeLists
+                .SelectMany(static a => a.Attributes)
+                .Select(a => new
+                {
+                    Attribute = a,
+                    SqlName = TryGetFirstStringArgument(a, out var sqlName) ? sqlName : null
+                })
+                .Where(static a => !string.IsNullOrWhiteSpace(a.SqlName))
+                .ToDictionary(
+                    static a => a.SqlName!,
+                    static a => new PreservedColumnModelMetadata(
+                        TryGetNamedStringArgument(a.Attribute, "SqModels", out var sqModels) ? sqModels : null,
+                        TryGetNamedTypeArgument(a.Attribute, "SqModelCast", out var sqModelCast) ? sqModelCast : null),
+                    StringComparer.OrdinalIgnoreCase);
+
+            var mergedColumns = candidate.Columns
+                .Select(column =>
+                {
+                    if (!preservedColumnMetadata.TryGetValue(column.SqlName, out var preserved))
+                    {
+                        return column;
+                    }
+
+                    return new CodeGenColumnModel(
+                        column.Kind,
+                        column.SqlName,
+                        column.PropertyName,
+                        column.IsPrimaryKey,
+                        column.IsIdentity,
+                        column.ForeignKeyDatabase,
+                        column.ForeignKeySchema,
+                        column.ForeignKeyTable,
+                        column.ForeignKeyColumn,
+                        column.DefaultValueKind,
+                        column.DefaultValue,
+                        column.IsUnicode,
+                        column.MaxLength,
+                        column.IsFixedLength,
+                        column.IsText,
+                        column.Precision,
+                        column.Scale,
+                        column.IsDate,
+                        string.IsNullOrWhiteSpace(column.SqModels) ? preserved.SqModels : column.SqModels,
+                        string.IsNullOrWhiteSpace(column.SqModelCastTypeName) ? preserved.SqModelCastTypeName : column.SqModelCastTypeName);
+                })
+                .ToImmutableArray();
+
+            return new CodeGenTableModel(
+                candidate.Kind,
+                candidate.DatabaseName,
+                candidate.SchemaName,
+                candidate.TableName,
+                candidate.ClassName,
+                candidate.Namespace,
+                candidate.FullyQualifiedTypeName,
+                mergedColumns,
+                candidate.Indexes,
+                sqModelName);
+        }
+
+        private static bool TryGetFirstStringArgument(AttributeSyntax? attribute, out string value)
+        {
+            value = string.Empty;
+            if (attribute?.ArgumentList?.Arguments.FirstOrDefault()?.Expression is LiteralExpressionSyntax literal &&
+                literal.IsKind(SyntaxKind.StringLiteralExpression))
+            {
+                value = literal.Token.ValueText;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryGetNamedStringArgument(AttributeSyntax? attribute, string name, out string value)
+        {
+            value = string.Empty;
+            var argument = attribute?.ArgumentList?.Arguments.FirstOrDefault(a => a.NameEquals?.Name.Identifier.ValueText == name);
+            if (argument?.Expression is LiteralExpressionSyntax literal &&
+                literal.IsKind(SyntaxKind.StringLiteralExpression))
+            {
+                value = literal.Token.ValueText;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryGetNamedTypeArgument(AttributeSyntax? attribute, string name, out string value)
+        {
+            value = string.Empty;
+            var argument = attribute?.ArgumentList?.Arguments.FirstOrDefault(a => a.NameEquals?.Name.Identifier.ValueText == name);
+            if (argument?.Expression is TypeOfExpressionSyntax typeOfExpression)
+            {
+                value = typeOfExpression.Type.ToString();
+                return true;
+            }
+
+            return false;
         }
 
         private static CodeGenTableModel ToCodeGenTableModel(TableModel table, string defaultNamespace)
@@ -1272,6 +1625,19 @@ namespace SqExpress.CodeGen.Shared
             }
 
             return compilationUnit.AddUsings(SyntaxFactory.UsingDirective(QualifiedName(namespaceName)));
+        }
+
+        private readonly struct PreservedColumnModelMetadata
+        {
+            public PreservedColumnModelMetadata(string? sqModels, string? sqModelCastTypeName)
+            {
+                this.SqModels = sqModels;
+                this.SqModelCastTypeName = sqModelCastTypeName;
+            }
+
+            public string? SqModels { get; }
+
+            public string? SqModelCastTypeName { get; }
         }
     }
 }

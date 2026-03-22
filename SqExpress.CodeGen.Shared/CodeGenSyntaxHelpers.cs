@@ -1,11 +1,10 @@
-﻿using System;
+using System;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using SqExpress.DbMetadata.Internal.Model;
 
-namespace SqExpress.CodeGenUtil.CodeGen
+namespace SqExpress.CodeGen.Shared
 {
     public readonly struct NamedArgument
     {
@@ -19,11 +18,13 @@ namespace SqExpress.CodeGenUtil.CodeGen
             this.ArgumentValue = argumentValue;
         }
 
-        public static implicit operator NamedArgument(ValueTuple<string, ExpressionSyntax> tuple) =>
-            new NamedArgument(tuple.Item1, tuple.Item2);
+        public static implicit operator NamedArgument((string, ExpressionSyntax) tuple)
+        {
+            return new NamedArgument(tuple.Item1, tuple.Item2);
+        }
     }
 
-    internal static class SyntaxHelpers
+    internal static class CodeGenSyntaxHelpers
     {
         public static LiteralExpressionSyntax LiteralExpr(bool value)
         {
@@ -41,6 +42,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
             {
                 return SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(value.Value));
             }
+
             return NullLiteral();
         }
 
@@ -51,9 +53,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
 
         public static ParameterSyntax FuncParameter(string name, string type)
         {
-            return SyntaxFactory
-                .Parameter(SyntaxFactory.Identifier(name))
-                .WithType(SyntaxFactory.ParseTypeName(type));
+            return SyntaxFactory.Parameter(SyntaxFactory.Identifier(name)).WithType(SyntaxFactory.ParseTypeName(type));
         }
 
         public static ParameterSyntax FuncParameter(string name)
@@ -68,48 +68,49 @@ namespace SqExpress.CodeGenUtil.CodeGen
 
         public static ArgumentListSyntax ArgumentList(params NamedArgument[] arguments)
         {
-            return SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(arguments.Select(a=>SyntaxFactory.Argument(SyntaxFactory.NameColon(a.Name), default, a.ArgumentValue))));
+            return SyntaxFactory.ArgumentList(
+                SyntaxFactory.SeparatedList(
+                    arguments.Select(a => SyntaxFactory.Argument(SyntaxFactory.NameColon(a.Name), default, a.ArgumentValue))));
         }
 
         public static InvocationExpressionSyntax InvokeThis(string method, params ExpressionSyntax[] arguments)
         {
-            if (arguments.Length < 1)
-            {
-                return SyntaxFactory.InvocationExpression(MemberAccessThis(method));
-            }
-            return SyntaxFactory.InvocationExpression(MemberAccessThis(method), ArgumentList(arguments));
+            return arguments.Length < 1
+                ? SyntaxFactory.InvocationExpression(MemberAccessThis(method))
+                : SyntaxFactory.InvocationExpression(MemberAccessThis(method), ArgumentList(arguments));
         }
 
         public static InvocationExpressionSyntax InvokeThis(string method, params NamedArgument[] arguments)
         {
-            if (arguments.Length < 1)
-            {
-                return SyntaxFactory.InvocationExpression(MemberAccessThis(method));
-            }
-            return SyntaxFactory.InvocationExpression(MemberAccessThis(method), ArgumentList(arguments));
+            return arguments.Length < 1
+                ? SyntaxFactory.InvocationExpression(MemberAccessThis(method))
+                : SyntaxFactory.InvocationExpression(MemberAccessThis(method), ArgumentList(arguments));
         }
 
         public static InvocationExpressionSyntax Invoke(this ExpressionSyntax host, params ExpressionSyntax[] arguments)
         {
-            if (arguments.Length < 1)
-            {
-                return SyntaxFactory.InvocationExpression(host);
-            }
-            return SyntaxFactory.InvocationExpression(host, ArgumentList(arguments));
+            return arguments.Length < 1
+                ? SyntaxFactory.InvocationExpression(host)
+                : SyntaxFactory.InvocationExpression(host, ArgumentList(arguments));
         }
 
         public static AssignmentExpressionSyntax AssignmentThis(string property, ExpressionSyntax right)
         {
-            return SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression,
+            return SyntaxFactory.AssignmentExpression(
+                SyntaxKind.SimpleAssignmentExpression,
                 MemberAccess(SyntaxFactory.ThisExpression(), property),
                 right);
         }
 
         public static MemberAccessExpressionSyntax MemberAccessThis(string member)
-            => MemberAccess(SyntaxFactory.ThisExpression(), member);
+        {
+            return MemberAccess(SyntaxFactory.ThisExpression(), member);
+        }
 
         public static MemberAccessExpressionSyntax MemberAccess(string expression, string member)
-            => MemberAccess(SyntaxFactory.IdentifierName(expression), member);
+        {
+            return MemberAccess(SyntaxFactory.IdentifierName(expression), member);
+        }
 
         public static MemberAccessExpressionSyntax MemberAccess(this ExpressionSyntax expression, string member, bool addSuppressNullable = false)
         {
@@ -117,33 +118,43 @@ namespace SqExpress.CodeGenUtil.CodeGen
             {
                 return SyntaxFactory.MemberAccessExpression(
                     SyntaxKind.SimpleMemberAccessExpression,
-                    SyntaxFactory.PostfixUnaryExpression(
-                        SyntaxKind.SuppressNullableWarningExpression, expression),
+                    SyntaxFactory.PostfixUnaryExpression(SyntaxKind.SuppressNullableWarningExpression, expression),
                     SyntaxFactory.IdentifierName(member));
             }
-            else
-            {
-                return SyntaxFactory.MemberAccessExpression(
-                    SyntaxKind.SimpleMemberAccessExpression,
-                    expression,
-                    SyntaxFactory.IdentifierName(member));
-            }
-        }
-
-        public static MemberAccessExpressionSyntax MemberAccessGeneric(this ExpressionSyntax expression, string member, string g1)
-        {
-            var gn = SyntaxFactory.GenericName(SyntaxFactory.Identifier(member), SyntaxFactory.TypeArgumentList(
-                SyntaxFactory.SeparatedList(new[] {(TypeSyntax) SyntaxFactory.IdentifierName(g1)})));
 
             return SyntaxFactory.MemberAccessExpression(
                 SyntaxKind.SimpleMemberAccessExpression,
                 expression,
-                gn);
+                SyntaxFactory.IdentifierName(member));
         }
 
-        public static SyntaxTokenList Modifiers(SyntaxKind token1) => SyntaxFactory.TokenList(SyntaxFactory.Token(token1));
-        public static SyntaxTokenList Modifiers(SyntaxKind token1, SyntaxKind token2) => SyntaxFactory.TokenList(SyntaxFactory.Token(token1), SyntaxFactory.Token(token2));
-        public static SyntaxTokenList Modifiers(SyntaxKind token1, SyntaxKind token2, SyntaxKind token3) => SyntaxFactory.TokenList(SyntaxFactory.Token(token1), SyntaxFactory.Token(token2), SyntaxFactory.Token(token3));
+        public static MemberAccessExpressionSyntax MemberAccessGeneric(this ExpressionSyntax expression, string member, string g1)
+        {
+            var genericName = SyntaxFactory.GenericName(
+                SyntaxFactory.Identifier(member),
+                SyntaxFactory.TypeArgumentList(
+                    SyntaxFactory.SeparatedList<TypeSyntax>(new[] { (TypeSyntax)SyntaxFactory.IdentifierName(g1) })));
+
+            return SyntaxFactory.MemberAccessExpression(
+                SyntaxKind.SimpleMemberAccessExpression,
+                expression,
+                genericName);
+        }
+
+        public static SyntaxTokenList Modifiers(SyntaxKind token1)
+        {
+            return SyntaxFactory.TokenList(SyntaxFactory.Token(token1));
+        }
+
+        public static SyntaxTokenList Modifiers(SyntaxKind token1, SyntaxKind token2)
+        {
+            return SyntaxFactory.TokenList(SyntaxFactory.Token(token1), SyntaxFactory.Token(token2));
+        }
+
+        public static SyntaxTokenList Modifiers(SyntaxKind token1, SyntaxKind token2, SyntaxKind token3)
+        {
+            return SyntaxFactory.TokenList(SyntaxFactory.Token(token1), SyntaxFactory.Token(token2), SyntaxFactory.Token(token3));
+        }
 
         public static T? FindParentOrDefault<T>(this SyntaxNode node) where T : SyntaxNode
         {
@@ -154,28 +165,11 @@ namespace SqExpress.CodeGenUtil.CodeGen
                 {
                     return result;
                 }
+
                 parent = parent.Parent;
             }
 
             return null;
-        }
-
-        public static BaseTypeKindTag? GetTableClassKind(ClassDeclarationSyntax cd)
-        {
-            return cd.BaseList?.DescendantNodesAndSelf()
-                .OfType<BaseTypeSyntax>()
-                .Select(b =>
-                {
-                    var baseTypeName = b.Type.ToString();
-                    switch (baseTypeName)
-                    {
-                        case nameof(TableBase): return (BaseTypeKindTag?)BaseTypeKindTag.TableBase;
-                        case nameof(TempTableBase): return BaseTypeKindTag.TempTableBase;
-                        case nameof(DerivedTableBase): return BaseTypeKindTag.DerivedTableBase;
-                        default: return null;
-                    }
-                })
-                .FirstOrDefault();
         }
     }
 }

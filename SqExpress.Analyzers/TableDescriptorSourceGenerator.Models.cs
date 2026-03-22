@@ -129,7 +129,8 @@ namespace SqExpress.Analyzers
                 classSymbol.ContainingNamespace.IsGlobalNamespace ? null : classSymbol.ContainingNamespace.ToDisplayString(),
                 classSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
                 columns.ToImmutable(),
-                indexes.ToImmutable());
+                indexes.ToImmutable(),
+                GetNamedString(activeDescriptorAttribute, "SqModel"));
 
             return new TableDescriptorCandidate(
                 classSymbol,
@@ -220,7 +221,9 @@ namespace SqExpress.Analyzers
                 GetNamedBool(attribute, "Text"),
                 GetNamedInt(attribute, "Precision"),
                 GetNamedInt(attribute, "Scale"),
-                GetNamedBool(attribute, "IsDate"));
+                GetNamedBool(attribute, "IsDate"),
+                GetNamedString(attribute, "SqModels"),
+                GetNamedTypeName(attribute, "SqModelCast"));
             return true;
         }
 
@@ -526,6 +529,12 @@ namespace SqExpress.Analyzers
             }
 
             return argument.Values.Select(static i => i.Value as string).Where(static i => !string.IsNullOrWhiteSpace(i)).Cast<string>().ToImmutableArray();
+        }
+
+        private static string? GetNamedTypeName(AttributeData attribute, string name)
+        {
+            var value = attribute.NamedArguments.FirstOrDefault(i => i.Key == name).Value.Value as ITypeSymbol;
+            return value?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         }
 
         private static Diagnostic CreateDiagnostic(DiagnosticDescriptor descriptor, ISymbol symbol, params object[] args)

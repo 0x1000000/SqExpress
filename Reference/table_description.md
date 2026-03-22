@@ -63,6 +63,7 @@ Properties:
 | `DatabaseName` | `string?` | Optional database name. Only used with the 3-argument constructor. |
 | `Schema` | `string?` | Optional schema name. |
 | `Name` | `string` | SQL table name. |
+| `SqModel` | `string?` | Declares a generated DTO model that should include all declared columns from this table. |
 
 Generated base type:
 
@@ -86,6 +87,7 @@ Properties:
 | Name | Type | Description |
 |---|---|---|
 | `Name` | `string` | Temp table name passed to `TempTableBase`. |
+| `SqModel` | `string?` | Declares a generated DTO model that should include all declared columns from this temp table. |
 
 Generated base type:
 
@@ -107,13 +109,43 @@ All column attributes inherit from `TableColumnAttributeBase` and support these 
 | `FkTable` | `string?` | Foreign key target table name. |
 | `FkColumn` | `string?` | Foreign key target column name. |
 | `DefaultValue` | `string?` | Default value text. Parsed according to the column type. |
+| `SqModels` | `string?` | Comma-separated DTO model list. Each entry is `ModelName` or `ModelName.PropertyName`. |
+| `SqModelCast` | `Type?` | Optional CLR cast applied when reading this column into all generated DTO models that include it. |
 
 Example:
 
 ```cs
 [Int32Column("UserId", Pk = true, Identity = true)]
 [NullableInt32Column("CompanyId", FkTable = "Company", FkColumn = "CompanyId")]
+[StringColumn("FirstName", SqModels = "UserDto,UserName")]
+[Int32Column("UserId", SqModels = "UserDto.Id", SqModelCast = typeof(long))]
 ```
+
+## SqModel Metadata
+
+Attribute-based table declarations can also drive DTO generation through the built-in source generator.
+
+Class-level:
+
+- `SqModel = "UserDto"` on `TableDescriptor` or `TempTableDescriptor` includes every declared column in the generated model.
+
+Column-level:
+
+- `SqModels = "UserDto"` adds the column to model `UserDto`.
+- `SqModels = "UserDto.Id"` adds the column to model `UserDto` and renames the generated DTO property to `Id`.
+- multiple entries are comma-separated, for example `SqModels = "UserDto,AuditUserDto.Id"`.
+- if a class-level `SqModel` and a column-level `SqModels` entry refer to the same model, the membership is deduplicated.
+- `SqModelCast = typeof(SomeType)` applies the same cast to all generated models that include that column.
+
+The analyzer/source-generator path respects:
+
+- `SqModelGenNamespace`
+- `SqModelGenType`
+
+Current default:
+
+- `SqModelGenType` defaults to `Record`
+- `ImmutableClass` is still supported for backward compatibility
 
 ## Specialized Column Properties
 

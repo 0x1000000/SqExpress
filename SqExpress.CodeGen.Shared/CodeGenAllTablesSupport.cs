@@ -1,35 +1,39 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SqExpress.DbMetadata.Internal.Model;
+using SqExpress;
 
-namespace SqExpress.CodeGenUtil.CodeGen
+namespace SqExpress.CodeGen.Shared
 {
-    internal class TableListClassGenerator
+    internal static class CodeGenAllTablesSupport
     {
         private const string AllTablesClassName = "AllTables";
 
-        public static CompilationUnitSyntax Generate(string existingFilePath, IReadOnlyList<TableModel> tables, string defaultNamespace, string tablePrefix, IFileSystem fileSystem)
+        public static CompilationUnitSyntax Generate(
+            string existingFilePath,
+            IReadOnlyList<TableModel> tables,
+            string defaultNamespace,
+            string tablePrefix,
+            IFileSystem fileSystem)
         {
             CompilationUnitSyntax? modifiedUnit = null;
             if (fileSystem.FileExists(existingFilePath))
             {
-                var tClass = CSharpSyntaxTree.ParseText(fileSystem.ReadAllText(existingFilePath));
-
-                var existingClassSyntax = tClass
+                var tree = CSharpSyntaxTree.ParseText(fileSystem.ReadAllText(existingFilePath));
+                var existingClassSyntax = tree
                     .GetRoot()
                     .DescendantNodesAndSelf()
                     .OfType<ClassDeclarationSyntax>()
-                    .FirstOrDefault(f => f.Identifier.ValueText == AllTablesClassName);
+                    .FirstOrDefault(static f => f.Identifier.ValueText == AllTablesClassName);
 
                 if (existingClassSyntax != null)
                 {
                     modifiedUnit = existingClassSyntax.FindParentOrDefault<CompilationUnitSyntax>()
-                                   ?? throw new SqExpressCodeGenException($"Could not find compilation unit for {existingClassSyntax.Identifier.ValueText}");
+                                   ?? throw new InvalidOperationException($"Could not find compilation unit for {existingClassSyntax.Identifier.ValueText}");
 
                     modifiedUnit = modifiedUnit.ReplaceNode(existingClassSyntax, GenerateAllTableList(tables, tablePrefix, existingClassSyntax));
                 }
@@ -44,7 +48,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
         private static ClassDeclarationSyntax GenerateAllTableList(IReadOnlyList<TableModel> tables, string tablePrefix, ClassDeclarationSyntax? oldClass)
         {
             return SyntaxFactory.ClassDeclaration(AllTablesClassName)
-                .WithModifiers(oldClass?.Modifiers ?? SyntaxHelpers.Modifiers(SyntaxKind.PublicKeyword, SyntaxKind.StaticKeyword))
+                .WithModifiers(oldClass?.Modifiers ?? CodeGenSyntaxHelpers.Modifiers(SyntaxKind.PublicKeyword, SyntaxKind.StaticKeyword))
                 .AddMembers(GenerateMethods(tables, tablePrefix))
                 .NormalizeWhitespace();
         }
@@ -53,11 +57,12 @@ namespace SqExpress.CodeGenUtil.CodeGen
         {
             var result = new List<MemberDeclarationSyntax>(tables.Count * 2 + 3);
 
-            var identifierAliasType = SyntaxFactory.IdentifierName(nameof(Alias));
-            var identifierTableBaseType = SyntaxFactory.IdentifierName(nameof(TableBase));
+            var aliasType = SyntaxFactory.IdentifierName(nameof(Alias));
+            var tableBaseType = SyntaxFactory.IdentifierName(nameof(TableBase));
 
-            var arrayItems = tables.Select(t => SyntaxFactory.IdentifierName(GetMethodName(t, tablePrefix)).Invoke(identifierAliasType.MemberAccess(nameof(Alias.Empty))));
-            var arrayType = SyntaxFactory.ArrayType(identifierTableBaseType,
+            var arrayItems = tables.Select(t => SyntaxFactory.IdentifierName(GetMethodName(t, tablePrefix)).Invoke(aliasType.MemberAccess(nameof(Alias.Empty))));
+            var arrayType = SyntaxFactory.ArrayType(
+                tableBaseType,
                 new SyntaxList<ArrayRankSpecifierSyntax>(new[]
                 {
                     SyntaxFactory.ArrayRankSpecifier(SyntaxFactory.Token(SyntaxKind.OpenBracketToken),
@@ -66,15 +71,15 @@ namespace SqExpress.CodeGenUtil.CodeGen
                 }));
             var array = SyntaxFactory.ArrayCreationExpression(
                 arrayType,
-                SyntaxFactory.InitializerExpression(SyntaxKind.ArrayInitializerExpression,
-                    new SeparatedSyntaxList<ExpressionSyntax>().AddRange(arrayItems))
-            );
+                SyntaxFactory.InitializerExpression(
+                    SyntaxKind.ArrayInitializerExpression,
+                    new SeparatedSyntaxList<ExpressionSyntax>().AddRange(arrayItems)));
 
             result.Add(
                 SyntaxFactory.FieldDeclaration(
                         SyntaxFactory.VariableDeclaration(
                                 SyntaxFactory.GenericName("IReadOnlyCollection")
-                                    .AddTypeArgumentListArguments(identifierTableBaseType))
+                                    .AddTypeArgumentListArguments(tableBaseType))
                             .AddVariables(
                                 SyntaxFactory.VariableDeclarator("StaticList")
                                     .WithInitializer(
@@ -83,46 +88,49 @@ namespace SqExpress.CodeGenUtil.CodeGen
                                                     SyntaxKind.SimpleMemberAccessExpression,
                                                     SyntaxFactory.IdentifierName(nameof(Array)),
                                                     SyntaxFactory.IdentifierName(nameof(Array.AsReadOnly)))
-                                                .Invoke(
-                                                    SyntaxFactory.IdentifierName("BuildAllTableList").Invoke())))))
-                    .WithModifiers(SyntaxHelpers.Modifiers(SyntaxKind.PublicKeyword, SyntaxKind.StaticKeyword, SyntaxKind.ReadOnlyKeyword)));
+                                                .Invoke(SyntaxFactory.IdentifierName("BuildAllTableList").Invoke())))))
+                    .WithModifiers(CodeGenSyntaxHelpers.Modifiers(SyntaxKind.PublicKeyword, SyntaxKind.StaticKeyword, SyntaxKind.ReadOnlyKeyword)));
 
             result.Add(
                 SyntaxFactory.MethodDeclaration(arrayType, "BuildAllTableList")
-                    .WithModifiers(SyntaxHelpers.Modifiers(SyntaxKind.PublicKeyword, SyntaxKind.StaticKeyword))
+                    .WithModifiers(CodeGenSyntaxHelpers.Modifiers(SyntaxKind.PublicKeyword, SyntaxKind.StaticKeyword))
                     .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(array))
                     .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)));
 
-            foreach (var t in tables)
+            foreach (var table in tables)
             {
-                var aliasParamName = "alias";
+                const string aliasParamName = "alias";
 
-                result.Add(SyntaxFactory.MethodDeclaration(SyntaxFactory.ParseTypeName(t.Name), GetMethodName(t, tablePrefix))
-                    .WithModifiers(SyntaxHelpers.Modifiers(SyntaxKind.PublicKeyword, SyntaxKind.StaticKeyword))
-                    .AddParameterListParameters(SyntaxHelpers.FuncParameter(aliasParamName, nameof(Alias)))
-                    .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(
-                        SyntaxFactory.ObjectCreationExpression(SyntaxFactory.ParseTypeName(t.Name),
-                            SyntaxHelpers.ArgumentList(SyntaxFactory.IdentifierName(aliasParamName)),
-                            null)))
-                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)));
+                result.Add(
+                    SyntaxFactory.MethodDeclaration(SyntaxFactory.ParseTypeName(table.Name), GetMethodName(table, tablePrefix))
+                        .WithModifiers(CodeGenSyntaxHelpers.Modifiers(SyntaxKind.PublicKeyword, SyntaxKind.StaticKeyword))
+                        .AddParameterListParameters(CodeGenSyntaxHelpers.FuncParameter(aliasParamName, nameof(Alias)))
+                        .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(
+                            SyntaxFactory.ObjectCreationExpression(
+                                SyntaxFactory.ParseTypeName(table.Name),
+                                CodeGenSyntaxHelpers.ArgumentList(SyntaxFactory.IdentifierName(aliasParamName)),
+                                null)))
+                        .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)));
 
-                result.Add(SyntaxFactory.MethodDeclaration(SyntaxFactory.ParseTypeName(t.Name), GetMethodName(t, tablePrefix))
-                    .WithModifiers(SyntaxHelpers.Modifiers(SyntaxKind.PublicKeyword, SyntaxKind.StaticKeyword))
-                    .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(
-                        SyntaxFactory.ObjectCreationExpression(SyntaxFactory.ParseTypeName(t.Name),
-                            SyntaxHelpers.ArgumentList(identifierAliasType.MemberAccess(nameof(Alias.Auto))),
-                            null)))
-                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)));
+                result.Add(
+                    SyntaxFactory.MethodDeclaration(SyntaxFactory.ParseTypeName(table.Name), GetMethodName(table, tablePrefix))
+                        .WithModifiers(CodeGenSyntaxHelpers.Modifiers(SyntaxKind.PublicKeyword, SyntaxKind.StaticKeyword))
+                        .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(
+                            SyntaxFactory.ObjectCreationExpression(
+                                SyntaxFactory.ParseTypeName(table.Name),
+                                CodeGenSyntaxHelpers.ArgumentList(aliasType.MemberAccess(nameof(Alias.Auto))),
+                                null)))
+                        .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)));
             }
 
             return result.ToArray();
 
-            static string GetMethodName(TableModel t, string tablePrefix)
+            static string GetMethodName(TableModel table, string prefix)
             {
-                var name = t.Name;
-                if (!string.IsNullOrEmpty(tablePrefix))
+                var name = table.Name;
+                if (!string.IsNullOrEmpty(prefix))
                 {
-                    name = name.Substring(tablePrefix.Length);
+                    name = name.Substring(prefix.Length);
                 }
 
                 return "Get" + name;

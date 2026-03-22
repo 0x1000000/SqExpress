@@ -18,7 +18,9 @@ namespace SqExpress.Analyzers
                 .Where(static candidate => candidate != null)
                 .Collect();
 
-            context.RegisterSourceOutput(candidates, static (spc, source) => Execute(spc, source!));
+            var options = context.AnalyzerConfigOptionsProvider.Select(static (provider, _) => CreateGeneratorOptions(provider));
+            var compilationAndCandidates = context.CompilationProvider.Combine(candidates);
+            context.RegisterSourceOutput(compilationAndCandidates.Combine(options), static (spc, source) => Execute(spc, source.Left.Left, source.Left.Right!, source.Right));
         }
     }
 }

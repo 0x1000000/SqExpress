@@ -2045,91 +2045,44 @@ It uses Roslyn compiler so it does not overwrite existing files - it patches the
 
 ## DTOs Scaffolding
 
-You can add special attributes to column properties in table descriptors to provide information to the code-gen util to create (update) DTO classes with mappings:
+The primary way to generate DTO models is now directly from attribute-based table declarations. You can declare one model for the whole table with `SqModel`, and add extra per-column model memberships with `SqModels`.
+
+For the full attribute reference, see [Table Description Reference](Reference/table_description.md).
 
 ```cs
-public class TableUser : TableBase
+[TableDescriptor("dbo", "User", SqModel = "UserDto")]
+[Int32Column("UserId", Pk = true, Identity = true, SqModels = "UserName.Id")]
+[StringColumn("FirstName", Unicode = true, MaxLength = 255, SqModels = "UserName")]
+[StringColumn("LastName", Unicode = true, MaxLength = 255, SqModels = "UserName")]
+[Int32Column("Version", DefaultValue = "0", SqModels = "AuditData")]
+[DateTimeColumn("ModifiedAt", DefaultValue = "$utcNow", SqModels = "AuditData")]
+public partial class TableUser
 {
-    [SqModel("UserName", PropertyName = "Id")]
-    public Int32TableColumn UserId { get; }
-
-    [SqModel("UserName")]
-    public StringTableColumn FirstName { get; }
-
-    [SqModel("UserName")]
-    public StringTableColumn LastName { get; }
-
-    //Audit Columns
-    [SqModel("AuditData")]
-    public Int32TableColumn Version { get; }
-
-    [SqModel("AuditData")]
-    public DateTimeTableColumn ModifiedAt { get; }
-
-    public TableUser(Alias alias) : base("dbo", "User", alias)
-    {
-        ...
-    }
 }
 ```
 
-To run the code-gen util before a project building, just define the following property in the project file:
+Rules:
 
-```
-<Project ..,>
-  <PropertyGroup>
-    ...
-    <SqModelGenEnable>true</SqModelGenEnable>
-    ...
-  </PropertyGroup>
-```
+- `SqModel = "UserDto"` on the table declaration means every declared column participates in `UserDto`.
+- `SqModels = "UserName.Id"` means the column participates in `UserName`, and the generated property name becomes `Id`.
+- `SqModelCast = typeof(SomeType)` can be used when the generated model should cast the read value to another CLR type.
 
-The list of all code-generation parameters can be found here: [SqExpress.props](https://github.com/0x1000000/SqExpress/blob/main/SqExpress/SqExpress.props).
+The built-in analyzer/source generator respects:
 
-The code generation tool can also be run from the command line:
+- `SqModelGenNamespace`
+- `SqModelGenType`
 
-```Package Manager Console```
+Current default:
 
-```
-SYNTAX
-    Gen-Models [-InputDir <string>] [-OutputDir <string>] [-Namespace <string>] [-NoRwClasses] [-NullRefTypes] [-CleanOutput] [-ModelType {ImmutableClass | Record}]  [<CommonParameters>]
-```
+- generated models default to `record`
+- `ImmutableClass` is still supported for backward compatibility
+- `With...` methods are omitted for records
 
-```GenerateModel.cmd```
-
-```cmd
-@echo off
-set root=%userprofile%\.nuget\packages\sqexpress
-
-for /F "tokens=*" %%a in ('dir "%root%" /b /a:d /o:n') do set "lib=%root%\%%a"
-
-set lib=%lib%\tools\codegen\SqExpress.CodeGenUtil.dll
-
-dotnet "%lib%" genmodels -i "." -o ".\Models" -n "SqExpress.GetStarted.Models" --null-ref-types
-```
-
-```generate-model.sh```
-
-```
-#!/bin/bash
-lib=~/.nuget/packages/sqexpress/$(ls ~/.nuget/packages/sqexpress -r|head -n 1)/tools/codegen/SqExpress.CodeGenUtil.dll
-dotnet $lib genmodels -i "." -o "./Models" -n "SqExpress.GetStarted.Models"
-```
-
-The result will be the following classes:
-
-```UserName.cs```
+The result will look like:
 
 ```cs
-public class UserName
+public record UserName
 {
-    public UserName(int id, string firstName, string lastName)
-    {
-        this.Id = id;
-        this.FirstName = firstName;
-        this.LastName = lastName;
-    }
-
     public static UserName Read(ISqDataRecordReader record, TableUser table)
     {
         return new UserName(id: table.UserId.Read(record), firstName: table.FirstName.Read(record), lastName: table.LastName.Read(record));
@@ -2160,42 +2113,16 @@ public class UserName
     {
         return s.Set(s.Target.FirstName, s.Source.FirstName).Set(s.Target.LastName, s.Source.LastName);
     }
-
-    public UserName WithId(int id)
-    {
-        return new UserName(id: id, firstName: this.FirstName, lastName: this.LastName);
-    }
-
-    public UserName WithFirstName(string firstName)
-    {
-        return new UserName(id: this.Id, firstName: firstName, lastName: this.LastName);
-    }
-
-    public UserName WithLastName(string lastName)
-    {
-        return new UserName(id: this.Id, firstName: this.FirstName, lastName: lastName);
-    }
 }
 ```
 
-and [```AuditData.cs```](https://github.com/0x1000000/SqExpress/blob/main/SqExpress.GetStarted/Models/AuditData.cs)
+Legacy note:
 
-You can use them as follows:
+- the old file-based `genmodels` flow and property-level `[SqModel]` attributes still work for now
+- that path is deprecated and planned for removal in `2.0`
+- new work should prefer attribute-based table declarations plus source-generated DTOs
 
-```cs
-var tUser = new TableUser();
-
-var users = await Select(UserName.GetColumns(tUser))
-    .From(tUser)
-    .QueryList(database, r => UserName.Read(r, tUser));
-
-foreach (var userName in users)
-{
-    Console.WriteLine($"{userName.Id} {userName.FirstName} {userName.LastName}");
-}
-```
-
-*Note: **SqModel** attribute can be also used for temporary and derived table descriptors.*
+*Note: attribute-based `SqModel` generation works for both `TableDescriptor` and `TempTableDescriptor`.*
 
 ## Model Selection
 

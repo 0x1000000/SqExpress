@@ -219,6 +219,11 @@ namespace SqExpress.Test.SqlParser
                 .SetName("WildcardCannotHaveAlias");
 
             yield return new TestCaseData(
+                    "SELECT u.UserId,, u.Name AS UserName FROM dbo.Users u",
+                    "Syntax error: SELECT list is invalid.")
+                .SetName("SelectDoubleComma");
+
+            yield return new TestCaseData(
                     "SELECT * FROM",
                     "Syntax error: FROM clause is invalid.")
                 .SetName("FromWithoutSource");

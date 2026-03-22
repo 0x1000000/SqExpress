@@ -9,8 +9,8 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.VisualStudio.TestPlatform.PlatformAbstractions;
 using NUnit.Framework;
+using SqExpress.CodeGen.Shared;
 using SqExpress.CodeGenUtil;
-using SqExpress.CodeGenUtil.CodeGen;
 
 namespace SqExpress.Test.CodeGenUtil
 {
@@ -24,11 +24,9 @@ namespace SqExpress.Test.CodeGenUtil
 
             fileSystem.AddFile("A\\table1.cs", TestTable1Text);
 
-            var generated = ExistingCodeExplorer
-                .EnumerateTableDescriptorsModelAttributes("A", fileSystem)
-                .ParseAttribute(true)
-                .CreateAnalysis()
-                .Select(meta=> ModelClassGenerator.Generate(meta, "Org", "", true, true, ModelType.ImmutableClass, fileSystem, out _).SyntaxTree)
+            var generated = CodeGenLegacySqModelSupport
+                .AnalyzeLegacySqModels("A", fileSystem, true)
+                .Select(meta => CodeGenModelSupport.Generate(meta, "Org", "", true, true, CodeGenModelType.ImmutableClass, fileSystem, out _).SyntaxTree)
                 .ToList();
 
             var trees = new List<SyntaxTree>();

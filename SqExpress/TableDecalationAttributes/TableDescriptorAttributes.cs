@@ -26,6 +26,8 @@ namespace SqExpress.TableDecalationAttributes
         public string? DatabaseName { get; }
         public string? Schema { get; }
         public string Name { get; }
+
+        public string? SqModel { get; set; }
     }
 
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
@@ -37,6 +39,8 @@ namespace SqExpress.TableDecalationAttributes
         }
 
         public string Name { get; }
+
+        public string? SqModel { get; set; }
     }
 
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
@@ -64,6 +68,10 @@ namespace SqExpress.TableDecalationAttributes
         public string? FkColumn { get; set; }
 
         public string? DefaultValue { get; set; }
+
+        public string? SqModels { get; set; }
+
+        public Type? SqModelCast { get; set; }
     }
 
     public abstract class StringColumnAttributeBase : TableColumnAttributeBase

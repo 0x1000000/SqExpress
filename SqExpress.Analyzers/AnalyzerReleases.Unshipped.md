@@ -24,3 +24,9 @@ SQEX112 | SourceGeneration | Error | Foreign key target table could not be resol
 SQEX113 | SourceGeneration | Error | Foreign key target column could not be resolved.
 SQEX114 | SourceGeneration | Error | A table descriptor default value cannot be parsed for the declared column type.
 SQEX115 | SourceGeneration | Error | `[TableDescriptor]` and `[TempTableDescriptor]` cannot be used on the same class.
+SQEX116 | SourceGeneration | Error | Class-level `SqModel` name is invalid.
+SQEX117 | SourceGeneration | Error | A column-level `SqModels` entry is malformed.
+SQEX118 | SourceGeneration | Error | A generated or explicit SqModel property name is invalid.
+SQEX119 | SourceGeneration | Error | The same SqModel property was declared with conflicting CLR types or casts.
+SQEX120 | SourceGeneration | Error | The same SqModel property was mapped from multiple columns in one table declaration.
+SQEX121 | SourceGeneration | Error | The same SqModel has inconsistent property sets across multiple table declarations.

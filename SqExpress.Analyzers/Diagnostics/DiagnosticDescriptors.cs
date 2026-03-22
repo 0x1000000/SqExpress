@@ -183,5 +183,59 @@ namespace SqExpress.Analyzers.Diagnostics
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true,
             description: "Reports classes that declare both normal-table and temp-table descriptor attributes.");
+
+        public static readonly DiagnosticDescriptor TableDescriptorInvalidSqModelName = new DiagnosticDescriptor(
+            id: "SQEX116",
+            title: "SqModel name is invalid",
+            messageFormat: "SqModel name '{0}' in table declaration '{1}' is not a valid C# identifier",
+            category: "SourceGeneration",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            description: "Reports invalid class-level SqModel names on table declarations.");
+
+        public static readonly DiagnosticDescriptor TableDescriptorInvalidSqModelsEntry = new DiagnosticDescriptor(
+            id: "SQEX117",
+            title: "SqModels entry is invalid",
+            messageFormat: "SqModels entry '{0}' for column '{1}' in table declaration '{2}' is invalid. Expected 'ModelName' or 'ModelName.PropertyName'.",
+            category: "SourceGeneration",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            description: "Reports malformed column-level SqModels entries.");
+
+        public static readonly DiagnosticDescriptor TableDescriptorInvalidSqModelPropertyName = new DiagnosticDescriptor(
+            id: "SQEX118",
+            title: "SqModel property name is invalid",
+            messageFormat: "SqModel property name '{0}' for model '{1}' from column '{2}' in table declaration '{3}' is not a valid C# identifier",
+            category: "SourceGeneration",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            description: "Reports invalid generated or explicit property names for attribute-based SqModel generation.");
+
+        public static readonly DiagnosticDescriptor TableDescriptorConflictingSqModelProperty = new DiagnosticDescriptor(
+            id: "SQEX119",
+            title: "SqModel property declarations conflict",
+            messageFormat: "SqModel property '{0}' in model '{1}' was declared with conflicting CLR types or casts",
+            category: "SourceGeneration",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            description: "Reports SqModel properties that are declared with different types or casts across attribute-based table declarations.");
+
+        public static readonly DiagnosticDescriptor TableDescriptorDuplicateSqModelPropertyInTable = new DiagnosticDescriptor(
+            id: "SQEX120",
+            title: "SqModel property is duplicated in one table declaration",
+            messageFormat: "SqModel property '{0}' in model '{1}' is declared more than once for table declaration '{2}'",
+            category: "SourceGeneration",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            description: "Reports multiple columns from one table declaration that map to the same SqModel property.");
+
+        public static readonly DiagnosticDescriptor TableDescriptorInconsistentSqModelShape = new DiagnosticDescriptor(
+            id: "SQEX121",
+            title: "SqModel shape is inconsistent",
+            messageFormat: "SqModel '{0}' is declared across multiple table declarations with inconsistent property sets",
+            category: "SourceGeneration",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            description: "Reports attribute-based SqModel declarations that do not produce a consistent multi-table model shape.");
     }
 }

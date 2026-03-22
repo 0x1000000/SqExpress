@@ -6,12 +6,9 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using CommandLine;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using MySqlConnector;
 using Npgsql;
 using SqExpress.CodeGen.Shared;
-using SqExpress.CodeGenUtil.CodeGen;
 using SqExpress.CodeGenUtil.Logger;
 using SqExpress.DbMetadata.Internal.DbManagers;
 using SqExpress.DbMetadata.Internal.DbManagers.MsSql;
@@ -87,12 +84,12 @@ namespace SqExpress.CodeGenUtil
             {
                 throw new SqExpressCodeGenException("Connection string cannot be empty");
             }
-            IReadOnlyDictionary<TableRef, ClassDeclarationSyntax> existingCode =
-                new Dictionary<TableRef, ClassDeclarationSyntax>();
+            var existingCode = (IReadOnlyDictionary<TableRef, Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax>)
+                new Dictionary<TableRef, Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax>();
             if (!options.UseTableDeclarationAttributes)
             {
                 logger.LogNormal("Checking existing code...");
-                existingCode = ExistingCodeExplorer.FindTableDescriptors(directory, DefaultFileSystem.Instance);
+                existingCode = CodeGenLegacySqModelSupport.FindTableDescriptors(directory, DefaultFileSystem.Instance);
                 if(logger.IsNormalOrHigher) logger.LogNormal(existingCode.Count > 0
                     ? $"Found {existingCode.Count} already existing table descriptor classes."
                     : "No table descriptor classes found.");
@@ -144,11 +141,13 @@ namespace SqExpress.CodeGenUtil
                 bool existing;
                 if (options.UseTableDeclarationAttributes)
                 {
-                    existing = File.Exists(filePath);
-                    var existingCompilationUnit = existing
-                        ? CSharpSyntaxTree.ParseText(await File.ReadAllTextAsync(filePath)).GetCompilationUnitRoot()
-                        : null;
-                    text = CodeGenTableDescriptorSupport.GenerateTableDeclaration(table, tableMap, options.Namespace, existingCompilationUnit).ToFullString();
+                    text = CodeGenTableDescriptorSupport.GenerateTableDeclaration(
+                        table,
+                        tableMap,
+                        options.Namespace,
+                        filePath,
+                        DefaultFileSystem.Instance,
+                        out existing).ToFullString();
                 }
                 else
                 {
@@ -163,7 +162,7 @@ namespace SqExpress.CodeGenUtil
 
             if (logger.IsDetailed) logger.LogDetailed($"AllTables to \"{allTablePath}\".");
 
-            await File.WriteAllTextAsync(allTablePath, TableListClassGenerator.Generate(allTablePath, tables, options.Namespace, options.TableClassPrefix, DefaultFileSystem.Instance).ToFullString());
+            await File.WriteAllTextAsync(allTablePath, CodeGenAllTablesSupport.Generate(allTablePath, tables, options.Namespace, options.TableClassPrefix, DefaultFileSystem.Instance).ToFullString());
 
             logger.LogMinimal("Table proxy classes generation successfully completed!");
         }
@@ -177,10 +176,7 @@ namespace SqExpress.CodeGenUtil
             string inDirectory = EnsureDirectory(options.InputDir, logger, "Input", false);
             string outDirectory = EnsureDirectory(options.OutputDir, logger, "Output", true);
 
-            var analysis = ExistingCodeExplorer
-                .EnumerateTableDescriptorsModelAttributes(inDirectory, DefaultFileSystem.Instance)
-                .ParseAttribute(options.NullRefTypes)
-                .CreateAnalysis();
+            var analysis = CodeGenLegacySqModelSupport.AnalyzeLegacySqModels(inDirectory, DefaultFileSystem.Instance, options.NullRefTypes);
 
             if (analysis.Count < 1)
             {
@@ -215,7 +211,17 @@ namespace SqExpress.CodeGenUtil
             {
                 string path = Path.Combine(outDirectory, $"{meta.Name}.cs");
                 if (logger.IsDetailed) logger.LogDetailed(path);
-                await File.WriteAllTextAsync(path, ModelClassGenerator.Generate(meta, options.Namespace, path, options.RwClasses, options.NullRefTypes, options.ModelType, DefaultFileSystem.Instance, out var existing).ToFullString());
+                await File.WriteAllTextAsync(
+                    path,
+                    CodeGenModelSupport.Generate(
+                        meta,
+                        options.Namespace,
+                        path,
+                        options.RwClasses,
+                        options.NullRefTypes,
+                        options.ModelType == ModelType.Record ? CodeGenModelType.Record : CodeGenModelType.ImmutableClass,
+                        DefaultFileSystem.Instance,
+                        out var existing).ToFullString());
                 if (logger.IsDetailed) logger.LogDetailed(existing ? "Existing file updated." : "New file created.");
             }
 

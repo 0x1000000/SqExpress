@@ -13,7 +13,6 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.VisualStudio.TestPlatform.PlatformAbstractions;
 using NUnit.Framework;
 using SqExpress.CodeGen.Shared;
-using SqExpress.CodeGenUtil.CodeGen;
 using SqExpress.CodeGenUtil;
 using SqExpress.DbMetadata.Internal.DbManagers;
 using SqExpress.DbMetadata.Internal.Model;
@@ -218,7 +217,7 @@ namespace SqExpress.Test.CodeGenUtil
             var tables = await dbManager.SelectTables();
 
             var fileSystem = new TestFileSystem();
-            var allTablesSource = TableListClassGenerator.Generate(
+            var allTablesSource = CodeGenAllTablesSupport.Generate(
                 @"C:\Temp\AllTables.cs",
                 tables,
                 "MyCompany.MyProject.Tables",

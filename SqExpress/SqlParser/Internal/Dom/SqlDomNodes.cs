@@ -78,6 +78,7 @@ namespace SqExpress.SqlParser.Internal.Dom
     {
         public SqlDomSelectClause(
             IReadOnlyList<SqlDomSelectItem> items,
+            bool hasValidSelectListSyntax,
             SqlDomTableSource? from,
             bool hasFromClause,
             string? whereSql,
@@ -90,6 +91,7 @@ namespace SqExpress.SqlParser.Internal.Dom
             bool hasSetOperation)
         {
             this.Items = items;
+            this.HasValidSelectListSyntax = hasValidSelectListSyntax;
             this.From = from;
             this.HasFromClause = hasFromClause;
             this.WhereSql = whereSql;
@@ -103,6 +105,8 @@ namespace SqExpress.SqlParser.Internal.Dom
         }
 
         public IReadOnlyList<SqlDomSelectItem> Items { get; }
+
+        public bool HasValidSelectListSyntax { get; }
 
         public SqlDomTableSource? From { get; }
 

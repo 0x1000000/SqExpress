@@ -246,6 +246,14 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 return true;
             }
 
+            if (!selectClause.HasValidSelectListSyntax)
+            {
+                error = selectClause.Items.Count == 0
+                    ? "Syntax error: SELECT list is missing."
+                    : "Syntax error: SELECT list is invalid.";
+                return true;
+            }
+
             if (selectClause.HasFromClause && selectClause.From == null)
             {
                 error = "Syntax error: FROM clause is invalid.";
@@ -1229,6 +1237,7 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 selectEnd = FindStatementEnd(tokens, index);
             }
 
+            var hasValidSelectListSyntax = IsValidTopLevelCommaSeparatedClause(tokens, selectStart, selectEnd);
             var items = ParseSelectItems(sql, tokens, selectStart, selectEnd);
 
             SqlDomTableSource? from = null;
@@ -1340,6 +1349,7 @@ namespace SqExpress.SqlParser.Internal.Parsing
 
             return new SqlDomSelectClause(
                 items,
+                hasValidSelectListSyntax,
                 from,
                 hasFromClause,
                 whereSql,

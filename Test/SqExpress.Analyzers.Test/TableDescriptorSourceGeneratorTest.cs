@@ -6,6 +6,7 @@ using System.Linq;
 using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Diagnostics;
 using NUnit.Framework;
 
 namespace SqExpress.Analyzers.Test
@@ -250,12 +251,175 @@ namespace SqExpress.Analyzers.Test
             Assert.That(result.Diagnostics.Select(static d => d.Id), Contains.Item("SQEX115"));
         }
 
-        private static GeneratorRunResultData RunGenerator(string source)
+        [Test]
+        public void Generate_WhenDescriptorHasSqModel_GeneratesRecordWithoutWithMethods()
+        {
+            var source = """
+                using SqExpress.TableDecalationAttributes;
+
+                [TableDescriptor("dbo", "User", SqModel = "UserDto")]
+                [Int32Column("UserId", Pk = true, Identity = true)]
+                [StringColumn("FirstName", Unicode = true, MaxLength = 255)]
+                [NullableStringColumn("LastName", Unicode = true, MaxLength = 255)]
+                public partial class TableUser
+                {
+                }
+                """;
+
+            var result = RunGenerator(source);
+            var generated = GetGeneratedSource(result, "UserDto");
+
+            Assert.That(result.Diagnostics, Is.Empty, FormatDiagnostics(result.Diagnostics));
+            Assert.That(generated, Does.Contain("record UserDto"));
+            Assert.That(generated, Does.Contain("public static UserDto Read("));
+            Assert.That(generated, Does.Contain("public static TableColumn[] GetColumns("));
+            Assert.That(generated, Does.Contain("public static ISqModelReader<UserDto, TableUser> GetReader()"));
+            Assert.That(generated, Does.Not.Contain("WithUserId("));
+            Assert.That(generated, Does.Not.Contain("WithFirstName("));
+        }
+
+        [Test]
+        public void Generate_WhenTempTableDescriptorHasSqModel_GeneratesModel()
+        {
+            var source = """
+                using SqExpress.TableDecalationAttributes;
+
+                [TempTableDescriptor("#TmpUser", SqModel = "TmpUserDto")]
+                [Int32Column("UserId")]
+                [StringColumn("FirstName", Unicode = true, MaxLength = 255)]
+                public partial class TmpUser
+                {
+                }
+                """;
+
+            var result = RunGenerator(source);
+            var generated = GetGeneratedSource(result, "TmpUserDto");
+
+            Assert.That(result.Diagnostics, Is.Empty, FormatDiagnostics(result.Diagnostics));
+            Assert.That(generated, Does.Contain("record TmpUserDto"));
+            Assert.That(generated, Does.Contain("public static TmpUserDto Read("));
+            Assert.That(generated, Does.Contain("GetReader()"));
+        }
+
+        [Test]
+        public void Generate_WhenColumnSqModelsAddsAndRenamesMembership_DedupesCleanly()
+        {
+            var source = """
+                using SqExpress.TableDecalationAttributes;
+
+                [TableDescriptor("dbo", "User", SqModel = "UserDto")]
+                [Int32Column("UserId", SqModels = "UserDto.Id,UserIdentity")]
+                [StringColumn("FirstName", Unicode = true, MaxLength = 255, SqModels = "UserIdentity")]
+                public partial class TableUser
+                {
+                }
+                """;
+
+            var result = RunGenerator(source);
+            var dtoGenerated = GetGeneratedSource(result, "UserDto");
+            var identityGenerated = GetGeneratedSource(result, "UserIdentity");
+
+            Assert.That(result.Diagnostics, Is.Empty, FormatDiagnostics(result.Diagnostics));
+            Assert.That(dtoGenerated, Does.Contain("public int Id { get; }"));
+            Assert.That(dtoGenerated, Does.Not.Contain("public int UserId { get; }"));
+            Assert.That(identityGenerated, Does.Contain("record UserIdentity"));
+            Assert.That(identityGenerated, Does.Contain("public int UserId { get; }"));
+            Assert.That(identityGenerated, Does.Contain("public string FirstName { get; }"));
+        }
+
+        [Test]
+        public void Generate_WhenSqModelsEntryIsMalformed_ReportsDiagnostic()
+        {
+            var source = """
+                using SqExpress.TableDecalationAttributes;
+
+                [TableDescriptor("dbo", "User")]
+                [Int32Column("UserId", SqModels = "UserDto.")]
+                public partial class TableUser
+                {
+                }
+                """;
+
+            var result = RunGenerator(source);
+
+            Assert.That(result.Diagnostics.Select(static d => d.Id), Contains.Item("SQEX117"));
+        }
+
+        [Test]
+        public void Generate_WhenSameModelPropertyHasConflictingTypes_ReportsDiagnostic()
+        {
+            var source = """
+                using SqExpress.TableDecalationAttributes;
+
+                [TableDescriptor("dbo", "User")]
+                [Int32Column("UserId", SqModels = "UserDto.Id")]
+                [StringColumn("UserCode", Unicode = true, MaxLength = 50, SqModels = "UserDto.Id")]
+                public partial class TableUser
+                {
+                }
+                """;
+
+            var result = RunGenerator(source);
+
+            Assert.That(result.Diagnostics.Select(static d => d.Id), Contains.Item("SQEX119"));
+        }
+
+        [Test]
+        public void Generate_WhenSameTableMapsTwoColumnsToSameModelProperty_ReportsDiagnostic()
+        {
+            var source = """
+                using SqExpress.TableDecalationAttributes;
+
+                [TableDescriptor("dbo", "User")]
+                [Int32Column("UserId", SqModels = "UserDto.Id")]
+                [Int32Column("OtherId", SqModels = "UserDto.Id")]
+                public partial class TableUser
+                {
+                }
+                """;
+
+            var result = RunGenerator(source);
+
+            Assert.That(result.Diagnostics.Select(static d => d.Id), Contains.Item("SQEX120"));
+        }
+
+        [Test]
+        public void Generate_WhenSqModelOptionsAreProvided_HonorsNamespaceAndImmutableClassMode()
+        {
+            var source = """
+                using SqExpress.TableDecalationAttributes;
+
+                [TableDescriptor("dbo", "User", SqModel = "UserDto")]
+                [Int32Column("UserId")]
+                [StringColumn("FirstName", Unicode = true, MaxLength = 255)]
+                public partial class TableUser
+                {
+                }
+                """;
+
+            var result = RunGenerator(
+                source,
+                ImmutableDictionary<string, string>.Empty
+                    .Add("build_property.SqModelGenNamespace", "MyApp.GeneratedModels")
+                    .Add("build_property.SqModelGenType", "ImmutableClass"));
+            var generated = GetGeneratedSource(result, "UserDto");
+
+            Assert.That(result.Diagnostics, Is.Empty, FormatDiagnostics(result.Diagnostics));
+            Assert.That(generated, Does.Contain("namespace MyApp.GeneratedModels"));
+            Assert.That(generated, Does.Contain("class UserDto"));
+            Assert.That(generated, Does.Contain("public UserDto WithUserId("));
+            Assert.That(generated, Does.Contain("public UserDto WithFirstName("));
+        }
+
+        private static GeneratorRunResultData RunGenerator(string source, ImmutableDictionary<string, string>? globalOptions = null)
         {
             var compilation = CreateCompilation(source);
             var generator = new TableDescriptorSourceGenerator();
             var parseOptions = (CSharpParseOptions)compilation.SyntaxTrees[0].Options;
-            GeneratorDriver driver = CSharpGeneratorDriver.Create([generator.AsSourceGenerator()], parseOptions: parseOptions);
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(
+                generators: [generator.AsSourceGenerator()],
+                parseOptions: parseOptions,
+                optionsProvider: new TestAnalyzerConfigOptionsProvider(globalOptions ?? ImmutableDictionary<string, string>.Empty));
             driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out var outputDiagnostics);
             var result = driver.GetRunResult();
 
@@ -269,7 +433,10 @@ namespace SqExpress.Analyzers.Test
         {
             return result.GeneratedTrees
                 .Select(static t => t.ToString())
-                .First(t => t.Contains($"partial class {hintContains}", StringComparison.Ordinal));
+                .First(t =>
+                    t.Contains($"partial class {hintContains}", StringComparison.Ordinal) ||
+                    t.Contains($"class {hintContains}", StringComparison.Ordinal) ||
+                    t.Contains($"record {hintContains}", StringComparison.Ordinal));
         }
 
         private static CSharpCompilation CreateCompilation(string source)
@@ -310,5 +477,44 @@ namespace SqExpress.Analyzers.Test
             ImmutableArray<Diagnostic> Diagnostics,
             Compilation OutputCompilation,
             ImmutableArray<SyntaxTree> GeneratedTrees);
+
+        private sealed class TestAnalyzerConfigOptionsProvider : AnalyzerConfigOptionsProvider
+        {
+            private readonly AnalyzerConfigOptions _globalOptions;
+
+            public TestAnalyzerConfigOptionsProvider(ImmutableDictionary<string, string> values)
+            {
+                this._globalOptions = new TestAnalyzerConfigOptions(values);
+            }
+
+            public override AnalyzerConfigOptions GlobalOptions => this._globalOptions;
+
+            public override AnalyzerConfigOptions GetOptions(SyntaxTree tree)
+            {
+                return Empty;
+            }
+
+            public override AnalyzerConfigOptions GetOptions(AdditionalText textFile)
+            {
+                return Empty;
+            }
+
+            private static AnalyzerConfigOptions Empty { get; } = new TestAnalyzerConfigOptions(ImmutableDictionary<string, string>.Empty);
+        }
+
+        private sealed class TestAnalyzerConfigOptions : AnalyzerConfigOptions
+        {
+            private readonly ImmutableDictionary<string, string> _values;
+
+            public TestAnalyzerConfigOptions(ImmutableDictionary<string, string> values)
+            {
+                this._values = values;
+            }
+
+            public override bool TryGetValue(string key, out string value)
+            {
+                return this._values.TryGetValue(key, out value!);
+            }
+        }
     }
 }
