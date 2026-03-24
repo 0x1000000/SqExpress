@@ -38,6 +38,7 @@
 - `FOR XML`
 - `OPTION(...)`
 - `OUTPUT ... INTO`
+- `ANY` / `SOME` / `ALL` quantified predicates
 - Malformed joins, malformed clause bodies, malformed delimited tokens, duplicate visible table aliases/names, and ambiguous unqualified columns in multi-table scope
 
 ## Notes

@@ -20,6 +20,8 @@ namespace SqExpress.Analyzers
 {
     internal static partial class SqTSqlParserParseCodeFixHelper
     {
+        private const string DefaultParserSchema = "dbo";
+
         private static readonly string[] RequiredNamespaces =
         {
             "System",
@@ -1198,7 +1200,8 @@ namespace SqExpress.Analyzers
 
             foreach (var expected in expectedTables)
             {
-                if (!sourceCatalog.TryGetValue(expected.TableKey, out var candidates) || candidates.Count < 1)
+                var candidates = SqTSqlParserSourceTableCatalogHelper.GetSourceTableMatches(sourceCatalog, expected.TableKey, DefaultParserSchema);
+                if (candidates.Count < 1)
                 {
                     failureMessage = "No SqExpress table class found for SQL table " + FormatTableKey(expected.TableKey) + ".";
                     return false;

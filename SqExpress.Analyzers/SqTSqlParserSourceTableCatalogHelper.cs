@@ -10,6 +10,10 @@ namespace SqExpress.Analyzers
 {
     internal static class SqTSqlParserSourceTableCatalogHelper
     {
+        private const string TableDescriptorAttributeName = "SqExpress.TableDecalationAttributes.TableDescriptorAttribute";
+        private const string TempTableDescriptorAttributeName = "SqExpress.TableDecalationAttributes.TempTableDescriptorAttribute";
+        private const string ColumnAttributeBaseName = "SqExpress.TableDecalationAttributes.TableColumnAttributeBase";
+
         public static IReadOnlyDictionary<string, IReadOnlyList<SourceTableInfo>> BuildSourceTableCatalog(
             Compilation compilation,
             CancellationToken cancellationToken)
@@ -78,7 +82,9 @@ namespace SqExpress.Analyzers
             CancellationToken cancellationToken,
             IDictionary<string, List<SourceTableInfo>> byKey)
         {
-            if (namedType.TypeKind is TypeKind.Class && !namedType.IsAbstract && DerivesFromTableBase(namedType))
+            if (namedType.TypeKind is TypeKind.Class
+                && !namedType.IsAbstract
+                && (DerivesFromTableBase(namedType) || HasTableDeclarationAttributes(namedType)))
             {
                 if (TryCreateSourceTableInfo(namedType, compilation, cancellationToken, out var info))
                 {
@@ -108,6 +114,11 @@ namespace SqExpress.Analyzers
             out SourceTableInfo info)
         {
             info = default;
+
+            if (TryCreateSourceTableInfoFromAttributes(namedType, out info))
+            {
+                return true;
+            }
 
             var constructors = namedType.InstanceConstructors
                 .Where(i => i.DeclaredAccessibility == Accessibility.Public)
@@ -159,6 +170,56 @@ namespace SqExpress.Analyzers
             }
 
             tableKey = BuildTableKey(schema, tableName);
+            return true;
+        }
+
+        private static bool TryCreateSourceTableInfoFromAttributes(
+            INamedTypeSymbol namedType,
+            out SourceTableInfo info)
+        {
+            info = default;
+
+            var attributes = namedType.GetAttributes();
+            var tableDescriptorAttribute = attributes.FirstOrDefault(static a => a.AttributeClass?.ToDisplayString() == TableDescriptorAttributeName);
+            var tempTableDescriptorAttribute = attributes.FirstOrDefault(static a => a.AttributeClass?.ToDisplayString() == TempTableDescriptorAttributeName);
+            var activeDescriptorAttribute = tableDescriptorAttribute ?? tempTableDescriptorAttribute;
+            if (activeDescriptorAttribute == null)
+            {
+                return false;
+            }
+
+            var isTempTable = tempTableDescriptorAttribute != null;
+            if (!TryReadTableDeclarationAttribute(activeDescriptorAttribute, isTempTable, out var tableKey))
+            {
+                return false;
+            }
+
+            var columnsByName = new Dictionary<string, SourceColumnInfo>(StringComparer.OrdinalIgnoreCase);
+            foreach (var attribute in attributes)
+            {
+                var attributeClass = attribute.AttributeClass;
+                if (attributeClass == null || !InheritsFrom(attributeClass, ColumnAttributeBaseName))
+                {
+                    continue;
+                }
+
+                if (!TryReadColumnDeclarationAttribute(attribute, out var columnInfo))
+                {
+                    continue;
+                }
+
+                columnsByName[columnInfo.ColumnName] = columnInfo;
+            }
+
+            info = new SourceTableInfo(
+                tableKey,
+                namedType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                namedType.Name,
+                namedType.ContainingNamespace?.IsGlobalNamespace == false ? namedType.ContainingNamespace.ToDisplayString() : null,
+                ToCamelCaseIdentifier(namedType.Name, "table"),
+                supportsParameterlessConstructor: true,
+                supportsAliasConstructor: true,
+                columnsByName);
             return true;
         }
 
@@ -482,12 +543,224 @@ namespace SqExpress.Analyzers
             return false;
         }
 
+        private static bool HasTableDeclarationAttributes(INamedTypeSymbol namedType)
+        {
+            foreach (var attribute in namedType.GetAttributes())
+            {
+                var attributeTypeName = attribute.AttributeClass?.ToDisplayString();
+                if (string.Equals(attributeTypeName, TableDescriptorAttributeName, StringComparison.Ordinal)
+                    || string.Equals(attributeTypeName, TempTableDescriptorAttributeName, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool TryReadTableDeclarationAttribute(
+            AttributeData attribute,
+            bool isTempTable,
+            out string tableKey)
+        {
+            tableKey = string.Empty;
+
+            var args = attribute.ConstructorArguments;
+            string? schema = null;
+            string? tableName = null;
+
+            if (isTempTable)
+            {
+                if (args.Length >= 1 && args[0].Value is string tempTableName)
+                {
+                    tableName = tempTableName;
+                }
+            }
+            else
+            {
+                if (args.Length >= 1 && args[0].Value is string singleName)
+                {
+                    if (args.Length == 1)
+                    {
+                        tableName = singleName;
+                    }
+                    else if (args.Length >= 2 && args[1].Value is string secondName)
+                    {
+                        schema = singleName;
+                        tableName = secondName;
+                    }
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(tableName))
+            {
+                return false;
+            }
+
+            tableKey = BuildTableKey(schema, tableName!);
+            return true;
+        }
+
+        private static bool TryReadColumnDeclarationAttribute(
+            AttributeData attribute,
+            out SourceColumnInfo info)
+        {
+            info = default;
+
+            if (attribute.ConstructorArguments.Length < 1 || attribute.ConstructorArguments[0].Value is not string columnName)
+            {
+                return false;
+            }
+
+            var propertyName = GetNamedString(attribute, "PropertyName");
+            var memberName = string.IsNullOrWhiteSpace(propertyName) ? ToIdentifier(columnName) : propertyName!;
+            var typeName = GetColumnTypeNameFromAttribute(attribute.AttributeClass?.Name);
+            info = new SourceColumnInfo(columnName, memberName, typeName);
+            return true;
+        }
+
+        private static bool InheritsFrom(INamedTypeSymbol type, string baseTypeName)
+        {
+            for (var current = type; current != null; current = current.BaseType)
+            {
+                if (string.Equals(current.ToDisplayString(), baseTypeName, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static string? GetNamedString(AttributeData attribute, string name)
+        {
+            foreach (var namedArgument in attribute.NamedArguments)
+            {
+                if (string.Equals(namedArgument.Key, name, StringComparison.Ordinal) && namedArgument.Value.Value is string value)
+                {
+                    return value;
+                }
+            }
+
+            return null;
+        }
+
+        private static string ToIdentifier(string value)
+        {
+            var parts = value
+                .Split(new[] { ' ', '-', '.', '/', '\\', ':', ';', ',', '(', ')', '[', ']', '{', '}', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(ToPascalCasePart)
+                .Where(static i => i.Length > 0)
+                .ToArray();
+
+            var result = string.Concat(parts);
+            if (string.IsNullOrEmpty(result))
+            {
+                result = "Column";
+            }
+
+            if (char.IsDigit(result[0]))
+            {
+                result = "_" + result;
+            }
+
+            return result;
+        }
+
+        private static string ToPascalCasePart(string value)
+        {
+            var chars = value.Where(char.IsLetterOrDigit).ToArray();
+            if (chars.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            var text = new string(chars);
+            return text.Length == 1 ? char.ToUpperInvariant(text[0]).ToString() : char.ToUpperInvariant(text[0]) + text.Substring(1);
+        }
+
+        private static string? GetColumnTypeNameFromAttribute(string? attributeClassName)
+        {
+            return attributeClassName switch
+            {
+                "BooleanColumnAttribute" => "BooleanTableColumn",
+                "NullableBooleanColumnAttribute" => "NullableBooleanTableColumn",
+                "ByteColumnAttribute" => "ByteTableColumn",
+                "NullableByteColumnAttribute" => "NullableByteTableColumn",
+                "ByteArrayColumnAttribute" => "ByteArrayTableColumn",
+                "NullableByteArrayColumnAttribute" => "NullableByteArrayTableColumn",
+                "Int16ColumnAttribute" => "Int16TableColumn",
+                "NullableInt16ColumnAttribute" => "NullableInt16TableColumn",
+                "Int32ColumnAttribute" => "Int32TableColumn",
+                "NullableInt32ColumnAttribute" => "NullableInt32TableColumn",
+                "Int64ColumnAttribute" => "Int64TableColumn",
+                "NullableInt64ColumnAttribute" => "NullableInt64TableColumn",
+                "DoubleColumnAttribute" => "DoubleTableColumn",
+                "NullableDoubleColumnAttribute" => "NullableDoubleTableColumn",
+                "DecimalColumnAttribute" => "DecimalTableColumn",
+                "NullableDecimalColumnAttribute" => "NullableDecimalTableColumn",
+                "DateTimeColumnAttribute" => "DateTimeTableColumn",
+                "NullableDateTimeColumnAttribute" => "NullableDateTimeTableColumn",
+                "DateTimeOffsetColumnAttribute" => "DateTimeOffsetTableColumn",
+                "NullableDateTimeOffsetColumnAttribute" => "NullableDateTimeOffsetTableColumn",
+                "GuidColumnAttribute" => "GuidTableColumn",
+                "NullableGuidColumnAttribute" => "NullableGuidTableColumn",
+                "StringColumnAttribute" => "StringTableColumn",
+                "NullableStringColumnAttribute" => "NullableStringTableColumn",
+                "XmlColumnAttribute" => "XmlTableColumn",
+                "NullableXmlColumnAttribute" => "NullableXmlTableColumn",
+                _ => null
+            };
+        }
+
         private static IReadOnlyDictionary<string, IReadOnlyList<SourceTableInfo>> ToReadOnly(
             IDictionary<string, List<SourceTableInfo>> byKey)
             => byKey.ToDictionary(i => i.Key, i => (IReadOnlyList<SourceTableInfo>)i.Value, StringComparer.OrdinalIgnoreCase);
 
+        public static IReadOnlyList<SourceTableInfo> GetSourceTableMatches(
+            IReadOnlyDictionary<string, IReadOnlyList<SourceTableInfo>> sourceCatalog,
+            string expectedTableKey,
+            string? defaultSchema)
+        {
+            if (sourceCatalog.TryGetValue(expectedTableKey, out var directCandidates) && directCandidates.Count > 0)
+            {
+                return directCandidates;
+            }
+
+            if (!TrySplitTableKey(expectedTableKey, out var schema, out var tableName)
+                || string.IsNullOrWhiteSpace(schema)
+                || !string.Equals(schema, defaultSchema, StringComparison.OrdinalIgnoreCase))
+            {
+                return Array.Empty<SourceTableInfo>();
+            }
+
+            var unqualifiedKey = BuildTableKey(schema: null, tableName);
+            if (sourceCatalog.TryGetValue(unqualifiedKey, out var unqualifiedCandidates) && unqualifiedCandidates.Count > 0)
+            {
+                return unqualifiedCandidates;
+            }
+
+            return Array.Empty<SourceTableInfo>();
+        }
+
         private static string BuildTableKey(string? schema, string tableName)
             => (schema ?? string.Empty) + "." + tableName;
+
+        private static bool TrySplitTableKey(string tableKey, out string? schema, out string tableName)
+        {
+            schema = null;
+            tableName = string.Empty;
+
+            var separatorIndex = tableKey.IndexOf('.');
+            if (separatorIndex < 0 || separatorIndex >= tableKey.Length - 1)
+            {
+                return false;
+            }
+
+            schema = separatorIndex == 0 ? null : tableKey.Substring(0, separatorIndex);
+            tableName = tableKey.Substring(separatorIndex + 1);
+            return !string.IsNullOrWhiteSpace(tableName);
+        }
 
         private static string ToCamelCaseIdentifier(string value, string fallback)
         {

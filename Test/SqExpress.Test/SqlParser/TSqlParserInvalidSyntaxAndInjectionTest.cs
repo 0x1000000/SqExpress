@@ -229,9 +229,204 @@ namespace SqExpress.Test.SqlParser
                 .SetName("FromWithoutSource");
 
             yield return new TestCaseData(
+                    "SELECT * FROM Users u ON u.UserId = 1",
+                    "Syntax error: ON clause is invalid.")
+                .SetName("OnWithoutJoin");
+
+            yield return new TestCaseData(
                     "UPDATE [dbo].[Users] [u] WHERE [u].[UserId]=1",
                     "Syntax error: UPDATE statement must contain SET clause.")
                 .SetName("UpdateWithoutSet");
+
+            yield return new TestCaseData(
+                    "INSERT INTO Users(UserId,Name,) VALUES (1,'A')",
+                    "Syntax error: INSERT column list is invalid.")
+                .SetName("InsertColumnListTrailingComma");
+
+            yield return new TestCaseData(
+                    "INSERT INTO Users(UserId,Name) VALUES (1,'A',)",
+                    "Syntax error: INSERT VALUES clause is invalid.")
+                .SetName("InsertValuesTrailingComma");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM Users,,Orders",
+                    "Syntax error: FROM clause is invalid.")
+                .SetName("FromDoubleComma");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM Users u, , Orders o",
+                    "Syntax error: FROM clause is invalid.")
+                .SetName("FromSeparatedDoubleComma");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM Users u CROSS APPLY Orders o",
+                    "Syntax error: FROM clause is invalid.")
+                .SetName("CrossApplyNamedTable");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM Users u OUTER APPLY Orders o",
+                    "Syntax error: FROM clause is invalid.")
+                .SetName("OuterApplyNamedTable");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM Users AS",
+                    "Syntax error: FROM clause is invalid.")
+                .SetName("FromDanglingAsAlias");
+
+            yield return new TestCaseData(
+                    "SELECT 1 AS [ ] FROM dbo.Users",
+                    "Syntax error: SELECT list is invalid.")
+                .SetName("EmptyBracketProjectionAlias");
+
+            yield return new TestCaseData(
+                    "SELECT ALL FROM dbo.Users",
+                    "Syntax error: SELECT list is missing.")
+                .SetName("SelectAllWithoutProjection");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users u WHERE u.Id = SOME ()",
+                    "Feature 'ANY/SOME/ALL predicates' is not supported by SqExpress parser.")
+                .SetName("SomeWithEmptyOperand");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users u WHERE u.Id = ALL ()",
+                    "Feature 'ANY/SOME/ALL predicates' is not supported by SqExpress parser.")
+                .SetName("AllWithEmptyOperand");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users u WHERE u.Id = ANY (SELECT * FROM)",
+                    "Feature 'ANY/SOME/ALL predicates' is not supported by SqExpress parser.")
+                .SetName("AnyWithIncompleteSubquery");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users u WHERE u.Id = SOME (SELECT * FROM)",
+                    "Feature 'ANY/SOME/ALL predicates' is not supported by SqExpress parser.")
+                .SetName("SomeWithIncompleteSubquery");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users u WHERE u.Id = ALL (SELECT * FROM)",
+                    "Feature 'ANY/SOME/ALL predicates' is not supported by SqExpress parser.")
+                .SetName("AllWithIncompleteSubquery");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users u WHERE u.Id = ANY (SELECT s.Id FROM dbo.Users s)",
+                    "Feature 'ANY/SOME/ALL predicates' is not supported by SqExpress parser.")
+                .SetName("AnyWithValidSubqueryUnsupported");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users u WHERE u.Id = SOME (SELECT s.Id FROM dbo.Users s)",
+                    "Feature 'ANY/SOME/ALL predicates' is not supported by SqExpress parser.")
+                .SetName("SomeWithValidSubqueryUnsupported");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users u WHERE u.Id = ALL (SELECT s.Id FROM dbo.Users s)",
+                    "Feature 'ANY/SOME/ALL predicates' is not supported by SqExpress parser.")
+                .SetName("AllWithValidSubqueryUnsupported");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users u WHERE u.Id IN (1,2,) AND 1=1",
+                    "Syntax error: IN predicate list is invalid.")
+                .SetName("InListTrailingCommaWithAnd");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users u WHERE u.Id IN (1,2,) OR 1=1",
+                    "Syntax error: IN predicate list is invalid.")
+                .SetName("InListTrailingCommaWithOr");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users u WHERE u.Id IN (1,2,) ORDER BY u.Id",
+                    "Syntax error: IN predicate list is invalid.")
+                .SetName("InListTrailingCommaWithOrderBy");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users u WHERE CASE WHEN 1=1 THEN 1 END IN (1,2,)",
+                    "Syntax error: IN predicate list is invalid.")
+                .SetName("InListTrailingCommaWithCase");
+
+            yield return new TestCaseData(
+                    "INSERT INTO Users UserId VALUES (1)",
+                    "Syntax error: INSERT target is invalid.")
+                .SetName("InsertTargetMissingParenthesizedColumnList");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM (VALUES (1),(2),) v(Id)",
+                    "Syntax error: FROM clause is invalid.")
+                .SetName("ValuesTableTrailingComma");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM (VALUES (1),,(2)) v(Id)",
+                    "Syntax error: FROM clause is invalid.")
+                .SetName("ValuesTableDoubleComma");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users u CROSS APPLY (VALUES (1),) x(Id)",
+                    "Syntax error: FROM clause is invalid.")
+                .SetName("CrossApplyValuesTrailingComma");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users u CROSS APPLY (VALUES (1),,(2)) x(Id)",
+                    "Syntax error: FROM clause is invalid.")
+                .SetName("CrossApplyValuesDoubleComma");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users u OUTER APPLY (VALUES (1),) x(Id)",
+                    "Syntax error: FROM clause is invalid.")
+                .SetName("OuterApplyValuesTrailingComma");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users u OUTER APPLY (VALUES (1),,(2)) x(Id)",
+                    "Syntax error: FROM clause is invalid.")
+                .SetName("OuterApplyValuesDoubleComma");
+
+            yield return new TestCaseData(
+                    "DELETE FROM Users WHERE Id IN (1,2,)",
+                    "Syntax error: IN predicate list is invalid.")
+                .SetName("DeleteWhereInListTrailingComma");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users u JOIN dbo.Orders o ON o.UserId = u.Id WHERE o.Id IN (1,2,)",
+                    "Syntax error: IN predicate list is invalid.")
+                .SetName("JoinWhereInListTrailingComma");
+
+            yield return new TestCaseData(
+                    "UPDATE Users SET Name = 1 WHERE Id IN (1,2,)",
+                    "Syntax error: IN predicate list is invalid.")
+                .SetName("UpdateWhereInListTrailingComma");
+
+            yield return new TestCaseData(
+                    "UPDATE Users SET (Name) = 1 WHERE Id = 1",
+                    "Syntax error: UPDATE SET clause is invalid.")
+                .SetName("UpdateParenthesizedAssignmentTarget");
+
+            yield return new TestCaseData(
+                    "DELETE AS u FROM Users u WHERE Id = 1",
+                    "Syntax error: DELETE target is invalid.")
+                .SetName("DeleteWithAsAliasTarget");
+
+            yield return new TestCaseData(
+                    "DELETE AS [u] FROM Users [u] WHERE Id = 1",
+                    "Syntax error: DELETE target is invalid.")
+                .SetName("DeleteWithAsBracketAliasTarget");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users u WHERE EXISTS ()",
+                    "Syntax error: EXISTS predicate cannot be empty.")
+                .SetName("ExistsWithEmptyOperand");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users u WHERE u.Id = ANY (VALUES (1),)",
+                    "Feature 'ANY/SOME/ALL predicates' is not supported by SqExpress parser.")
+                .SetName("AnyWithInvalidValuesOperand");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users u WHERE u.Id = SOME (VALUES (1),)",
+                    "Feature 'ANY/SOME/ALL predicates' is not supported by SqExpress parser.")
+                .SetName("SomeWithInvalidValuesOperand");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users u WHERE u.Id = ALL (VALUES (1),)",
+                    "Feature 'ANY/SOME/ALL predicates' is not supported by SqExpress parser.")
+                .SetName("AllWithInvalidValuesOperand");
 
             yield return new TestCaseData(
                     "MERGE [dbo].[Users] [t] USING [dbo].[UsersStaging] [s] WHEN MATCHED THEN DELETE;",
