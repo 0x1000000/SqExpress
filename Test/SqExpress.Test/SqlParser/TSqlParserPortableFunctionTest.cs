@@ -132,6 +132,40 @@ namespace SqExpress.Test.SqlParser
         }
 
         [Test]
+        public void ParseKnownDateFunctions_InMultiTableScope_MapsToKnownNodes()
+        {
+            const string sql =
+                @"SELECT DATEADD(MONTH,-1,GETDATE()) [Cutoff],DATEDIFF(DAY,[u].[CreatedAt],[o].[CreatedAt]) [DaysBetween] FROM [dbo].[Users] [u] INNER JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[UserId] WHERE [o].[CreatedAt]>=DATEADD(DAY,-7,GETUTCDATE())";
+
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+
+            var descendants = expr!.SyntaxTree().DescendantsAndSelf().ToList();
+            Assert.That(descendants.OfType<ExprDateAdd>().Count(), Is.EqualTo(2));
+            Assert.That(descendants.OfType<ExprDateDiff>().Count(), Is.EqualTo(1));
+            Assert.That(descendants.OfType<ExprGetDate>().Count(), Is.EqualTo(1));
+            Assert.That(descendants.OfType<ExprGetUtcDate>().Count(), Is.EqualTo(1));
+        }
+
+        [Test]
+        public void ParseCurrentTimestamp_InMultiTableScope_MapsToKnownNode()
+        {
+            const string sql =
+                @"SELECT e.EmployeeCode,e.FirstName,e.LastName,SUM(s.TotalAmount) [TotalSalesAmount] FROM [ref].[Employee] [e] INNER JOIN [ops].[SalesOrder] [s] ON [e].[EmployeeId]=[s].[SalesRepId] WHERE [s].[OrderDate]>=DATEADD(YEAR,-1,CURRENT_TIMESTAMP) GROUP BY [e].[EmployeeCode],[e].[FirstName],[e].[LastName] ORDER BY [TotalSalesAmount] DESC";
+
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+
+            var descendants = expr!.SyntaxTree().DescendantsAndSelf().ToList();
+            Assert.That(descendants.OfType<ExprDateAdd>().Count(), Is.EqualTo(1));
+            Assert.That(descendants.OfType<ExprGetDate>().Count(), Is.EqualTo(1));
+        }
+
+        [Test]
         public void ParseKnownNullFunctions_MapsToKnownNodes_AndExportsToPgSql()
         {
             const string sql =

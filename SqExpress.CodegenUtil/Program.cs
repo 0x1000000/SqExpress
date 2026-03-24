@@ -107,7 +107,7 @@ namespace SqExpress.CodeGenUtil
 
             logger.LogNormal("Success!");
 
-            var tables = await sqlManager.SelectTables();
+            var tables = await sqlManager.SelectTables(options.SkipUnknownColumnTypes);
 
             if(logger.IsNormalOrHigher)
             {
@@ -145,13 +145,14 @@ namespace SqExpress.CodeGenUtil
                         table,
                         tableMap,
                         options.Namespace,
+                        options.SkipUnknownColumnTypes,
                         filePath,
                         DefaultFileSystem.Instance,
                         out existing).ToFullString();
                 }
                 else
                 {
-                    text = CodeGenTableDescriptorSupport.GenerateTableDescriptor(table, tableMap, options.Namespace, existingCode, out existing).ToFullString();
+                    text = CodeGenTableDescriptorSupport.GenerateTableDescriptor(table, tableMap, options.Namespace, existingCode, options.SkipUnknownColumnTypes, out existing).ToFullString();
                 }
                 await File.WriteAllTextAsync(filePath, text);
 

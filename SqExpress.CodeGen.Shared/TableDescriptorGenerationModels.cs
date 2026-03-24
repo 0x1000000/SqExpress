@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Collections.Immutable;
 namespace SqExpress.CodeGen.Shared
 {
@@ -47,6 +46,26 @@ namespace SqExpress.CodeGen.Shared
         DescendingColumnMustBeIndexed,
         ForeignKeyTableNotFound,
         ForeignKeyColumnNotFound
+    }
+
+    public enum CodeGenDefaultValueKind
+    {
+        None = 0,
+        RawSql = 1,
+        Null = 2,
+        Int32 = 3,
+        Boolean = 4,
+        String = 5,
+        UtcNow = 6,
+        Now = 7,
+        Byte = 8,
+        Int16 = 9,
+        Int64 = 10,
+        Decimal = 11,
+        Double = 12,
+        Guid = 13,
+        DateTime = 14,
+        DateTimeOffset = 15
     }
 
     public sealed class CodeGenTableModel
@@ -112,7 +131,7 @@ namespace SqExpress.CodeGen.Shared
             string? foreignKeySchema,
             string? foreignKeyTable,
             string? foreignKeyColumn,
-            int defaultValueKind,
+            CodeGenDefaultValueKind defaultValueKind,
             string? defaultValue,
             bool isUnicode,
             int? maxLength,
@@ -164,7 +183,7 @@ namespace SqExpress.CodeGen.Shared
 
         public string? ForeignKeyColumn { get; }
 
-        public int DefaultValueKind { get; }
+        public CodeGenDefaultValueKind DefaultValueKind { get; }
 
         public string? DefaultValue { get; }
 

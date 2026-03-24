@@ -1,14 +1,15 @@
 using Microsoft.CodeAnalysis;
+using SqExpress.TableDecalationAttributes;
 
 namespace SqExpress.Analyzers
 {
     [Generator]
     public sealed partial class TableDescriptorSourceGenerator : IIncrementalGenerator
     {
-        private const string TableDescriptorAttributeName = "SqExpress.TableDecalationAttributes.TableDescriptorAttribute";
-        private const string TempTableDescriptorAttributeName = "SqExpress.TableDecalationAttributes.TempTableDescriptorAttribute";
-        private const string ColumnAttributeBaseName = "SqExpress.TableDecalationAttributes.TableColumnAttributeBase";
-        private const string IndexAttributeName = "SqExpress.TableDecalationAttributes.IndexAttribute";
+        private static readonly string TableDescriptorAttributeName = typeof(TableDescriptorAttribute).FullName!;
+        private static readonly string TempTableDescriptorAttributeName = typeof(TempTableDescriptorAttribute).FullName!;
+        private static readonly string ColumnAttributeBaseName = typeof(TableColumnAttributeBase).FullName!;
+        private static readonly string IndexAttributeName = typeof(IndexAttribute).FullName!;
 
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using NUnit.Framework;
 using SqExpress.DbMetadata;
 
@@ -10,10 +11,10 @@ namespace SqExpress.Test.Meta
         [Test]
         public void CompareWith_Table_WhenEqual_ReturnsNull()
         {
-            var left = CreateTable("dbo", "Users", a => a
+            var left = SqTable.Create("dbo", "Users", a => a
                 .AppendInt32Column("Id")
                 .AppendStringColumn("Name", 255, isUnicode: true));
-            var right = CreateTable("dbo", "Users", a => a
+            var right = SqTable.Create("dbo", "Users", a => a
                 .AppendInt32Column("Id")
                 .AppendStringColumn("Name", 255, isUnicode: true));
 
@@ -25,10 +26,10 @@ namespace SqExpress.Test.Meta
         [Test]
         public void CompareWith_Table_WhenMissingColumn_ReturnsMissedColumn()
         {
-            var expected = CreateTable("dbo", "Users", a => a
+            var expected = SqTable.Create("dbo", "Users", a => a
                 .AppendInt32Column("Id")
                 .AppendStringColumn("Name", 255, isUnicode: true));
-            var actual = CreateTable("dbo", "Users", a => a
+            var actual = SqTable.Create("dbo", "Users", a => a
                 .AppendInt32Column("Id"));
 
             var diff = expected.CompareWith(actual);
@@ -42,9 +43,9 @@ namespace SqExpress.Test.Meta
         [Test]
         public void CompareWith_Table_WhenExtraColumn_ReturnsExtraColumn()
         {
-            var expected = CreateTable("dbo", "Users", a => a
+            var expected = SqTable.Create("dbo", "Users", a => a
                 .AppendInt32Column("Id"));
-            var actual = CreateTable("dbo", "Users", a => a
+            var actual = SqTable.Create("dbo", "Users", a => a
                 .AppendInt32Column("Id")
                 .AppendStringColumn("Name", 255, isUnicode: true));
 
@@ -59,9 +60,9 @@ namespace SqExpress.Test.Meta
         [Test]
         public void CompareWith_Table_WhenColumnTypeDiffers_ReturnsDifferentType()
         {
-            var expected = CreateTable("dbo", "Users", a => a
+            var expected = SqTable.Create("dbo", "Users", a => a
                 .AppendInt32Column("Id"));
-            var actual = CreateTable("dbo", "Users", a => a
+            var actual = SqTable.Create("dbo", "Users", a => a
                 .AppendStringColumn("Id", 255, isUnicode: true));
 
             var diff = expected.CompareWith(actual);
@@ -75,9 +76,9 @@ namespace SqExpress.Test.Meta
         [Test]
         public void CompareWith_Table_WhenColumnNullabilityDiffers_ReturnsDifferentNullability()
         {
-            var expected = CreateTable("dbo", "Users", a => a
+            var expected = SqTable.Create("dbo", "Users", a => a
                 .AppendInt32Column("Id"));
-            var actual = CreateTable("dbo", "Users", a => a
+            var actual = SqTable.Create("dbo", "Users", a => a
                 .AppendNullableInt32Column("Id"));
 
             var diff = expected.CompareWith(actual);
@@ -90,9 +91,9 @@ namespace SqExpress.Test.Meta
         [Test]
         public void CompareWith_Table_WhenColumnArgumentsDiffer_ReturnsDifferentArguments()
         {
-            var expected = CreateTable("dbo", "Users", a => a
+            var expected = SqTable.Create("dbo", "Users", a => a
                 .AppendStringColumn("Name", 128, isUnicode: true));
-            var actual = CreateTable("dbo", "Users", a => a
+            var actual = SqTable.Create("dbo", "Users", a => a
                 .AppendStringColumn("Name", 64, isUnicode: true));
 
             var diff = expected.CompareWith(actual);
@@ -105,9 +106,9 @@ namespace SqExpress.Test.Meta
         [Test]
         public void CompareWith_Table_WhenColumnMetaDiffers_ReturnsDifferentMeta()
         {
-            var expected = CreateTable("dbo", "Users", a => a
+            var expected = SqTable.Create("dbo", "Users", a => a
                 .AppendInt32Column("Id", ColumnMeta.PrimaryKey()));
-            var actual = CreateTable("dbo", "Users", a => a
+            var actual = SqTable.Create("dbo", "Users", a => a
                 .AppendInt32Column("Id"));
 
             var diff = expected.CompareWith(actual);
@@ -120,11 +121,11 @@ namespace SqExpress.Test.Meta
         [Test]
         public void CompareWith_Table_WhenColumnOrderDiffers_ReturnsNull()
         {
-            var left = CreateTable("dbo", "Users", a => a
+            var left = SqTable.Create("dbo", "Users", a => a
                 .AppendInt32Column("Id")
                 .AppendStringColumn("Name", 255, isUnicode: true)
                 .AppendBooleanColumn("IsActive"));
-            var right = CreateTable("dbo", "Users", a => a
+            var right = SqTable.Create("dbo", "Users", a => a
                 .AppendBooleanColumn("IsActive")
                 .AppendStringColumn("Name", 255, isUnicode: true)
                 .AppendInt32Column("Id"));
@@ -137,8 +138,8 @@ namespace SqExpress.Test.Meta
         [Test]
         public void CompareWith_Table_WhenColumnNameDiffersOnlyByCase_ReturnsMissedAndExtraColumns()
         {
-            var expected = CreateTable("dbo", "Users", a => a.AppendInt32Column("Id"));
-            var actual = CreateTable("dbo", "Users", a => a.AppendInt32Column("ID"));
+            var expected = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"));
+            var actual = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("ID"));
 
             var diff = expected.CompareWith(actual);
 
@@ -151,8 +152,8 @@ namespace SqExpress.Test.Meta
         [Test]
         public void CompareWith_TableList_WhenMissingTable_ReturnsMissedTable()
         {
-            var users = CreateTable("dbo", "Users", a => a.AppendInt32Column("Id"));
-            var orders = CreateTable("dbo", "Orders", a => a.AppendInt32Column("OrderId"));
+            var users = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"));
+            var orders = SqTable.Create("dbo", "Orders", a => a.AppendInt32Column("OrderId"));
 
             var diff = new TableBase[] { users, orders }.CompareWith(new TableBase[] { users });
 
@@ -165,8 +166,8 @@ namespace SqExpress.Test.Meta
         [Test]
         public void CompareWith_TableList_WhenExtraTable_ReturnsExtraTable()
         {
-            var users = CreateTable("dbo", "Users", a => a.AppendInt32Column("Id"));
-            var orders = CreateTable("dbo", "Orders", a => a.AppendInt32Column("OrderId"));
+            var users = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"));
+            var orders = SqTable.Create("dbo", "Orders", a => a.AppendInt32Column("OrderId"));
 
             var diff = new TableBase[] { users }.CompareWith(new TableBase[] { users, orders });
 
@@ -179,8 +180,8 @@ namespace SqExpress.Test.Meta
         [Test]
         public void CompareWith_TableList_WhenOtherListEmpty_ReturnsAllMissed()
         {
-            var users = CreateTable("dbo", "Users", a => a.AppendInt32Column("Id"));
-            var orders = CreateTable("dbo", "Orders", a => a.AppendInt32Column("OrderId"));
+            var users = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"));
+            var orders = SqTable.Create("dbo", "Orders", a => a.AppendInt32Column("OrderId"));
 
             var diff = new TableBase[] { users, orders }.CompareWith(Array.Empty<TableBase>());
 
@@ -192,8 +193,8 @@ namespace SqExpress.Test.Meta
         [Test]
         public void CompareWith_TableList_WhenThisListEmpty_ReturnsAllExtra()
         {
-            var users = CreateTable("dbo", "Users", a => a.AppendInt32Column("Id"));
-            var orders = CreateTable("dbo", "Orders", a => a.AppendInt32Column("OrderId"));
+            var users = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"));
+            var orders = SqTable.Create("dbo", "Orders", a => a.AppendInt32Column("OrderId"));
 
             var diff = Array.Empty<TableBase>().CompareWith(new TableBase[] { users, orders });
 
@@ -207,11 +208,11 @@ namespace SqExpress.Test.Meta
         {
             var expected = new TableBase[]
             {
-                CreateTable("dbo", "Users", a => a.AppendInt32Column("Id"))
+                SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"))
             };
             var actual = new TableBase[]
             {
-                CreateTable("sales", "Users", a => a.AppendInt32Column("Id"))
+                SqTable.Create("sales", "Users", a => a.AppendInt32Column("Id"))
             };
 
             var diff = expected.CompareWith(actual, fullName => fullName.AsExprTableFullName().TableName.Name);
@@ -224,11 +225,11 @@ namespace SqExpress.Test.Meta
         {
             var expected = new TableBase[]
             {
-                CreateTable("dbo", "Users", a => a.AppendInt32Column("Id"))
+                SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"))
             };
             var actual = new TableBase[]
             {
-                CreateTable("sales", "Users", a => a.AppendInt32Column("Id"))
+                SqTable.Create("sales", "Users", a => a.AppendInt32Column("Id"))
             };
 
             var diff = expected.CompareWith(actual);
@@ -241,19 +242,13 @@ namespace SqExpress.Test.Meta
         [Test]
         public void CompareWith_TableList_WhenBothListsEqual_ReturnsNull()
         {
-            var users = CreateTable("dbo", "Users", a => a.AppendInt32Column("Id"));
-            var orders = CreateTable("dbo", "Orders", a => a.AppendInt32Column("OrderId"));
+            var users = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"));
+            var orders = SqTable.Create("dbo", "Orders", a => a.AppendInt32Column("OrderId"));
 
             var diff = new TableBase[] { users, orders }.CompareWith(new TableBase[] { users, orders });
 
             Assert.That(diff, Is.Null);
         }
-
-        private static SqTable CreateTable(
-            string schema,
-            string tableName,
-            Func<ITableColumnAppender, ITableColumnAppender> columns)
-            => SqTable.Create(schema, tableName, a => columns(a));
     }
 }
 

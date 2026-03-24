@@ -5,14 +5,15 @@ using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using SqExpress.TableDecalationAttributes;
 
 namespace SqExpress.Analyzers
 {
     internal static class SqTSqlParserSourceTableCatalogHelper
     {
-        private const string TableDescriptorAttributeName = "SqExpress.TableDecalationAttributes.TableDescriptorAttribute";
-        private const string TempTableDescriptorAttributeName = "SqExpress.TableDecalationAttributes.TempTableDescriptorAttribute";
-        private const string ColumnAttributeBaseName = "SqExpress.TableDecalationAttributes.TableColumnAttributeBase";
+        private static readonly string TableDescriptorAttributeName = typeof(TableDescriptorAttribute).FullName!;
+        private static readonly string TempTableDescriptorAttributeName = typeof(TempTableDescriptorAttribute).FullName!;
+        private static readonly string ColumnAttributeBaseName = typeof(TableColumnAttributeBase).FullName!;
 
         public static IReadOnlyDictionary<string, IReadOnlyList<SourceTableInfo>> BuildSourceTableCatalog(
             Compilation compilation,
@@ -143,7 +144,7 @@ namespace SqExpress.Analyzers
             var supportsParameterlessConstructor = constructors.Any(i => i.Parameters.Length == 0);
             var supportsAliasConstructor = constructors.Any(i =>
                 i.Parameters.Length == 1
-                && string.Equals(i.Parameters[0].Type.ToDisplayString(), "SqExpress.Alias", StringComparison.Ordinal));
+                && string.Equals(i.Parameters[0].Type.ToDisplayString(), typeof(Alias).FullName, StringComparison.Ordinal));
 
             info = new SourceTableInfo(
                 tableKey!,
@@ -534,7 +535,7 @@ namespace SqExpress.Analyzers
         {
             for (var current = type; current != null; current = current.BaseType)
             {
-                if (string.Equals(current.ToDisplayString(), "SqExpress.TableBase", StringComparison.Ordinal))
+                if (string.Equals(current.ToDisplayString(), typeof(TableBase).FullName, StringComparison.Ordinal))
                 {
                     return true;
                 }

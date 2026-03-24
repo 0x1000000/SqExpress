@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SqExpress.DbMetadata;
 using SqExpress.SqlParser;
 using SqExpress.Syntax;

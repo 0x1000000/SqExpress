@@ -28,6 +28,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
         public static bool TryMap(
             SqlDomStatement statement,
             string? defaultSchema,
+            IReadOnlyList<TableBase>? existingTables,
             [NotNullWhen(true)] out IExpr? result,
             out IReadOnlyList<SqTable>? tables,
             [NotNullWhen(false)] out string? error)
@@ -35,7 +36,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
             tables = null;
             try
             {
-                var context = new MappingContext(statement.WithClause, defaultSchema);
+                var context = new MappingContext(statement.WithClause, defaultSchema, existingTables);
                 result = statement.Kind switch
                 {
                     SqlDomStatementKind.Select => MapSelect(statement, context),
@@ -85,16 +86,20 @@ namespace SqExpress.SqlParser.Internal.Mapping
             private readonly Dictionary<string, DeferredSubQuery> _deferred;
             private readonly HashSet<string> _resolving;
             private readonly HashSet<string> _visibleTableReferences;
+            private readonly IReadOnlyList<TableBase>? _existingTables;
+            private readonly IReadOnlyDictionary<string, TableBase> _visibleTableBindings;
             private readonly bool _allowOuterTableReferencesInDerivedTables;
 
-            public MappingContext(SqlDomWithClause? withClause, string? defaultSchema = "dbo")
+            public MappingContext(SqlDomWithClause? withClause, string? defaultSchema = "dbo", IReadOnlyList<TableBase>? existingTables = null)
             {
                 this.DefaultSchema = string.IsNullOrWhiteSpace(defaultSchema) ? null : defaultSchema;
+                this._existingTables = existingTables;
                 this._domCtes = new Dictionary<string, SqlDomCte>(StringComparer.OrdinalIgnoreCase);
                 this._resolved = new Dictionary<string, IExprSubQuery>(StringComparer.OrdinalIgnoreCase);
                 this._deferred = new Dictionary<string, DeferredSubQuery>(StringComparer.OrdinalIgnoreCase);
                 this._resolving = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 this._visibleTableReferences = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                this._visibleTableBindings = new Dictionary<string, TableBase>(StringComparer.OrdinalIgnoreCase);
                 this._allowOuterTableReferencesInDerivedTables = false;
 
                 if (withClause == null)
@@ -114,6 +119,8 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 Dictionary<string, DeferredSubQuery> deferred,
                 HashSet<string> resolving,
                 HashSet<string> visibleTableReferences,
+                IReadOnlyList<TableBase>? existingTables,
+                IReadOnlyDictionary<string, TableBase> visibleTableBindings,
                 bool allowOuterTableReferencesInDerivedTables,
                 string? defaultSchema)
             {
@@ -123,6 +130,8 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 this._deferred = deferred;
                 this._resolving = resolving;
                 this._visibleTableReferences = visibleTableReferences;
+                this._existingTables = existingTables;
+                this._visibleTableBindings = visibleTableBindings;
                 this._allowOuterTableReferencesInDerivedTables = allowOuterTableReferencesInDerivedTables;
             }
 
@@ -145,6 +154,8 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     this._deferred,
                     this._resolving,
                     merged,
+                    this._existingTables,
+                    this._visibleTableBindings,
                     this._allowOuterTableReferencesInDerivedTables,
                     this.DefaultSchema);
             }
@@ -166,6 +177,8 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     this._deferred,
                     this._resolving,
                     scoped,
+                    this._existingTables,
+                    this._visibleTableBindings,
                     this._allowOuterTableReferencesInDerivedTables,
                     this.DefaultSchema);
             }
@@ -178,7 +191,23 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     this._deferred,
                     this._resolving,
                     new HashSet<string>(this._visibleTableReferences, StringComparer.OrdinalIgnoreCase),
+                    this._existingTables,
+                    this._visibleTableBindings,
                     allowOuterTableReferencesInDerivedTables,
+                    this.DefaultSchema);
+            }
+
+            public MappingContext WithVisibleTableBindings(IReadOnlyDictionary<string, TableBase> visibleTableBindings)
+            {
+                return new MappingContext(
+                    this._domCtes,
+                    this._resolved,
+                    this._deferred,
+                    this._resolving,
+                    new HashSet<string>(this._visibleTableReferences, StringComparer.OrdinalIgnoreCase),
+                    this._existingTables,
+                    visibleTableBindings,
+                    this._allowOuterTableReferencesInDerivedTables,
                     this.DefaultSchema);
             }
 
@@ -190,6 +219,38 @@ namespace SqExpress.SqlParser.Internal.Mapping
 
             public bool AllowOuterTableReferencesInDerivedTables
                 => this._allowOuterTableReferencesInDerivedTables;
+
+            public IReadOnlyList<TableBase>? ExistingTables
+                => this._existingTables;
+
+            public bool TryResolveUnqualifiedColumnInVisibleTables(string columnName, [NotNullWhen(true)] out string? tableReference)
+            {
+                tableReference = null;
+                if (this._visibleTableBindings.Count < 1)
+                {
+                    return false;
+                }
+
+                string? match = null;
+                foreach (var binding in this._visibleTableBindings)
+                {
+                    if (!binding.Value.Columns.Any(c => string.Equals(c.ColumnName.Name, columnName, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        continue;
+                    }
+
+                    if (match != null)
+                    {
+                        tableReference = null;
+                        return false;
+                    }
+
+                    match = binding.Key;
+                }
+
+                tableReference = match;
+                return match != null;
+            }
 
 
             public bool TryGetCteReference(string name, string? alias, [NotNullWhen(true)] out ExprCteQuery? cte)
@@ -386,7 +447,9 @@ namespace SqExpress.SqlParser.Internal.Mapping
             }
 
             IExprTableSource? from = top.From == null ? null : ParseTableSource(top.From, context);
-            var scopedContext = context.WithVisibleTableReferences(GetVisibleTableReferences(from));
+            var scopedContext = context
+                .WithVisibleTableReferences(GetVisibleTableReferences(from))
+                .WithVisibleTableBindings(BuildVisibleTableBindings(from, context.DefaultSchema, context.ExistingTables));
             var selectList = top.Items.Select(i => ParseSelectItem(i, scopedContext)).ToList();
             var selectAliases = BuildSelectAliasLookup(selectList);
             ExprBoolean? where = string.IsNullOrWhiteSpace(top.WhereSql) ? null : ParseBoolean(top.WhereSql!, scopedContext);
@@ -695,8 +758,9 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 throw new MapException("UPDATE target table is not resolved.");
             }
 
-            var scopedContext = context.WithVisibleTableReferences(
-                GetVisibleTableReferences(source).Concat(GetVisibleTableReferences(target)));
+            var scopedContext = context
+                .WithVisibleTableReferences(GetVisibleTableReferences(source).Concat(GetVisibleTableReferences(target)))
+                .WithVisibleTableBindings(BuildVisibleTableBindings(context.DefaultSchema, context.ExistingTables, source, target));
 
             var setSql = SliceSqlByTokenRange(sql, tokens, setPos + 1, setEnd);
             var setList = ParseSetClauses(setSql, scopedContext);
@@ -928,8 +992,9 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 }
             }
 
-            var scopedContext = context.WithVisibleTableReferences(
-                GetVisibleTableReferences(source).Concat(GetVisibleTableReferences(target)));
+            var scopedContext = context
+                .WithVisibleTableReferences(GetVisibleTableReferences(source).Concat(GetVisibleTableReferences(target)))
+                .WithVisibleTableBindings(BuildVisibleTableBindings(context.DefaultSchema, context.ExistingTables, source, target));
 
             ExprBoolean? filter = null;
             if (whereIndex >= 0)
@@ -1008,8 +1073,9 @@ namespace SqExpress.SqlParser.Internal.Mapping
 
             var sourceSql = SliceSqlByTokenRange(sql, tokens, usingIndex + 1, onIndex);
             var source = ParseTableSourceSql(sourceSql, context);
-            var scopedContext = context.WithVisibleTableReferences(
-                GetVisibleTableReferences(targetTable).Concat(GetVisibleTableReferences(source)));
+            var scopedContext = context
+                .WithVisibleTableReferences(GetVisibleTableReferences(targetTable).Concat(GetVisibleTableReferences(source)))
+                .WithVisibleTableBindings(BuildVisibleTableBindings(context.DefaultSchema, context.ExistingTables, targetTable, source));
 
             var firstWhen = FindFirstTopLevelKeyword(tokens, onIndex + 1, "WHEN");
             if (firstWhen < 0)
@@ -1657,6 +1723,96 @@ namespace SqExpress.SqlParser.Internal.Mapping
         private static string? GetAliasName(ExprTableAlias? alias)
             => alias?.Alias is ExprAlias exprAlias ? exprAlias.Name : null;
 
+        private static IReadOnlyDictionary<string, TableBase> BuildVisibleTableBindings(
+            string? defaultSchema,
+            IReadOnlyList<TableBase>? existingTables,
+            params IExprTableSource?[] sources)
+        {
+            var result = new Dictionary<string, TableBase>(StringComparer.OrdinalIgnoreCase);
+            if (existingTables == null || existingTables.Count < 1)
+            {
+                return result;
+            }
+
+            for (var i = 0; i < sources.Length; i++)
+            {
+                AppendVisibleTableBindings(sources[i], defaultSchema, existingTables, result);
+            }
+
+            return result;
+        }
+
+        private static IReadOnlyDictionary<string, TableBase> BuildVisibleTableBindings(
+            IExprTableSource? source,
+            string? defaultSchema,
+            IReadOnlyList<TableBase>? existingTables)
+            => BuildVisibleTableBindings(defaultSchema, existingTables, source);
+
+        private static void AppendVisibleTableBindings(
+            IExprTableSource? source,
+            string? defaultSchema,
+            IReadOnlyList<TableBase> existingTables,
+            IDictionary<string, TableBase> result)
+        {
+            if (source == null)
+            {
+                return;
+            }
+
+            switch (source)
+            {
+                case ExprTable table:
+                    if (TryFindExistingTable(table.FullName.AsExprTableFullName(), defaultSchema, existingTables, out var existingTable))
+                    {
+                        result[GetAliasName(table.Alias) ?? table.FullName.AsExprTableFullName().TableName.Name] = existingTable;
+                    }
+
+                    return;
+
+                case ExprJoinedTable join:
+                    AppendVisibleTableBindings(join.Left, defaultSchema, existingTables, result);
+                    AppendVisibleTableBindings(join.Right, defaultSchema, existingTables, result);
+                    return;
+
+                case ExprCrossedTable cross:
+                    AppendVisibleTableBindings(cross.Left, defaultSchema, existingTables, result);
+                    AppendVisibleTableBindings(cross.Right, defaultSchema, existingTables, result);
+                    return;
+
+                case ExprLateralCrossedTable lateral:
+                    AppendVisibleTableBindings(lateral.Left, defaultSchema, existingTables, result);
+                    AppendVisibleTableBindings(lateral.Right, defaultSchema, existingTables, result);
+                    return;
+
+                default:
+                    return;
+            }
+        }
+
+        private static bool TryFindExistingTable(
+            ExprTableFullName fullName,
+            string? defaultSchema,
+            IReadOnlyList<TableBase> existingTables,
+            [NotNullWhen(true)] out TableBase? table)
+        {
+            var schema = fullName.DbSchema?.Schema.Name ?? defaultSchema;
+            var database = fullName.DbSchema?.Database?.Name;
+            var tableName = fullName.TableName.Name;
+
+            table = existingTables.FirstOrDefault(t =>
+            {
+                var existingName = t.FullName.AsExprTableFullName();
+                var existingSchema = existingName.DbSchema?.Schema.Name ?? defaultSchema;
+                var existingDatabase = existingName.DbSchema?.Database?.Name;
+
+                return string.Equals(existingName.TableName.Name, tableName, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(existingSchema, schema, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(existingDatabase, database, StringComparison.OrdinalIgnoreCase);
+            });
+
+            return table != null;
+        }
+
         private static IEnumerable<string> GetVisibleTableReferences(IExprTableSource? source)
         {
             if (source == null)
@@ -2023,14 +2179,18 @@ namespace SqExpress.SqlParser.Internal.Mapping
             return true;
         }
 
-        private static IReadOnlyList<ExprValue>? ParseFunctionArgs(IReadOnlyList<SqlToken> argTokens, MappingContext context)
+        private static IReadOnlyList<ExprValue>? ParseFunctionArgs(
+            IReadOnlyList<IReadOnlyList<SqlToken>>? argSegments,
+            MappingContext context,
+            string? functionName = null)
         {
-            if (argTokens.Count < 1)
+            if (argSegments == null || argSegments.Count < 1)
             {
                 return null;
             }
 
-            return SplitComma(argTokens).Select(segment =>
+            var normalizedFunctionName = functionName?.ToUpperInvariant();
+            return argSegments.Select((segment, index) =>
             {
                 if (segment.Count == 1 && segment[0].Type == SqlTokenType.Operator && segment[0].Text == "*")
                 {
@@ -2042,12 +2202,19 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     return ParseValue(string.Join(" ", segment.Skip(1).Select(t => t.Text)), context);
                 }
 
+                if (index == 0 &&
+                    (string.Equals(normalizedFunctionName, "DATEADD", StringComparison.Ordinal) ||
+                     string.Equals(normalizedFunctionName, "DATEDIFF", StringComparison.Ordinal)))
+                {
+                    return new ExprStringLiteral(string.Join(" ", segment.Select(t => t.Text)));
+                }
+
                 return ParseValue(string.Join(" ", segment.Select(t => t.Text)), context);
             }).ToList();
         }
 
         private static IReadOnlyList<ExprValue>? ParseFunctionArgs(IReadOnlyList<SqlToken> argTokens)
-            => ParseFunctionArgs(argTokens, new MappingContext(null));
+            => ParseFunctionArgs(argTokens.Count == 0 ? null : SplitComma(argTokens), new MappingContext(null));
 
         private static IReadOnlyList<SqlToken> ExtractOverTokens(IReadOnlyList<SqlToken> tailTokens)
         {
@@ -2982,9 +3149,9 @@ namespace SqExpress.SqlParser.Internal.Mapping
                         var argSegments = argsTokens.Count == 0
                             ? null
                             : SplitComma(argsTokens);
-                        var args = ParseFunctionArgs(argsTokens, this._context);
                         var functionName = parts[parts.Count - 1];
                         var upperName = functionName.ToUpperInvariant();
+                        var args = ParseFunctionArgs(argSegments, this._context, functionName);
 
                         if (!this.IsEnd && this.Current.IsKeyword("OVER"))
                         {
@@ -3034,8 +3201,18 @@ namespace SqExpress.SqlParser.Internal.Mapping
 
                     if (parts.Count == 1)
                     {
+                        if (TryMapKnownScalarFunction(parts[0], argSegments: null, args: null, out var knownWithoutParens))
+                        {
+                            return knownWithoutParens;
+                        }
+
                         if (this._context.VisibleTableReferenceCount > 1)
                         {
+                            if (this._context.TryResolveUnqualifiedColumnInVisibleTables(parts[0], out var resolvedTableReference))
+                            {
+                                return new ExprColumn(new ExprTableAlias(new ExprAlias(resolvedTableReference)), new ExprColumnName(parts[0]));
+                            }
+
                             throw new MapException("Unqualified column reference is ambiguous in multi-table scope: " + parts[0] + ".");
                         }
 

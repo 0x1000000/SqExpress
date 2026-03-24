@@ -6,7 +6,10 @@ using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using SqExpress;
 using SqExpress.DbMetadata.Internal.Model;
+using SqExpress.Syntax.Type;
+using SqExpress.TableDecalationAttributes;
 
 namespace SqExpress.CodeGen.Shared
 {
@@ -175,10 +178,17 @@ namespace SqExpress.CodeGen.Shared
             string defaultNamespace,
             IReadOnlyDictionary<TableRef, ClassDeclarationSyntax> existingCode,
             out bool existing)
+            => GenerateTableDescriptor(table, allTables, defaultNamespace, existingCode, skipUnknownColumnTypes: false, out existing);
+
+        internal static CompilationUnitSyntax GenerateTableDescriptor(
+            TableModel table,
+            IReadOnlyDictionary<TableRef, TableModel> allTables,
+            string defaultNamespace,
+            IReadOnlyDictionary<TableRef, ClassDeclarationSyntax> existingCode,
+            bool skipUnknownColumnTypes,
+            out bool existing)
         {
-            var allCodeGenTables = allTables.Values
-                .Select(t => ToCodeGenTableModel(t, defaultNamespace))
-                .ToDictionary(static t => t.TableKey, static t => t, StringComparer.OrdinalIgnoreCase);
+            var allCodeGenTables = CodeGenSqTableProjector.BuildCodeGenTables(allTables, defaultNamespace, skipUnknownColumnTypes);
             var candidate = allCodeGenTables[BuildTableKey(CodeGenTableKind.Table, databaseName: null, schemaName: table.DbName.Schema, tableName: table.DbName.Name)];
 
             if (existingCode.TryGetValue(table.DbName, out var existingClass))
@@ -224,10 +234,16 @@ namespace SqExpress.CodeGen.Shared
             IReadOnlyDictionary<TableRef, TableModel> allTables,
             string defaultNamespace,
             CompilationUnitSyntax? existingCompilationUnit = null)
+            => GenerateTableDeclaration(table, allTables, defaultNamespace, skipUnknownColumnTypes: false, existingCompilationUnit);
+
+        internal static CompilationUnitSyntax GenerateTableDeclaration(
+            TableModel table,
+            IReadOnlyDictionary<TableRef, TableModel> allTables,
+            string defaultNamespace,
+            bool skipUnknownColumnTypes,
+            CompilationUnitSyntax? existingCompilationUnit = null)
         {
-            var allCodeGenTables = allTables.Values
-                .Select(t => ToCodeGenTableModel(t, defaultNamespace))
-                .ToDictionary(static t => t.TableKey, static t => t, StringComparer.OrdinalIgnoreCase);
+            var allCodeGenTables = CodeGenSqTableProjector.BuildCodeGenTables(allTables, defaultNamespace, skipUnknownColumnTypes);
             var candidate = allCodeGenTables[BuildTableKey(CodeGenTableKind.Table, databaseName: null, schemaName: table.DbName.Schema, tableName: table.DbName.Name)];
             return GenerateTableDeclaration(candidate, allCodeGenTables, existingCompilationUnit);
         }
@@ -236,6 +252,7 @@ namespace SqExpress.CodeGen.Shared
             TableModel table,
             IReadOnlyDictionary<TableRef, TableModel> allTables,
             string defaultNamespace,
+            bool skipUnknownColumnTypes,
             string existingFilePath,
             IFileSystem fileSystem,
             out bool existing)
@@ -244,7 +261,7 @@ namespace SqExpress.CodeGen.Shared
             var existingCompilationUnit = existing
                 ? CSharpSyntaxTree.ParseText(fileSystem.ReadAllText(existingFilePath)).GetCompilationUnitRoot()
                 : null;
-            return GenerateTableDeclaration(table, allTables, defaultNamespace, existingCompilationUnit);
+            return GenerateTableDeclaration(table, allTables, defaultNamespace, skipUnknownColumnTypes, existingCompilationUnit);
         }
 
         private static CompilationUnitSyntax CreateTableDescriptorSyntax(
@@ -265,8 +282,8 @@ namespace SqExpress.CodeGen.Shared
 
             var compilationUnit = SyntaxFactory.CompilationUnit()
                 .AddUsings(
-                    SyntaxFactory.UsingDirective(QualifiedName("SqExpress")),
-                    SyntaxFactory.UsingDirective(QualifiedName("SqExpress.Syntax.Type")))
+                    SyntaxFactory.UsingDirective(QualifiedName(typeof(TableBase).Namespace!)),
+                    SyntaxFactory.UsingDirective(QualifiedName(typeof(ExprType).Namespace!)))
                 .AddMembers(container);
 
             if (options.IncludeNullableEnable)
@@ -290,29 +307,6 @@ namespace SqExpress.CodeGen.Shared
             return RenderPropertyType(column).ToString();
         }
 
-        public static string GetColumnPropertyTypeName(CodeGenColumnKind kind)
-        {
-            return GetColumnPropertyTypeName(new CodeGenColumnModel(
-                kind,
-                sqlName: "_",
-                propertyName: null,
-                isPrimaryKey: false,
-                isIdentity: false,
-                foreignKeyDatabase: null,
-                foreignKeySchema: null,
-                foreignKeyTable: null,
-                foreignKeyColumn: null,
-                defaultValueKind: 0,
-                defaultValue: null,
-                isUnicode: true,
-                maxLength: null,
-                isFixedLength: false,
-                isText: false,
-                precision: 18,
-                scale: 2,
-                isDate: false));
-        }
-
         private static CompilationUnitSyntax CreateTableDeclarationSyntax(
             CodeGenTableModel candidate,
             IReadOnlyDictionary<string, string> propertyNamesBySqlName)
@@ -331,7 +325,7 @@ namespace SqExpress.CodeGen.Shared
             }
 
             var compilationUnit = SyntaxFactory.CompilationUnit()
-                .AddUsings(SyntaxFactory.UsingDirective(QualifiedName("SqExpress.TableDecalationAttributes")))
+                .AddUsings(SyntaxFactory.UsingDirective(QualifiedName(typeof(TableDescriptorAttribute).Namespace!)))
                 .AddMembers(container);
 
             compilationUnit = compilationUnit.WithLeadingTrivia(
@@ -356,7 +350,7 @@ namespace SqExpress.CodeGen.Shared
             return SyntaxFactory.ClassDeclaration(candidate.ClassName)
                 .WithModifiers(GetClassModifiers(options))
                 .WithBaseList(SyntaxFactory.BaseList(SyntaxFactory.SingletonSeparatedList<BaseTypeSyntax>(
-                    SyntaxFactory.SimpleBaseType(SyntaxFactory.IdentifierName(candidate.Kind == CodeGenTableKind.TempTable ? "TempTableBase" : "TableBase")))))
+                    SyntaxFactory.SimpleBaseType(SyntaxFactory.IdentifierName(candidate.Kind == CodeGenTableKind.TempTable ? nameof(TempTableBase) : nameof(TableBase))))))
                 .AddMembers(classMembers);
         }
 
@@ -390,7 +384,7 @@ namespace SqExpress.CodeGen.Shared
                 .WithInitializer(SyntaxFactory.ConstructorInitializer(
                     SyntaxKind.ThisConstructorInitializer,
                     SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(
-                        NamedArgument("alias", MemberAccess(QualifiedName("SqExpress.Alias"), "Auto"))))))
+                        NamedArgument("alias", MemberAccess(QualifiedName(typeof(Alias).FullName!), nameof(Alias.Auto)))))))
                 .WithBody(SyntaxFactory.Block());
         }
 
@@ -916,7 +910,7 @@ namespace SqExpress.CodeGen.Shared
                 Append(SyntaxFactory.IdentifierName("Identity"));
             }
 
-            if (column.DefaultValueKind != 0)
+            if (column.DefaultValueKind != CodeGenDefaultValueKind.None)
             {
                 Append(SyntaxFactory.IdentifierName("DefaultValue"), SyntaxFactory.Argument(RenderDefaultValue(column)));
             }
@@ -948,17 +942,17 @@ namespace SqExpress.CodeGen.Shared
         {
             switch (column.DefaultValueKind)
             {
-                case 1:
+                case CodeGenDefaultValueKind.RawSql:
                     return SyntaxFactory.InvocationExpression(
                         MemberAccess(SyntaxFactory.IdentifierName("SqQueryBuilder"), "UnsafeValue"),
                         SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(SyntaxFactory.Argument(Literal(column.DefaultValue ?? string.Empty)))));
-                case 2:
+                case CodeGenDefaultValueKind.Null:
                     return MemberAccess(SyntaxFactory.IdentifierName("SqQueryBuilder"), "Null");
-                case 3:
+                case CodeGenDefaultValueKind.Int32:
                     return int.TryParse(column.DefaultValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var intValue)
                         ? NumericLiteral(intValue)
                         : NumericLiteral(0);
-                case 4:
+                case CodeGenDefaultValueKind.Boolean:
                     if (bool.TryParse(column.DefaultValue, out var boolValue))
                     {
                         return BoolLiteral(boolValue);
@@ -970,37 +964,37 @@ namespace SqExpress.CodeGen.Shared
                     }
 
                     return BoolLiteral(false);
-                case 5:
+                case CodeGenDefaultValueKind.String:
                     return Literal(column.DefaultValue ?? string.Empty);
-                case 6:
+                case CodeGenDefaultValueKind.UtcNow:
                     return SyntaxFactory.InvocationExpression(MemberAccess(SyntaxFactory.IdentifierName("SqQueryBuilder"), "GetUtcDate"));
-                case 7:
+                case CodeGenDefaultValueKind.Now:
                     return SyntaxFactory.InvocationExpression(MemberAccess(SyntaxFactory.IdentifierName("SqQueryBuilder"), "GetDate"));
-                case 8:
+                case CodeGenDefaultValueKind.Byte:
                     return SyntaxFactory.CastExpression(
                         SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.ByteKeyword)),
                         NumericLiteral(byte.TryParse(column.DefaultValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var byteValue) ? byteValue : 0));
-                case 9:
+                case CodeGenDefaultValueKind.Int16:
                     return SyntaxFactory.CastExpression(
                         SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.ShortKeyword)),
                         NumericLiteral(short.TryParse(column.DefaultValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var shortValue) ? shortValue : 0));
-                case 10:
+                case CodeGenDefaultValueKind.Int64:
                     return SyntaxFactory.LiteralExpression(
                         SyntaxKind.NumericLiteralExpression,
                         SyntaxFactory.Literal(long.TryParse(column.DefaultValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var longValue) ? longValue : 0L));
-                case 11:
+                case CodeGenDefaultValueKind.Decimal:
                     return SyntaxFactory.LiteralExpression(
                         SyntaxKind.NumericLiteralExpression,
                         SyntaxFactory.Literal(decimal.TryParse(column.DefaultValue, NumberStyles.Number, CultureInfo.InvariantCulture, out var decimalValue) ? decimalValue : 0M));
-                case 12:
+                case CodeGenDefaultValueKind.Double:
                     return SyntaxFactory.LiteralExpression(
                         SyntaxKind.NumericLiteralExpression,
                         SyntaxFactory.Literal(double.TryParse(column.DefaultValue, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var doubleValue) ? doubleValue : 0D));
-                case 13:
+                case CodeGenDefaultValueKind.Guid:
                     return SyntaxFactory.ObjectCreationExpression(QualifiedName("System.Guid"))
                         .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(
                             SyntaxFactory.Argument(Literal(column.DefaultValue ?? string.Empty)))));
-                case 14:
+                case CodeGenDefaultValueKind.DateTime:
                     return SyntaxFactory.InvocationExpression(
                         MemberAccess(QualifiedName("System.DateTime"), "Parse"),
                         SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(new[]
@@ -1009,7 +1003,7 @@ namespace SqExpress.CodeGen.Shared
                             SyntaxFactory.Argument(MemberAccess(QualifiedName("System.Globalization.CultureInfo"), "InvariantCulture")),
                             SyntaxFactory.Argument(MemberAccess(QualifiedName("System.Globalization.DateTimeStyles"), "RoundtripKind"))
                         })));
-                case 15:
+                case CodeGenDefaultValueKind.DateTimeOffset:
                     return SyntaxFactory.InvocationExpression(
                         MemberAccess(QualifiedName("System.DateTimeOffset"), "Parse"),
                         SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(new[]
@@ -1169,15 +1163,15 @@ namespace SqExpress.CodeGen.Shared
         {
             switch (column.DefaultValueKind)
             {
-                case 0:
+                case CodeGenDefaultValueKind.None:
                     return null;
-                case 1:
+                case CodeGenDefaultValueKind.RawSql:
                     return null;
-                case 2:
+                case CodeGenDefaultValueKind.Null:
                     return "$null";
-                case 6:
+                case CodeGenDefaultValueKind.UtcNow:
                     return "$utcNow";
-                case 7:
+                case CodeGenDefaultValueKind.Now:
                     return "$now";
                 default:
                     return column.DefaultValue;
@@ -1351,9 +1345,9 @@ namespace SqExpress.CodeGen.Shared
             var updatedClass = classDeclaration
                 .WithAttributeLists(SyntaxFactory.List(RenderTableDeclarationAttributes(candidate, propertyNamesBySqlName)));
 
-            return EnsureUsingDirective(
+                return EnsureUsingDirective(
                     compilationUnit.ReplaceNode(classDeclaration, updatedClass),
-                    "SqExpress.TableDecalationAttributes")
+                    typeof(TableDescriptorAttribute).Namespace!)
                 .NormalizeWhitespace();
         }
 
@@ -1393,11 +1387,12 @@ namespace SqExpress.CodeGen.Shared
                     SqlName = TryGetFirstStringArgument(a, out var sqlName) ? sqlName : null
                 })
                 .Where(static a => !string.IsNullOrWhiteSpace(a.SqlName))
+                .GroupBy(static a => a.SqlName!, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(
-                    static a => a.SqlName!,
-                    static a => new PreservedColumnModelMetadata(
+                    static g => g.Key,
+                    static g => MergePreservedColumnModelMetadata(g.Select(static a => new PreservedColumnModelMetadata(
                         TryGetNamedStringArgument(a.Attribute, "SqModels", out var sqModels) ? sqModels : null,
-                        TryGetNamedTypeArgument(a.Attribute, "SqModelCast", out var sqModelCast) ? sqModelCast : null),
+                        TryGetNamedTypeArgument(a.Attribute, "SqModelCast", out var sqModelCast) ? sqModelCast : null))),
                     StringComparer.OrdinalIgnoreCase);
 
             var mergedColumns = candidate.Columns
@@ -1485,123 +1480,6 @@ namespace SqExpress.CodeGen.Shared
             return false;
         }
 
-        private static CodeGenTableModel ToCodeGenTableModel(TableModel table, string defaultNamespace)
-        {
-            var typeNamespace = string.IsNullOrEmpty(defaultNamespace) ? null : defaultNamespace;
-            var fullyQualifiedTypeName = string.IsNullOrEmpty(typeNamespace)
-                ? table.Name
-                : typeNamespace + "." + table.Name;
-
-            return new CodeGenTableModel(
-                CodeGenTableKind.Table,
-                databaseName: null,
-                schemaName: table.DbName.Schema,
-                tableName: table.DbName.Name,
-                className: table.Name,
-                @namespace: typeNamespace,
-                fullyQualifiedTypeName: fullyQualifiedTypeName,
-                columns: table.Columns.Select(ToCodeGenColumnModel).ToImmutableArray(),
-                indexes: table.Indexes.Select(ToCodeGenIndexModel).ToImmutableArray());
-        }
-
-        private static CodeGenColumnModel ToCodeGenColumnModel(ColumnModel column)
-        {
-            var foreignKey = column.Fk?.FirstOrDefault();
-
-            return new CodeGenColumnModel(
-                kind: ToCodeGenColumnKind(column.ColumnType),
-                sqlName: column.DbName.Name,
-                propertyName: column.Name,
-                isPrimaryKey: column.Pk.HasValue,
-                isIdentity: column.Identity,
-                foreignKeyDatabase: null,
-                foreignKeySchema: foreignKey?.Schema,
-                foreignKeyTable: foreignKey?.TableName,
-                foreignKeyColumn: foreignKey?.Name,
-                defaultValueKind: ToDefaultValueKind(column.DefaultValue),
-                defaultValue: column.DefaultValue?.RawValue,
-                isUnicode: column.ColumnType is StringColumnType stringType && stringType.IsUnicode,
-                maxLength: column.ColumnType switch
-                {
-                    StringColumnType s => s.Size,
-                    ByteArrayColumnType b => b.Size,
-                    _ => null
-                },
-                isFixedLength: column.ColumnType switch
-                {
-                    StringColumnType s => s.IsFixed,
-                    ByteArrayColumnType b => b.IsFixed,
-                    _ => false
-                },
-                isText: column.ColumnType is StringColumnType textType && textType.IsText,
-                precision: column.ColumnType is DecimalColumnType precisionType ? precisionType.Precision : 0,
-                scale: column.ColumnType is DecimalColumnType scaleType ? scaleType.Scale : 0,
-                isDate: column.ColumnType is DateTimeColumnType dateTimeType && dateTimeType.IsDate);
-        }
-
-        private static CodeGenIndexModel ToCodeGenIndexModel(IndexModel index)
-        {
-            return new CodeGenIndexModel(
-                columns: index.Columns.Select(static c => c.DbName.Name).ToImmutableArray(),
-                descendingColumns: index.Columns.Where(static c => c.IsDescending).Select(static c => c.DbName.Name).ToImmutableArray(),
-                name: null,
-                isUnique: index.IsUnique,
-                isClustered: index.IsClustered);
-        }
-
-        private static int ToDefaultValueKind(DefaultValue? defaultValue)
-        {
-            if (!defaultValue.HasValue)
-            {
-                return 0;
-            }
-
-            return defaultValue.Value.Type switch
-            {
-                DefaultValueType.Raw => 1,
-                DefaultValueType.Null => 2,
-                DefaultValueType.Integer => 3,
-                DefaultValueType.Bool => 4,
-                DefaultValueType.String => 5,
-                DefaultValueType.GetUtcDate => 6,
-                _ => 0
-            };
-        }
-
-        private static CodeGenColumnKind ToCodeGenColumnKind(ColumnType columnType)
-        {
-            return columnType switch
-            {
-                BooleanColumnType { IsNullable: false } => CodeGenColumnKind.Boolean,
-                BooleanColumnType => CodeGenColumnKind.NullableBoolean,
-                ByteColumnType { IsNullable: false } => CodeGenColumnKind.Byte,
-                ByteColumnType => CodeGenColumnKind.NullableByte,
-                ByteArrayColumnType { IsNullable: false } => CodeGenColumnKind.ByteArray,
-                ByteArrayColumnType => CodeGenColumnKind.NullableByteArray,
-                Int16ColumnType { IsNullable: false } => CodeGenColumnKind.Int16,
-                Int16ColumnType => CodeGenColumnKind.NullableInt16,
-                Int32ColumnType { IsNullable: false } => CodeGenColumnKind.Int32,
-                Int32ColumnType => CodeGenColumnKind.NullableInt32,
-                Int64ColumnType { IsNullable: false } => CodeGenColumnKind.Int64,
-                Int64ColumnType => CodeGenColumnKind.NullableInt64,
-                DoubleColumnType { IsNullable: false } => CodeGenColumnKind.Double,
-                DoubleColumnType => CodeGenColumnKind.NullableDouble,
-                DecimalColumnType { IsNullable: false } => CodeGenColumnKind.Decimal,
-                DecimalColumnType => CodeGenColumnKind.NullableDecimal,
-                DateTimeColumnType { IsNullable: false } => CodeGenColumnKind.DateTime,
-                DateTimeColumnType => CodeGenColumnKind.NullableDateTime,
-                DateTimeOffsetColumnType { IsNullable: false } => CodeGenColumnKind.DateTimeOffset,
-                DateTimeOffsetColumnType => CodeGenColumnKind.NullableDateTimeOffset,
-                GuidColumnType { IsNullable: false } => CodeGenColumnKind.Guid,
-                GuidColumnType => CodeGenColumnKind.NullableGuid,
-                StringColumnType { IsNullable: false } => CodeGenColumnKind.String,
-                StringColumnType => CodeGenColumnKind.NullableString,
-                XmlColumnType { IsNullable: false } => CodeGenColumnKind.Xml,
-                XmlColumnType => CodeGenColumnKind.NullableXml,
-                _ => throw new InvalidOperationException($"Unsupported column type: {columnType.GetType().Name}")
-            };
-        }
-
         private static string FormatValidationIssue(CodeGenValidationIssue issue)
         {
             return issue.Kind switch
@@ -1638,6 +1516,39 @@ namespace SqExpress.CodeGen.Shared
             public string? SqModels { get; }
 
             public string? SqModelCastTypeName { get; }
+        }
+
+        private static PreservedColumnModelMetadata MergePreservedColumnModelMetadata(IEnumerable<PreservedColumnModelMetadata> metadata)
+        {
+            var sqModels = new List<string>();
+            var sqModelsSet = new HashSet<string>(StringComparer.Ordinal);
+            string? sqModelCastTypeName = null;
+
+            foreach (var item in metadata)
+            {
+                var itemSqModels = item.SqModels;
+                if (!string.IsNullOrWhiteSpace(itemSqModels))
+                {
+                    var nonEmptySqModels = itemSqModels!;
+                    foreach (var part in nonEmptySqModels.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        var trimmed = part.Trim();
+                        if (trimmed.Length > 0 && sqModelsSet.Add(trimmed))
+                        {
+                            sqModels.Add(trimmed);
+                        }
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(item.SqModelCastTypeName))
+                {
+                    sqModelCastTypeName = item.SqModelCastTypeName;
+                }
+            }
+
+            return new PreservedColumnModelMetadata(
+                sqModels.Count > 0 ? string.Join(",", sqModels) : null,
+                sqModelCastTypeName);
         }
     }
 }

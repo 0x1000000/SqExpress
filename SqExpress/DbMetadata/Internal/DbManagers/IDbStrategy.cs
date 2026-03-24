@@ -9,7 +9,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
     {
         Task<DbRawModels> LoadRawModels();
 
-        ColumnType GetColType(ColumnRawModel raw);
+        ColumnType? TryGetColType(ColumnRawModel raw);
 
         string DefaultSchemaName { get; }
 

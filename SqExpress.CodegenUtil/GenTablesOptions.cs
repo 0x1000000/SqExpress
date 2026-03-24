@@ -5,7 +5,7 @@ namespace SqExpress.CodeGenUtil
     [Verb("gentables", HelpText = "Generate table descriptor classes.")]
     public class GenTablesOptions
     {
-        public GenTablesOptions(ConnectionType connectionType, string connectionString, string tableClassPrefix, string outputDir, string @namespace, Verbosity verbosity, bool useTableDeclarationAttributes = false)
+        public GenTablesOptions(ConnectionType connectionType, string connectionString, string tableClassPrefix, string outputDir, string @namespace, Verbosity verbosity, bool useTableDeclarationAttributes = false, bool skipUnknownColumnTypes = false)
         {
             this.ConnectionType = connectionType;
             this.ConnectionString = connectionString;
@@ -14,6 +14,7 @@ namespace SqExpress.CodeGenUtil
             this.Namespace = @namespace;
             this.Verbosity = verbosity;
             this.UseTableDeclarationAttributes = useTableDeclarationAttributes;
+            this.SkipUnknownColumnTypes = skipUnknownColumnTypes;
         }
 
         [Value(1, MetaName = "CONNECTION_TYPE", Required = true, HelpText = "Connection Type: \"mssql\" or \"mysql\" or \"pgsql\".")]
@@ -36,6 +37,9 @@ namespace SqExpress.CodeGenUtil
 
         [Option("use-table-declaration-attributes", Required = false, Default = false, HelpText = "Generate attribute-based table declaration partial classes instead of direct TableBase descriptors.")]
         public bool UseTableDeclarationAttributes { get; }
+
+        [Option("skip-unknown-column-types", Required = false, Default = false, HelpText = "Skip unsupported database column types and generate table descriptors from the remaining supported columns.")]
+        public bool SkipUnknownColumnTypes { get; }
     }
 
     public enum ConnectionType

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using SqExpress;
 using SqExpress.CodeGenUtil;
 using SqExpress.DbMetadata.Internal.DbManagers;
 using SqExpress.DbMetadata.Internal.DbManagers.MsSql;
@@ -59,6 +60,31 @@ namespace SqExpress.Test.CodeGenUtil
             var tableAIsActive = tableA.Columns[2];
             Assert.AreEqual("IsActive", tableAIsActive.Name);
             Assert.AreEqual("1", tableAIsActive.DefaultValue?.RawValue);
+        }
+
+        [Test]
+        public async Task SelectTables_SkipUnknownColumnTypes_DropsUnsupportedColumns()
+        {
+            using var dbManager = new DbManager(new UnsupportedTypeDbStrategy(), new SqlConnection("Initial Catalog=TestDatabase;"), new DbManagerOptions("Tab"));
+
+            Assert.ThrowsAsync<SqExpressException>(async () => await dbManager.SelectTables());
+
+            var tables = await dbManager.SelectTables(skipUnknownColumnTypes: true);
+
+            Assert.AreEqual(1, tables.Count);
+            Assert.AreEqual(1, tables[0].Columns.Count);
+            Assert.AreEqual("Id", tables[0].Columns[0].Name);
+            Assert.AreEqual(0, tables[0].Indexes.Count);
+        }
+
+        [Test]
+        public void ParseDefaultValue_SysUtcDateTime_IsRecognizedAsUtcNow()
+        {
+            var parsed = ((IDbStrategy)this).ParseDefaultValue("(sysutcdatetime())", new DateTimeColumnType(isNullable: false, isDate: false));
+
+            Assert.That(parsed, Is.Not.Null);
+            Assert.That(parsed?.Type, Is.EqualTo(DefaultValueType.GetUtcDate));
+            Assert.That(parsed?.RawValue, Is.Null);
         }
 
         public void Dispose()
@@ -118,9 +144,9 @@ namespace SqExpress.Test.CodeGenUtil
             return Task.FromResult(result);
         }
 
-        ColumnType IDbStrategy.GetColType(ColumnRawModel raw)
+        ColumnType? IDbStrategy.TryGetColType(ColumnRawModel raw)
         {
-            return this._msSqlDbStrategy.GetColType(raw);
+            return this._msSqlDbStrategy.TryGetColType(raw);
         }
 
         public string DefaultSchemaName => "dbo";
@@ -128,6 +154,61 @@ namespace SqExpress.Test.CodeGenUtil
         DefaultValue? IDbStrategy.ParseDefaultValue(string? rawColumnDefaultValue, ColumnType columnType)
         {
             return this._msSqlDbStrategy.ParseDefaultValue(rawColumnDefaultValue, columnType);
+        }
+
+        private sealed class UnsupportedTypeDbStrategy : IDbStrategy
+        {
+            private readonly IDbStrategy _msSqlDbStrategy = new MsSqlDbStrategy(null!, null!);
+
+            public void Dispose()
+            {
+            }
+
+            public string DefaultSchemaName => "dbo";
+
+            public Task<DbRawModels> LoadRawModels()
+            {
+                return Task.FromResult(new DbRawModels(
+                    new List<ColumnRawModel>
+                    {
+                        new ColumnRawModel(new ColumnRef("dbo", "TableUnsupported", "Id"), 1, false, false, "int", null, null, null, null, null),
+                        new ColumnRawModel(new ColumnRef("dbo", "TableUnsupported", "UnsupportedValue"), 2, false, false, "unsupported", null, null, null, null, null)
+                    },
+                    new LoadIndexesResult(
+                        new Dictionary<TableRef, PrimaryKeyModel>
+                        {
+                            [new TableRef("dbo", "TableUnsupported")] = new PrimaryKeyModel(
+                                new List<IndexColumnModel> { new IndexColumnModel(false, new ColumnRef("dbo", "TableUnsupported", "Id")) },
+                                "PK_TableUnsupported")
+                        },
+                        new Dictionary<TableRef, List<IndexModel>>
+                        {
+                            [new TableRef("dbo", "TableUnsupported")] = new List<IndexModel>
+                            {
+                                new IndexModel(
+                                    new List<IndexColumnModel> { new IndexColumnModel(false, new ColumnRef("dbo", "TableUnsupported", "UnsupportedValue")) },
+                                    "IX_TableUnsupported_UnsupportedValue",
+                                    false,
+                                    false)
+                            }
+                        }),
+                    new Dictionary<ColumnRef, List<ColumnRef>>()));
+            }
+
+            public ColumnType? TryGetColType(ColumnRawModel raw)
+            {
+                if (raw.TypeName == "unsupported")
+                {
+                    return null;
+                }
+
+                return this._msSqlDbStrategy.TryGetColType(raw);
+            }
+
+            public DefaultValue? ParseDefaultValue(string? rawColumnDefaultValue, ColumnType columnType)
+            {
+                return this._msSqlDbStrategy.ParseDefaultValue(rawColumnDefaultValue, columnType);
+            }
         }
     }
 }

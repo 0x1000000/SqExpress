@@ -1,5 +1,3 @@
-using SqExpress;
-
 namespace SqExpress.CodeGen.Shared
 {
     internal static class ColumnPropertyTypeParser

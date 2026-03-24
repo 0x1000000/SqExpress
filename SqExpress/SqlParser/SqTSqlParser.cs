@@ -44,7 +44,7 @@ namespace SqExpress.SqlParser
             [NotNullWhen(false)] out string? error)
         {
             var effectiveOptions = NormalizeOptions(options);
-            if (TryParseCore(sql, effectiveOptions, out result, out var tables, out var errors))
+            if (TryParseCore(sql, effectiveOptions, existingTables, out result, out var tables, out var errors))
             {
                 if (existingTables != null
                     && !TryValidateParsedTables(existingTables, tables!, effectiveOptions.DefaultSchema, out error))
@@ -89,7 +89,7 @@ namespace SqExpress.SqlParser
             [NotNullWhen(true)] out IReadOnlyList<SqTable>? tables,
             [NotNullWhen(false)] out string? error)
         {
-            if (TryParseCore(sql, NormalizeOptions(options), out result, out tables, out var errors))
+            if (TryParseCore(sql, NormalizeOptions(options), existingTables: null, out result, out tables, out var errors))
             {
                 error = null;
                 return true;
@@ -103,6 +103,7 @@ namespace SqExpress.SqlParser
         private static bool TryParseCore(
             string sql,
             SqTSqlParserOptions options,
+            IReadOnlyList<TableBase>? existingTables,
             [NotNullWhen(true)] out IExpr? result,
             [NotNullWhen(true)] out IReadOnlyList<SqTable>? tables,
             [NotNullWhen(false)] out IReadOnlyList<string>? errors)
@@ -116,7 +117,7 @@ namespace SqExpress.SqlParser
 
             var extractedTables = SqlDomTableArtifactExtractor.ExtractTables(statement!, options.DefaultSchema);
 
-            if (SqlDomToSqExprMapper.TryMap(statement!, options.DefaultSchema, out result, out _, out var mappingError))
+            if (SqlDomToSqExprMapper.TryMap(statement!, options.DefaultSchema, existingTables, out result, out _, out var mappingError))
             {
                 if (extractedTables.Count < 1 && result is ExprUpdate update)
                 {
@@ -157,8 +158,7 @@ namespace SqExpress.SqlParser
                 return true;
             }
 
-            var parsedAsBaseTables = parsedTables.Cast<TableBase>().ToList();
-            var comparison = parsedAsBaseTables.CompareWith(existingTables, i => BuildTableComparisonKey(i, defaultSchema));
+            var comparison = parsedTables.CompareWith(existingTables, i => BuildTableComparisonKey(i, defaultSchema));
             if (comparison == null)
             {
                 error = null;

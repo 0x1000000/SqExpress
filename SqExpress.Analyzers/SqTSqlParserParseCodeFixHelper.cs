@@ -501,7 +501,7 @@ namespace SqExpress.Analyzers
             }
 
             return string.Equals(method.Name, "WithParams", StringComparison.Ordinal)
-                   && string.Equals(method.ContainingType?.ToDisplayString(), "SqExpress.ExprExtension", StringComparison.Ordinal);
+                   && string.Equals(method.ContainingType?.ToDisplayString(), typeof(ExprExtension).FullName, StringComparison.Ordinal);
         }
 
         private static bool IsNarrowingInvocation(
@@ -514,7 +514,7 @@ namespace SqExpress.Analyzers
                 return false;
             }
 
-            if (!string.Equals(method.ContainingType?.ToDisplayString(), "SqExpress.ExprExtension", StringComparison.Ordinal))
+            if (!string.Equals(method.ContainingType?.ToDisplayString(), typeof(ExprExtension).FullName, StringComparison.Ordinal))
             {
                 return false;
             }
@@ -1055,7 +1055,7 @@ namespace SqExpress.Analyzers
                 return false;
             }
 
-            if (!string.Equals(baseConstructor.ContainingType.ToDisplayString(), "SqExpress.TableBase", StringComparison.Ordinal))
+            if (!string.Equals(baseConstructor.ContainingType.ToDisplayString(), typeof(TableBase).FullName, StringComparison.Ordinal))
             {
                 return false;
             }
@@ -1097,7 +1097,7 @@ namespace SqExpress.Analyzers
             for (var index = 0; index < objectCreation.ArgumentList.Arguments.Count && index < constructor.Parameters.Length; index++)
             {
                 var parameter = constructor.Parameters[index];
-                if (!string.Equals(parameter.Type.ToDisplayString(), "SqExpress.Alias", StringComparison.Ordinal))
+                if (!string.Equals(parameter.Type.ToDisplayString(), typeof(Alias).FullName, StringComparison.Ordinal))
                 {
                     continue;
                 }
@@ -1316,7 +1316,7 @@ namespace SqExpress.Analyzers
         {
             for (var current = type; current != null; current = current.BaseType)
             {
-                if (string.Equals(current.ToDisplayString(), "SqExpress.TableBase", StringComparison.Ordinal))
+                if (string.Equals(current.ToDisplayString(), typeof(TableBase).FullName, StringComparison.Ordinal))
                 {
                     return true;
                 }

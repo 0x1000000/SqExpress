@@ -1,6 +1,7 @@
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using SqExpress.SqlParser;
 
 namespace SqExpress.Analyzers
 {
@@ -32,13 +33,13 @@ namespace SqExpress.Analyzers
                 return false;
             }
 
-            if (method.Name != "Parse")
+            if (method.Name != nameof(SqTSqlParser.Parse))
             {
                 return false;
             }
 
-            if (method.ContainingType.Name != "SqTSqlParser"
-                || method.ContainingNamespace.ToDisplayString() != "SqExpress.SqlParser")
+            if (method.ContainingType.Name != nameof(SqTSqlParser)
+                || method.ContainingNamespace.ToDisplayString() != typeof(SqTSqlParser).Namespace)
             {
                 return false;
             }

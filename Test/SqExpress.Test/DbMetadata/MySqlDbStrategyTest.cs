@@ -13,7 +13,7 @@ namespace SqExpress.Test.DbMetadata
         [TestCase("utf8mb4", 16383, null)]
         [TestCase("utf8mb3", 20000, 20000)]
         [TestCase("utf8mb4", 20000, 20000)]
-        public void GetColType_UnicodeVarchar_PreservesExplicitSize(string charset, int rawSize, int? expectedSize)
+        public void TryGetColType_UnicodeVarchar_PreservesExplicitSize(string charset, int rawSize, int? expectedSize)
         {
             var strategy = new MySqlDbStrategy(new TestSqDatabase(), "test", MySqlFlavor.MariaDb);
             var raw = new ColumnRawModel(
@@ -29,7 +29,7 @@ namespace SqExpress.Test.DbMetadata
                 extra: charset
             );
 
-            var colType = (StringColumnType)strategy.GetColType(raw);
+            var colType = (StringColumnType)strategy.TryGetColType(raw)!;
 
             Assert.That(colType.IsUnicode, Is.True);
             Assert.That(colType.Size, Is.EqualTo(expectedSize));
@@ -38,7 +38,7 @@ namespace SqExpress.Test.DbMetadata
         }
 
         [Test]
-        public void GetColType_Year_MapsToInt16()
+        public void TryGetColType_Year_MapsToInt16()
         {
             var strategy = new MySqlDbStrategy(new TestSqDatabase(), "test", MySqlFlavor.MariaDb);
             var raw = new ColumnRawModel(
@@ -54,15 +54,16 @@ namespace SqExpress.Test.DbMetadata
                 extra: null
             );
 
-            var colType = strategy.GetColType(raw);
+            var colType = strategy.TryGetColType(raw);
 
+            Assert.That(colType, Is.Not.Null);
             Assert.That(colType, Is.TypeOf<Int16ColumnType>());
-            Assert.That(colType.IsNullable, Is.True);
+            Assert.That(colType!.IsNullable, Is.True);
         }
 
         [TestCase("double")]
         [TestCase("double precision")]
-        public void GetColType_DoubleVariants_MapToDoubleColumnType(string typeName)
+        public void TryGetColType_DoubleVariants_MapToDoubleColumnType(string typeName)
         {
             var strategy = new MySqlDbStrategy(new TestSqDatabase(), "test", MySqlFlavor.MariaDb);
             var raw = new ColumnRawModel(
@@ -78,15 +79,16 @@ namespace SqExpress.Test.DbMetadata
                 extra: null
             );
 
-            var colType = strategy.GetColType(raw);
+            var colType = strategy.TryGetColType(raw);
 
+            Assert.That(colType, Is.Not.Null);
             Assert.That(colType, Is.TypeOf<DoubleColumnType>());
-            Assert.That(colType.IsNullable, Is.True);
+            Assert.That(colType!.IsNullable, Is.True);
         }
 
         [TestCase("set", 100, true, false)]
         [TestCase("json", null, true, false)]
-        public void GetColType_StringFamilies_MapToStringColumnType(string typeName, int? size, bool expectedUnicode, bool expectedText)
+        public void TryGetColType_StringFamilies_MapToStringColumnType(string typeName, int? size, bool expectedUnicode, bool expectedText)
         {
             var strategy = new MySqlDbStrategy(new TestSqDatabase(), "test", MySqlFlavor.MariaDb);
             var raw = new ColumnRawModel(
@@ -102,7 +104,7 @@ namespace SqExpress.Test.DbMetadata
                 extra: "utf8mb4"
             );
 
-            var colType = (StringColumnType)strategy.GetColType(raw);
+            var colType = (StringColumnType)strategy.TryGetColType(raw)!;
 
             Assert.That(colType.IsNullable, Is.True);
             Assert.That(colType.IsUnicode, Is.EqualTo(expectedUnicode));
@@ -112,7 +114,7 @@ namespace SqExpress.Test.DbMetadata
         }
 
         [Test]
-        public void GetColType_TinyBlob_MapsToVariableByteArray()
+        public void TryGetColType_TinyBlob_MapsToVariableByteArray()
         {
             var strategy = new MySqlDbStrategy(new TestSqDatabase(), "test", MySqlFlavor.MariaDb);
             var raw = new ColumnRawModel(
@@ -128,7 +130,7 @@ namespace SqExpress.Test.DbMetadata
                 extra: null
             );
 
-            var colType = (ByteArrayColumnType)strategy.GetColType(raw);
+            var colType = (ByteArrayColumnType)strategy.TryGetColType(raw)!;
 
             Assert.That(colType.IsNullable, Is.True);
             Assert.That(colType.IsFixed, Is.False);

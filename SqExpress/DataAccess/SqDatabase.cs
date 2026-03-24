@@ -57,6 +57,8 @@ namespace SqExpress.DataAccess
         Task Statement(IStatement statement, CancellationToken cancellationToken = default);
 
         Task<IReadOnlyList<SqTable>> GetTables(CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<SqTable>> GetTables(bool skipUnknownColumnTypes, CancellationToken cancellationToken = default);
     }
 
     public interface ISqTransaction : IDisposable
@@ -385,7 +387,10 @@ namespace SqExpress.DataAccess
             }
         }
 
-        public async Task<IReadOnlyList<SqTable>> GetTables(CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<SqTable>> GetTables(CancellationToken cancellationToken = default)
+            => this.GetTables(skipUnknownColumnTypes: false, cancellationToken);
+
+        public async Task<IReadOnlyList<SqTable>> GetTables(bool skipUnknownColumnTypes, CancellationToken cancellationToken = default)
         {
             this.CheckDisposed();
 
@@ -407,14 +412,14 @@ namespace SqExpress.DataAccess
             IReadOnlyList<TableModel> tableModels;
             try
             {
-                tableModels = await dbManager.SelectTables();
+                tableModels = await dbManager.SelectTables(skipUnknownColumnTypes);
             }
             catch (Exception e)
             {
                 throw new SqExpressException("Could not read database metadata", e);
             }
 
-            return DbModelMapper.ToSqDbTables(tableModels);
+            return DbModelMapper.ToSqDbTables(tableModels, skipUnknownColumnTypes);
 
         }
 

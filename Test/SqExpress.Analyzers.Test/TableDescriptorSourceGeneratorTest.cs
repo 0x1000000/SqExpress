@@ -270,7 +270,7 @@ namespace SqExpress.Analyzers.Test
             var generated = GetGeneratedSource(result, "UserDto");
 
             Assert.That(result.Diagnostics, Is.Empty, FormatDiagnostics(result.Diagnostics));
-            Assert.That(generated, Does.Contain("record UserDto"));
+            Assert.That(generated, Does.Contain("partial record UserDto"));
             Assert.That(generated, Does.Contain("public static UserDto Read("));
             Assert.That(generated, Does.Contain("public static TableColumn[] GetColumns("));
             Assert.That(generated, Does.Contain("public static ISqModelReader<UserDto, TableUser> GetReader()"));
@@ -296,7 +296,7 @@ namespace SqExpress.Analyzers.Test
             var generated = GetGeneratedSource(result, "TmpUserDto");
 
             Assert.That(result.Diagnostics, Is.Empty, FormatDiagnostics(result.Diagnostics));
-            Assert.That(generated, Does.Contain("record TmpUserDto"));
+            Assert.That(generated, Does.Contain("partial record TmpUserDto"));
             Assert.That(generated, Does.Contain("public static TmpUserDto Read("));
             Assert.That(generated, Does.Contain("GetReader()"));
         }
@@ -322,7 +322,7 @@ namespace SqExpress.Analyzers.Test
             Assert.That(result.Diagnostics, Is.Empty, FormatDiagnostics(result.Diagnostics));
             Assert.That(dtoGenerated, Does.Contain("public int Id { get; }"));
             Assert.That(dtoGenerated, Does.Not.Contain("public int UserId { get; }"));
-            Assert.That(identityGenerated, Does.Contain("record UserIdentity"));
+            Assert.That(identityGenerated, Does.Contain("partial record UserIdentity"));
             Assert.That(identityGenerated, Does.Contain("public int UserId { get; }"));
             Assert.That(identityGenerated, Does.Contain("public string FirstName { get; }"));
         }
@@ -406,7 +406,7 @@ namespace SqExpress.Analyzers.Test
 
             Assert.That(result.Diagnostics, Is.Empty, FormatDiagnostics(result.Diagnostics));
             Assert.That(generated, Does.Contain("namespace MyApp.GeneratedModels"));
-            Assert.That(generated, Does.Contain("class UserDto"));
+            Assert.That(generated, Does.Contain("partial class UserDto"));
             Assert.That(generated, Does.Contain("public UserDto WithUserId("));
             Assert.That(generated, Does.Contain("public UserDto WithFirstName("));
         }

@@ -149,7 +149,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers.MySql
             return new DbRawModels(columns, indexes, foreignKeys);
         }
 
-        public override ColumnType GetColType(ColumnRawModel raw)
+        public override ColumnType? TryGetColType(ColumnRawModel raw)
         {
             switch (raw.TypeName.ToLowerInvariant())
             {
@@ -243,9 +243,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers.MySql
                 case "mediumblob":
                     return new ByteArrayColumnType(isNullable: raw.Nullable, size: CheckSize(raw.Size), isFixed: false);
                 default:
-                    throw new SqExpressException(
-                        $"Not supported column type \"{raw.TypeName}\" for {raw.DbName.Schema}.{raw.DbName.TableName}.{raw.DbName.Name}"
-                    );
+                    return null;
             }
 
             int? CheckSize(int? size)

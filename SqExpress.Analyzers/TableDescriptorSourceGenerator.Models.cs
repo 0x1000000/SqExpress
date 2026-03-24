@@ -7,6 +7,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SqExpress.Analyzers.Diagnostics;
 using SqExpress.CodeGen.Shared;
+using SqExpress.TableDecalationAttributes;
 
 namespace SqExpress.Analyzers
 {
@@ -64,7 +65,7 @@ namespace SqExpress.Analyzers
 
             if (classSymbol.BaseType != null &&
                 classSymbol.BaseType.SpecialType != SpecialType.System_Object &&
-                classSymbol.BaseType.ToDisplayString() != "SqExpress.TableBase")
+                classSymbol.BaseType.ToDisplayString() != typeof(TableBase).FullName)
             {
                 diagnostics.Add(CreateDiagnostic(DiagnosticDescriptors.TableDescriptorMustNotSpecifyBaseType, classSymbol, classSymbol.Name));
             }
@@ -130,7 +131,7 @@ namespace SqExpress.Analyzers
                 classSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
                 columns.ToImmutable(),
                 indexes.ToImmutable(),
-                GetNamedString(activeDescriptorAttribute, "SqModel"));
+                GetNamedString(activeDescriptorAttribute, nameof(TableDescriptorAttribute.SqModel)));
 
             return new TableDescriptorCandidate(
                 classSymbol,
@@ -189,7 +190,7 @@ namespace SqExpress.Analyzers
                 return false;
             }
 
-            var defaultValue = GetNamedString(attribute, "DefaultValue");
+            var defaultValue = GetNamedString(attribute, nameof(TableColumnAttributeBase.DefaultValue));
             if (!TryInferDefaultValue(kind.Value, defaultValue, out var defaultValueKind, out var normalizedDefaultValue))
             {
                 diagnostic = CreateDiagnostic(
@@ -206,24 +207,24 @@ namespace SqExpress.Analyzers
             columnDescriptor = new CodeGenColumnModel(
                 kind.Value,
                 sqlName!,
-                GetNamedString(attribute, "PropertyName"),
-                GetNamedBool(attribute, "Pk"),
-                GetNamedBool(attribute, "Identity"),
-                GetNamedString(attribute, "FkDatabase"),
-                GetNamedString(attribute, "FkSchema"),
-                GetNamedString(attribute, "FkTable"),
-                GetNamedString(attribute, "FkColumn"),
+                GetNamedString(attribute, nameof(TableColumnAttributeBase.PropertyName)),
+                GetNamedBool(attribute, nameof(TableColumnAttributeBase.Pk)),
+                GetNamedBool(attribute, nameof(TableColumnAttributeBase.Identity)),
+                GetNamedString(attribute, nameof(TableColumnAttributeBase.FkDatabase)),
+                GetNamedString(attribute, nameof(TableColumnAttributeBase.FkSchema)),
+                GetNamedString(attribute, nameof(TableColumnAttributeBase.FkTable)),
+                GetNamedString(attribute, nameof(TableColumnAttributeBase.FkColumn)),
                 defaultValueKind,
                 normalizedDefaultValue,
-                GetNamedBool(attribute, "Unicode"),
-                GetNamedNullableInt(attribute, "MaxLength"),
-                GetNamedBool(attribute, "FixedLength"),
-                GetNamedBool(attribute, "Text"),
-                GetNamedInt(attribute, "Precision"),
-                GetNamedInt(attribute, "Scale"),
-                GetNamedBool(attribute, "IsDate"),
-                GetNamedString(attribute, "SqModels"),
-                GetNamedTypeName(attribute, "SqModelCast"));
+                GetNamedBool(attribute, nameof(StringColumnAttributeBase.Unicode)),
+                GetNamedNullableInt(attribute, nameof(StringColumnAttributeBase.MaxLength)),
+                GetNamedBool(attribute, nameof(StringColumnAttributeBase.FixedLength)),
+                GetNamedBool(attribute, nameof(StringColumnAttributeBase.Text)),
+                GetNamedInt(attribute, nameof(DecimalColumnAttributeBase.Precision)),
+                GetNamedInt(attribute, nameof(DecimalColumnAttributeBase.Scale)),
+                GetNamedBool(attribute, nameof(DateTimeColumnAttributeBase.IsDate)),
+                GetNamedString(attribute, nameof(TableColumnAttributeBase.SqModels)),
+                GetNamedTypeName(attribute, nameof(TableColumnAttributeBase.SqModelCast)));
             return true;
         }
 
@@ -255,10 +256,10 @@ namespace SqExpress.Analyzers
 
             descriptor = new CodeGenIndexModel(
                 columns.ToImmutableArray(),
-                GetNamedArray(attribute, "DescendingColumns"),
-                GetNamedString(attribute, "Name"),
-                GetNamedBool(attribute, "Unique"),
-                GetNamedBool(attribute, "Clustered"));
+                GetNamedArray(attribute, nameof(IndexAttribute.DescendingColumns)),
+                GetNamedString(attribute, nameof(IndexAttribute.Name)),
+                GetNamedBool(attribute, nameof(IndexAttribute.Unique)),
+                GetNamedBool(attribute, nameof(IndexAttribute.Clustered)));
             return true;
         }
 
@@ -266,32 +267,32 @@ namespace SqExpress.Analyzers
         {
             return attributeName switch
             {
-                "BooleanColumnAttribute" => CodeGenColumnKind.Boolean,
-                "NullableBooleanColumnAttribute" => CodeGenColumnKind.NullableBoolean,
-                "ByteColumnAttribute" => CodeGenColumnKind.Byte,
-                "NullableByteColumnAttribute" => CodeGenColumnKind.NullableByte,
-                "ByteArrayColumnAttribute" => CodeGenColumnKind.ByteArray,
-                "NullableByteArrayColumnAttribute" => CodeGenColumnKind.NullableByteArray,
-                "Int16ColumnAttribute" => CodeGenColumnKind.Int16,
-                "NullableInt16ColumnAttribute" => CodeGenColumnKind.NullableInt16,
-                "Int32ColumnAttribute" => CodeGenColumnKind.Int32,
-                "NullableInt32ColumnAttribute" => CodeGenColumnKind.NullableInt32,
-                "Int64ColumnAttribute" => CodeGenColumnKind.Int64,
-                "NullableInt64ColumnAttribute" => CodeGenColumnKind.NullableInt64,
-                "DoubleColumnAttribute" => CodeGenColumnKind.Double,
-                "NullableDoubleColumnAttribute" => CodeGenColumnKind.NullableDouble,
-                "DecimalColumnAttribute" => CodeGenColumnKind.Decimal,
-                "NullableDecimalColumnAttribute" => CodeGenColumnKind.NullableDecimal,
-                "DateTimeColumnAttribute" => CodeGenColumnKind.DateTime,
-                "NullableDateTimeColumnAttribute" => CodeGenColumnKind.NullableDateTime,
-                "DateTimeOffsetColumnAttribute" => CodeGenColumnKind.DateTimeOffset,
-                "NullableDateTimeOffsetColumnAttribute" => CodeGenColumnKind.NullableDateTimeOffset,
-                "GuidColumnAttribute" => CodeGenColumnKind.Guid,
-                "NullableGuidColumnAttribute" => CodeGenColumnKind.NullableGuid,
-                "StringColumnAttribute" => CodeGenColumnKind.String,
-                "NullableStringColumnAttribute" => CodeGenColumnKind.NullableString,
-                "XmlColumnAttribute" => CodeGenColumnKind.Xml,
-                "NullableXmlColumnAttribute" => CodeGenColumnKind.NullableXml,
+                nameof(BooleanColumnAttribute) => CodeGenColumnKind.Boolean,
+                nameof(NullableBooleanColumnAttribute) => CodeGenColumnKind.NullableBoolean,
+                nameof(ByteColumnAttribute) => CodeGenColumnKind.Byte,
+                nameof(NullableByteColumnAttribute) => CodeGenColumnKind.NullableByte,
+                nameof(ByteArrayColumnAttribute) => CodeGenColumnKind.ByteArray,
+                nameof(NullableByteArrayColumnAttribute) => CodeGenColumnKind.NullableByteArray,
+                nameof(Int16ColumnAttribute) => CodeGenColumnKind.Int16,
+                nameof(NullableInt16ColumnAttribute) => CodeGenColumnKind.NullableInt16,
+                nameof(Int32ColumnAttribute) => CodeGenColumnKind.Int32,
+                nameof(NullableInt32ColumnAttribute) => CodeGenColumnKind.NullableInt32,
+                nameof(Int64ColumnAttribute) => CodeGenColumnKind.Int64,
+                nameof(NullableInt64ColumnAttribute) => CodeGenColumnKind.NullableInt64,
+                nameof(DoubleColumnAttribute) => CodeGenColumnKind.Double,
+                nameof(NullableDoubleColumnAttribute) => CodeGenColumnKind.NullableDouble,
+                nameof(DecimalColumnAttribute) => CodeGenColumnKind.Decimal,
+                nameof(NullableDecimalColumnAttribute) => CodeGenColumnKind.NullableDecimal,
+                nameof(DateTimeColumnAttribute) => CodeGenColumnKind.DateTime,
+                nameof(NullableDateTimeColumnAttribute) => CodeGenColumnKind.NullableDateTime,
+                nameof(DateTimeOffsetColumnAttribute) => CodeGenColumnKind.DateTimeOffset,
+                nameof(NullableDateTimeOffsetColumnAttribute) => CodeGenColumnKind.NullableDateTimeOffset,
+                nameof(GuidColumnAttribute) => CodeGenColumnKind.Guid,
+                nameof(NullableGuidColumnAttribute) => CodeGenColumnKind.NullableGuid,
+                nameof(StringColumnAttribute) => CodeGenColumnKind.String,
+                nameof(NullableStringColumnAttribute) => CodeGenColumnKind.NullableString,
+                nameof(XmlColumnAttribute) => CodeGenColumnKind.Xml,
+                nameof(NullableXmlColumnAttribute) => CodeGenColumnKind.NullableXml,
                 _ => null
             };
         }
@@ -320,9 +321,9 @@ namespace SqExpress.Analyzers
         private static int GetNamedInt(AttributeData attribute, string name)
             => attribute.NamedArguments.FirstOrDefault(i => i.Key == name).Value.Value as int? ?? 0;
 
-        private static bool TryInferDefaultValue(CodeGenColumnKind columnKind, string? value, out int defaultValueKind, out string? normalizedValue)
+        private static bool TryInferDefaultValue(CodeGenColumnKind columnKind, string? value, out CodeGenDefaultValueKind defaultValueKind, out string? normalizedValue)
         {
-            defaultValueKind = 0;
+            defaultValueKind = CodeGenDefaultValueKind.None;
             normalizedValue = value;
 
             if (string.IsNullOrWhiteSpace(value))
@@ -332,21 +333,21 @@ namespace SqExpress.Analyzers
 
             if (string.Equals(value, "$null", StringComparison.OrdinalIgnoreCase))
             {
-                defaultValueKind = 2;
+                defaultValueKind = CodeGenDefaultValueKind.Null;
                 normalizedValue = null;
                 return true;
             }
 
             if (string.Equals(value, "$utcNow", StringComparison.OrdinalIgnoreCase))
             {
-                defaultValueKind = 6;
+                defaultValueKind = CodeGenDefaultValueKind.UtcNow;
                 normalizedValue = null;
                 return columnKind is CodeGenColumnKind.DateTime or CodeGenColumnKind.NullableDateTime or CodeGenColumnKind.DateTimeOffset or CodeGenColumnKind.NullableDateTimeOffset;
             }
 
             if (string.Equals(value, "$now", StringComparison.OrdinalIgnoreCase))
             {
-                defaultValueKind = 7;
+                defaultValueKind = CodeGenDefaultValueKind.Now;
                 normalizedValue = null;
                 return columnKind is CodeGenColumnKind.DateTime or CodeGenColumnKind.NullableDateTime or CodeGenColumnKind.DateTimeOffset or CodeGenColumnKind.NullableDateTimeOffset;
             }
@@ -357,14 +358,14 @@ namespace SqExpress.Analyzers
                 case CodeGenColumnKind.NullableBoolean:
                     if (bool.TryParse(value, out var boolValue))
                     {
-                        defaultValueKind = 4;
+                        defaultValueKind = CodeGenDefaultValueKind.Boolean;
                         normalizedValue = boolValue ? "true" : "false";
                         return true;
                     }
 
                     if (value == "0" || value == "1")
                     {
-                        defaultValueKind = 4;
+                        defaultValueKind = CodeGenDefaultValueKind.Boolean;
                         normalizedValue = value;
                         return true;
                     }
@@ -374,7 +375,7 @@ namespace SqExpress.Analyzers
                 case CodeGenColumnKind.NullableByte:
                     if (byte.TryParse(value, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var byteValue))
                     {
-                        defaultValueKind = 8;
+                        defaultValueKind = CodeGenDefaultValueKind.Byte;
                         normalizedValue = byteValue.ToString();
                         return true;
                     }
@@ -384,7 +385,7 @@ namespace SqExpress.Analyzers
                 case CodeGenColumnKind.NullableInt16:
                     if (short.TryParse(value, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var shortValue))
                     {
-                        defaultValueKind = 9;
+                        defaultValueKind = CodeGenDefaultValueKind.Int16;
                         normalizedValue = shortValue.ToString();
                         return true;
                     }
@@ -394,7 +395,7 @@ namespace SqExpress.Analyzers
                 case CodeGenColumnKind.NullableInt32:
                     if (int.TryParse(value, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var intValue))
                     {
-                        defaultValueKind = 3;
+                        defaultValueKind = CodeGenDefaultValueKind.Int32;
                         normalizedValue = intValue.ToString();
                         return true;
                     }
@@ -404,7 +405,7 @@ namespace SqExpress.Analyzers
                 case CodeGenColumnKind.NullableInt64:
                     if (long.TryParse(value, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var longValue))
                     {
-                        defaultValueKind = 10;
+                        defaultValueKind = CodeGenDefaultValueKind.Int64;
                         normalizedValue = longValue.ToString();
                         return true;
                     }
@@ -414,7 +415,7 @@ namespace SqExpress.Analyzers
                 case CodeGenColumnKind.NullableDecimal:
                     if (decimal.TryParse(value, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var decimalValue))
                     {
-                        defaultValueKind = 11;
+                        defaultValueKind = CodeGenDefaultValueKind.Decimal;
                         normalizedValue = decimalValue.ToString(System.Globalization.CultureInfo.InvariantCulture);
                         return true;
                     }
@@ -424,7 +425,7 @@ namespace SqExpress.Analyzers
                 case CodeGenColumnKind.NullableDouble:
                     if (double.TryParse(value, System.Globalization.NumberStyles.Float | System.Globalization.NumberStyles.AllowThousands, System.Globalization.CultureInfo.InvariantCulture, out var doubleValue))
                     {
-                        defaultValueKind = 12;
+                        defaultValueKind = CodeGenDefaultValueKind.Double;
                         normalizedValue = doubleValue.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
                         return true;
                     }
@@ -434,7 +435,7 @@ namespace SqExpress.Analyzers
                 case CodeGenColumnKind.NullableGuid:
                     if (Guid.TryParse(value, out var guidValue))
                     {
-                        defaultValueKind = 13;
+                        defaultValueKind = CodeGenDefaultValueKind.Guid;
                         normalizedValue = guidValue.ToString("D");
                         return true;
                     }
@@ -444,7 +445,7 @@ namespace SqExpress.Analyzers
                 case CodeGenColumnKind.NullableDateTime:
                     if (DateTime.TryParse(value, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind, out var dateTimeValue))
                     {
-                        defaultValueKind = 14;
+                        defaultValueKind = CodeGenDefaultValueKind.DateTime;
                         normalizedValue = dateTimeValue.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
                         return true;
                     }
@@ -454,7 +455,7 @@ namespace SqExpress.Analyzers
                 case CodeGenColumnKind.NullableDateTimeOffset:
                     if (DateTimeOffset.TryParse(value, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind, out var dateTimeOffsetValue))
                     {
-                        defaultValueKind = 15;
+                        defaultValueKind = CodeGenDefaultValueKind.DateTimeOffset;
                         normalizedValue = dateTimeOffsetValue.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
                         return true;
                     }
@@ -464,7 +465,7 @@ namespace SqExpress.Analyzers
                 case CodeGenColumnKind.NullableString:
                 case CodeGenColumnKind.Xml:
                 case CodeGenColumnKind.NullableXml:
-                    defaultValueKind = 5;
+                    defaultValueKind = CodeGenDefaultValueKind.String;
                     normalizedValue = value;
                     return true;
                 default:
@@ -475,34 +476,39 @@ namespace SqExpress.Analyzers
         private static string GetColumnKindDisplayName(CodeGenColumnKind columnKind)
             => columnKind switch
             {
-                CodeGenColumnKind.Boolean => "BooleanColumn",
-                CodeGenColumnKind.NullableBoolean => "NullableBooleanColumn",
-                CodeGenColumnKind.Byte => "ByteColumn",
-                CodeGenColumnKind.NullableByte => "NullableByteColumn",
-                CodeGenColumnKind.ByteArray => "ByteArrayColumn",
-                CodeGenColumnKind.NullableByteArray => "NullableByteArrayColumn",
-                CodeGenColumnKind.Int16 => "Int16Column",
-                CodeGenColumnKind.NullableInt16 => "NullableInt16Column",
-                CodeGenColumnKind.Int32 => "Int32Column",
-                CodeGenColumnKind.NullableInt32 => "NullableInt32Column",
-                CodeGenColumnKind.Int64 => "Int64Column",
-                CodeGenColumnKind.NullableInt64 => "NullableInt64Column",
-                CodeGenColumnKind.Double => "DoubleColumn",
-                CodeGenColumnKind.NullableDouble => "NullableDoubleColumn",
-                CodeGenColumnKind.Decimal => "DecimalColumn",
-                CodeGenColumnKind.NullableDecimal => "NullableDecimalColumn",
-                CodeGenColumnKind.DateTime => "DateTimeColumn",
-                CodeGenColumnKind.NullableDateTime => "NullableDateTimeColumn",
-                CodeGenColumnKind.DateTimeOffset => "DateTimeOffsetColumn",
-                CodeGenColumnKind.NullableDateTimeOffset => "NullableDateTimeOffsetColumn",
-                CodeGenColumnKind.Guid => "GuidColumn",
-                CodeGenColumnKind.NullableGuid => "NullableGuidColumn",
-                CodeGenColumnKind.String => "StringColumn",
-                CodeGenColumnKind.NullableString => "NullableStringColumn",
-                CodeGenColumnKind.Xml => "XmlColumn",
-                CodeGenColumnKind.NullableXml => "NullableXmlColumn",
+                CodeGenColumnKind.Boolean => TrimAttributeSuffix(nameof(BooleanColumnAttribute)),
+                CodeGenColumnKind.NullableBoolean => TrimAttributeSuffix(nameof(NullableBooleanColumnAttribute)),
+                CodeGenColumnKind.Byte => TrimAttributeSuffix(nameof(ByteColumnAttribute)),
+                CodeGenColumnKind.NullableByte => TrimAttributeSuffix(nameof(NullableByteColumnAttribute)),
+                CodeGenColumnKind.ByteArray => TrimAttributeSuffix(nameof(ByteArrayColumnAttribute)),
+                CodeGenColumnKind.NullableByteArray => TrimAttributeSuffix(nameof(NullableByteArrayColumnAttribute)),
+                CodeGenColumnKind.Int16 => TrimAttributeSuffix(nameof(Int16ColumnAttribute)),
+                CodeGenColumnKind.NullableInt16 => TrimAttributeSuffix(nameof(NullableInt16ColumnAttribute)),
+                CodeGenColumnKind.Int32 => TrimAttributeSuffix(nameof(Int32ColumnAttribute)),
+                CodeGenColumnKind.NullableInt32 => TrimAttributeSuffix(nameof(NullableInt32ColumnAttribute)),
+                CodeGenColumnKind.Int64 => TrimAttributeSuffix(nameof(Int64ColumnAttribute)),
+                CodeGenColumnKind.NullableInt64 => TrimAttributeSuffix(nameof(NullableInt64ColumnAttribute)),
+                CodeGenColumnKind.Double => TrimAttributeSuffix(nameof(DoubleColumnAttribute)),
+                CodeGenColumnKind.NullableDouble => TrimAttributeSuffix(nameof(NullableDoubleColumnAttribute)),
+                CodeGenColumnKind.Decimal => TrimAttributeSuffix(nameof(DecimalColumnAttribute)),
+                CodeGenColumnKind.NullableDecimal => TrimAttributeSuffix(nameof(NullableDecimalColumnAttribute)),
+                CodeGenColumnKind.DateTime => TrimAttributeSuffix(nameof(DateTimeColumnAttribute)),
+                CodeGenColumnKind.NullableDateTime => TrimAttributeSuffix(nameof(NullableDateTimeColumnAttribute)),
+                CodeGenColumnKind.DateTimeOffset => TrimAttributeSuffix(nameof(DateTimeOffsetColumnAttribute)),
+                CodeGenColumnKind.NullableDateTimeOffset => TrimAttributeSuffix(nameof(NullableDateTimeOffsetColumnAttribute)),
+                CodeGenColumnKind.Guid => TrimAttributeSuffix(nameof(GuidColumnAttribute)),
+                CodeGenColumnKind.NullableGuid => TrimAttributeSuffix(nameof(NullableGuidColumnAttribute)),
+                CodeGenColumnKind.String => TrimAttributeSuffix(nameof(StringColumnAttribute)),
+                CodeGenColumnKind.NullableString => TrimAttributeSuffix(nameof(NullableStringColumnAttribute)),
+                CodeGenColumnKind.Xml => TrimAttributeSuffix(nameof(XmlColumnAttribute)),
+                CodeGenColumnKind.NullableXml => TrimAttributeSuffix(nameof(NullableXmlColumnAttribute)),
                 _ => columnKind.ToString()
             };
+
+        private static string TrimAttributeSuffix(string attributeTypeName)
+            => attributeTypeName.EndsWith(nameof(Attribute), StringComparison.Ordinal)
+                ? attributeTypeName.Substring(0, attributeTypeName.Length - nameof(Attribute).Length)
+                : attributeTypeName;
 
         private static string GetSupportedPredefinedValuesText(CodeGenColumnKind columnKind)
         {

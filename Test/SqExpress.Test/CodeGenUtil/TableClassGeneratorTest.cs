@@ -272,8 +272,113 @@ namespace SqExpress.Test.CodeGenUtil
             Assert.That(NormalizeNewLines(updatedSource), Does.Contain("return \"Keep me\";"));
         }
 
+        [Test]
+        public async Task AttributeDeclarationExistingDuplicateColumnMetadata_DoesNotThrow_AndIsCollapsed()
+        {
+            using var dbManager = new DbManager(new DbManagerTest(),
+                new SqlConnection("Initial Catalog=_1_2_3tbl;"),
+                new DbManagerOptions("Tab"));
+
+            var tables = await dbManager.SelectTables();
+            var tableMap = tables.ToDictionary(t => t.DbName);
+            var table = tables.Single(t => t.Name == "TabTableZ");
+
+            var existingCompilationUnit = CSharpSyntaxTree.ParseText(
+                """
+                using SqExpress.TableDecalationAttributes;
+
+                namespace MyCompany.MyProject.Tables
+                {
+                    [TableDescriptor("dbo", "TableZ", SqModel = "TableZDto")]
+                    [Int32Column("Id", Pk = true, Identity = true)]
+                    [StringColumn("ValueA", Unicode = true, MaxLength = 255, SqModels = "BranchView.Code")]
+                    [StringColumn("ValueA", Unicode = true, MaxLength = 255, SqModels = "AuditBranch.Code", SqModelCast = typeof(Some.Namespace.BranchCodeValue))]
+                    public partial class TabTableZ
+                    {
+                    }
+                }
+                """).GetCompilationUnitRoot();
+
+            var updatedSource = CodeGenTableDescriptorSupport.GenerateTableDeclaration(
+                table,
+                tableMap,
+                "MyCompany.MyProject.Tables",
+                existingCompilationUnit).ToFullString();
+
+            var normalized = NormalizeNewLines(updatedSource);
+            Assert.That(normalized, Does.Contain("[TableDescriptor(\"dbo\", \"TableZ\", SqModel = \"TableZDto\")]"));
+            Assert.That(normalized, Does.Contain("[StringColumn(\"ValueA\""));
+            Assert.That(normalized, Does.Contain("SqModels = \"BranchView.Code,AuditBranch.Code\""));
+            Assert.That(normalized, Does.Contain("SqModelCast = typeof(Some.Namespace.BranchCodeValue)"));
+            Assert.That(normalized.Split(new[] { "[StringColumn(\"ValueA\"" }, StringSplitOptions.None).Length - 1, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void SkipUnknownColumnTypes_GeneratesDescriptorWithoutUnsupportedColumns()
+        {
+            var unsupportedColumn = new ColumnModel(
+                name: "UnsupportedValue",
+                dbName: new ColumnRef("dbo", "TableUnsupported", "UnsupportedValue"),
+                ordinalPosition: 2,
+                columnType: new UnsupportedColumnType(),
+                pk: null,
+                identity: false,
+                defaultValue: null,
+                fk: null);
+            var supportedColumn = new ColumnModel(
+                name: "Id",
+                dbName: new ColumnRef("dbo", "TableUnsupported", "Id"),
+                ordinalPosition: 1,
+                columnType: new Int32ColumnType(false),
+                pk: new PkInfo(0, false),
+                identity: false,
+                defaultValue: null,
+                fk: null);
+            var table = new TableModel(
+                name: "TabTableUnsupported",
+                dbName: new TableRef("dbo", "TableUnsupported"),
+                columns: new List<ColumnModel> { supportedColumn, unsupportedColumn },
+                indexes: new List<IndexModel>
+                {
+                    new IndexModel(new List<IndexColumnModel> { new IndexColumnModel(false, unsupportedColumn.DbName) }, "IX_Unsupported", false, false),
+                    new IndexModel(new List<IndexColumnModel> { new IndexColumnModel(false, supportedColumn.DbName) }, "IX_Id", false, false)
+                });
+            var tableMap = new Dictionary<TableRef, TableModel> { [table.DbName] = table };
+
+            Assert.Catch<Exception>(() =>
+                CodeGenTableDescriptorSupport.GenerateTableDescriptor(
+                    table,
+                    tableMap,
+                    "MyCompany.MyProject.Tables",
+                    new Dictionary<TableRef, ClassDeclarationSyntax>(),
+                    skipUnknownColumnTypes: false,
+                    out _));
+
+            var source = CodeGenTableDescriptorSupport.GenerateTableDescriptor(
+                table,
+                tableMap,
+                "MyCompany.MyProject.Tables",
+                new Dictionary<TableRef, ClassDeclarationSyntax>(),
+                skipUnknownColumnTypes: true,
+                out _).ToFullString();
+
+            Assert.That(NormalizeNewLines(source), Does.Contain("public Int32TableColumn Id { get; }"));
+            Assert.That(NormalizeNewLines(source), Does.Not.Contain("UnsupportedValue"));
+            Assert.That(NormalizeNewLines(source), Does.Not.Contain("IX_Unsupported"));
+        }
+
         private static string NormalizeNewLines(string value)
             => value.Replace("\r\n", "\n");
+
+        private sealed class UnsupportedColumnType : ColumnType
+        {
+            public UnsupportedColumnType() : base(isNullable: false)
+            {
+            }
+
+            public override TRes Accept<TRes, TArg>(IColumnTypeVisitor<TRes, TArg> visitor, TArg arg)
+                => throw new NotSupportedException();
+        }
     }
 }
 #endif

@@ -256,6 +256,28 @@ namespace SqExpress.Test.SqlParser
         }
 
         [Test]
+        public void TryParse_WithExistingTables_WhenUnqualifiedProjectionColumnsResolveUniquelyInJoin_ReturnsTrue()
+        {
+            var sql = "SELECT TOP 1 SalesOrderId, SUM(Amount) AS TotalSales FROM ops.Payment p JOIN ops.Invoice i ON p.InvoiceId = i.InvoiceId WHERE i.InvoiceDate >= DATEADD(month, -1, GETDATE()) GROUP BY SalesOrderId ORDER BY TotalSales DESC";
+            var existing = new TableBase[]
+            {
+                CreateTable("ops", "Payment", a => a
+                    .AppendInt32Column("InvoiceId")
+                    .AppendDecimalColumn("Amount")),
+                CreateTable("ops", "Invoice", a => a
+                    .AppendInt32Column("InvoiceId")
+                    .AppendInt32Column("SalesOrderId")
+                    .AppendDateTimeColumn("InvoiceDate"))
+            };
+
+            var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(error, Is.Null);
+        }
+
+        [Test]
         public void TryParse_WithExistingTables_WhenNamesDifferOnlyByCase_ReturnsMismatchError()
         {
             var sql = "SELECT [U].[ID],[O].[ORDERID] FROM [DBO].[USERS] [U] JOIN [DBO].[ORDERS] [O] ON [O].[USERID]=[U].[ID]";

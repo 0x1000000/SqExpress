@@ -168,6 +168,32 @@ namespace SqExpress.Test.SqlParser
         }
 
         [Test]
+        public void ParseTopGroupedJoinWithDateAddAndOrderAlias()
+        {
+            var inputSql =
+                """
+                SELECT TOP 1
+                    e.EmployeeId,
+                    e.FirstName,
+                    e.LastName,
+                    SUM(sl.Quantity) AS TotalQuantitySold
+                FROM ops.SalesOrderLine sl
+                JOIN ops.SalesOrder so ON sl.SalesOrderId = so.SalesOrderId
+                JOIN ref.Employee e ON so.SalesRepId = e.EmployeeId
+                WHERE so.OrderDate >= DATEADD(MONTH, -1, CAST(GETDATE() AS date))
+                GROUP BY e.EmployeeId, e.FirstName, e.LastName
+                ORDER BY TotalQuantitySold DESC;
+                """;
+
+            if (!SqTSqlParser.TryParse(inputSql, out var expr, out var errors))
+            {
+                Assert.Fail(errors);
+            }
+
+            Assert.That(expr, Is.Not.Null);
+        }
+
+        [Test]
         public void ParseComplexQueryWithCteAndOuterApply_BuildsExpectedAstNodes()
         {
 
