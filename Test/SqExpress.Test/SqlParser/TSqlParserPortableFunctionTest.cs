@@ -166,6 +166,30 @@ namespace SqExpress.Test.SqlParser
         }
 
         [Test]
+        public void ParseGroupByFunctionCall_MapsSuccessfully()
+        {
+            const string sql =
+                @"SELECT YEAR([o].[CreatedAt]) [Y],COUNT(*) [Cnt] FROM [dbo].[Orders] [o] GROUP BY YEAR([o].[CreatedAt])";
+
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+        }
+
+        [Test]
+        public void ParseGroupByFunctionCall_WhenSelectExpressionDiffers_FailsValidation()
+        {
+            const string sql =
+                @"SELECT [o].[CreatedAt],COUNT(*) [Cnt] FROM [dbo].[Orders] [o] GROUP BY YEAR([o].[CreatedAt])";
+
+            var ok = SqTSqlParser.TryParse(sql, out _, out var error);
+
+            Assert.That(ok, Is.False);
+            Assert.That(error, Does.Contain("neither grouped nor aggregated"));
+        }
+
+        [Test]
         public void ParseKnownNullFunctions_MapsToKnownNodes_AndExportsToPgSql()
         {
             const string sql =

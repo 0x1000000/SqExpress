@@ -655,7 +655,7 @@ namespace SqExpress
         public static ExprQuerySpecification WithWhere(this ExprQuerySpecification original, ExprBoolean? newWhere) 
             => new ExprQuerySpecification(selectList: original.SelectList, top: original.Top, from: original.From, where: newWhere, groupBy: original.GroupBy, distinct: original.Distinct);
 
-        public static ExprQuerySpecification WithGroupBy(this ExprQuerySpecification original, IReadOnlyList<ExprColumn>? newGroupBy) 
+        public static ExprQuerySpecification WithGroupBy(this ExprQuerySpecification original, IReadOnlyList<ExprValue>? newGroupBy) 
             => new ExprQuerySpecification(selectList: original.SelectList, top: original.Top, from: original.From, where: original.Where, groupBy: newGroupBy, distinct: original.Distinct);
 
         public static ExprQuerySpecification WithDistinct(this ExprQuerySpecification original, Boolean newDistinct) 

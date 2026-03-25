@@ -1022,7 +1022,7 @@ This document is generated from the current `IExpr` hierarchy in the SqExpress s
 - Base: [IExprQueryExpression](#iexprqueryexpression)
 - Subnodes:
   - `From`: [IExprTableSource](#iexprtablesource)?
-  - `GroupBy`: IReadOnlyList<[ExprColumn](#exprcolumn)>?
+  - `GroupBy`: IReadOnlyList<[ExprValue](#exprvalue)>?
   - `SelectList`: IReadOnlyList<[IExprSelecting](#iexprselecting)>
   - `Top`: [ExprValue](#exprvalue)?
   - `Where`: [ExprBoolean](#exprboolean)?

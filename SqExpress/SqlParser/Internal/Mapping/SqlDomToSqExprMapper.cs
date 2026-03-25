@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using SqExpress.DbMetadata;
+using SqExpress.SqlExport;
 using SqExpress.SqlParser.Internal.Dom;
 using SqExpress.SqlParser.Internal.Parsing;
 using SqExpress.Syntax;
@@ -453,11 +454,11 @@ namespace SqExpress.SqlParser.Internal.Mapping
             var selectList = top.Items.Select(i => ParseSelectItem(i, scopedContext)).ToList();
             var selectAliases = BuildSelectAliasLookup(selectList);
             ExprBoolean? where = string.IsNullOrWhiteSpace(top.WhereSql) ? null : ParseBoolean(top.WhereSql!, scopedContext);
-            IReadOnlyList<ExprColumn>? groupBy = null;
+            IReadOnlyList<ExprValue>? groupBy = null;
             if (!string.IsNullOrWhiteSpace(top.GroupBySql))
             {
                 EnsureGroupByDoesNotReferenceSelectAliases(top.GroupBySql!, selectAliases);
-                groupBy = SplitComma(top.GroupBySql!).Select(i => ParseValue(i, scopedContext) as ExprColumn ?? throw new MapException("GROUP BY supports only columns.")).ToList();
+                groupBy = SplitComma(top.GroupBySql!).Select(i => ParseValue(i, scopedContext)).ToList();
             }
 
             ValidateGroupedSelectList(selectList, groupBy);
@@ -2721,7 +2722,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
             }
         }
 
-        private static void ValidateGroupedSelectList(IReadOnlyList<IExprSelecting> selectList, IReadOnlyList<ExprColumn>? groupBy)
+        private static void ValidateGroupedSelectList(IReadOnlyList<IExprSelecting> selectList, IReadOnlyList<ExprValue>? groupBy)
         {
             var inspections = selectList.Select(GroupedSelectInspection.Inspect).ToList();
             if (!inspections.Any(i => i.ContainsPlainAggregate) && (groupBy == null || groupBy.Count < 1))
@@ -2737,6 +2738,24 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     throw new MapException("SELECT list contains wildcard that is not allowed in grouped or aggregate query.");
                 }
 
+                if (!inspection.ContainsPlainAggregate)
+                {
+                    if (TryGetSelectingExpression(selectList[i], out var selectingExpression))
+                    {
+                        if (!ExpressionRequiresGrouping(selectingExpression))
+                        {
+                            continue;
+                        }
+
+                        if (!IsGroupedExpression(selectingExpression, groupBy))
+                        {
+                            throw new MapException("SELECT list contains expression that is neither grouped nor aggregated: " + FormatValueExpression(selectingExpression) + ".");
+                        }
+                    }
+
+                    continue;
+                }
+
                 for (var j = 0; j < inspection.NonAggregatedColumns.Count; j++)
                 {
                     var column = inspection.NonAggregatedColumns[j];
@@ -2748,7 +2767,48 @@ namespace SqExpress.SqlParser.Internal.Mapping
             }
         }
 
-        private static bool IsGroupedColumn(ExprColumn column, IReadOnlyList<ExprColumn>? groupBy)
+        private static bool TryGetSelectingExpression(IExprSelecting selecting, [NotNullWhen(true)] out ExprValue? expression)
+        {
+            switch (selecting)
+            {
+                case ExprAliasedColumn aliasedColumn:
+                    expression = aliasedColumn.Column;
+                    return true;
+                case ExprAliasedSelecting aliasedSelecting when aliasedSelecting.Value is ExprValue value:
+                    expression = value;
+                    return true;
+                case ExprValue value:
+                    expression = value;
+                    return true;
+                default:
+                    expression = null;
+                    return false;
+            }
+        }
+
+        private static bool IsGroupedExpression(ExprValue expression, IReadOnlyList<ExprValue>? groupBy)
+        {
+            if (groupBy == null || groupBy.Count < 1)
+            {
+                return false;
+            }
+
+            var target = TSqlExporter.Default.ToSql(expression);
+            for (var i = 0; i < groupBy.Count; i++)
+            {
+                if (string.Equals(TSqlExporter.Default.ToSql(groupBy[i]), target, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool ExpressionRequiresGrouping(ExprValue expression)
+            => expression.SyntaxTree().DescendantsAndSelf().OfType<ExprColumn>().Any();
+
+        private static bool IsGroupedColumn(ExprColumn column, IReadOnlyList<ExprValue>? groupBy)
         {
             if (groupBy == null || groupBy.Count < 1)
             {
@@ -2758,7 +2818,11 @@ namespace SqExpress.SqlParser.Internal.Mapping
             var columnSource = GetColumnSourceName(column);
             for (var i = 0; i < groupBy.Count; i++)
             {
-                var groupedColumn = groupBy[i];
+                if (groupBy[i] is not ExprColumn groupedColumn)
+                {
+                    continue;
+                }
+
                 if (!string.Equals(groupedColumn.ColumnName.Name, column.ColumnName.Name, StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
@@ -2792,6 +2856,9 @@ namespace SqExpress.SqlParser.Internal.Mapping
             var source = GetColumnSourceName(column);
             return source == null ? column.ColumnName.Name : source + "." + column.ColumnName.Name;
         }
+
+        private static string FormatValueExpression(ExprValue value)
+            => TSqlExporter.Default.ToSql(value);
 
         private static (ExprValue offset, ExprValue? fetch) ParseOffsetFetch(string sql, MappingContext context)
         {
