@@ -2,7 +2,7 @@
 
 namespace SqExpress.Syntax.Select
 {
-    public class ExprSelect : IExprQuery
+    public class ExprSelect : IExprReadOnlyQuery
     {
         public ExprSelect(IExprSubQuery selectQuery, ExprOrderBy orderBy)
         {

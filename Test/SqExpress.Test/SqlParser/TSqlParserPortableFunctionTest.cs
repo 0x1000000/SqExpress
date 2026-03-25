@@ -190,6 +190,18 @@ namespace SqExpress.Test.SqlParser
         }
 
         [Test]
+        public void ParseGroupedConcatenationOfGroupedColumns_MapsSuccessfully()
+        {
+            const string sql =
+                @"SELECT [e].[FirstName]+' '+[e].[LastName] [SalesRepName],[e].[EmployeeCode],SUM([sol].[Quantity]*[sol].[UnitPrice]) [TotalSales] FROM [ops].[SalesOrderLine] [sol] INNER JOIN [ops].[SalesOrder] [so] ON [sol].[SalesOrderId]=[so].[SalesOrderId] INNER JOIN [ref].[Employee] [e] ON [so].[SalesRepId]=[e].[EmployeeId] WHERE [so].[OrderDate]>=DATEFROMPARTS(YEAR(GETDATE()),1,1) GROUP BY [e].[FirstName],[e].[LastName],[e].[EmployeeCode] ORDER BY [TotalSales] DESC";
+
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+        }
+
+        [Test]
         public void ParseKnownNullFunctions_MapsToKnownNodes_AndExportsToPgSql()
         {
             const string sql =

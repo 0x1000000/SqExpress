@@ -2802,11 +2802,35 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 }
             }
 
-            return false;
+            return AreAllReferencedColumnsGrouped(expression, groupBy);
         }
 
         private static bool ExpressionRequiresGrouping(ExprValue expression)
             => expression.SyntaxTree().DescendantsAndSelf().OfType<ExprColumn>().Any();
+
+        private static bool AreAllReferencedColumnsGrouped(ExprValue expression, IReadOnlyList<ExprValue>? groupBy)
+        {
+            if (groupBy == null || groupBy.Count < 1)
+            {
+                return false;
+            }
+
+            var columns = expression.SyntaxTree().DescendantsAndSelf().OfType<ExprColumn>().ToList();
+            if (columns.Count < 1)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < columns.Count; i++)
+            {
+                if (!IsGroupedColumn(columns[i], groupBy))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
 
         private static bool IsGroupedColumn(ExprColumn column, IReadOnlyList<ExprValue>? groupBy)
         {

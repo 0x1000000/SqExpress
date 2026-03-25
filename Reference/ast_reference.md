@@ -80,12 +80,13 @@ This document is generated from the current `IExpr` hierarchy in the SqExpress s
       - [ExprDeleteOutput](#exprdeleteoutput)
       - [ExprInsertOutput](#exprinsertoutput)
       - [ExprQueryList](#exprquerylist)
-      - [ExprSelect](#exprselect)
-      - [IExprSubQuery](#iexprsubquery) _(interface)_
-        - [ExprSelectOffsetFetch](#exprselectoffsetfetch)
-        - [IExprQueryExpression](#iexprqueryexpression) _(interface)_
-          - [ExprQueryExpression](#exprqueryexpression)
-          - [ExprQuerySpecification](#exprqueryspecification)
+      - [IExprReadOnlyQuery](#iexprreadonlyquery) _(interface)_
+        - [ExprSelect](#exprselect)
+        - [IExprSubQuery](#iexprsubquery) _(interface)_
+          - [ExprSelectOffsetFetch](#exprselectoffsetfetch)
+          - [IExprQueryExpression](#iexprqueryexpression) _(interface)_
+            - [ExprQueryExpression](#exprqueryexpression)
+            - [ExprQuerySpecification](#exprqueryspecification)
   - [IExprInsertSource](#iexprinsertsource) _(interface)_
     - [ExprInsertQuery](#exprinsertquery)
     - [ExprInsertValues](#exprinsertvalues)
@@ -1048,7 +1049,7 @@ This document is generated from the current `IExpr` hierarchy in the SqExpress s
 ### ExprSelect
 
 - Kind: class
-- Base: [IExprQuery](#iexprquery)
+- Base: [IExprReadOnlyQuery](#iexprreadonlyquery)
 - Subnodes:
   - `OrderBy`: [ExprOrderBy](#exprorderby)
   - `SelectQuery`: [IExprSubQuery](#iexprsubquery)
@@ -1389,13 +1390,19 @@ This document is generated from the current `IExpr` hierarchy in the SqExpress s
 
 - Kind: interface
 - Base: [IExprComplete](#iexprcomplete)
-- Direct descendants: [ExprDeleteOutput](#exprdeleteoutput), [ExprInsertOutput](#exprinsertoutput), [ExprQueryList](#exprquerylist), [ExprSelect](#exprselect), [IExprSubQuery](#iexprsubquery)
+- Direct descendants: [ExprDeleteOutput](#exprdeleteoutput), [ExprInsertOutput](#exprinsertoutput), [ExprQueryList](#exprquerylist), [IExprReadOnlyQuery](#iexprreadonlyquery)
 
 ### IExprQueryExpression
 
 - Kind: interface
 - Base: [IExprSubQuery](#iexprsubquery)
 - Direct descendants: [ExprQueryExpression](#exprqueryexpression), [ExprQuerySpecification](#exprqueryspecification)
+
+### IExprReadOnlyQuery
+
+- Kind: interface
+- Base: [IExprQuery](#iexprquery)
+- Direct descendants: [ExprSelect](#exprselect), [IExprSubQuery](#iexprsubquery)
 
 ### IExprSelecting
 
@@ -1406,7 +1413,7 @@ This document is generated from the current `IExpr` hierarchy in the SqExpress s
 ### IExprSubQuery
 
 - Kind: interface
-- Base: [IExprQuery](#iexprquery)
+- Base: [IExprReadOnlyQuery](#iexprreadonlyquery)
 - Direct descendants: [ExprSelectOffsetFetch](#exprselectoffsetfetch), [IExprQueryExpression](#iexprqueryexpression)
 
 ### IExprTableFullName
