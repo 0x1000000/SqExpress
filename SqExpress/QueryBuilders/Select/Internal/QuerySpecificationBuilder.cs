@@ -14,7 +14,7 @@ namespace SqExpress.QueryBuilders.Select.Internal
         private readonly IReadOnlyList<IExprSelecting> _selectList;
         private IExprTableSource? _from;
         private ExprBoolean? _where;
-        private IReadOnlyList<ExprColumn>? _groupBy;
+        private IReadOnlyList<ExprValue>? _groupBy;
 
         public QuerySpecificationBuilder(ExprValue? top, bool distinct, IReadOnlyList<IExprSelecting> selectList)
         {
@@ -83,24 +83,24 @@ namespace SqExpress.QueryBuilders.Select.Internal
             return this;
         }
 
-        public IQuerySpecificationBuilderFinal GroupBy(ExprColumn column, params ExprColumn[] otherColumns)
+        public IQuerySpecificationBuilderFinal GroupBy(ExprValue value, params ExprValue[] otherValues)
         {
             this._groupBy.AssertFatalNull(nameof(this._groupBy));
-            this._groupBy = Helpers.Combine(column, otherColumns);
+            this._groupBy = Helpers.Combine(value, otherValues);
             return this;
         }
 
-        public IQuerySpecificationBuilderFinal GroupBy(ExprColumn column1, ExprColumn column2, params ExprColumn[] otherColumns)
+        public IQuerySpecificationBuilderFinal GroupBy(ExprValue value1, ExprValue value2, params ExprValue[] otherValues)
         {
             this._groupBy.AssertFatalNull(nameof(this._groupBy));
-            this._groupBy = Helpers.Combine(column1, column2, otherColumns);
+            this._groupBy = Helpers.Combine(value1, value2, otherValues);
             return this;
         }
 
-        public IQuerySpecificationBuilderFinal GroupBy(IReadOnlyList<ExprColumn> columns)
+        public IQuerySpecificationBuilderFinal GroupBy(IReadOnlyList<ExprValue> values)
         {
             this._groupBy.AssertFatalNull(nameof(this._groupBy));
-            this._groupBy = columns.AssertNotEmpty("Grouping column list in cannot be empty.");
+            this._groupBy = values.AssertNotEmpty("Grouping value list cannot be empty.");
             return this;
         }
 

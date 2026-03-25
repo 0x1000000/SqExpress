@@ -44,16 +44,13 @@ namespace SqExpress.IntTest.Scenarios
 
                 ExprValue yearModuloBucket = Year(table.CreatedAt) % UnsafeValue("2");
 
-                var baseQuery = Select(
+                var query = Select(
                         yearModuloBucket.As(clYearModulo),
                         Sum(table.Amount).As(clTotalAmount))
                     .From(table)
-                    .GroupBy(table.CreatedAt)
+                    .GroupBy(yearModuloBucket)
                     .OrderBy(Asc(clYearModulo))
                     .Done();
-
-                var query = baseQuery.WithSelectQuery(
-                    ((ExprQuerySpecification)baseQuery.SelectQuery).WithGroupBy(new[] { yearModuloBucket }));
 
                 var result = await query.QueryList(context.Database, r => new
                 {
