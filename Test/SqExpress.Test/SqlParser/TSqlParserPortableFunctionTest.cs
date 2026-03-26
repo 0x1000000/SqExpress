@@ -202,6 +202,18 @@ namespace SqExpress.Test.SqlParser
         }
 
         [Test]
+        public void ParseOrderByAggregateExpressionInGroupedQuery_MapsSuccessfully()
+        {
+            const string sql =
+                @"SELECT TOP 5 [p].[ProductName],SUM([ol].[Quantity]) [TotalSold] FROM [ref].[Product] [p] INNER JOIN [ops].[SalesOrderLine] [ol] ON [p].[ProductId]=[ol].[ProductId] INNER JOIN [ops].[SalesOrder] [so] ON [so].[SalesOrderId]=[ol].[SalesOrderId] WHERE [so].[OrderDate] BETWEEN DATEADD(YEAR,-1,GETDATE()) AND GETDATE() GROUP BY [p].[ProductName] ORDER BY SUM([ol].[Quantity]) DESC";
+
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+        }
+
+        [Test]
         public void ParseKnownNullFunctions_MapsToKnownNodes_AndExportsToPgSql()
         {
             const string sql =

@@ -181,6 +181,26 @@ namespace SqExpress.Test.SqlParser
         }
 
         [Test]
+        public void TryParse_WithExistingTables_WhenIndexAndMetaDiffer_StillReturnsTrue()
+        {
+            var sql = "SELECT [u].[Id] FROM [dbo].[Users] [u]";
+            var existing = new TableBase[]
+            {
+                SqTable.Create(
+                    "dbo",
+                    "Users",
+                    a => a.AppendInt32Column("Id", ColumnMeta.PrimaryKey().Identity().DefaultValue(1)),
+                    i => i.AppendIndex(i.Asc("Id")))
+            };
+
+            var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(error, Is.Null);
+        }
+
+        [Test]
         public void TryParse_WithExistingTables_WhenSimpleUpdateWithoutFrom_UsesUpdateTargetTableForValidation()
         {
             var sql = "UPDATE [dbo].[Users] SET [Name]='X' WHERE [Id]=1";

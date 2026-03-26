@@ -3100,6 +3100,23 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     return new ExprInValues(left, SplitComma(nested).Select(i => new ExprParser(string.Join(" ", i.Select(t => t.Text)), this._context).ParseValue()).ToList());
                 }
 
+                if (this.TryKeyword("BETWEEN"))
+                {
+                    var lower = this.ParseAddSub();
+                    this.ExpectKeyword("AND", "Expected AND in BETWEEN predicate.");
+                    var upper = this.ParseAddSub();
+                    return new ExprBooleanAnd(new ExprBooleanGtEq(left, lower), new ExprBooleanLtEq(left, upper));
+                }
+
+                if (this.PeekKeyword("NOT") && this.PeekKeyword("BETWEEN", 1))
+                {
+                    this._index += 2;
+                    var lower = this.ParseAddSub();
+                    this.ExpectKeyword("AND", "Expected AND in BETWEEN predicate.");
+                    var upper = this.ParseAddSub();
+                    return new ExprBooleanNot(new ExprBooleanAnd(new ExprBooleanGtEq(left, lower), new ExprBooleanLtEq(left, upper)));
+                }
+
                 var op = this.TryReadComparison();
                 if (op == null)
                 {
@@ -4289,6 +4306,12 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 }
 
                 return false;
+            }
+
+            private bool PeekKeyword(string keyword, int offset = 0)
+            {
+                var index = this._index + offset;
+                return index < this._tokens.Count && this._tokens[index].IsKeyword(keyword);
             }
 
             private void ExpectKeyword(string keyword, string error)

@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using NUnit.Framework;
 using SqExpress.DbMetadata;
+using SqExpress.Syntax.Value;
 
 namespace SqExpress.Test.Meta
 {
@@ -248,6 +249,374 @@ namespace SqExpress.Test.Meta
             var diff = new TableBase[] { users, orders }.CompareWith(new TableBase[] { users, orders });
 
             Assert.That(diff, Is.Null);
+        }
+
+        [Test]
+        public void CompareWith_TableList_WhenIgnoreSchema_MatchesSameTable()
+        {
+            var expected = new TableBase[]
+            {
+                SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"))
+            };
+            var actual = new TableBase[]
+            {
+                SqTable.Create("sales", "Users", a => a.AppendInt32Column("Id"))
+            };
+
+            var diff = expected.CompareWith(actual, TableComparisonFlags.IgnoreSchema);
+
+            Assert.That(diff, Is.Null);
+        }
+
+        [Test]
+        public void CompareWith_TableList_WhenIgnoreDatabase_MatchesSameTable()
+        {
+            var expected = new TableBase[]
+            {
+                SqTable.Create("MainDb", "dbo", "Users", a => a.AppendInt32Column("Id"))
+            };
+            var actual = new TableBase[]
+            {
+                SqTable.Create("ArchiveDb", "dbo", "Users", a => a.AppendInt32Column("Id"))
+            };
+
+            var diff = expected.CompareWith(actual, TableComparisonFlags.IgnoreDatabase);
+
+            Assert.That(diff, Is.Null);
+        }
+
+        [Test]
+        public void CompareWith_TableList_WhenCustomKeyExtractorProvided_TakesPrecedenceOverFlags()
+        {
+            var expected = new TableBase[]
+            {
+                SqTable.Create("MainDb", "dbo", "Users", a => a.AppendInt32Column("Id"))
+            };
+            var actual = new TableBase[]
+            {
+                SqTable.Create("ArchiveDb", "sales", "Users", a => a.AppendInt32Column("Id"))
+            };
+
+            var diff = expected.CompareWith(
+                actual,
+                TableComparisonFlags.Strict,
+                fullName => fullName.AsExprTableFullName().TableName.Name);
+
+            Assert.That(diff, Is.Null);
+        }
+
+        [Test]
+        public void CompareWith_Table_WhenIgnoreIndexes_ReturnsNullForIndexOnlyDifference()
+        {
+            var expected = SqTable.Create(
+                "dbo",
+                "Users",
+                a => a.AppendInt32Column("Id"),
+                i => i.AppendIndex(i.Asc("Id")));
+            var actual = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"));
+
+            var diff = expected.CompareWith(actual, TableComparisonFlags.IgnoreIndexes);
+
+            Assert.That(diff, Is.Null);
+        }
+
+        [Test]
+        public void CompareWith_Table_WhenIgnoreColumnTypes_ReturnsNullForTypeDifference()
+        {
+            var expected = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"));
+            var actual = SqTable.Create("dbo", "Users", a => a.AppendStringColumn("Id", 255, isUnicode: true));
+
+            var diff = expected.CompareWith(actual, TableComparisonFlags.IgnoreColumnTypes);
+
+            Assert.That(diff, Is.Null);
+        }
+
+        [Test]
+        public void CompareWith_Table_WhenIgnoreColumnTypeArguments_ReturnsNullForArgumentDifferenceButNotTypeDifference()
+        {
+            var sizeExpected = SqTable.Create("dbo", "Users", a => a.AppendStringColumn("Name", 128, isUnicode: true));
+            var sizeActual = SqTable.Create("dbo", "Users", a => a.AppendStringColumn("Name", 64, isUnicode: true));
+
+            var sizeDiff = sizeExpected.CompareWith(sizeActual, TableComparisonFlags.IgnoreColumnTypeArguments);
+
+            Assert.That(sizeDiff, Is.Null);
+
+            var typeExpected = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Name"));
+            var typeActual = SqTable.Create("dbo", "Users", a => a.AppendStringColumn("Name", 64, isUnicode: true));
+
+            var typeDiff = typeExpected.CompareWith(typeActual, TableComparisonFlags.IgnoreColumnTypeArguments);
+
+            Assert.That(typeDiff, Is.Not.Null);
+            Assert.That(typeDiff!.DifferentColumns.Count, Is.EqualTo(1));
+            Assert.That(typeDiff.DifferentColumns[0].ColumnComparison.HasFlag(TableColumnComparison.DifferentType), Is.True);
+        }
+
+        [Test]
+        public void CompareWith_Table_WhenIgnoreColumnNullability_ReturnsNullForNullabilityDifference()
+        {
+            var expected = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"));
+            var actual = SqTable.Create("dbo", "Users", a => a.AppendNullableInt32Column("Id"));
+
+            var diff = expected.CompareWith(actual, TableComparisonFlags.IgnoreColumnNullability);
+
+            Assert.That(diff, Is.Null);
+        }
+
+        [Test]
+        public void CompareWith_Table_WhenIgnoreColumnMeta_ReturnsNullForMetaDifference()
+        {
+            var expected = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id", ColumnMeta.PrimaryKey().Identity().DefaultValue(1)));
+            var actual = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"));
+
+            var diff = expected.CompareWith(actual, TableComparisonFlags.IgnoreColumnMeta);
+
+            Assert.That(diff, Is.Null);
+        }
+
+        [Test]
+        public void CompareWith_Table_WhenIgnoreColumnPrimaryKey_OnlySuppressesPrimaryKeyDifference()
+        {
+            var expected = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id", ColumnMeta.PrimaryKey().DefaultValue(1)));
+            var actual = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"));
+
+            var diff = expected.CompareWith(actual, TableComparisonFlags.IgnoreColumnPrimaryKey);
+
+            Assert.That(diff, Is.Not.Null);
+            Assert.That(diff!.DifferentColumns.Count, Is.EqualTo(1));
+            Assert.That(diff.DifferentColumns[0].ColumnComparison.HasFlag(TableColumnComparison.DifferentMeta), Is.True);
+        }
+
+        [Test]
+        public void Includes_WhenOtherIsSubset_ReturnsTrue()
+        {
+            var superset = new TableBase[]
+            {
+                SqTable.Create("dbo", "Users", a => a
+                    .AppendInt32Column("Id")
+                    .AppendStringColumn("Name", 255, isUnicode: true)
+                    .AppendBooleanColumn("IsActive")),
+                SqTable.Create("dbo", "Orders", a => a.AppendInt32Column("OrderId"))
+            };
+            var subset = new TableBase[]
+            {
+                SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"))
+            };
+
+            var includes = superset.Includes(subset);
+
+            Assert.That(includes, Is.True);
+        }
+
+        [Test]
+        public void Includes_WhenOnlyIndexesAndMetaDiffer_ReturnsTrue()
+        {
+            var superset = new TableBase[]
+            {
+                SqTable.Create(
+                    "dbo",
+                    "Users",
+                    a => a.AppendInt32Column("Id"),
+                    i => i.AppendIndex(i.Asc("Id")))
+            };
+            var subset = new TableBase[]
+            {
+                SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id", ColumnMeta.PrimaryKey().DefaultValue(1)))
+            };
+
+            var includes = superset.Includes(subset);
+
+            Assert.That(includes, Is.True);
+        }
+
+        [Test]
+        public void Includes_WhenOtherHasMissingTable_ReturnsFalse()
+        {
+            var superset = new TableBase[]
+            {
+                SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"))
+            };
+            var subset = new TableBase[]
+            {
+                SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id")),
+                SqTable.Create("dbo", "Orders", a => a.AppendInt32Column("OrderId"))
+            };
+
+            var includes = superset.Includes(subset);
+
+            Assert.That(includes, Is.False);
+        }
+
+        [Test]
+        public void Includes_WhenOtherHasMissingColumn_ReturnsFalse()
+        {
+            var superset = new TableBase[]
+            {
+                SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"))
+            };
+            var subset = new TableBase[]
+            {
+                SqTable.Create("dbo", "Users", a => a
+                    .AppendInt32Column("Id")
+                    .AppendStringColumn("Name", 255, isUnicode: true))
+            };
+
+            var includes = superset.Includes(subset);
+
+            Assert.That(includes, Is.False);
+        }
+
+        [Test]
+        public void Includes_WhenTypeMismatchExists_ReturnsFalseUnlessIgnoreColumnShapeProvided()
+        {
+            var superset = new TableBase[]
+            {
+                SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"))
+            };
+            var subset = new TableBase[]
+            {
+                SqTable.Create("dbo", "Users", a => a.AppendStringColumn("Id", 255, isUnicode: true))
+            };
+
+            Assert.That(superset.Includes(subset), Is.False);
+            Assert.That(superset.Includes(subset, TableComparisonFlags.IgnoreColumnShape), Is.True);
+        }
+
+        [Test]
+        public void Includes_WhenIgnoreSchemaProvided_UsesBuiltInMatchingRule()
+        {
+            var superset = new TableBase[]
+            {
+                SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"))
+            };
+            var subset = new TableBase[]
+            {
+                SqTable.Create("sales", "Users", a => a.AppendInt32Column("Id"))
+            };
+
+            var includes = superset.Includes(subset, TableComparisonFlags.IgnoreSchema);
+
+            Assert.That(includes, Is.True);
+        }
+
+        [Test]
+        public void Includes_WhenCustomKeyExtractorProvided_UsesExtractor()
+        {
+            var superset = new TableBase[]
+            {
+                SqTable.Create("MainDb", "dbo", "Users", a => a.AppendInt32Column("Id"))
+            };
+            var subset = new TableBase[]
+            {
+                SqTable.Create("ArchiveDb", "sales", "Users", a => a.AppendInt32Column("Id"))
+            };
+
+            var includes = superset.Includes(
+                subset,
+                TableComparisonFlags.Strict,
+                fullName => fullName.AsExprTableFullName().TableName.Name);
+
+            Assert.That(includes, Is.True);
+        }
+
+        [Test]
+        public void CompareWith_Table_WhenIgnoreMissingColumns_ReturnsNullForMissingColumnDifference()
+        {
+            var expected = SqTable.Create("dbo", "Users", a => a
+                .AppendInt32Column("Id")
+                .AppendStringColumn("Name", 255, isUnicode: true));
+            var actual = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"));
+
+            var diff = expected.CompareWith(actual, TableComparisonFlags.IgnoreMissingColumns);
+
+            Assert.That(diff, Is.Null);
+        }
+
+        [Test]
+        public void CompareWith_Table_WhenIgnoreExtraColumns_ReturnsNullForExtraColumnDifference()
+        {
+            var expected = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"));
+            var actual = SqTable.Create("dbo", "Users", a => a
+                .AppendInt32Column("Id")
+                .AppendStringColumn("Name", 255, isUnicode: true));
+
+            var diff = expected.CompareWith(actual, TableComparisonFlags.IgnoreExtraColumns);
+
+            Assert.That(diff, Is.Null);
+        }
+
+        [Test]
+        public void CompareWith_Table_WhenIgnoreColumnIdentity_OnlySuppressesIdentityDifference()
+        {
+            var expected = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id", ColumnMeta.Identity().DefaultValue(1)));
+            var actual = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id", ColumnMeta.DefaultValue(1)));
+
+            var diff = expected.CompareWith(actual, TableComparisonFlags.IgnoreColumnIdentity);
+
+            Assert.That(diff, Is.Null);
+        }
+
+        [Test]
+        public void CompareWith_Table_WhenIgnoreColumnForeignKeys_OnlySuppressesForeignKeyDifference()
+        {
+            var expected = new OrdersWithForeignKeyTable();
+            var actual = new OrdersWithoutForeignKeyTable();
+
+            var diff = expected.CompareWith(actual, TableComparisonFlags.IgnoreColumnForeignKeys);
+
+            Assert.That(diff, Is.Null);
+        }
+
+        [Test]
+        public void CompareWith_Table_WhenIgnoreColumnDefaultValues_OnlySuppressesDefaultValueDifference()
+        {
+            var expected = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id", ColumnMeta.DefaultValue(1)));
+            var actual = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id", ColumnMeta.DefaultValue(2)));
+
+            var diff = expected.CompareWith(actual, TableComparisonFlags.IgnoreColumnDefaultValues);
+
+            Assert.That(diff, Is.Null);
+        }
+
+        private class UsersTable : TableBase
+        {
+            public UsersTable() : this(default)
+            {
+            }
+
+            public UsersTable(Alias alias = default) : base("meta", "UsersFk", alias)
+            {
+                this.Id = this.CreateInt32Column("Id", ColumnMeta.PrimaryKey());
+            }
+
+            public Int32TableColumn Id { get; }
+        }
+
+        private class OrdersWithForeignKeyTable : TableBase
+        {
+            public OrdersWithForeignKeyTable() : this(default)
+            {
+            }
+
+            public OrdersWithForeignKeyTable(Alias alias = default) : base("meta", "OrdersFk", alias)
+            {
+                this.UserId = this.CreateInt32Column("UserId", ColumnMeta.DefaultValue(1).ForeignKey<UsersTable>(u => u.Id));
+            }
+
+            public Int32TableColumn UserId { get; }
+        }
+
+        private class OrdersWithoutForeignKeyTable : TableBase
+        {
+            public OrdersWithoutForeignKeyTable() : this(default)
+            {
+            }
+
+            public OrdersWithoutForeignKeyTable(Alias alias = default) : base("meta", "OrdersFk", alias)
+            {
+                this.UserId = this.CreateInt32Column("UserId", ColumnMeta.DefaultValue(1));
+            }
+
+            public Int32TableColumn UserId { get; }
         }
     }
 }
