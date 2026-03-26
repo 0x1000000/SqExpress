@@ -32,6 +32,9 @@
   - class-level `SqModel` on `[TableDescriptor]` / `[TempTableDescriptor]`
   - column-level `SqModels` and `SqModelCast`
   - source-generated DTO models now default to `record` shape when generated from analyzer-driven table declarations
+- Added flags-based table comparison and inclusion helpers:
+  - `TableComparisonFlags` for `CompareWith(...)`
+  - `TableIncludesFlags` for `Includes(...)`
 - Added column-shape extraction helpers used by the `MERGE` polyfill to infer projected column names and SQL types from subqueries and table sources.
 - Added `TypedColumn` as a shared typed-column abstraction for table and custom columns.
 

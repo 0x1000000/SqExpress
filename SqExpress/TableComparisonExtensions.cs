@@ -315,12 +315,12 @@ public static class TableComparisonExtensions
     public static bool Includes(
         this IReadOnlyList<TableBase> thisList,
         IReadOnlyList<TableBase> otherList,
-        TableComparisonFlags flags = TableComparisonFlags.Strict,
+        TableIncludesFlags flags = TableIncludesFlags.Strict,
         Func<IExprTableFullName, object>? tableNameKeyExtractor = null)
     {
         var comparison = thisList.CompareWith(
             otherList,
-            flags | TableComparisonFlags.IgnoreMissingColumns | TableComparisonFlags.IgnoreIndexes |
+            ToComparisonFlags(flags) | TableComparisonFlags.IgnoreMissingColumns | TableComparisonFlags.IgnoreIndexes |
             TableComparisonFlags.IgnoreColumnMeta,
             tableNameKeyExtractor
         );
@@ -332,6 +332,77 @@ public static class TableComparisonExtensions
 
         return comparison.ExtraTables.Count == 0
                && comparison.DifferentTables.Count == 0;
+    }
+
+    private static TableComparisonFlags ToComparisonFlags(TableIncludesFlags flags)
+    {
+        var result = TableComparisonFlags.Strict;
+
+        if (HasFlag(flags, TableIncludesFlags.IgnoreDatabase))
+        {
+            result |= TableComparisonFlags.IgnoreDatabase;
+        }
+
+        if (HasFlag(flags, TableIncludesFlags.IgnoreSchema))
+        {
+            result |= TableComparisonFlags.IgnoreSchema;
+        }
+
+        if (HasFlag(flags, TableIncludesFlags.IgnoreIndexes))
+        {
+            result |= TableComparisonFlags.IgnoreIndexes;
+        }
+
+        if (HasFlag(flags, TableIncludesFlags.IgnoreColumnShape))
+        {
+            result |= TableComparisonFlags.IgnoreColumnShape;
+        }
+        else
+        {
+            if (HasFlag(flags, TableIncludesFlags.IgnoreColumnTypes))
+            {
+                result |= TableComparisonFlags.IgnoreColumnTypes;
+            }
+
+            if (HasFlag(flags, TableIncludesFlags.IgnoreColumnTypeArguments))
+            {
+                result |= TableComparisonFlags.IgnoreColumnTypeArguments;
+            }
+
+            if (HasFlag(flags, TableIncludesFlags.IgnoreColumnNullability))
+            {
+                result |= TableComparisonFlags.IgnoreColumnNullability;
+            }
+        }
+
+        if (HasFlag(flags, TableIncludesFlags.IgnoreColumnMeta))
+        {
+            result |= TableComparisonFlags.IgnoreColumnMeta;
+        }
+        else
+        {
+            if (HasFlag(flags, TableIncludesFlags.IgnoreColumnPrimaryKey))
+            {
+                result |= TableComparisonFlags.IgnoreColumnPrimaryKey;
+            }
+
+            if (HasFlag(flags, TableIncludesFlags.IgnoreColumnIdentity))
+            {
+                result |= TableComparisonFlags.IgnoreColumnIdentity;
+            }
+
+            if (HasFlag(flags, TableIncludesFlags.IgnoreColumnForeignKeys))
+            {
+                result |= TableComparisonFlags.IgnoreColumnForeignKeys;
+            }
+
+            if (HasFlag(flags, TableIncludesFlags.IgnoreColumnDefaultValues))
+            {
+                result |= TableComparisonFlags.IgnoreColumnDefaultValues;
+            }
+        }
+
+        return result;
     }
 
     private static object BuildTableKey(IExprTableFullName fullName, TableComparisonFlags flags)
@@ -418,6 +489,9 @@ public static class TableComparisonExtensions
     private static bool HasFlag(TableComparisonFlags flags, TableComparisonFlags value)
         => (flags & value) == value;
 
+    private static bool HasFlag(TableIncludesFlags flags, TableIncludesFlags value)
+        => (flags & value) == value;
+
     private static bool ShouldIgnoreColumnPrimaryKey(TableComparisonFlags flags)
         => HasFlag(flags, TableComparisonFlags.IgnoreColumnMeta) ||
            HasFlag(flags, TableComparisonFlags.IgnoreColumnPrimaryKey);
@@ -476,6 +550,26 @@ public enum TableComparisonFlags
     IgnoreColumnIdentity = 1 << 9,
     IgnoreColumnForeignKeys = 1 << 10,
     IgnoreColumnDefaultValues = 1 << 11,
+
+    IgnoreColumnMeta = IgnoreColumnPrimaryKey | IgnoreColumnIdentity | IgnoreColumnForeignKeys |
+                       IgnoreColumnDefaultValues,
+    IgnoreColumnShape = IgnoreColumnTypes | IgnoreColumnTypeArguments | IgnoreColumnNullability
+}
+
+[Flags]
+public enum TableIncludesFlags
+{
+    Strict = 0,
+    IgnoreDatabase = 1 << 0,
+    IgnoreSchema = 1 << 1,
+    IgnoreIndexes = 1 << 2,
+    IgnoreColumnTypes = 1 << 3,
+    IgnoreColumnTypeArguments = 1 << 4,
+    IgnoreColumnNullability = 1 << 5,
+    IgnoreColumnPrimaryKey = 1 << 6,
+    IgnoreColumnIdentity = 1 << 7,
+    IgnoreColumnForeignKeys = 1 << 8,
+    IgnoreColumnDefaultValues = 1 << 9,
 
     IgnoreColumnMeta = IgnoreColumnPrimaryKey | IgnoreColumnIdentity | IgnoreColumnForeignKeys |
                        IgnoreColumnDefaultValues,

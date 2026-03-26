@@ -478,7 +478,7 @@ namespace SqExpress.Test.Meta
             };
 
             Assert.That(superset.Includes(subset), Is.False);
-            Assert.That(superset.Includes(subset, TableComparisonFlags.IgnoreColumnShape), Is.True);
+            Assert.That(superset.Includes(subset, TableIncludesFlags.IgnoreColumnShape), Is.True);
         }
 
         [Test]
@@ -493,7 +493,7 @@ namespace SqExpress.Test.Meta
                 SqTable.Create("sales", "Users", a => a.AppendInt32Column("Id"))
             };
 
-            var includes = superset.Includes(subset, TableComparisonFlags.IgnoreSchema);
+            var includes = superset.Includes(subset, TableIncludesFlags.IgnoreSchema);
 
             Assert.That(includes, Is.True);
         }
@@ -512,10 +512,42 @@ namespace SqExpress.Test.Meta
 
             var includes = superset.Includes(
                 subset,
-                TableComparisonFlags.Strict,
+                TableIncludesFlags.Strict,
                 fullName => fullName.AsExprTableFullName().TableName.Name);
 
             Assert.That(includes, Is.True);
+        }
+
+        [Test]
+        public void Includes_WhenNullabilityMismatchExists_ReturnsFalseUnlessIgnoreNullabilityProvided()
+        {
+            var superset = new TableBase[]
+            {
+                SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"))
+            };
+            var subset = new TableBase[]
+            {
+                SqTable.Create("dbo", "Users", a => a.AppendNullableInt32Column("Id"))
+            };
+
+            Assert.That(superset.Includes(subset), Is.False);
+            Assert.That(superset.Includes(subset, TableIncludesFlags.IgnoreColumnNullability), Is.True);
+        }
+
+        [Test]
+        public void Includes_WhenDefaultValueMismatchExists_ReturnsTrueByDefaultAndWithDedicatedFlags()
+        {
+            var superset = new TableBase[]
+            {
+                SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id", ColumnMeta.DefaultValue(1)))
+            };
+            var subset = new TableBase[]
+            {
+                SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id", ColumnMeta.DefaultValue(2)))
+            };
+
+            Assert.That(superset.Includes(subset), Is.True);
+            Assert.That(superset.Includes(subset, TableIncludesFlags.IgnoreColumnDefaultValues), Is.True);
         }
 
         [Test]
