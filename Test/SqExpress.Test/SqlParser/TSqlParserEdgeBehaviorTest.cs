@@ -108,6 +108,17 @@ namespace SqExpress.Test.SqlParser
         }
 
         [Test]
+        public void MergeWithAsAliases_MapsSuccessfully()
+        {
+            var sql = "MERGE dbo.Target AS t USING (SELECT 1 AS Id, 'A' AS Name) AS s ON t.Id = s.Id WHEN MATCHED THEN UPDATE SET t.Name = s.Name WHEN NOT MATCHED THEN INSERT (Id, Name) VALUES (s.Id, s.Name);";
+
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+        }
+
+        [Test]
         public void CommentsAreIgnoredByTokenizer()
         {
             var sql = "/*head*/ SELECT [u].[UserId] -- tail\nFROM [dbo].[Users] [u]";

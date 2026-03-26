@@ -46,6 +46,13 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 return false;
             }
 
+            if (ContainsMalformedQuantifiedPredicate(tokens, out var malformedQuantifiedError))
+            {
+                statement = null;
+                errors = new[] { malformedQuantifiedError };
+                return false;
+            }
+
             var cursor = new TokenCursor(tokens, rawSql);
             var withClause = ParseWithClause(cursor);
             var kind = DetermineStatementKind(cursor.Current);
@@ -166,6 +173,33 @@ namespace SqExpress.SqlParser.Internal.Parsing
             return false;
         }
 
+        private static bool ContainsMalformedQuantifiedPredicate(IReadOnlyList<SqlToken> tokens, [NotNullWhen(true)] out string? error)
+        {
+            for (var i = 1; i < tokens.Count; i++)
+            {
+                if (!tokens[i].IsKeyword("ANY") && !tokens[i].IsKeyword("SOME") && !tokens[i].IsKeyword("ALL"))
+                {
+                    continue;
+                }
+
+                if (tokens[i - 1].Type != SqlTokenType.Operator)
+                {
+                    continue;
+                }
+
+                if (i + 1 < tokens.Count && tokens[i + 1].Type == SqlTokenType.OpenParen)
+                {
+                    continue;
+                }
+
+                error = $"Syntax error: incorrect syntax near '{tokens[i].Text}'.";
+                return true;
+            }
+
+            error = null;
+            return false;
+        }
+
         private static bool TryDetectBasicSyntaxError(
             string sql,
             IReadOnlyList<SqlToken> tokens,
@@ -176,6 +210,12 @@ namespace SqExpress.SqlParser.Internal.Parsing
         {
             if (kind == SqlDomStatementKind.Unknown)
             {
+                if (statementStartIndex < tokens.Count && tokens[statementStartIndex].IsKeyword("AS"))
+                {
+                    error = "Syntax error: incorrect syntax near 'AS'.";
+                    return true;
+                }
+
                 error = "Unsupported or invalid statement start.";
                 return true;
             }
@@ -233,6 +273,11 @@ namespace SqExpress.SqlParser.Internal.Parsing
             }
 
             if (TryDetectInvalidNestedQueryOperand(sql, tokens, out error))
+            {
+                return true;
+            }
+
+            if (TryDetectOrderWithoutBy(tokens, out error))
             {
                 return true;
             }
@@ -300,6 +345,12 @@ namespace SqExpress.SqlParser.Internal.Parsing
             if (!string.IsNullOrWhiteSpace(selectClause.HavingSql))
             {
                 error = "Feature 'HAVING' is not supported by SqExpress parser.";
+                return true;
+            }
+
+            if (selectClause.HasHavingClause)
+            {
+                error = "Syntax error: incorrect syntax near 'HAVING'.";
                 return true;
             }
 
@@ -1482,6 +1533,30 @@ namespace SqExpress.SqlParser.Internal.Parsing
             return false;
         }
 
+        private static bool TryDetectOrderWithoutBy(IReadOnlyList<SqlToken> tokens, [NotNullWhen(true)] out string? error)
+        {
+            for (var i = 0; i < tokens.Count; i++)
+            {
+                if (!tokens[i].IsKeyword("ORDER"))
+                {
+                    continue;
+                }
+
+                if (i + 1 < tokens.Count && tokens[i + 1].IsKeyword("BY"))
+                {
+                    continue;
+                }
+
+                error = i + 1 < tokens.Count
+                    ? "Syntax error: incorrect syntax near '" + tokens[i + 1].Text + "'."
+                    : "Syntax error: ORDER BY clause is invalid.";
+                return true;
+            }
+
+            error = null;
+            return false;
+        }
+
         private static bool HasUnexpectedOnWithoutJoin(IReadOnlyList<SqlToken> tokens, int statementStartIndex)
         {
             var fromIndex = FindTopLevelKeywordIndex(tokens, statementStartIndex + 1, "FROM");
@@ -1578,6 +1653,11 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 else if (index < tokens.Count)
                 {
                     index++;
+                }
+
+                if (index < tokens.Count && tokens[index].IsKeyword("WITH") && IsKeyword(tokens, index + 1, "TIES"))
+                {
+                    index += 2;
                 }
             }
 
@@ -1795,6 +1875,11 @@ namespace SqExpress.SqlParser.Internal.Parsing
 
             while (cursor.Current.IsIdentifierLike)
             {
+                if (cursor.Current.IsKeyword("AS"))
+                {
+                    break;
+                }
+
                 var cteName = cursor.Current.IdentifierValue;
                 cursor.MoveNext();
 
@@ -1829,6 +1914,11 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 cursor.Index = closeIndex + 1;
                 if (cursor.Current.Type == SqlTokenType.Comma)
                 {
+                    if (cursor.Index + 1 >= cursor.Tokens.Count || !cursor.Tokens[cursor.Index + 1].IsIdentifierLike)
+                    {
+                        break;
+                    }
+
                     cursor.MoveNext();
                     continue;
                 }
@@ -1885,6 +1975,11 @@ namespace SqExpress.SqlParser.Internal.Parsing
                     index++;
                 }
 
+                if (tokens[index].IsKeyword("WITH") && IsKeyword(tokens, index + 1, "TIES"))
+                {
+                    index += 2;
+                }
+
                 topSql = SliceSql(sql, tokens, topStart, index);
             }
 
@@ -1902,6 +1997,7 @@ namespace SqExpress.SqlParser.Internal.Parsing
             string? whereSql = null;
             string? groupBySql = null;
             string? havingSql = null;
+            var hasHavingClause = false;
             string? orderBySql = null;
             string? offsetFetchSql = null;
             var hasSetOperation = false;
@@ -1957,6 +2053,7 @@ namespace SqExpress.SqlParser.Internal.Parsing
 
                 if (tokens[current].IsKeyword("HAVING"))
                 {
+                    hasHavingClause = true;
                     var end = FindFirstTopLevel(tokens, current + 1, new[] { "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT" });
                     if (end < 0)
                     {
@@ -2012,6 +2109,7 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 hasFromClause,
                 whereSql,
                 groupBySql,
+                hasHavingClause,
                 havingSql,
                 orderBySql,
                 offsetFetchSql,
@@ -2137,6 +2235,19 @@ namespace SqExpress.SqlParser.Internal.Parsing
 
             while (index < endExclusive)
             {
+                if (tokens[index].Type == SqlTokenType.Comma)
+                {
+                    index++;
+                    var rightCross = ParseTableFactor(sql, tokens, ref index, endExclusive);
+                    if (rightCross == null)
+                    {
+                        return null;
+                    }
+
+                    left = new SqlDomJoinedTableSource(left, rightCross, SqlDomJoinType.Cross, null);
+                    continue;
+                }
+
                 if (!TryParseJoinType(tokens, ref index, endExclusive, out var joinType))
                 {
                     break;
@@ -2145,7 +2256,7 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 var right = ParseTableFactor(sql, tokens, ref index, endExclusive);
                 if (right == null)
                 {
-                    break;
+                    return null;
                 }
 
                 if ((joinType == SqlDomJoinType.CrossApply || joinType == SqlDomJoinType.OuterApply)

@@ -214,6 +214,38 @@ namespace SqExpress.Test.SqlParser
         }
 
         [Test]
+        public void ParseGroupedFormatFunctionAndOrderByAlias_MapsSuccessfully()
+        {
+            const string sql =
+                @"SELECT FORMAT([ops].[Invoice].[InvoiceDate],'yyyy-MM') [Month],COUNT(*) [InvoiceCount] FROM [ops].[Invoice] WHERE [InvoiceDate]>=DATEADD(YEAR,-1,CAST(GETDATE() AS date)) GROUP BY FORMAT([ops].[Invoice].[InvoiceDate],'yyyy-MM') ORDER BY [Month]";
+
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+        }
+
+        [Test]
+        public void ParseGroupedFormatFunctionAndOrderByAlias_UnbracketedMultipartColumn_MapsSuccessfully()
+        {
+            const string sql =
+                """
+                SELECT
+                    FORMAT(ops.Invoice.InvoiceDate, 'yyyy-MM') AS Month,
+                    COUNT(*) AS InvoiceCount
+                FROM [ops].[Invoice]
+                WHERE InvoiceDate >= DATEADD(YEAR, -1, CAST(GETDATE() AS date))
+                GROUP BY FORMAT(ops.Invoice.InvoiceDate, 'yyyy-MM')
+                ORDER BY Month
+                """;
+
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+        }
+
+        [Test]
         public void ParseKnownNullFunctions_MapsToKnownNodes_AndExportsToPgSql()
         {
             const string sql =
@@ -231,6 +263,56 @@ namespace SqExpress.Test.SqlParser
             var pgSql = PgSqlExporter.Default.ToSql(expr!);
             Assert.That(pgSql, Is.EqualTo(
                 @"SELECT COALESCE(""u"".""Name"",'NA') ""Name2"",COALESCE(""u"".""Name"",""u"".""Login"",'NA') ""DisplayName"" FROM ""dbo"".""Users"" ""u"""));
+        }
+
+        [TestCase(@"SELECT AA() [V] FROM [dbo].[Users] [u]", "AA", 0)]
+        [TestCase(@"SELECT AA([u].[Id]) [V] FROM [dbo].[Users] [u]", "AA", 1)]
+        [TestCase(@"SELECT AA([u].[Id],[u].[Name]) [V] FROM [dbo].[Users] [u]", "AA", 2)]
+        [TestCase(@"SELECT BB([u].[Id]+1) [V] FROM [dbo].[Users] [u]", "BB", 1)]
+        [TestCase(@"SELECT BB(([u].[Id]+1)%2) [V] FROM [dbo].[Users] [u]", "BB", 1)]
+        [TestCase(@"SELECT BB(AA([u].[Id])) [V] FROM [dbo].[Users] [u]", "BB", 1)]
+        [TestCase(@"SELECT AA([u].[Id],BB([u].[Name]),([u].[Id]+2)*3) [V] FROM [dbo].[Users] [u]", "AA", 3)]
+        [TestCase(@"SELECT [dbo].[Something]([u].[Id]) [V] FROM [dbo].[Users] [u]", "Something", 1)]
+        [TestCase(@"SELECT [dbo].[Something]([u].[Id],[u].[Name]+RIGHT([u].[Name],1)) [V] FROM [dbo].[Users] [u]", "Something", 2)]
+        [TestCase(@"SELECT [db1].[dbo].[Something]([u].[Id],([u].[Id]%2),AA([u].[Name])) [V] FROM [dbo].[Users] [u]", "Something", 3)]
+        public void ParseUnknownScalarFunctions_MapToExprScalarFunction(string sql, string expectedName, int expectedArgCount)
+        {
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+
+            var functions = expr!.SyntaxTree()
+                .DescendantsAndSelf()
+                .OfType<ExprScalarFunction>()
+                .Where(i => string.Equals(i.Name.Name, expectedName, System.StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            Assert.That(functions.Count, Is.GreaterThanOrEqualTo(1));
+            Assert.That(functions[0].Arguments?.Count ?? 0, Is.EqualTo(expectedArgCount));
+        }
+
+        [Test]
+        public void ParseIifFunction_MapsSuccessfully()
+        {
+            const string sql = @"SELECT IIF(1<2, 'A', 'B')";
+
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(TSqlExporter.Default.ToSql(expr!), Is.EqualTo("SELECT CASE WHEN 1<2 THEN 'A' ELSE 'B' END"));
+        }
+
+        [Test]
+        public void ParseNotLikePredicate_MapsSuccessfully()
+        {
+            const string sql = @"UPDATE dbo.Users SET Score = Score + 1 WHERE Id = 1 AND Name NOT LIKE 'X%'";
+
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
         }
     }
 }

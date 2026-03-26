@@ -234,6 +234,56 @@ namespace SqExpress.Test.SqlParser
                 .SetName("OnWithoutJoin");
 
             yield return new TestCaseData(
+                    "SELECT CONVERT(INT )",
+                    "Select item is not supported: [CONVERT(INT )]. Function 'CONVERT' has invalid arguments.")
+                .SetName("ConvertMissingSecondArgument");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users CROSS JOIN",
+                    "Syntax error: FROM clause is invalid.")
+                .SetName("CrossJoinWithoutRightSource_NoAlias");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users CROSS APPLY",
+                    "Syntax error: FROM clause is invalid.")
+                .SetName("CrossApplyWithoutRightSource_NoAlias");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users OUTER APPLY",
+                    "Syntax error: FROM clause is invalid.")
+                .SetName("OuterApplyWithoutRightSource_NoAlias");
+
+            yield return new TestCaseData(
+                    "SELECT TOP (1) WITH TIES FROM dbo.Users ORDER BY Id",
+                    "Syntax error: SELECT list is missing.")
+                .SetName("TopWithTiesWithoutProjection");
+
+            yield return new TestCaseData(
+                    "SELECT Severity FROM dbo.Logs GROUP BY Severity HAVING",
+                    "Syntax error: incorrect syntax near 'HAVING'.")
+                .SetName("EmptyHavingClause");
+
+            yield return new TestCaseData(
+                    "WITH C AS (SELECT 1 AS A), AS (SELECT 2 AS B) SELECT * FROM C",
+                    "Syntax error: incorrect syntax near 'AS'.")
+                .SetName("MissingCteNameAfterComma");
+
+            yield return new TestCaseData(
+                    "INSERT INTO dbo.Logs(Message, Severity) SELECT Name Id FROM dbo.Users",
+                    "INSERT source column count does not match target column count.")
+                .SetName("InsertSelectColumnCountMismatch");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users WHERE Id = SOME",
+                    "Syntax error: incorrect syntax near 'SOME'.")
+                .SetName("SomeWithoutOperand");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users WHERE Id = ALL",
+                    "Syntax error: incorrect syntax near 'ALL'.")
+                .SetName("AllWithoutOperand");
+
+            yield return new TestCaseData(
                     "UPDATE [dbo].[Users] [u] WHERE [u].[UserId]=1",
                     "Syntax error: UPDATE statement must contain SET clause.")
                 .SetName("UpdateWithoutSet");
@@ -267,6 +317,11 @@ namespace SqExpress.Test.SqlParser
                     "SELECT * FROM Users u OUTER APPLY Orders o",
                     "Syntax error: FROM clause is invalid.")
                 .SetName("OuterApplyNamedTable");
+
+            yield return new TestCaseData(
+                    "SELECT * FROM dbo.Users u CROSS JOIN",
+                    "Syntax error: FROM clause is invalid.")
+                .SetName("CrossJoinWithoutRightSource");
 
             yield return new TestCaseData(
                     "SELECT * FROM Users AS",
@@ -502,6 +557,81 @@ namespace SqExpress.Test.SqlParser
                     "SELECT UserId FROM Users ORDER BY UserId OFFSET 10 ROWS FETCH NEXT ROWS ONLY",
                     "Syntax error: OFFSET/FETCH clause is invalid.")
                 .SetName("OffsetFetchMissingFetchValue");
+
+            yield return new TestCaseData(
+                    "SELECT SUBSTRING('abcdef', 2,)",
+                    "Select item is not supported: [SUBSTRING('abcdef', 2,)]. Value expression is not supported.")
+                .SetName("FunctionCallTrailingComma");
+
+            yield return new TestCaseData(
+                    "SELECT REPLACE('abc','a')",
+                    "Select item is not supported: [REPLACE('abc','a')]. Function 'REPLACE' has invalid arguments.")
+                .SetName("ReplaceInvalidArity");
+
+            yield return new TestCaseData(
+                    "SELECT REPLICATE('x')",
+                    "Select item is not supported: [REPLICATE('x')]. Function 'REPLICATE' has invalid arguments.")
+                .SetName("ReplicateInvalidArity");
+
+            yield return new TestCaseData(
+                    "SELECT LEFT('abcdef',)",
+                    "Select item is not supported: [LEFT('abcdef',)]. Value expression is not supported.")
+                .SetName("LeftTrailingComma");
+
+            yield return new TestCaseData(
+                    "SELECT TRY_CONVERT(INT,)",
+                    "Select item is not supported: [TRY_CONVERT(INT,)]. Value expression is not supported.")
+                .SetName("TryConvertTrailingComma");
+
+            yield return new TestCaseData(
+                    "SELECT COALESCE(NULL, NULL, )",
+                    "Select item is not supported: [COALESCE(NULL, NULL, )]. Value expression is not supported.")
+                .SetName("CoalesceSelectTrailingComma");
+
+            yield return new TestCaseData(
+                    "SELECT POWER(1, )",
+                    "Select item is not supported: [POWER(1, )]. Value expression is not supported.")
+                .SetName("PowerTrailingComma");
+
+            yield return new TestCaseData(
+                    "SELECT NULLIF(ABS(-1))",
+                    "Select item is not supported: [NULLIF(ABS(-1))]. Function 'NULLIF' has invalid arguments.")
+                .SetName("NullIfInvalidArity");
+
+            yield return new TestCaseData(
+                    "WITH C AS (SELECT 1 AS A) SELECT * FROM C ORDER A",
+                    "Syntax error: incorrect syntax near 'A'.")
+                .SetName("OrderMissingBy");
+
+            yield return new TestCaseData(
+                    "SELECT 1 WHERE COALESCE(NULL,NULL,) = 5",
+                    "Value expression is not supported.")
+                .SetName("CoalesceTrailingComma");
+
+            yield return new TestCaseData(
+                    "SELECT 1 WHERE ISNULL(NULL,) = 7",
+                    "Value expression is not supported.")
+                .SetName("IsNullTrailingComma");
+
+            yield return new TestCaseData(
+                    "SELECT SUM() FROM dbo.Logs",
+                    "Select item is not supported: [SUM()]. Function 'SUM' has invalid arguments.")
+                .SetName("SumNoArguments");
+
+            yield return new TestCaseData(
+                    "SELECT TOP (2) Severity FROM dbo.Logs ORDER Severity DESC",
+                    "Syntax error: incorrect syntax near 'Severity'.")
+                .SetName("OrderMissingByAfterTop");
+
+            yield return new TestCaseData(
+                    "SELECT 1 WHERE CONVERT(INT, ) = 3",
+                    "Value expression is not supported.")
+                .SetName("ConvertTrailingComma");
+
+            yield return new TestCaseData(
+                    "SELECT 1 WHERE ISNULL(CONVERT(INT,NULL), ) = 4",
+                    "Value expression is not supported.")
+                .SetName("IsNullConvertTrailingComma");
         }
     }
 }

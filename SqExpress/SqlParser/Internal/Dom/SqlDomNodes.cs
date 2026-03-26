@@ -83,6 +83,7 @@ namespace SqExpress.SqlParser.Internal.Dom
             bool hasFromClause,
             string? whereSql,
             string? groupBySql,
+            bool hasHavingClause,
             string? havingSql,
             string? orderBySql,
             string? offsetFetchSql,
@@ -96,6 +97,7 @@ namespace SqExpress.SqlParser.Internal.Dom
             this.HasFromClause = hasFromClause;
             this.WhereSql = whereSql;
             this.GroupBySql = groupBySql;
+            this.HasHavingClause = hasHavingClause;
             this.HavingSql = havingSql;
             this.OrderBySql = orderBySql;
             this.OffsetFetchSql = offsetFetchSql;
@@ -115,6 +117,8 @@ namespace SqExpress.SqlParser.Internal.Dom
         public string? WhereSql { get; }
 
         public string? GroupBySql { get; }
+
+        public bool HasHavingClause { get; }
 
         public string? HavingSql { get; }
 
