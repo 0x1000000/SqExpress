@@ -5,6 +5,5 @@ namespace SqExpress
 {
     public interface IExprSubQuery : IExprReadOnlyQuery, ISelectingSource
     {
-        IReadOnlyList<string?> GetOutputColumnNames();
     }
 }

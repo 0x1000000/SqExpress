@@ -30,5 +30,18 @@ namespace SqExpress.Syntax
         {
             return visitor.VisitExprQueryList(this, arg);
         }
+
+        public IReadOnlyList<string?> GetOutputColumnNames()
+        {
+            foreach (var expression in this.Expressions)
+            {
+                if (expression is IExprQuery query)
+                {
+                    return query.GetOutputColumnNames();
+                }
+            }
+
+            return [];
+        }
     }
 }
