@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using SqExpress.Syntax.Select;
 using SqExpress.Utils;
 
 namespace SqExpress.Syntax
@@ -31,6 +32,18 @@ namespace SqExpress.Syntax
             return visitor.VisitExprQueryList(this, arg);
         }
 
+        public IReadOnlyList<IExprSelecting> ExtractSelecting()
+        {
+            foreach (var expression in this.Expressions)
+            {
+                if (expression is IExprSelectingSource query)
+                {
+                    return query.ExtractSelecting();
+                }
+            }
+            return [];
+        }
+
         public IReadOnlyList<string?> GetOutputColumnNames()
         {
             foreach (var expression in this.Expressions)
@@ -40,7 +53,6 @@ namespace SqExpress.Syntax
                     return query.GetOutputColumnNames();
                 }
             }
-
             return [];
         }
     }

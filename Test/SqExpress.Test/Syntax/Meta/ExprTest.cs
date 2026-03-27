@@ -13,6 +13,18 @@ namespace SqExpress.Test.Syntax.Meta
     [TestFixture]
     public class ExprTest
     {
+        private static string?[] ExtractSelectingOutputNames(IExprQuery query)
+        {
+            var selectings = query.ExtractSelecting();
+            var result = new string?[selectings.Count];
+            for (var i = 0; i < selectings.Count; i++)
+            {
+                result[i] = selectings[i] is IExprNamedSelecting named ? named.OutputName : null;
+            }
+
+            return result;
+        }
+
         [Test]
         public void ExprTable_Test()
         {
@@ -43,6 +55,7 @@ namespace SqExpress.Test.Syntax.Meta
             var outputNames = query.GetOutputColumnNames();
 
             Assert.That(outputNames, Is.EqualTo(new string?[] { "Id", "Name" }));
+            Assert.That(ExtractSelectingOutputNames(query), Is.EqualTo(new string?[] { "Id", "Name" }));
         }
 
         [Test]
@@ -56,6 +69,7 @@ namespace SqExpress.Test.Syntax.Meta
             var outputNames = query.GetOutputColumnNames();
 
             Assert.That(outputNames, Is.EqualTo(new string?[] { null, null }));
+            Assert.That(ExtractSelectingOutputNames(query), Is.EqualTo(new string?[] { null, null }));
         }
 
         [Test]
@@ -69,6 +83,7 @@ namespace SqExpress.Test.Syntax.Meta
             var outputNames = query.GetOutputColumnNames();
 
             Assert.That(outputNames, Is.EqualTo(new string?[] { "Id", null }));
+            Assert.That(ExtractSelectingOutputNames(query), Is.EqualTo(new string?[] { "Id", null }));
         }
 
         [Test]
@@ -84,6 +99,7 @@ namespace SqExpress.Test.Syntax.Meta
             var outputNames = query.GetOutputColumnNames();
 
             Assert.That(outputNames, Is.EqualTo(new string?[] { "Id", "Name" }));
+            Assert.That(ExtractSelectingOutputNames(query), Is.EqualTo(new string?[] { "Id", "Name" }));
         }
 
         [Test]
@@ -101,6 +117,7 @@ namespace SqExpress.Test.Syntax.Meta
             var outputNames = query.GetOutputColumnNames();
 
             Assert.That(outputNames, Is.EqualTo(new string?[] { "Id", "Name" }));
+            Assert.That(ExtractSelectingOutputNames(query), Is.EqualTo(new string?[] { "Id", "Name" }));
         }
 
         [Test]
@@ -119,6 +136,7 @@ namespace SqExpress.Test.Syntax.Meta
             var outputNames = query.GetOutputColumnNames();
 
             Assert.That(outputNames, Is.EqualTo(new string?[] { "LeftId", "LeftName" }));
+            Assert.That(ExtractSelectingOutputNames(query), Is.EqualTo(new string?[] { "LeftId", "LeftName" }));
         }
 
         [Test]
@@ -142,6 +160,7 @@ namespace SqExpress.Test.Syntax.Meta
             var outputNames = query.GetOutputColumnNames();
 
             Assert.That(outputNames, Is.EqualTo(new string?[] { "InsertedId", "InsertedName" }));
+            Assert.That(ExtractSelectingOutputNames(query), Is.EqualTo(new string?[] { "InsertedId", "InsertedName" }));
         }
 
         [Test]
@@ -162,6 +181,7 @@ namespace SqExpress.Test.Syntax.Meta
             var outputNames = query.GetOutputColumnNames();
 
             Assert.That(outputNames, Is.EqualTo(new string?[] { "DeletedId", "DeletedName" }));
+            Assert.That(ExtractSelectingOutputNames(query), Is.EqualTo(new string?[] { "DeletedId", "DeletedName" }));
         }
 
         [Test]
@@ -185,6 +205,7 @@ namespace SqExpress.Test.Syntax.Meta
             var outputNames = query.GetOutputColumnNames();
 
             Assert.That(outputNames, Is.EqualTo(new string?[] { "InsertedId", "Action" }));
+            Assert.That(ExtractSelectingOutputNames(query), Is.EqualTo(new string?[] { "InsertedId", "Action" }));
         }
 
         [Test]
@@ -208,6 +229,9 @@ namespace SqExpress.Test.Syntax.Meta
             var outputNames = query.GetOutputColumnNames();
 
             Assert.That(outputNames, Is.EqualTo(new string?[] { "InsertedId", null }));
+            Assert.That(query.ExtractSelecting().Count, Is.EqualTo(2));
+            Assert.That(query.ExtractSelecting()[1], Is.TypeOf<ExprAliasedColumnName>());
+            Assert.That(((ExprAliasedColumnName)query.ExtractSelecting()[1]).Column.Name, Is.EqualTo("$action"));
         }
 
         [Test]
@@ -222,6 +246,7 @@ namespace SqExpress.Test.Syntax.Meta
             var outputNames = list.GetOutputColumnNames();
 
             Assert.That(outputNames, Is.EqualTo(new string?[] { "Id", "Name" }));
+            Assert.That(ExtractSelectingOutputNames(list), Is.EqualTo(new string?[] { "Id", "Name" }));
         }
 
         [Test]
@@ -243,6 +268,7 @@ namespace SqExpress.Test.Syntax.Meta
             var outputNames = list.GetOutputColumnNames();
 
             Assert.That(outputNames, Is.EqualTo(new string?[] { "Id", "Name" }));
+            Assert.That(ExtractSelectingOutputNames(list), Is.EqualTo(new string?[] { "Id", "Name" }));
         }
 
         [Test]
@@ -259,6 +285,7 @@ namespace SqExpress.Test.Syntax.Meta
             var outputNames = list.GetOutputColumnNames();
 
             Assert.That(outputNames, Is.Empty);
+            Assert.That(list.ExtractSelecting(), Is.Empty);
         }
     }
 }

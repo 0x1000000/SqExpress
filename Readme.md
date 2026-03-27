@@ -54,6 +54,7 @@ You can also use it in conjunction with the "Database First" concept using an in
 ### Database Table Metadata
 
 1. [Retrieving Database Table Metadata](#retrieving-database-table-metadata)
+2. [Navigating Table Hierarchies with TablesGraph](#navigating-table-hierarchies-with-tablesgraph)
 
 ### Working with Expressions
 
@@ -2000,6 +2001,73 @@ if (comparison != null)
     }
 }
 ```
+
+## Navigating Table Hierarchies with TablesGraph
+
+If your table descriptors contain foreign keys, SqExpress can build a navigation graph for them:
+
+```cs
+var graph = TablesGraph.Create(AllTables.AllTables);
+```
+
+`TablesGraph` treats foreign keys as parent-child links:
+
+- parent table = referenced table
+- child table = table containing the foreign key
+
+The graph is intentionally limited to a forest of trees:
+
+- a table can have many children
+- a table can have at most one distinct parent table
+- cycles are rejected during graph creation
+
+Basic navigation:
+
+```cs
+var tCustomer = new TableCustomer();
+var tCompany = new TableCompany();
+
+bool isInGraph = graph.Contains(tCustomer);
+bool isDirectParent = graph.IsParent(tCustomer, tCompany);
+
+var parent = graph.GetParent(tCustomer);
+var ancestors = graph.GetAncestors(tCustomer).ToArray();
+var children = graph.GetChildren(tCompany);
+var descendants = graph.GetDescendants(tCompany).ToArray();
+var commonAncestor = graph.FindCommonAncestor(new TableCustomer(), new TableCompany());
+```
+
+Important behavior:
+
+- table identity is based on full table name, not object reference
+- another `TableBase` instance with the same full name is treated as the same table
+- `Contains(...)` and `IsParent(...)` return `false` for tables outside the graph
+- `FindCommonAncestor(...)` returns `null` when there is no shared ancestor or when a table does not belong to the graph
+- `GetParent(...)`, `GetChildren(...)`, `GetAncestors(...)`, and `GetDescendants(...)` throw if the table does not belong to the graph
+
+This is useful when you need to reason about descriptor hierarchies for features such as automatic security filters or join-path discovery.
+
+It can also build a joinable table source for two tables that belong to the same tree:
+
+```cs
+var tCustomer = new TableCustomer();
+var tUser = new TableUser();
+
+if (graph.TryToJoinTables(tCustomer, tUser, out var joinedSource))
+{
+    var query = Select(AllColumns())
+        .From(joinedSource)
+        .Done();
+}
+```
+
+`TryToJoinTables(...)` returns:
+
+- `false` if either table is outside the graph
+- `false` if the tables do not share a common ancestor
+- `true` with a joined `IExprTableSource` when a path can be built through the common ancestor
+
+The returned value is a table source, not a complete `SELECT`, so it can be inserted into a bigger request.
 
 ## Table Descriptors Scaffolding
 

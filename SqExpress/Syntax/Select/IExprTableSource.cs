@@ -5,17 +5,15 @@ using SqExpress.Syntax.Names;
 
 namespace SqExpress.Syntax.Select;
 
-public interface IExprTableSource : ISelectingSource
+public interface IExprTableSource : ISubQuerySource
 {
     public ExprTableAlias? Alias { get; }
 
     public TableMultiplication ToTableMultiplication();
 }
 
-public interface ISelectingSource : IExpr
+public interface ISubQuerySource : IExprSelectingSource
 {
-    public IReadOnlyList<IExprSelecting> ExtractSelecting();
-
     public IExprSubQuery CreateSubQuery();
 }
 

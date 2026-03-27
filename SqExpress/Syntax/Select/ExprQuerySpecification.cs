@@ -51,6 +51,6 @@ namespace SqExpress.Syntax.Select
             return this.SelectList;
         }
 
-        IExprSubQuery ISelectingSource.CreateSubQuery() => this;
+        IExprSubQuery ISubQuerySource.CreateSubQuery() => this;
     }
 }
