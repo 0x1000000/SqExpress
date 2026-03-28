@@ -54,7 +54,7 @@ namespace SqExpress.CodeGen.Shared
 
         private static MemberDeclarationSyntax[] GenerateMethods(IReadOnlyList<TableModel> tables, string tablePrefix)
         {
-            var result = new List<MemberDeclarationSyntax>(tables.Count * 2 + 3);
+            var result = new List<MemberDeclarationSyntax>(tables.Count * 2 + 4);
 
             var aliasType = SyntaxFactory.IdentifierName(nameof(Alias));
             var tableBaseType = SyntaxFactory.IdentifierName(nameof(TableBase));
@@ -94,6 +94,19 @@ namespace SqExpress.CodeGen.Shared
                 SyntaxFactory.MethodDeclaration(arrayType, "BuildAllTableList")
                     .WithModifiers(CodeGenSyntaxHelpers.Modifiers(SyntaxKind.PublicKeyword, SyntaxKind.StaticKeyword))
                     .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(array))
+                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)));
+
+            var aliasedArrayItems = tables.Select(t => SyntaxFactory.IdentifierName(GetMethodName(t, tablePrefix)).Invoke());
+            var aliasedArray = SyntaxFactory.ArrayCreationExpression(
+                arrayType,
+                SyntaxFactory.InitializerExpression(
+                    SyntaxKind.ArrayInitializerExpression,
+                    new SeparatedSyntaxList<ExpressionSyntax>().AddRange(aliasedArrayItems)));
+
+            result.Add(
+                SyntaxFactory.MethodDeclaration(arrayType, "BuildAllAliasedTableList")
+                    .WithModifiers(CodeGenSyntaxHelpers.Modifiers(SyntaxKind.PublicKeyword, SyntaxKind.StaticKeyword))
+                    .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(aliasedArray))
                     .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)));
 
             foreach (var table in tables)

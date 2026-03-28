@@ -322,6 +322,8 @@ namespace SqExpress.Test.CodeGenUtil
             Assert.That(NormalizeNewLines(allTablesSource), Does.Contain("using SqExpress;\n"));
             Assert.That(NormalizeNewLines(allTablesSource), Does.Contain("public static readonly IReadOnlyList<TableBase> StaticList = Array.AsReadOnly(BuildAllTableList());"));
             Assert.That(NormalizeNewLines(allTablesSource), Does.Contain("public static TableBase[] BuildAllTableList() => new TableBase[]"));
+            Assert.That(NormalizeNewLines(allTablesSource), Does.Contain("public static TableBase[] BuildAllAliasedTableList() => new TableBase[]"));
+            Assert.That(NormalizeNewLines(allTablesSource), Does.Contain("GetTableZ(),"));
             Assert.That(NormalizeNewLines(allTablesSource), Does.Contain("public static TabTableZ GetTableZ(Alias alias) => new TabTableZ(alias);"));
             Assert.That(NormalizeNewLines(allTablesSource), Does.Contain("public static TabTableA GetTableA() => new TabTableA(Alias.Auto);"));
         }

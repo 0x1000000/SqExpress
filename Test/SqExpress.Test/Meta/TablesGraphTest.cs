@@ -25,22 +25,22 @@ namespace SqExpress.Test.Meta
             //   ↓ ↙  ↘
             //   A1    A2
 
-            var tA1 = SqTable.Create(null, "A1", c => c.AppendInt32Column("Id"));
-            var tA2 = SqTable.Create(null, "A2", c => c.AppendInt32Column("Id"));
+            var tA1 = SqTable.Create(null, "A1", c => c.AppendInt32Column("A1Id"));
+            var tA2 = SqTable.Create(null, "A2", c => c.AppendInt32Column("A2Id"));
 
             var tB1 = SqTable.Create(
                 schema: null,
                 name: "B1",
-                columnsBuilder: c => c.AppendInt32Column("Id")
+                columnsBuilder: c => c.AppendInt32Column("B1Id")
                     .AppendInt32Column(
                         "Fk",
                         ColumnMeta
-                            .ForeignKey(tA1.GetColumn("Id"))
-                            .ForeignKey(tA2.GetColumn("Id"))
+                            .ForeignKey(tA1.GetColumn("A1Id"))
+                            .ForeignKey(tA2.GetColumn("A2Id"))
                             .ForeignKey(//Self
                                 new Int32TableColumn(
                                     null,
-                                    "Id",
+                                    "B1Id",
                                     new ExprTable(new ExprTableFullName(null, new ExprTableName("B1")), null),
                                     null
                                 )
@@ -51,35 +51,35 @@ namespace SqExpress.Test.Meta
             var tC1 = SqTable.Create(
                 schema: null,
                 name: "C1",
-                columnsBuilder: c => c.AppendInt32Column("Id")
+                columnsBuilder: c => c.AppendInt32Column("C1Id")
                     .AppendInt32Column(
                         "Fk",
                         ColumnMeta
-                            .ForeignKey(tA1.GetColumn("Id"))
-                            .ForeignKey(tB1.GetColumn("Id"))
+                            .ForeignKey(tA1.GetColumn("A1Id"))
+                            .ForeignKey(tB1.GetColumn("B1Id"))
                     )
             );
 
             var tC2 = SqTable.Create(
                 schema: null,
                 name: "C2",
-                columnsBuilder: c => c.AppendInt32Column("Id")
+                columnsBuilder: c => c.AppendInt32Column("C2Id")
                     .AppendInt32Column(
                         "Fk",
                         ColumnMeta
-                            .ForeignKey(tB1.GetColumn("Id"))
+                            .ForeignKey(tB1.GetColumn("B1Id"))
                     )
             );
 
             var tD1 = SqTable.Create(
                 schema: null,
                 name: "D1",
-                columnsBuilder: c => c.AppendInt32Column("Id")
+                columnsBuilder: c => c.AppendInt32Column("D1Id")
                     .AppendInt32Column(
                         "Fk",
                         ColumnMeta
-                            .ForeignKey(tC1.GetColumn("Id"))
-                            .ForeignKey(tC2.GetColumn("Id"))
+                            .ForeignKey(tC1.GetColumn("C1Id"))
+                            .ForeignKey(tC2.GetColumn("C2Id"))
                     )
             );
 
@@ -124,17 +124,19 @@ namespace SqExpress.Test.Meta
             Assert.That(
                 join!.ToSql(),
                 Is.EqualTo(
-                    "[D1] [A0] JOIN [C1] [A1] ON [A0].[Fk]=[A1].[Id] JOIN [A1] [A2] ON [A1].[Fk]=[A2].[Id]"
+                    "[D1] [A0] JOIN [C1] [A1] ON [A0].[Fk]=[A1].[C1Id] JOIN [A1] [A2] ON [A1].[Fk]=[A2].[A1Id]"
                 )
             );
 
             Assert.That(graph.TryToJoinTables(tD1, tA1, [tB1], out join), Is.True);
             Assert.That(join, Is.Not.Null);
 
+            Console.WriteLine(join!.ToSql());
+
             Assert.That(
                 join!.ToSql(),
                 Is.EqualTo(
-                    "[D1] [A0] JOIN [C1] [A1] ON [A0].[Fk]=[A1].[Id] JOIN [B1] [A2] ON [A1].[Fk]=[A2].[Id] JOIN [A1] [A3] ON [A2].[Fk]=[A3].[Id]"
+                    "[D1] [A0] JOIN [C1] [A1] ON [A0].[Fk]=[A1].[C1Id] JOIN [B1] [A2] ON [A1].[Fk]=[A2].[B1Id] JOIN [A1] [A3] ON [A2].[Fk]=[A3].[A1Id]"
                 )
             );
 
