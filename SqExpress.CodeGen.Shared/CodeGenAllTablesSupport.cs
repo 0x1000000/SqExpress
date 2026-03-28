@@ -77,7 +77,7 @@ namespace SqExpress.CodeGen.Shared
             result.Add(
                 SyntaxFactory.FieldDeclaration(
                         SyntaxFactory.VariableDeclaration(
-                                SyntaxFactory.GenericName("IReadOnlyCollection")
+                                SyntaxFactory.GenericName("IReadOnlyList")
                                     .AddTypeArgumentListArguments(tableBaseType))
                             .AddVariables(
                                 SyntaxFactory.VariableDeclarator("StaticList")
