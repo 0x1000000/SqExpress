@@ -174,6 +174,30 @@ namespace SqExpress.Analyzers.Test
         }
 
         [Test]
+        public void Generate_WhenRawDefaultsAreUsed_UsesUnsafeValueExpression()
+        {
+            var source = """
+                using SqExpress.TableDecalationAttributes;
+
+                [TableDescriptor("dbo", "Audit")]
+                [NullableDateTimeColumn("CreatedUtc", DefaultValue = "$raw((sysutcdatetime()))")]
+                [GuidColumn("Token", DefaultValue = "$RAW(newid())")]
+                [Int32Column("Version", DefaultValue = "$raw(1+2)")]
+                public partial class Audit
+                {
+                }
+                """;
+
+            var result = RunGenerator(source);
+            var generated = GetGeneratedSource(result, "Audit");
+
+            Assert.That(result.Diagnostics, Is.Empty, FormatDiagnostics(result.Diagnostics));
+            Assert.That(generated, Does.Contain("this.CreatedUtc = this.CreateNullableDateTimeColumn(\"CreatedUtc\", false, ColumnMeta.DefaultValue(SqQueryBuilder.UnsafeValue(\"(sysutcdatetime())\")));"));
+            Assert.That(generated, Does.Contain("this.Token = this.CreateGuidColumn(\"Token\", ColumnMeta.DefaultValue(SqQueryBuilder.UnsafeValue(\"newid()\")));"));
+            Assert.That(generated, Does.Contain("this.Version = this.CreateInt32Column(\"Version\", ColumnMeta.DefaultValue(SqQueryBuilder.UnsafeValue(\"1+2\")));"));
+        }
+
+        [Test]
         public void Generate_WhenDefaultValueCannotBeParsed_ReportsDiagnostic()
         {
             var source = """
@@ -193,6 +217,27 @@ namespace SqExpress.Analyzers.Test
             Assert.That(FormatDiagnostics(result.Diagnostics), Does.Contain("Supported predefined values for this column: $null"));
             var diagnostic = result.Diagnostics.First(static d => d.Id == "SQEX114");
             Assert.That(diagnostic.Location.GetLineSpan().StartLinePosition.Line, Is.EqualTo(3));
+        }
+
+        [TestCase("$raw(")]
+        [TestCase("$raw")]
+        [TestCase("$raw(value")]
+        public void Generate_WhenRawDefaultValueIsMalformed_ReportsDiagnostic(string defaultValue)
+        {
+            var source = $$"""
+                using SqExpress.TableDecalationAttributes;
+
+                [TableDescriptor("dbo", "User")]
+                [StringColumn("Name", Unicode = true, MaxLength = 50, DefaultValue = "{{defaultValue}}")]
+                public partial class User
+                {
+                }
+                """;
+
+            var result = RunGenerator(source);
+
+            Assert.That(result.Diagnostics.Select(static d => d.Id), Contains.Item("SQEX114"));
+            Assert.That(FormatDiagnostics(result.Diagnostics), Does.Contain("Supported predefined values for this column: $null, $raw(...)"));
         }
 
         [Test]

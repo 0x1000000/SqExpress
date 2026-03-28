@@ -1166,7 +1166,7 @@ namespace SqExpress.CodeGen.Shared
                 case CodeGenDefaultValueKind.None:
                     return null;
                 case CodeGenDefaultValueKind.RawSql:
-                    return null;
+                    return $"$raw({column.DefaultValue ?? string.Empty})";
                 case CodeGenDefaultValueKind.Null:
                     return "$null";
                 case CodeGenDefaultValueKind.UtcNow:

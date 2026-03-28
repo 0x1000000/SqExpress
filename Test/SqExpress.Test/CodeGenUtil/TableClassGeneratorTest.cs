@@ -17,6 +17,7 @@ using SqExpress.CodeGenUtil;
 using SqExpress.DbMetadata.Internal.DbManagers;
 using SqExpress.DbMetadata.Internal.Model;
 using SqExpress.SqlExport;
+using System.Collections.Immutable;
 
 namespace SqExpress.Test.CodeGenUtil
 {
@@ -204,6 +205,52 @@ namespace SqExpress.Test.CodeGenUtil
                 }
                 """),
                 NormalizeNewLines(tableASource));
+        }
+
+        [Test]
+        public void AttributeDeclaration_RawSqlDefault_RendersRawToken()
+        {
+            var candidate = new CodeGenTableModel(
+                CodeGenTableKind.Table,
+                databaseName: null,
+                schemaName: "dbo",
+                tableName: "Audit",
+                className: "TableAudit",
+                @namespace: "MyCompany.MyProject.Tables",
+                fullyQualifiedTypeName: "global::MyCompany.MyProject.Tables.TableAudit",
+                columns: ImmutableArray.Create(
+                    new CodeGenColumnModel(
+                        kind: CodeGenColumnKind.DateTime,
+                        sqlName: "CreatedUtc",
+                        propertyName: null,
+                        isPrimaryKey: false,
+                        isIdentity: false,
+                        foreignKeyDatabase: null,
+                        foreignKeySchema: null,
+                        foreignKeyTable: null,
+                        foreignKeyColumn: null,
+                        defaultValueKind: CodeGenDefaultValueKind.RawSql,
+                        defaultValue: "(sysutcdatetime())",
+                        isUnicode: false,
+                        maxLength: null,
+                        isFixedLength: false,
+                        isText: false,
+                        precision: 0,
+                        scale: 0,
+                        isDate: false)),
+                indexes: ImmutableArray<CodeGenIndexModel>.Empty);
+
+            var generated = CodeGenTableDescriptorSupport.GenerateTableDeclaration(
+                    candidate,
+                    new Dictionary<string, CodeGenTableModel>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        [candidate.TableKey] = candidate
+                    })
+                .ToFullString();
+
+            Assert.That(
+                NormalizeNewLines(generated),
+                Does.Contain("[DateTimeColumn(\"CreatedUtc\", DefaultValue = \"$raw((sysutcdatetime()))\")]"));
         }
 
         [Test]

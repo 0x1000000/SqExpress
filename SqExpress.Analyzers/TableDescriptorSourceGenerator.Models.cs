@@ -352,6 +352,18 @@ namespace SqExpress.Analyzers
                 return columnKind is CodeGenColumnKind.DateTime or CodeGenColumnKind.NullableDateTime or CodeGenColumnKind.DateTimeOffset or CodeGenColumnKind.NullableDateTimeOffset;
             }
 
+            if (TryParseRawDefaultValue(value!, out var isRawToken, out var rawValue))
+            {
+                defaultValueKind = CodeGenDefaultValueKind.RawSql;
+                normalizedValue = rawValue;
+                return true;
+            }
+
+            if (isRawToken)
+            {
+                return false;
+            }
+
             switch (columnKind)
             {
                 case CodeGenColumnKind.Boolean:
@@ -514,10 +526,29 @@ namespace SqExpress.Analyzers
         {
             if (columnKind is CodeGenColumnKind.DateTime or CodeGenColumnKind.NullableDateTime or CodeGenColumnKind.DateTimeOffset or CodeGenColumnKind.NullableDateTimeOffset)
             {
-                return "$null, $utcNow, $now";
+                return "$null, $utcNow, $now, $raw(...)";
             }
 
-            return "$null";
+            return "$null, $raw(...)";
+        }
+
+        private static bool TryParseRawDefaultValue(string value, out bool isRawToken, out string? rawValue)
+        {
+            isRawToken = value.StartsWith("$raw", StringComparison.OrdinalIgnoreCase);
+            rawValue = null;
+
+            if (!isRawToken)
+            {
+                return false;
+            }
+
+            if (!value.StartsWith("$raw(", StringComparison.OrdinalIgnoreCase) || !value.EndsWith(")", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            rawValue = value.Substring(5, value.Length - 6);
+            return true;
         }
 
         private static int? GetNamedNullableInt(AttributeData attribute, string name)
