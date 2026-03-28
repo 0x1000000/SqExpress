@@ -162,26 +162,27 @@ This document is generated from the current `IExpr` hierarchy in the SqExpress s
       - [ExprAliasedColumn](#expraliasedcolumn)
       - [ExprAliasedColumnName](#expraliasedcolumnname)
       - [ExprAliasedSelecting](#expraliasedselecting)
-  - [ISelectingSource](#iselectingsource) _(interface)_
-    - [IExprTableSource](#iexprtablesource) _(interface)_
-      - [ExprAliasedTableFunction](#expraliasedtablefunction)
-      - [ExprCrossedTable](#exprcrossedtable)
-      - [ExprCte](#exprcte) _(abstract)_
-        - [ExprCteQuery](#exprctequery)
-      - [ExprDerivedTable](#exprderivedtable) _(abstract)_
-        - [ExprDerivedTableQuery](#exprderivedtablequery)
-        - [ExprDerivedTableValues](#exprderivedtablevalues)
-      - [ExprJoinedTable](#exprjoinedtable)
-      - [ExprLateralCrossedTable](#exprlateralcrossedtable)
-      - [ExprTable](#exprtable)
-      - [ExprTableFunction](#exprtablefunction)
+  - [IExprSelectingSource](#iexprselectingsource) _(interface)_
+    - [ISubQuerySource](#isubquerysource) _(interface)_
+      - [IExprTableSource](#iexprtablesource) _(interface)_
+        - [ExprAliasedTableFunction](#expraliasedtablefunction)
+        - [ExprCrossedTable](#exprcrossedtable)
+        - [ExprCte](#exprcte) _(abstract)_
+          - [ExprCteQuery](#exprctequery)
+        - [ExprDerivedTable](#exprderivedtable) _(abstract)_
+          - [ExprDerivedTableQuery](#exprderivedtablequery)
+          - [ExprDerivedTableValues](#exprderivedtablevalues)
+        - [ExprJoinedTable](#exprjoinedtable)
+        - [ExprLateralCrossedTable](#exprlateralcrossedtable)
+        - [ExprTable](#exprtable)
+        - [ExprTableFunction](#exprtablefunction)
 
 ## Type Reference
 
 ### IExpr
 
 - Kind: interface root
-- Direct descendants: [ExprBoolean](#exprboolean), [ExprColumnSetClause](#exprcolumnsetclause), [ExprDbSchema](#exprdbschema), [ExprFrameBorder](#exprframeborder), [ExprFrameClause](#exprframeclause), [ExprInsertValueRow](#exprinsertvaluerow), [ExprOffsetFetch](#exproffsetfetch), [ExprOrderBy](#exprorderby), [ExprOrderByItem](#exprorderbyitem), [ExprOrderByOffsetFetch](#exprorderbyoffsetfetch), [ExprOutput](#exproutput), [ExprOver](#exprover), [ExprTableValueConstructor](#exprtablevalueconstructor), [ExprType](#exprtype), [ExprValueRow](#exprvaluerow), [IExprAlias](#iexpralias), [IExprAssigning](#iexprassigning), [IExprColumnSource](#iexprcolumnsource), [IExprComplete](#iexprcomplete), [IExprInsertSource](#iexprinsertsource), [IExprMergeMatched](#iexprmergematched), [IExprMergeNotMatched](#iexprmergenotmatched), [IExprName](#iexprname), [IExprOutputColumn](#iexproutputcolumn), [IExprSelecting](#iexprselecting), [ISelectingSource](#iselectingsource)
+- Direct descendants: [ExprBoolean](#exprboolean), [ExprColumnSetClause](#exprcolumnsetclause), [ExprDbSchema](#exprdbschema), [ExprFrameBorder](#exprframeborder), [ExprFrameClause](#exprframeclause), [ExprInsertValueRow](#exprinsertvaluerow), [ExprOffsetFetch](#exproffsetfetch), [ExprOrderBy](#exprorderby), [ExprOrderByItem](#exprorderbyitem), [ExprOrderByOffsetFetch](#exprorderbyoffsetfetch), [ExprOutput](#exproutput), [ExprOver](#exprover), [ExprTableValueConstructor](#exprtablevalueconstructor), [ExprType](#exprtype), [ExprValueRow](#exprvaluerow), [IExprAlias](#iexpralias), [IExprAssigning](#iexprassigning), [IExprColumnSource](#iexprcolumnsource), [IExprComplete](#iexprcomplete), [IExprInsertSource](#iexprinsertsource), [IExprMergeMatched](#iexprmergematched), [IExprMergeNotMatched](#iexprmergenotmatched), [IExprName](#iexprname), [IExprOutputColumn](#iexproutputcolumn), [IExprSelecting](#iexprselecting), [IExprSelectingSource](#iexprselectingsource)
 
 ### ExprAggregateFunction
 
@@ -1410,6 +1411,12 @@ This document is generated from the current `IExpr` hierarchy in the SqExpress s
 - Base: [IExpr](#iexpr)
 - Direct descendants: [ExprAggregateFunction](#expraggregatefunction), [ExprAggregateOverFunction](#expraggregateoverfunction), [ExprAllColumns](#exprallcolumns), [ExprAnalyticFunction](#expranalyticfunction), [ExprSelecting](#exprselecting), [IExprNamedSelecting](#iexprnamedselecting)
 
+### IExprSelectingSource
+
+- Kind: interface
+- Base: [IExpr](#iexpr)
+- Direct descendants: [ISubQuerySource](#isubquerysource)
+
 ### IExprSubQuery
 
 - Kind: interface
@@ -1425,13 +1432,13 @@ This document is generated from the current `IExpr` hierarchy in the SqExpress s
 ### IExprTableSource
 
 - Kind: interface
-- Base: [ISelectingSource](#iselectingsource)
+- Base: [ISubQuerySource](#isubquerysource)
 - Direct descendants: [ExprAliasedTableFunction](#expraliasedtablefunction), [ExprCrossedTable](#exprcrossedtable), [ExprCte](#exprcte), [ExprDerivedTable](#exprderivedtable), [ExprJoinedTable](#exprjoinedtable), [ExprLateralCrossedTable](#exprlateralcrossedtable), [ExprTable](#exprtable), [ExprTableFunction](#exprtablefunction)
 
-### ISelectingSource
+### ISubQuerySource
 
 - Kind: interface
-- Base: [IExpr](#iexpr)
+- Base: [IExprSelectingSource](#iexprselectingsource)
 - Direct descendants: [IExprTableSource](#iexprtablesource)
 
 <!-- CodeGenEnd -->

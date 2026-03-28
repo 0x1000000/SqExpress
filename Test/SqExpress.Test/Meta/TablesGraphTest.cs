@@ -1,6 +1,12 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using SqExpress.DbMetadata;
 using SqExpress.SqlExport;
+using SqExpress.Syntax.Names;
+using SqExpress.Syntax.Select;
+using SqExpress.TableDecalationAttributes;
 
 namespace SqExpress.Test.Meta
 {
@@ -8,177 +14,177 @@ namespace SqExpress.Test.Meta
     public class TablesGraphTest
     {
         [Test]
-        public void Create_SimpleChain_TraversesCorrectly()
+        public void BasicTest()
         {
-            var root = new RootTable();
-            var child = new ChildTable();
-            var grandChild = new GrandChildTable();
+            // Relations:
+            //      D1
+            //     ↙  ↘
+            //   C1    C2
+            //   ↓ ↘  ↙
+            //   ↓  B1
+            //   ↓ ↙  ↘
+            //   A1    A2
 
-            var graph = TablesGraph.Create(new TableBase[] { root, child, grandChild });
+            var tA1 = SqTable.Create(null, "A1", c => c.AppendInt32Column("Id"));
+            var tA2 = SqTable.Create(null, "A2", c => c.AppendInt32Column("Id"));
 
-            Assert.That(graph.Roots, Is.EqualTo(new TableBase[] { root }));
-            Assert.That(graph.GetParent(root), Is.Null);
-            Assert.That(graph.GetParent(child), Is.SameAs(root));
-            Assert.That(graph.GetParent(grandChild), Is.SameAs(child));
-            Assert.That(graph.GetChildren(root), Is.EqualTo(new TableBase[] { child }));
-            Assert.That(graph.GetChildren(child), Is.EqualTo(new TableBase[] { grandChild }));
-            Assert.That(graph.GetChildren(grandChild), Is.Empty);
-            Assert.That(graph.GetAncestors(grandChild).ToArray(), Is.EqualTo(new TableBase[] { child, root }));
-            Assert.That(graph.GetDescendants(root).ToArray(), Is.EqualTo(new TableBase[] { child, grandChild }));
-        }
+            var tB1 = SqTable.Create(
+                schema: null,
+                name: "B1",
+                columnsBuilder: c => c.AppendInt32Column("Id")
+                    .AppendInt32Column(
+                        "Fk",
+                        ColumnMeta
+                            .ForeignKey(tA1.GetColumn("Id"))
+                            .ForeignKey(tA2.GetColumn("Id"))
+                            .ForeignKey(//Self
+                                new Int32TableColumn(
+                                    null,
+                                    "Id",
+                                    new ExprTable(new ExprTableFullName(null, new ExprTableName("B1")), null),
+                                    null
+                                )
+                            )
+                    )
+            );
 
-        [Test]
-        public void Create_BranchingTree_TraversesChildrenInInputOrder()
-        {
-            var root = new RootTable();
-            var childB = new ChildBTable();
-            var childA = new ChildTable();
+            var tC1 = SqTable.Create(
+                schema: null,
+                name: "C1",
+                columnsBuilder: c => c.AppendInt32Column("Id")
+                    .AppendInt32Column(
+                        "Fk",
+                        ColumnMeta
+                            .ForeignKey(tA1.GetColumn("Id"))
+                            .ForeignKey(tB1.GetColumn("Id"))
+                    )
+            );
 
-            var graph = TablesGraph.Create(new TableBase[] { root, childB, childA });
+            var tC2 = SqTable.Create(
+                schema: null,
+                name: "C2",
+                columnsBuilder: c => c.AppendInt32Column("Id")
+                    .AppendInt32Column(
+                        "Fk",
+                        ColumnMeta
+                            .ForeignKey(tB1.GetColumn("Id"))
+                    )
+            );
 
-            Assert.That(graph.GetChildren(root), Is.EqualTo(new TableBase[] { childB, childA }));
-            Assert.That(graph.GetDescendants(root).ToArray(), Is.EqualTo(new TableBase[] { childB, childA }));
-        }
+            var tD1 = SqTable.Create(
+                schema: null,
+                name: "D1",
+                columnsBuilder: c => c.AppendInt32Column("Id")
+                    .AppendInt32Column(
+                        "Fk",
+                        ColumnMeta
+                            .ForeignKey(tC1.GetColumn("Id"))
+                            .ForeignKey(tC2.GetColumn("Id"))
+                    )
+            );
 
-        [Test]
-        public void GetAncestors_WithSameFullNameDifferentInstance_ResolvesCanonicalTables()
-        {
-            var root = new RootTable();
-            var child = new ChildTable();
-            var grandChild = new GrandChildTable();
-            var graph = TablesGraph.Create(new TableBase[] { root, child, grandChild });
+            IReadOnlyList<TableBase> allTables = [tA1, tA2, tB1, tC1, tC2, tD1, new SelfFkTable()];
 
-            Assert.That(graph.GetAncestors(new GrandChildTable()).ToArray(), Is.EqualTo(new TableBase[] { child, root }));
-            Assert.That(graph.GetAncestors(root).ToArray(), Is.Empty);
-        }
+            var graph = TablesGraph.Create(allTables);
 
-        [Test]
-        public void GetDescendants_WithSameFullNameDifferentInstance_ResolvesCanonicalTables()
-        {
-            var root = new RootTable();
-            var childB = new ChildBTable();
-            var childA = new ChildTable();
-            var grandChild = new GrandChildTable();
-            var graph = TablesGraph.Create(new TableBase[] { root, childB, childA, grandChild });
+            Assert.That(graph.GetReferencedBy(tA1), Is.EquivalentTo(new TableBase[] { tB1, tC1 }));
+            Assert.That(graph.GetAllReferencedBy(tA1), Is.EquivalentTo(new TableBase[] { tB1, tC1, tC2, tD1 }));
+            Assert.That(graph.GetReferences(tA1), Is.EquivalentTo(new TableBase[] { }));
+            Assert.That(graph.GetAllReferences(tA1), Is.EquivalentTo(new TableBase[] { }));
 
-            Assert.That(graph.GetDescendants(new RootTable()).ToArray(), Is.EqualTo(new TableBase[] { childB, childA, grandChild }));
-            Assert.That(graph.GetDescendants(grandChild).ToArray(), Is.Empty);
-        }
+            Assert.That(graph.GetReferencedBy(tA2), Is.EquivalentTo(new TableBase[] { tB1 }));
+            Assert.That(graph.GetAllReferencedBy(tA2), Is.EquivalentTo(new TableBase[] { tB1, tC1, tC2, tD1 }));
+            Assert.That(graph.GetReferences(tA2), Is.EquivalentTo(new TableBase[] { }));
+            Assert.That(graph.GetAllReferences(tA2), Is.EquivalentTo(new TableBase[] { }));
 
-        [Test]
-        public void FindCommonAncestor_ReturnsNearestCommonAncestor()
-        {
-            var root = new RootTable();
-            var child = new ChildTable();
-            var childB = new ChildBTable();
-            var grandChild = new GrandChildTable();
-            var graph = TablesGraph.Create(new TableBase[] { root, child, childB, grandChild });
+            Assert.That(graph.GetReferencedBy(tB1), Is.EquivalentTo(new TableBase[] { tC1, tC2 }));
+            Assert.That(graph.GetAllReferencedBy(tB1), Is.EquivalentTo(new TableBase[] { tC1, tC2, tD1 }));
+            Assert.That(graph.GetReferences(tB1), Is.EquivalentTo(new TableBase[] { tA1, tA2 }));
+            Assert.That(graph.GetAllReferences(tB1), Is.EquivalentTo(new TableBase[] { tA1, tA2 }));
 
-            Assert.That(graph.FindCommonAncestor(grandChild, child), Is.SameAs(child));
-            Assert.That(graph.FindCommonAncestor(grandChild, childB), Is.SameAs(root));
-            Assert.That(graph.FindCommonAncestor(child, child), Is.SameAs(child));
-        }
+            Assert.That(graph.GetReferencedBy(tC1), Is.EquivalentTo(new TableBase[] { tD1 }));
+            Assert.That(graph.GetAllReferencedBy(tC1), Is.EquivalentTo(new TableBase[] { tD1 }));
+            Assert.That(graph.GetReferences(tC1), Is.EquivalentTo(new TableBase[] { tA1, tB1 }));
+            Assert.That(graph.GetAllReferences(tC1), Is.EquivalentTo(new TableBase[] { tA1, tB1, tA2 }));
 
-        [Test]
-        public void FindCommonAncestor_UsesFullNameAndReturnsNullForUnknownOrUnrelatedTables()
-        {
-            var root = new RootTable();
-            var child = new ChildTable();
-            var otherRoot = new OtherRootTable();
-            var graph = TablesGraph.Create(new TableBase[] { root, child, otherRoot });
+            Assert.That(graph.GetReferencedBy(tC2), Is.EquivalentTo(new TableBase[] { tD1 }));
+            Assert.That(graph.GetAllReferencedBy(tC2), Is.EquivalentTo(new TableBase[] { tD1 }));
+            Assert.That(graph.GetReferences(tC2), Is.EquivalentTo(new TableBase[] { tB1 }));
+            Assert.That(graph.GetAllReferences(tC2), Is.EquivalentTo(new TableBase[] { tB1, tA1, tA2 }));
 
-            Assert.That(graph.FindCommonAncestor(new ChildTable(), new RootTable()), Is.SameAs(root));
-            Assert.That(graph.FindCommonAncestor(root, otherRoot), Is.Null);
-            Assert.That(graph.FindCommonAncestor(new UnknownTable(), root), Is.Null);
-            Assert.That(graph.FindCommonAncestor(child, new UnknownTable()), Is.Null);
-        }
+            Assert.That(graph.GetReferencedBy(tD1), Is.EquivalentTo(new TableBase[] { }));
+            Assert.That(graph.GetAllReferencedBy(tD1), Is.EquivalentTo(new TableBase[] { }));
+            Assert.That(graph.GetReferences(tD1), Is.EquivalentTo(new TableBase[] { tC1, tC2 }));
+            Assert.That(graph.GetAllReferences(tD1), Is.EquivalentTo(new TableBase[] { tC1, tC2, tA1, tB1, tA2 }));
 
-        [Test]
-        public void TryToJoinTables_AncestorAndDescendant_BuildsJoinQuery()
-        {
-            var root = new RootTable();
-            var child = new ChildTable();
-            var grandChild = new GrandChildTable();
-            var graph = TablesGraph.Create(new TableBase[] { root, child, grandChild });
 
-            var ok = graph.TryToJoinTables(child, grandChild, out var join);
-
-            Assert.That(ok, Is.True);
+            Assert.That(graph.TryToJoinTables(tD1, tA1, out var join), Is.True);
             Assert.That(join, Is.Not.Null);
-            Assert.That(join!.ToSql(), Is.EqualTo("[dbo].[Child] [A0] JOIN [dbo].[GrandChild] [A1] ON [A1].[ChildId]=[A0].[Id]"));
 
             Assert.That(
-                SqQueryBuilder.Select(child.Id, grandChild.ChildId).From(join!).ToSql(TSqlExporter.Default),
+                join!.ToSql(),
                 Is.EqualTo(
-                    "SELECT [A0].[Id],[A1].[ChildId] FROM [dbo].[Child] [A0] JOIN [dbo].[GrandChild] [A1] ON [A1].[ChildId]=[A0].[Id]"
+                    "[D1] [A0] JOIN [C1] [A1] ON [A0].[Fk]=[A1].[Id] JOIN [A1] [A2] ON [A1].[Fk]=[A2].[Id]"
                 )
             );
         }
 
         [Test]
-        public void TryToJoinTables_SiblingBranches_BuildsJoinThroughCommonAncestor()
+        public void Create_DirectReferencesAndReferencedBy_AreBuiltCorrectly()
+        {
+            var root = new RootTable();
+            var child = new ChildTable();
+            var multiParent = new MultiParentChildTable();
+
+            var graph = TablesGraph.Create([root, child, multiParent, new OtherRootTable()]);
+
+            Assert.That(graph.GetReferences(root), Is.Empty);
+            Assert.That(graph.GetReferences(child), Is.EqualTo(new TableBase[] { root }));
+            Assert.That(
+                graph.GetReferences(multiParent),
+                Is.EqualTo(new TableBase[] { root, new OtherRootTable() }).Using(TableFullNameComparer.Instance)
+            );
+
+            Assert.That(graph.GetReferencedBy(root), Is.EqualTo(new TableBase[] { child, multiParent }));
+            Assert.That(
+                graph.GetReferencedBy(new OtherRootTable()),
+                Is.EqualTo(new TableBase[] { multiParent }).Using(TableFullNameComparer.Instance)
+            );
+        }
+
+        [Test]
+        public void GetAllReferences_And_GetAllReferencedBy_TraverseTransitively()
         {
             var root = new RootTable();
             var child = new ChildTable();
             var childB = new ChildBTable();
-            var graph = TablesGraph.Create(new TableBase[] { root, child, childB });
+            var grandChild = new GrandChildTable();
+            var graph = TablesGraph.Create([root, child, childB, grandChild]);
 
-            var ok = graph.TryToJoinTables(child, childB, out var join);
+            Assert.That(graph.GetAllReferences(grandChild).ToArray(), Is.EqualTo(new TableBase[] { child, root }));
+            Assert.That(graph.GetAllReferences(root).ToArray(), Is.Empty);
 
-            Assert.That(ok, Is.True);
-            Assert.That(join, Is.Not.Null);
-            Assert.That(join!.ToSql(), Is.EqualTo("[dbo].[Root] [A0] JOIN [dbo].[Child] [A1] ON [A1].[RootId]=[A0].[Id] JOIN [dbo].[ChildB] [A2] ON [A2].[RootId]=[A0].[Id]"));
+            Assert.That(
+                graph.GetAllReferencedBy(root).ToArray(),
+                Is.EqualTo(new TableBase[] { child, grandChild, childB })
+            );
+            Assert.That(graph.GetAllReferencedBy(grandChild).ToArray(), Is.Empty);
         }
 
         [Test]
-        public void TryToJoinTables_UsesFullNameAndReturnsFalseForUnknownOrUnrelatedTables()
+        public void References_UsesFullNameAndReturnsFalseForUnknownTables()
         {
             var root = new RootTable();
             var child = new ChildTable();
-            var otherRoot = new OtherRootTable();
-            var graph = TablesGraph.Create(new TableBase[] { root, child, otherRoot });
+            var grandChild = new GrandChildTable();
+            var graph = TablesGraph.Create([root, child, grandChild]);
 
-            Assert.That(graph.TryToJoinTables(new ChildTable(), new RootTable(), out var sameNameJoin), Is.True);
-            Assert.That(sameNameJoin, Is.Not.Null);
-            Assert.That(graph.TryToJoinTables(root, otherRoot, out var unrelatedJoin), Is.False);
-            Assert.That(unrelatedJoin, Is.Null);
-            Assert.That(graph.TryToJoinTables(new UnknownTable(), root, out var unknownJoin), Is.False);
-            Assert.That(unknownJoin, Is.Null);
-        }
-
-        [Test]
-        public void Create_Forest_AllowsMultipleRoots()
-        {
-            var root = new RootTable();
-            var child = new ChildTable();
-            var otherRoot = new OtherRootTable();
-
-            var graph = TablesGraph.Create(new TableBase[] { root, child, otherRoot });
-
-            Assert.That(graph.Roots, Is.EqualTo(new TableBase[] { root, otherRoot }));
-        }
-
-        [Test]
-        public void Create_MultipleForeignKeysToSameParent_UsesSingleParentEdge()
-        {
-            var root = new RootTable();
-            var child = new MultiKeySameParentChildTable();
-
-            var graph = TablesGraph.Create(new TableBase[] { root, child });
-
-            Assert.That(graph.GetParent(child), Is.SameAs(root));
-            Assert.That(graph.GetChildren(root), Is.EqualTo(new TableBase[] { child }));
-        }
-
-        [Test]
-        public void Contains_UsesFullNameNotReference()
-        {
-            var root = new RootTable();
-            var graph = TablesGraph.Create(new TableBase[] { root });
-
-            Assert.That(graph.Contains(root), Is.True);
-            Assert.That(graph.Contains(new RootTable()), Is.True);
-            Assert.That(graph.Contains(new UnknownTable()), Is.False);
+            Assert.That(graph.References(child, root), Is.True);
+            Assert.That(graph.References(new ChildTable(), new RootTable()), Is.True);
+            Assert.That(graph.References(grandChild, child), Is.True);
+            Assert.That(graph.References(root, child), Is.False);
+            Assert.That(graph.References(new UnknownTable(), root), Is.False);
+            Assert.That(graph.References(child, new UnknownTable()), Is.False);
         }
 
         [Test]
@@ -186,48 +192,137 @@ namespace SqExpress.Test.Meta
         {
             var root = new RootTable();
             var child = new ChildTable();
-            var graph = TablesGraph.Create(new TableBase[] { root, child });
+            var graph = TablesGraph.Create([root, child]);
 
-            var resolvedParent = graph.GetParent(new ChildTable());
-            var resolvedChildren = graph.GetChildren(new RootTable());
-
-            Assert.That(resolvedParent, Is.SameAs(root));
-            Assert.That(resolvedChildren.Single(), Is.SameAs(child));
-        }
-
-        [Test]
-        public void IsParent_UsesFullNameAndReturnsFalseForUnknownTables()
-        {
-            var root = new RootTable();
-            var child = new ChildTable();
-            var grandChild = new GrandChildTable();
-            var graph = TablesGraph.Create(new TableBase[] { root, child, grandChild });
-
-            Assert.That(graph.IsParent(child, root), Is.True);
-            Assert.That(graph.IsParent(new ChildTable(), new RootTable()), Is.True);
-            Assert.That(graph.IsParent(grandChild, child), Is.True);
-            Assert.That(graph.IsParent(root, child), Is.False);
-            Assert.That(graph.IsParent(new UnknownTable(), root), Is.False);
-            Assert.That(graph.IsParent(child, new UnknownTable()), Is.False);
-            Assert.That(graph.IsParent(root, root), Is.False);
+            Assert.That(graph.GetReferences(new ChildTable()).Single(), Is.SameAs(root));
+            Assert.That(graph.GetReferencedBy(new RootTable()).Single(), Is.SameAs(child));
         }
 
         [Test]
         public void Methods_WithUnknownTable_ThrowArgumentException()
         {
-            var graph = TablesGraph.Create(new TableBase[] { new RootTable() });
+            var graph = TablesGraph.Create([new RootTable()]);
             var unknown = new UnknownTable();
 
-            Assert.That(() => graph.GetParent(unknown), Throws.ArgumentException);
-            Assert.That(() => graph.GetChildren(unknown), Throws.ArgumentException);
-            Assert.That(() => graph.GetAncestors(unknown).ToArray(), Throws.ArgumentException);
-            Assert.That(() => graph.GetDescendants(unknown).ToArray(), Throws.ArgumentException);
+            Assert.That(() => graph.GetReferences(unknown), Throws.ArgumentException);
+            Assert.That(() => graph.GetAllReferences(unknown).ToArray(), Throws.ArgumentException);
+            Assert.That(() => graph.GetReferencedBy(unknown), Throws.ArgumentException);
+            Assert.That(() => graph.GetAllReferencedBy(unknown).ToArray(), Throws.ArgumentException);
+        }
+
+        [Test]
+        public void TryToJoinTables_DirectReference_BuildsJoinableTableSource()
+        {
+            var root = new RootTable();
+            var child = new ChildTable();
+            var graph = TablesGraph.Create([root, child]);
+
+            var ok = graph.TryToJoinTables(child, root, out var join);
+
+            Assert.That(ok, Is.True);
+            Assert.That(join, Is.Not.Null);
+            Assert.That(
+                join!.ToSql(),
+                Is.EqualTo("[dbo].[Child] [A0] JOIN [dbo].[Root] [A1] ON [A0].[RootId]=[A1].[Id]")
+            );
+            Assert.That(
+                SqQueryBuilder.Select(child.Id, root.Id).From(join!).ToSql(TSqlExporter.Default),
+                Is.EqualTo(
+                    "SELECT [A0].[Id],[A1].[Id] FROM [dbo].[Child] [A0] JOIN [dbo].[Root] [A1] ON [A0].[RootId]=[A1].[Id]"
+                )
+            );
+        }
+
+        [Test]
+        public void TryToJoinTables_WithIntermediateTable_BuildsShortestPath()
+        {
+            var root = new RootTable();
+            var child = new ChildTable();
+            var grandChild = new GrandChildTable();
+            var graph = TablesGraph.Create([root, child, grandChild]);
+
+            var ok = graph.TryToJoinTables(root, grandChild, out var join);
+
+            Assert.That(ok, Is.True);
+            Assert.That(join, Is.Not.Null);
+            Assert.That(
+                join!.ToSql(),
+                Is.EqualTo(
+                    "[dbo].[Root] [A0] JOIN [dbo].[Child] [A1] ON [A1].[RootId]=[A0].[Id] JOIN [dbo].[GrandChild] [A2] ON [A2].[ChildId]=[A1].[Id]"
+                )
+            );
+        }
+
+        [Test]
+        public void TryToJoinTables_WithMultipleRoutes_UsesShortestPath()
+        {
+            var root = new RootTable();
+            var child = new ChildTable();
+            var shortcut = new ShortcutToChildAndRootTable();
+            var graph = TablesGraph.Create([root, child, shortcut]);
+
+            var ok = graph.TryToJoinTables(child, shortcut, out var join);
+
+            Assert.That(ok, Is.True);
+            Assert.That(join, Is.Not.Null);
+            Assert.That(
+                join!.ToSql(),
+                Is.EqualTo("[dbo].[Child] [A0] JOIN [dbo].[ShortcutToChildAndRoot] [A1] ON [A1].[ChildId]=[A0].[Id]")
+            );
+        }
+
+        [Test]
+        public void TryToJoinTables_WithEqualShortestPaths_UsesDiscoveryOrder()
+        {
+            var hub1 = new Hub1Table();
+            var hub2 = new Hub2Table();
+            var source = new MultiRouteSourceTable();
+            var target = new MultiRouteTargetTable();
+            var graph = TablesGraph.Create([hub1, hub2, source, target]);
+
+            var ok = graph.TryToJoinTables(source, target, out var join);
+
+            Assert.That(ok, Is.True);
+            Assert.That(join, Is.Not.Null);
+            Assert.That(
+                join!.ToSql(),
+                Is.EqualTo(
+                    "[dbo].[MultiRouteSource] [A0] JOIN [dbo].[Hub1] [A1] ON [A0].[Hub1Id]=[A1].[Id] JOIN [dbo].[MultiRouteTarget] [A2] ON [A2].[Hub1Id]=[A1].[Id]"
+                )
+            );
+        }
+
+        [Test]
+        public void TryToJoinTables_UsesFullNameAndReturnsFalseForUnknownOrDisconnectedTables()
+        {
+            var root = new RootTable();
+            var child = new ChildTable();
+            var otherRoot = new OtherRootTable();
+            var graph = TablesGraph.Create([root, child, otherRoot]);
+
+            Assert.That(graph.TryToJoinTables(new ChildTable(), new RootTable(), out var sameNameJoin), Is.True);
+            Assert.That(sameNameJoin, Is.Not.Null);
+            Assert.That(graph.TryToJoinTables(root, otherRoot, out var disconnectedJoin), Is.False);
+            Assert.That(disconnectedJoin, Is.Null);
+            Assert.That(graph.TryToJoinTables(new UnknownTable(), root, out var unknownJoin), Is.False);
+            Assert.That(unknownJoin, Is.Null);
+        }
+
+        [Test]
+        public void Contains_UsesFullNameNotReference()
+        {
+            var root = new RootTable();
+            var graph = TablesGraph.Create([root]);
+
+            Assert.That(graph.Contains(root), Is.True);
+            Assert.That(graph.Contains(new RootTable()), Is.True);
+            Assert.That(graph.Contains(new UnknownTable()), Is.False);
         }
 
         [Test]
         public void TryCreate_DuplicateInputTableFullName_ReturnsFalse()
         {
-            var ok = TablesGraph.TryCreate(new TableBase[] { new RootTable(), new RootTable() }, out var graph, out var error);
+            var ok = TablesGraph.TryCreate([new RootTable(), new RootTable()], out var graph, out var error);
 
             Assert.That(ok, Is.False);
             Assert.That(graph, Is.Null);
@@ -235,19 +330,81 @@ namespace SqExpress.Test.Meta
         }
 
         [Test]
-        public void TryCreate_SelfReference_ReturnsFalse()
+        public void TryCreate_SelfReference_ReturnsTrue()
         {
-            var ok = TablesGraph.TryCreate(new TableBase[] { new SelfFkTable() }, out var graph, out var error);
+            var selfFkTable = new SelfFkTable();
+            var ok = TablesGraph.TryCreate([selfFkTable], out var graph, out var error);
 
-            Assert.That(ok, Is.False);
-            Assert.That(graph, Is.Null);
-            Assert.That(error, Does.Contain("cannot reference itself"));
+            Assert.That(ok, Is.True);
+            Assert.That(error, Is.Null);
+            Assert.That(graph, Is.Not.Null);
+            Assert.That(graph!.GetReferences(selfFkTable), Is.Empty);
+            Assert.That(graph.GetReferencedBy(selfFkTable), Is.Empty);
+            Assert.That(graph.GetAllReferences(selfFkTable), Is.EquivalentTo(Array.Empty<TableBase>()));
+            Assert.That(graph.GetAllReferencedBy(selfFkTable), Is.EquivalentTo(Array.Empty<TableBase>()));
+            Assert.That(graph.References(selfFkTable, selfFkTable), Is.False);
+
+            Assert.That(
+                graph.GetReferences(selfFkTable, includeSelfRef: true),
+                Is.EquivalentTo(new TableBase[] { selfFkTable })
+            );
+            Assert.That(
+                graph.GetReferencedBy(selfFkTable, includeSelfRef: true),
+                Is.EquivalentTo(new TableBase[] { selfFkTable })
+            );
+            Assert.That(
+                graph.GetAllReferences(selfFkTable, includeSelfRef: true),
+                Is.EquivalentTo(new TableBase[] { selfFkTable })
+            );
+            Assert.That(
+                graph.GetAllReferencedBy(selfFkTable, includeSelfRef: true),
+                Is.EquivalentTo(new TableBase[] { selfFkTable })
+            );
+            Assert.That(graph.References(selfFkTable, selfFkTable, includeSelfRef: true), Is.True);
+            Assert.That(graph.TryToJoinTables(selfFkTable, selfFkTable, out var selfJoin), Is.False);
+            Assert.That(selfJoin, Is.Null);
+        }
+
+        [Test]
+        public void TryCreate_AttributeSelfReference_ReturnsTrue()
+        {
+            var selfFkTable = new TableSelfFk();
+            var ok = TablesGraph.TryCreate([selfFkTable], out var graph, out var error);
+
+            Assert.That(ok, Is.True);
+            Assert.That(error, Is.Null);
+            Assert.That(graph, Is.Not.Null);
+            Assert.That(graph!.GetReferences(selfFkTable), Is.Empty);
+            Assert.That(graph.GetReferencedBy(selfFkTable), Is.Empty);
+            Assert.That(graph.GetAllReferences(selfFkTable), Is.EquivalentTo(Array.Empty<TableBase>()));
+            Assert.That(graph.GetAllReferencedBy(selfFkTable), Is.EquivalentTo(Array.Empty<TableBase>()));
+            Assert.That(graph.References(selfFkTable, selfFkTable), Is.False);
+
+            Assert.That(
+                graph.GetReferences(selfFkTable, includeSelfRef: true),
+                Is.EquivalentTo(new TableBase[] { selfFkTable })
+            );
+            Assert.That(
+                graph.GetReferencedBy(selfFkTable, includeSelfRef: true),
+                Is.EquivalentTo(new TableBase[] { selfFkTable })
+            );
+            Assert.That(
+                graph.GetAllReferences(selfFkTable, includeSelfRef: true),
+                Is.EquivalentTo(new TableBase[] { selfFkTable })
+            );
+            Assert.That(
+                graph.GetAllReferencedBy(selfFkTable, includeSelfRef: true),
+                Is.EquivalentTo(new TableBase[] { selfFkTable })
+            );
+            Assert.That(graph.References(selfFkTable, selfFkTable, includeSelfRef: true), Is.True);
+            Assert.That(graph.TryToJoinTables(selfFkTable, selfFkTable, out var selfJoin), Is.False);
+            Assert.That(selfJoin, Is.Null);
         }
 
         [Test]
         public void TryCreate_Cycle_ReturnsFalse()
         {
-            var ok = TablesGraph.TryCreate(new TableBase[] { new CrossFkTable1(), new CrossFkTable2() }, out var graph, out var error);
+            var ok = TablesGraph.TryCreate([new CrossFkTable1(), new CrossFkTable2()], out var graph, out var error);
 
             Assert.That(ok, Is.False);
             Assert.That(graph, Is.Null);
@@ -255,22 +412,9 @@ namespace SqExpress.Test.Meta
         }
 
         [Test]
-        public void TryCreate_MultipleDistinctParents_ReturnsFalse()
-        {
-            var ok = TablesGraph.TryCreate(
-                new TableBase[] { new RootTable(), new OtherRootTable(), new MultiParentChildTable() },
-                out var graph,
-                out var error);
-
-            Assert.That(ok, Is.False);
-            Assert.That(graph, Is.Null);
-            Assert.That(error, Does.Contain("more than one distinct parent"));
-        }
-
-        [Test]
         public void TryCreate_ForeignKeyOutsideGraph_ReturnsFalse()
         {
-            var ok = TablesGraph.TryCreate(new TableBase[] { new ChildTable() }, out var graph, out var error);
+            var ok = TablesGraph.TryCreate([new ChildTable()], out var graph, out var error);
 
             Assert.That(ok, Is.False);
             Assert.That(graph, Is.Null);
@@ -281,8 +425,31 @@ namespace SqExpress.Test.Meta
         public void Create_InvalidGraph_ThrowsSqExpressException()
         {
             Assert.That(
-                () => TablesGraph.Create(new TableBase[] { new CrossFkTable1(), new CrossFkTable2() }),
-                Throws.TypeOf<SqExpressException>());
+                () => TablesGraph.Create([new CrossFkTable1(), new CrossFkTable2()]),
+                Throws.TypeOf<SqExpressException>()
+            );
+        }
+
+        private sealed class TableFullNameComparer : IEqualityComparer<TableBase>
+        {
+            public static readonly TableFullNameComparer Instance = new TableFullNameComparer();
+
+            public bool Equals(TableBase? x, TableBase? y)
+            {
+                if (ReferenceEquals(x, y))
+                {
+                    return true;
+                }
+
+                if (ReferenceEquals(x, null) || ReferenceEquals(y, null))
+                {
+                    return false;
+                }
+
+                return x.FullName.ToSql() == y.FullName.ToSql();
+            }
+
+            public int GetHashCode(TableBase obj) => obj.FullName.ToSql().GetHashCode();
         }
 
         private class RootTable : TableBase
@@ -344,20 +511,18 @@ namespace SqExpress.Test.Meta
             public Int32TableColumn ChildId { get; }
         }
 
-        private class MultiKeySameParentChildTable : TableBase
+        private class ShortcutToChildAndRootTable : TableBase
         {
-            public MultiKeySameParentChildTable() : base("dbo", "MultiKeySameParentChild")
+            public ShortcutToChildAndRootTable() : base("dbo", "ShortcutToChildAndRoot")
             {
                 this.Id = this.CreateInt32Column("Id", ColumnMeta.PrimaryKey());
-                this.RootId1 = this.CreateInt32Column("RootId1", ColumnMeta.ForeignKey<RootTable>(t => t.Id));
-                this.RootId2 = this.CreateInt32Column("RootId2", ColumnMeta.ForeignKey<RootTable>(t => t.Id));
+                this.ChildId = this.CreateInt32Column("ChildId", ColumnMeta.ForeignKey<ChildTable>(t => t.Id));
+                this.RootId = this.CreateInt32Column("RootId", ColumnMeta.ForeignKey<RootTable>(t => t.Id));
             }
 
             public Int32TableColumn Id { get; }
-
-            public Int32TableColumn RootId1 { get; }
-
-            public Int32TableColumn RootId2 { get; }
+            public Int32TableColumn ChildId { get; }
+            public Int32TableColumn RootId { get; }
         }
 
         private class MultiParentChildTable : TableBase
@@ -366,14 +531,63 @@ namespace SqExpress.Test.Meta
             {
                 this.Id = this.CreateInt32Column("Id", ColumnMeta.PrimaryKey());
                 this.RootId = this.CreateInt32Column("RootId", ColumnMeta.ForeignKey<RootTable>(t => t.Id));
-                this.OtherRootId = this.CreateInt32Column("OtherRootId", ColumnMeta.ForeignKey<OtherRootTable>(t => t.Id));
+                this.OtherRootId = this.CreateInt32Column(
+                    "OtherRootId",
+                    ColumnMeta.ForeignKey<OtherRootTable>(t => t.Id)
+                );
             }
 
             public Int32TableColumn Id { get; }
-
             public Int32TableColumn RootId { get; }
-
             public Int32TableColumn OtherRootId { get; }
+        }
+
+        private class Hub1Table : TableBase
+        {
+            public Hub1Table() : base("dbo", "Hub1")
+            {
+                this.Id = this.CreateInt32Column("Id", ColumnMeta.PrimaryKey());
+            }
+
+            public Int32TableColumn Id { get; }
+        }
+
+        private class Hub2Table : TableBase
+        {
+            public Hub2Table() : base("dbo", "Hub2")
+            {
+                this.Id = this.CreateInt32Column("Id", ColumnMeta.PrimaryKey());
+            }
+
+            public Int32TableColumn Id { get; }
+        }
+
+        private class MultiRouteSourceTable : TableBase
+        {
+            public MultiRouteSourceTable() : base("dbo", "MultiRouteSource")
+            {
+                this.Id = this.CreateInt32Column("Id", ColumnMeta.PrimaryKey());
+                this.Hub1Id = this.CreateInt32Column("Hub1Id", ColumnMeta.ForeignKey<Hub1Table>(t => t.Id));
+                this.Hub2Id = this.CreateInt32Column("Hub2Id", ColumnMeta.ForeignKey<Hub2Table>(t => t.Id));
+            }
+
+            public Int32TableColumn Id { get; }
+            public Int32TableColumn Hub1Id { get; }
+            public Int32TableColumn Hub2Id { get; }
+        }
+
+        private class MultiRouteTargetTable : TableBase
+        {
+            public MultiRouteTargetTable() : base("dbo", "MultiRouteTarget")
+            {
+                this.Id = this.CreateInt32Column("Id", ColumnMeta.PrimaryKey());
+                this.Hub1Id = this.CreateInt32Column("Hub1Id", ColumnMeta.ForeignKey<Hub1Table>(t => t.Id));
+                this.Hub2Id = this.CreateInt32Column("Hub2Id", ColumnMeta.ForeignKey<Hub2Table>(t => t.Id));
+            }
+
+            public Int32TableColumn Id { get; }
+            public Int32TableColumn Hub1Id { get; }
+            public Int32TableColumn Hub2Id { get; }
         }
 
         private class UnknownTable : TableBase
@@ -395,7 +609,6 @@ namespace SqExpress.Test.Meta
             }
 
             public Int32TableColumn Id { get; }
-
             public Int32TableColumn RefId { get; }
         }
 
@@ -408,7 +621,6 @@ namespace SqExpress.Test.Meta
             }
 
             public Int32TableColumn Id1 { get; }
-
             public Int32TableColumn RefId { get; }
         }
 
@@ -421,8 +633,12 @@ namespace SqExpress.Test.Meta
             }
 
             public Int32TableColumn Id2 { get; }
-
             public Int32TableColumn RefId { get; }
         }
     }
+
+    [TableDescriptor("SelfFk")]
+    [Int32Column("Id")]
+    [Int32Column("Fk", FkTable = "SelfFk", FkColumn = "Id")]
+    public partial class TableSelfFk;
 }

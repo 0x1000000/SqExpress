@@ -35,10 +35,10 @@
 - Added flags-based table comparison and inclusion helpers:
   - `TableComparisonFlags` for `CompareWith(...)`
   - `TableIncludesFlags` for `Includes(...)`
-- Added `TablesGraph` for foreign-key-based table hierarchy navigation and join-path discovery:
-  - `Contains`, `IsParent`, `GetParent`, `GetChildren`, `GetAncestors`, `GetDescendants`
-  - `FindCommonAncestor`
+- Added `TablesGraph` for foreign-key-graph navigation and join-path discovery:
+  - `Contains`, `References`, `GetReferences`, `GetAllReferences`, `GetReferencedBy`, `GetAllReferencedBy`
   - `TryToJoinTables(...)` returning a joinable `IExprTableSource`
+  - deterministic shortest-path selection when several join routes exist
 - Added column-shape extraction helpers used by the `MERGE` polyfill to infer projected column names and SQL types from subqueries and table sources.
 - Added `TypedColumn` as a shared typed-column abstraction for table and custom columns.
 

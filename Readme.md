@@ -54,7 +54,7 @@ You can also use it in conjunction with the "Database First" concept using an in
 ### Database Table Metadata
 
 1. [Retrieving Database Table Metadata](#retrieving-database-table-metadata)
-2. [Navigating Table Hierarchies with TablesGraph](#navigating-table-hierarchies-with-tablesgraph)
+2. [Navigating Table References with TablesGraph](#navigating-table-references-with-tablesgraph)
 
 ### Working with Expressions
 
@@ -2002,7 +2002,7 @@ if (comparison != null)
 }
 ```
 
-## Navigating Table Hierarchies with TablesGraph
+## Navigating Table References with TablesGraph
 
 If your table descriptors contain foreign keys, SqExpress can build a navigation graph for them:
 
@@ -2010,15 +2010,15 @@ If your table descriptors contain foreign keys, SqExpress can build a navigation
 var graph = TablesGraph.Create(AllTables.AllTables);
 ```
 
-`TablesGraph` treats foreign keys as parent-child links:
+`TablesGraph` treats foreign keys as table references:
 
-- parent table = referenced table
-- child table = table containing the foreign key
+- referenced table = foreign-key target
+- referenced-by table = table containing the foreign key
 
-The graph is intentionally limited to a forest of trees:
+The graph models the real foreign-key structure:
 
-- a table can have many children
-- a table can have at most one distinct parent table
+- a table can reference many tables
+- a table can be referenced by many tables
 - cycles are rejected during graph creation
 
 Basic navigation:
@@ -2028,26 +2028,24 @@ var tCustomer = new TableCustomer();
 var tCompany = new TableCompany();
 
 bool isInGraph = graph.Contains(tCustomer);
-bool isDirectParent = graph.IsParent(tCustomer, tCompany);
+bool referencesCompany = graph.References(tCustomer, tCompany);
 
-var parent = graph.GetParent(tCustomer);
-var ancestors = graph.GetAncestors(tCustomer).ToArray();
-var children = graph.GetChildren(tCompany);
-var descendants = graph.GetDescendants(tCompany).ToArray();
-var commonAncestor = graph.FindCommonAncestor(new TableCustomer(), new TableCompany());
+var directReferences = graph.GetReferences(tCustomer);
+var allReferences = graph.GetAllReferences(tCustomer).ToArray();
+var referencedBy = graph.GetReferencedBy(tCompany);
+var allReferencedBy = graph.GetAllReferencedBy(tCompany).ToArray();
 ```
 
 Important behavior:
 
 - table identity is based on full table name, not object reference
 - another `TableBase` instance with the same full name is treated as the same table
-- `Contains(...)` and `IsParent(...)` return `false` for tables outside the graph
-- `FindCommonAncestor(...)` returns `null` when there is no shared ancestor or when a table does not belong to the graph
-- `GetParent(...)`, `GetChildren(...)`, `GetAncestors(...)`, and `GetDescendants(...)` throw if the table does not belong to the graph
+- `Contains(...)` and `References(...)` return `false` for tables outside the graph
+- `GetReferences(...)`, `GetAllReferences(...)`, `GetReferencedBy(...)`, and `GetAllReferencedBy(...)` throw if the table does not belong to the graph
 
-This is useful when you need to reason about descriptor hierarchies for features such as automatic security filters or join-path discovery.
+This is useful when you need to reason about descriptor relationships for features such as automatic security filters or join-path discovery.
 
-It can also build a joinable table source for two tables that belong to the same tree:
+It can also build a joinable table source for two tables connected by foreign keys:
 
 ```cs
 var tCustomer = new TableCustomer();
@@ -2064,8 +2062,10 @@ if (graph.TryToJoinTables(tCustomer, tUser, out var joinedSource))
 `TryToJoinTables(...)` returns:
 
 - `false` if either table is outside the graph
-- `false` if the tables do not share a common ancestor
-- `true` with a joined `IExprTableSource` when a path can be built through the common ancestor
+- `false` if no foreign-key path exists between the tables
+- `true` with a joined `IExprTableSource` when a path can be built
+
+When several paths exist, `TablesGraph` chooses the shortest path. If multiple shortest paths exist, the first one discovered from the original table/reference order is used.
 
 The returned value is a table source, not a complete `SELECT`, so it can be inserted into a bigger request.
 

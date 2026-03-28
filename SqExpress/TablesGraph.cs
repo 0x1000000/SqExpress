@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
@@ -11,22 +11,18 @@ namespace SqExpress
     public sealed class TablesGraph
     {
         private readonly IReadOnlyDictionary<string, TableBase> _tablesByKey;
-        private readonly IReadOnlyDictionary<string, string> _parentByChildKey;
-        private readonly IReadOnlyDictionary<string, IReadOnlyList<TableBase>> _childrenByParentKey;
+        private readonly IReadOnlyDictionary<string, IReadOnlyList<TableBase>> _referencesBySourceKey;
+        private readonly IReadOnlyDictionary<string, IReadOnlyList<TableBase>> _referencedByTargetKey;
 
         private TablesGraph(
             IReadOnlyDictionary<string, TableBase> tablesByKey,
-            IReadOnlyDictionary<string, string> parentByChildKey,
-            IReadOnlyDictionary<string, IReadOnlyList<TableBase>> childrenByParentKey,
-            IReadOnlyList<TableBase> roots)
+            IReadOnlyDictionary<string, IReadOnlyList<TableBase>> referencesBySourceKey,
+            IReadOnlyDictionary<string, IReadOnlyList<TableBase>> referencedByTargetKey)
         {
             this._tablesByKey = tablesByKey;
-            this._parentByChildKey = parentByChildKey;
-            this._childrenByParentKey = childrenByParentKey;
-            this.Roots = roots;
+            this._referencesBySourceKey = referencesBySourceKey;
+            this._referencedByTargetKey = referencedByTargetKey;
         }
-
-        public IReadOnlyList<TableBase> Roots { get; }
 
         public static TablesGraph Create(IReadOnlyList<TableBase> tables)
         {
@@ -53,6 +49,7 @@ namespace SqExpress
             }
 
             var tablesByKey = new Dictionary<string, TableBase>(StringComparer.OrdinalIgnoreCase);
+            var orderedKeys = new List<string>(tables.Count);
             for (var i = 0; i < tables.Count; i++)
             {
                 var table = tables[i] ?? throw new SqExpressException("Table list cannot contain null.");
@@ -64,14 +61,16 @@ namespace SqExpress
                 }
 
                 tablesByKey.Add(key, table);
+                orderedKeys.Add(key);
             }
 
-            var parentByChildKey = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var referencesBySource = new Dictionary<string, List<TableBase>>(StringComparer.OrdinalIgnoreCase);
+            var referencedByTarget = new Dictionary<string, List<TableBase>>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var table in tables)
             {
-                var childKey = BuildTableKey(table.FullName);
-                string? parentKey = null;
+                var sourceKey = BuildTableKey(table.FullName);
+                HashSet<string>? seenTargets = null;
 
                 foreach (var column in table.Columns)
                 {
@@ -84,80 +83,40 @@ namespace SqExpress
                     for (var i = 0; i < foreignKeyColumns.Count; i++)
                     {
                         var foreignKeyColumn = foreignKeyColumns[i];
-                        var referencedTable = foreignKeyColumn.Table as TableBase;
-                        if (referencedTable == null)
+                        if (!(foreignKeyColumn.Table is TableBase referencedTable))
                         {
-                            error = $"Foreign key on '{FormatTableName(table.FullName)}.{column.ColumnName.Name}' does not reference a TableBase.";
-                            return false;
+                            continue;
                         }
 
-                        var referencedKey = BuildTableKey(referencedTable.FullName);
-                        if (!tablesByKey.ContainsKey(referencedKey))
+                        var targetKey = BuildTableKey(referencedTable.FullName);
+                        if (!tablesByKey.ContainsKey(targetKey))
                         {
                             error =
                                 $"Foreign key on '{FormatTableName(table.FullName)}.{column.ColumnName.Name}' references '{FormatTableName(referencedTable.FullName)}' which is not included in the graph.";
                             return false;
                         }
 
-                        if (string.Equals(childKey, referencedKey, StringComparison.OrdinalIgnoreCase))
+                        seenTargets ??= new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        if (!seenTargets.Add(targetKey))
                         {
-                            error = $"Table '{FormatTableName(table.FullName)}' cannot reference itself as parent.";
-                            return false;
-                        }
-
-                        if (parentKey == null)
-                        {
-                            parentKey = referencedKey;
                             continue;
                         }
 
-                        if (!string.Equals(parentKey, referencedKey, StringComparison.OrdinalIgnoreCase))
-                        {
-                            error =
-                                $"Table '{FormatTableName(table.FullName)}' references more than one distinct parent table.";
-                            return false;
-                        }
+                        AddLink(referencesBySource, sourceKey, tablesByKey[targetKey]);
+                        AddLink(referencedByTarget, targetKey, table);
                     }
-                }
-
-                if (parentKey != null)
-                {
-                    parentByChildKey[childKey] = parentKey;
                 }
             }
 
-            if (TryDetectCycle(parentByChildKey, tablesByKey, out error))
+            if (TryDetectCycle(orderedKeys, referencesBySource, out error))
             {
                 return false;
             }
 
-            var childrenMap = new Dictionary<string, List<TableBase>>(StringComparer.OrdinalIgnoreCase);
-            foreach (var kv in parentByChildKey)
-            {
-                if (!childrenMap.TryGetValue(kv.Value, out var children))
-                {
-                    children = new List<TableBase>();
-                    childrenMap[kv.Value] = children;
-                }
-
-                children.Add(tablesByKey[kv.Key]);
-            }
-
-            var readonlyChildrenMap = childrenMap.ToDictionary(
-                i => i.Key,
-                i => (IReadOnlyList<TableBase>)i.Value,
-                StringComparer.OrdinalIgnoreCase);
-
-            var roots = new List<TableBase>();
-            foreach (var table in tables)
-            {
-                if (!parentByChildKey.ContainsKey(BuildTableKey(table.FullName)))
-                {
-                    roots.Add(table);
-                }
-            }
-
-            graph = new TablesGraph(tablesByKey, parentByChildKey, readonlyChildrenMap, roots);
+            graph = new TablesGraph(
+                tablesByKey,
+                referencesBySource.ToDictionary(i => i.Key, i => (IReadOnlyList<TableBase>)i.Value, StringComparer.OrdinalIgnoreCase),
+                referencedByTarget.ToDictionary(i => i.Key, i => (IReadOnlyList<TableBase>)i.Value, StringComparer.OrdinalIgnoreCase));
             return true;
         }
 
@@ -171,53 +130,62 @@ namespace SqExpress
             return this._tablesByKey.ContainsKey(BuildTableKey(table.FullName));
         }
 
-        public bool IsParent(TableBase childCandidateTable, TableBase parentCandidateTable)
+        public bool References(TableBase table, TableBase referencedCandidateTable, bool includeSelfRef = false)
         {
-            if (childCandidateTable == null || parentCandidateTable == null)
+            if (table == null || referencedCandidateTable == null)
             {
                 return false;
             }
 
-            var childKey = BuildTableKey(childCandidateTable.FullName);
-            var parentKey = BuildTableKey(parentCandidateTable.FullName);
+            if (!this._tablesByKey.TryGetValue(BuildTableKey(table.FullName), out var canonical))
+            {
+                return false;
+            }
 
-            return this._parentByChildKey.TryGetValue(childKey, out var actualParentKey)
-                   && string.Equals(actualParentKey, parentKey, StringComparison.OrdinalIgnoreCase);
+            var candidateKey = BuildTableKey(referencedCandidateTable.FullName);
+            return this.GetReferences(canonical, includeSelfRef).Any(i => string.Equals(BuildTableKey(i.FullName), candidateKey, StringComparison.OrdinalIgnoreCase));
         }
 
-        public TableBase? FindCommonAncestor(TableBase table1, TableBase table2)
+        public IReadOnlyList<TableBase> GetReferences(TableBase table, bool includeSelfRef = false)
         {
-            if (table1 == null || table2 == null)
+            var canonical = this.ResolveTable(table);
+            var key = BuildTableKey(canonical.FullName);
+            if (!this._referencesBySourceKey.TryGetValue(key, out var references))
             {
-                return null;
+                return Array.Empty<TableBase>();
             }
 
-            if (!this.TryResolveTable(table1, out var canonicalTable1) || !this.TryResolveTable(table2, out var canonicalTable2))
+            return includeSelfRef ? references : FilterSelfReference(canonical, references);
+        }
+
+        public IEnumerable<TableBase> GetAllReferences(TableBase table, bool includeSelfRef = false)
+        {
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var reference in this.GetAllReferencesIterator(this.ResolveTable(table), visited, includeSelfRef))
             {
-                return null;
+                yield return reference;
+            }
+        }
+
+        public IReadOnlyList<TableBase> GetReferencedBy(TableBase table, bool includeSelfRef = false)
+        {
+            var canonical = this.ResolveTable(table);
+            var key = BuildTableKey(canonical.FullName);
+            if (!this._referencedByTargetKey.TryGetValue(key, out var referencedBy))
+            {
+                return Array.Empty<TableBase>();
             }
 
-            var ancestors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var current = canonicalTable1;
-            while (current != null)
+            return includeSelfRef ? referencedBy : FilterSelfReference(canonical, referencedBy);
+        }
+
+        public IEnumerable<TableBase> GetAllReferencedBy(TableBase table, bool includeSelfRef = false)
+        {
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var referencedBy in this.GetAllReferencedByIterator(this.ResolveTable(table), visited, includeSelfRef))
             {
-                ancestors.Add(BuildTableKey(current.FullName));
-                current = this.GetParent(current);
+                yield return referencedBy;
             }
-
-            current = canonicalTable2;
-            while (current != null)
-            {
-                var key = BuildTableKey(current.FullName);
-                if (ancestors.Contains(key))
-                {
-                    return current;
-                }
-
-                current = this.GetParent(current);
-            }
-
-            return null;
         }
 
         public bool TryToJoinTables(
@@ -232,105 +200,144 @@ namespace SqExpress
                 return false;
             }
 
-            var commonAncestor = this.FindCommonAncestor(canonicalTable1, canonicalTable2);
-            if (commonAncestor == null)
+            if (string.Equals(BuildTableKey(canonicalTable1.FullName), BuildTableKey(canonicalTable2.FullName), StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
 
-            IExprTableSource source = commonAncestor;
-
-            foreach (var descendant in this.GetPathFromAncestor(commonAncestor, canonicalTable1).Skip(1))
+            var path = this.TryFindShortestPath(canonicalTable1, canonicalTable2);
+            if (path == null || path.Count == 0)
             {
-                var parent = this.GetParent(descendant);
-                if (parent == null)
-                {
-                    throw new SqExpressException($"Table '{FormatTableName(descendant.FullName)}' does not have a parent in the graph.");
-                }
-
-                source = new ExprJoinedTable(
-                    source,
-                    ExprJoinedTable.ExprJoinType.Inner,
-                    descendant,
-                    BuildJoinCondition(descendant, parent));
+                return false;
             }
 
-            foreach (var descendant in this.GetPathFromAncestor(commonAncestor, canonicalTable2).Skip(1))
+            IExprTableSource source = path[0];
+            for (var i = 1; i < path.Count; i++)
             {
-                var parent = this.GetParent(descendant);
-                if (parent == null)
-                {
-                    throw new SqExpressException($"Table '{FormatTableName(descendant.FullName)}' does not have a parent in the graph.");
-                }
-
                 source = new ExprJoinedTable(
                     source,
                     ExprJoinedTable.ExprJoinType.Inner,
-                    descendant,
-                    BuildJoinCondition(descendant, parent));
+                    path[i],
+                    BuildJoinCondition(path[i - 1], path[i]));
             }
 
             join = source;
             return true;
         }
 
-        public TableBase? GetParent(TableBase table)
+        private IEnumerable<TableBase> GetAllReferencesIterator(TableBase table, HashSet<string> visited, bool includeSelfRef)
         {
-            var canonical = this.ResolveTable(table);
-            var childKey = BuildTableKey(canonical.FullName);
-            if (!this._parentByChildKey.TryGetValue(childKey, out var parentKey))
+            foreach (var reference in this.GetReferences(table, includeSelfRef))
             {
-                return null;
-            }
-
-            return this._tablesByKey[parentKey];
-        }
-
-        public IEnumerable<TableBase> GetAncestors(TableBase table)
-        {
-            var current = this.GetParent(table);
-            while (current != null)
-            {
-                yield return current;
-                current = this.GetParent(current);
-            }
-        }
-
-        public IReadOnlyList<TableBase> GetChildren(TableBase table)
-        {
-            var canonical = this.ResolveTable(table);
-            var key = BuildTableKey(canonical.FullName);
-            return this._childrenByParentKey.TryGetValue(key, out var children)
-                ? children
-                : Array.Empty<TableBase>();
-        }
-
-        public IEnumerable<TableBase> GetDescendants(TableBase table)
-        {
-            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var descendant in this.GetDescendantsIterator(this.ResolveTable(table), visited))
-            {
-                yield return descendant;
-            }
-        }
-
-        private IEnumerable<TableBase> GetDescendantsIterator(TableBase table, HashSet<string> visited)
-        {
-            foreach (var child in this.GetChildren(table))
-            {
-                var childKey = BuildTableKey(child.FullName);
-                if (!visited.Add(childKey))
+                var key = BuildTableKey(reference.FullName);
+                if (!visited.Add(key))
                 {
                     continue;
                 }
 
-                yield return child;
+                yield return reference;
 
-                foreach (var descendant in this.GetDescendantsIterator(child, visited))
+                foreach (var nested in this.GetAllReferencesIterator(reference, visited, includeSelfRef))
                 {
-                    yield return descendant;
+                    yield return nested;
                 }
             }
+        }
+
+        private IEnumerable<TableBase> GetAllReferencedByIterator(TableBase table, HashSet<string> visited, bool includeSelfRef)
+        {
+            foreach (var referencedBy in this.GetReferencedBy(table, includeSelfRef))
+            {
+                var key = BuildTableKey(referencedBy.FullName);
+                if (!visited.Add(key))
+                {
+                    continue;
+                }
+
+                yield return referencedBy;
+
+                foreach (var nested in this.GetAllReferencedByIterator(referencedBy, visited, includeSelfRef))
+                {
+                    yield return nested;
+                }
+            }
+        }
+
+        private List<TableBase>? TryFindShortestPath(TableBase source, TableBase target)
+        {
+            var sourceKey = BuildTableKey(source.FullName);
+            var targetKey = BuildTableKey(target.FullName);
+
+            var queue = new Queue<string>();
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { sourceKey };
+            var previous = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            {
+                [sourceKey] = null
+            };
+
+            queue.Enqueue(sourceKey);
+
+            while (queue.Count > 0)
+            {
+                var currentKey = queue.Dequeue();
+                if (string.Equals(currentKey, targetKey, StringComparison.OrdinalIgnoreCase))
+                {
+                    return ReconstructPath(previous, targetKey, this._tablesByKey);
+                }
+
+                foreach (var neighbor in this.GetAdjacentTables(this._tablesByKey[currentKey]))
+                {
+                    var neighborKey = BuildTableKey(neighbor.FullName);
+                    if (!visited.Add(neighborKey))
+                    {
+                        continue;
+                    }
+
+                    previous[neighborKey] = currentKey;
+                    queue.Enqueue(neighborKey);
+                }
+            }
+
+            return null;
+        }
+
+        private IEnumerable<TableBase> GetAdjacentTables(TableBase table)
+        {
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var reference in this.GetReferences(table))
+            {
+                var key = BuildTableKey(reference.FullName);
+                if (seen.Add(key))
+                {
+                    yield return reference;
+                }
+            }
+
+            foreach (var referencedBy in this.GetReferencedBy(table))
+            {
+                var key = BuildTableKey(referencedBy.FullName);
+                if (seen.Add(key))
+                {
+                    yield return referencedBy;
+                }
+            }
+        }
+
+        private static List<TableBase> ReconstructPath(
+            IReadOnlyDictionary<string, string?> previous,
+            string targetKey,
+            IReadOnlyDictionary<string, TableBase> tablesByKey)
+        {
+            var path = new List<TableBase>();
+            string? currentKey = targetKey;
+            while (currentKey != null)
+            {
+                path.Add(tablesByKey[currentKey]);
+                currentKey = previous[currentKey];
+            }
+
+            path.Reverse();
+            return path;
         }
 
         private TableBase ResolveTable(TableBase table)
@@ -352,7 +359,6 @@ namespace SqExpress
         private bool TryResolveTable(TableBase table, [NotNullWhen(true)] out TableBase? canonical)
         {
             canonical = null;
-
             if (table == null)
             {
                 return false;
@@ -361,28 +367,25 @@ namespace SqExpress
             return this._tablesByKey.TryGetValue(BuildTableKey(table.FullName), out canonical);
         }
 
-        private IReadOnlyList<TableBase> GetPathFromAncestor(TableBase ancestor, TableBase descendant)
+        private static ExprBoolean BuildJoinCondition(TableBase left, TableBase right)
         {
-            var path = new List<TableBase>();
-            var current = descendant;
-
-            while (current != null)
+            var condition = TryBuildJoinCondition(left, right);
+            if (!ReferenceEquals(condition, null))
             {
-                path.Add(current);
-                if (string.Equals(BuildTableKey(current.FullName), BuildTableKey(ancestor.FullName), StringComparison.OrdinalIgnoreCase))
-                {
-                    path.Reverse();
-                    return path;
-                }
+                return condition;
+            }
 
-                current = this.GetParent(current);
+            condition = TryBuildJoinCondition(right, left);
+            if (!ReferenceEquals(condition, null))
+            {
+                return condition;
             }
 
             throw new SqExpressException(
-                $"Table '{FormatTableName(descendant.FullName)}' does not descend from '{FormatTableName(ancestor.FullName)}'.");
+                $"No foreign key join condition was found between '{FormatTableName(left.FullName)}' and '{FormatTableName(right.FullName)}'.");
         }
 
-        private static ExprBoolean BuildJoinCondition(TableBase child, TableBase parent)
+        private static ExprBoolean? TryBuildJoinCondition(TableBase child, TableBase referenced)
         {
             ExprBoolean? result = null;
 
@@ -398,58 +401,97 @@ namespace SqExpress
                 {
                     var referencedColumn = foreignKeyColumns[i];
                     if (!(referencedColumn.Table is TableBase referencedTable)
-                        || !string.Equals(BuildTableKey(referencedTable.FullName), BuildTableKey(parent.FullName), StringComparison.OrdinalIgnoreCase))
+                        || !string.Equals(BuildTableKey(referencedTable.FullName), BuildTableKey(referenced.FullName), StringComparison.OrdinalIgnoreCase))
                     {
                         continue;
                     }
 
-                    var parentColumn = parent.Columns.FirstOrDefault(c =>
+                    var referencedTableColumn = referenced.Columns.FirstOrDefault(c =>
                         string.Equals(c.ColumnName.Name, referencedColumn.ColumnName.Name, StringComparison.OrdinalIgnoreCase));
 
-                    if (ReferenceEquals(parentColumn, null))
+                    if (ReferenceEquals(referencedTableColumn, null))
                     {
                         throw new SqExpressException(
-                            $"Referenced column '{FormatTableName(parent.FullName)}.{referencedColumn.ColumnName.Name}' was not found.");
+                            $"Referenced column '{FormatTableName(referenced.FullName)}.{referencedColumn.ColumnName.Name}' was not found.");
                     }
 
-                    var condition = childColumn == parentColumn;
+                    var condition = childColumn == referencedTableColumn;
                     result = ReferenceEquals(result, null) ? condition : result & condition;
                 }
-            }
-
-            if (ReferenceEquals(result, null))
-            {
-                throw new SqExpressException(
-                    $"Table '{FormatTableName(child.FullName)}' does not have a foreign key to '{FormatTableName(parent.FullName)}'.");
             }
 
             return result;
         }
 
         private static bool TryDetectCycle(
-            IReadOnlyDictionary<string, string> parentByChildKey,
-            IReadOnlyDictionary<string, TableBase> tablesByKey,
+            IReadOnlyList<string> orderedKeys,
+            IReadOnlyDictionary<string, List<TableBase>> referencesBySource,
             out string? error)
         {
-            foreach (var childKey in parentByChildKey.Keys)
+            var indegree = orderedKeys.ToDictionary(i => i, _ => 0, StringComparer.OrdinalIgnoreCase);
+            foreach (var pair in referencesBySource)
             {
-                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { childKey };
-                var currentKey = childKey;
-
-                while (parentByChildKey.TryGetValue(currentKey, out var parentKey))
+                foreach (var reference in pair.Value)
                 {
-                    if (!seen.Add(parentKey))
+                    var sourceKey = pair.Key;
+                    var referenceKey = BuildTableKey(reference.FullName);
+                    if (string.Equals(sourceKey, referenceKey, StringComparison.OrdinalIgnoreCase))
                     {
-                        error = $"Cycle detected involving table '{FormatTableName(tablesByKey[parentKey].FullName)}'.";
-                        return true;
+                        continue;
                     }
 
-                    currentKey = parentKey;
+                    indegree[referenceKey]++;
                 }
+            }
+
+            var queue = new Queue<string>(orderedKeys.Where(i => indegree[i] == 0));
+            var visitedCount = 0;
+
+            while (queue.Count > 0)
+            {
+                var currentKey = queue.Dequeue();
+                visitedCount++;
+
+                if (!referencesBySource.TryGetValue(currentKey, out var references))
+                {
+                    continue;
+                }
+
+                foreach (var reference in references)
+                {
+                    var referenceKey = BuildTableKey(reference.FullName);
+                    if (string.Equals(currentKey, referenceKey, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    indegree[referenceKey]--;
+                    if (indegree[referenceKey] == 0)
+                    {
+                        queue.Enqueue(referenceKey);
+                    }
+                }
+            }
+
+            if (visitedCount != orderedKeys.Count)
+            {
+                error = "Cycle detected in tables graph.";
+                return true;
             }
 
             error = null;
             return false;
+        }
+
+        private static void AddLink(IDictionary<string, List<TableBase>> map, string key, TableBase table)
+        {
+            if (!map.TryGetValue(key, out var list))
+            {
+                list = new List<TableBase>();
+                map[key] = list;
+            }
+
+            list.Add(table);
         }
 
         private static string BuildTableKey(IExprTableFullName fullName)
@@ -476,6 +518,26 @@ namespace SqExpress
             }
 
             return table.TableName.Name;
+        }
+
+        private static IReadOnlyList<TableBase> FilterSelfReference(TableBase source, IReadOnlyList<TableBase> tables)
+        {
+            var sourceKey = BuildTableKey(source.FullName);
+            List<TableBase>? filtered = null;
+
+            for (var i = 0; i < tables.Count; i++)
+            {
+                var table = tables[i];
+                if (string.Equals(sourceKey, BuildTableKey(table.FullName), StringComparison.OrdinalIgnoreCase))
+                {
+                    filtered ??= new List<TableBase>(tables.Count - 1);
+                    continue;
+                }
+
+                filtered?.Add(table);
+            }
+
+            return filtered ?? tables;
         }
     }
 }
