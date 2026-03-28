@@ -237,6 +237,25 @@ namespace SqExpress.Test.CodeGenUtil
                         isText: false,
                         precision: 0,
                         scale: 0,
+                        isDate: false),
+                    new CodeGenColumnModel(
+                        kind: CodeGenColumnKind.Boolean,
+                        sqlName: "Aggregatable",
+                        propertyName: null,
+                        isPrimaryKey: false,
+                        isIdentity: false,
+                        foreignKeyDatabase: null,
+                        foreignKeySchema: null,
+                        foreignKeyTable: null,
+                        foreignKeyColumn: null,
+                        defaultValueKind: CodeGenDefaultValueKind.RawSql,
+                        defaultValue: "CONVERT([bit],(0))",
+                        isUnicode: false,
+                        maxLength: null,
+                        isFixedLength: false,
+                        isText: false,
+                        precision: 0,
+                        scale: 0,
                         isDate: false)),
                 indexes: ImmutableArray<CodeGenIndexModel>.Empty);
 
@@ -251,6 +270,34 @@ namespace SqExpress.Test.CodeGenUtil
             Assert.That(
                 NormalizeNewLines(generated),
                 Does.Contain("[DateTimeColumn(\"CreatedUtc\", DefaultValue = \"$raw((sysutcdatetime()))\")]"));
+            Assert.That(
+                NormalizeNewLines(generated),
+                Does.Contain("[BooleanColumn(\"Aggregatable\", DefaultValue = \"$raw(CONVERT([bit],(0)))\")]"));
+        }
+
+        [Test]
+        public async Task AttributeDeclaration_RawSqlDefaultFromDbMetadata_IsWrappedWithRawToken()
+        {
+            using var dbManager = new DbManager(
+                new RawDefaultDbStrategy(),
+                new SqlConnection("Initial Catalog=TestDatabase;"),
+                new DbManagerOptions("Tab"));
+
+            var tables = await dbManager.SelectTables();
+            var tableMap = tables.ToDictionary(t => t.DbName);
+
+            var source = CodeGenTableDescriptorSupport.GenerateTableDeclaration(
+                    tables.Single(),
+                    tableMap,
+                    "MyCompany.MyProject.Tables")
+                .ToFullString();
+
+            var normalizeNewLines = NormalizeNewLines(source);
+            Console.WriteLine(normalizeNewLines);
+
+            Assert.That(
+                normalizeNewLines,
+                Does.Contain("[BooleanColumn(\"Aggregatable\", DefaultValue = \"$raw((CONVERT([bit],(0))))\")]"));
         }
 
         [Test]
@@ -274,7 +321,7 @@ namespace SqExpress.Test.CodeGenUtil
             Assert.That(NormalizeNewLines(allTablesSource), Does.Contain("using System;\n"));
             Assert.That(NormalizeNewLines(allTablesSource), Does.Contain("using System.Collections.Generic;\n"));
             Assert.That(NormalizeNewLines(allTablesSource), Does.Contain("using SqExpress;\n"));
-            Assert.That(NormalizeNewLines(allTablesSource), Does.Contain("public static readonly IReadOnlyCollection<TableBase> StaticList = Array.AsReadOnly(BuildAllTableList());"));
+            Assert.That(NormalizeNewLines(allTablesSource), Does.Contain("public static readonly IReadOnlyList<TableBase> StaticList = Array.AsReadOnly(BuildAllTableList());"));
             Assert.That(NormalizeNewLines(allTablesSource), Does.Contain("public static TableBase[] BuildAllTableList() => new TableBase[]"));
             Assert.That(NormalizeNewLines(allTablesSource), Does.Contain("public static TabTableZ GetTableZ(Alias alias) => new TabTableZ(alias);"));
             Assert.That(NormalizeNewLines(allTablesSource), Does.Contain("public static TabTableA GetTableA() => new TabTableA(Alias.Auto);"));
@@ -416,6 +463,42 @@ namespace SqExpress.Test.CodeGenUtil
 
         private static string NormalizeNewLines(string value)
             => value.Replace("\r\n", "\n");
+
+        private sealed class RawDefaultDbStrategy : IDbStrategy
+        {
+            private readonly IDbStrategy _msSqlDbStrategy = new DbManagerTest();
+
+            public void Dispose()
+            {
+            }
+
+            public string DefaultSchemaName => "dbo";
+
+            public Task<DbRawModels> LoadRawModels()
+            {
+                var table = new TableRef("dbo", "Audit");
+                return Task.FromResult(new DbRawModels(
+                    new List<ColumnRawModel>
+                    {
+                        new ColumnRawModel(new ColumnRef("dbo", "Audit", "Id"), 1, false, false, "int", null, null, null, null, null),
+                        new ColumnRawModel(new ColumnRef("dbo", "Audit", "Aggregatable"), 2, false, false, "bit", "(CONVERT([bit],(0)))", null, null, null, null)
+                    },
+                    new LoadIndexesResult(
+                        new Dictionary<TableRef, PrimaryKeyModel>(),
+                        new Dictionary<TableRef, List<IndexModel>>()),
+                    new Dictionary<ColumnRef, List<ColumnRef>>()));
+            }
+
+            public ColumnType? TryGetColType(ColumnRawModel raw)
+            {
+                return this._msSqlDbStrategy.TryGetColType(raw);
+            }
+
+            public DefaultValue? ParseDefaultValue(string? rawColumnDefaultValue, ColumnType columnType)
+            {
+                return this._msSqlDbStrategy.ParseDefaultValue(rawColumnDefaultValue, columnType);
+            }
+        }
 
         private sealed class UnsupportedColumnType : ColumnType
         {

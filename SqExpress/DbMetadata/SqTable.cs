@@ -101,7 +101,7 @@ public sealed class SqTable : TableBase
                     case DefaultValueType.Raw:
                         if (columnModel.DefaultValue.Value.RawValue != null)
                         {
-                            defaultValue = SqQueryBuilder.Literal(columnModel.DefaultValue.Value.RawValue);
+                            defaultValue = SqQueryBuilder.UnsafeValue(columnModel.DefaultValue.Value.RawValue);
                         }
                         break;
                     case DefaultValueType.Null:
@@ -116,7 +116,7 @@ public sealed class SqTable : TableBase
                             }
                             else
                             {
-                                defaultValue = SqQueryBuilder.Literal(columnModel.DefaultValue.Value.RawValue);
+                                defaultValue = SqQueryBuilder.UnsafeValue(columnModel.DefaultValue.Value.RawValue);
                             }
                         }
                         break;
@@ -134,7 +134,7 @@ public sealed class SqTable : TableBase
                             }
                             else
                             {
-                                defaultValue = SqQueryBuilder.Literal(columnModel.DefaultValue.Value.RawValue);
+                                defaultValue = SqQueryBuilder.UnsafeValue(columnModel.DefaultValue.Value.RawValue);
                             }
                         }
                         break;
