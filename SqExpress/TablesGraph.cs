@@ -192,6 +192,13 @@ namespace SqExpress
             TableBase table1,
             TableBase table2,
             [NotNullWhen(true)] out IExprTableSource? join)
+            => this.TryToJoinTables(table1, table2, intermediateTables: null, out join);
+
+        public bool TryToJoinTables(
+            TableBase table1,
+            TableBase table2,
+            IReadOnlyList<TableBase>? intermediateTables,
+            [NotNullWhen(true)] out IExprTableSource? join)
         {
             join = null;
 
@@ -205,7 +212,7 @@ namespace SqExpress
                 return false;
             }
 
-            var path = this.TryFindShortestPath(canonicalTable1, canonicalTable2);
+            var path = this.TryBuildPath(canonicalTable1, canonicalTable2, intermediateTables);
             if (path == null || path.Count == 0)
             {
                 return false;
@@ -223,6 +230,48 @@ namespace SqExpress
 
             join = source;
             return true;
+        }
+
+        private List<TableBase>? TryBuildPath(
+            TableBase source,
+            TableBase target,
+            IReadOnlyList<TableBase>? intermediateTables)
+        {
+            if (intermediateTables == null || intermediateTables.Count == 0)
+            {
+                return this.TryFindShortestPath(source, target);
+            }
+
+            var fullPath = new List<TableBase>();
+            var segmentSource = source;
+
+            for (var i = 0; i <= intermediateTables.Count; i++)
+            {
+                var segmentTargetInput = i < intermediateTables.Count ? intermediateTables[i] : target;
+                if (!this.TryResolveTable(segmentTargetInput, out var segmentTarget))
+                {
+                    return null;
+                }
+
+                var segmentPath = this.TryFindShortestPath(segmentSource, segmentTarget);
+                if (segmentPath == null || segmentPath.Count == 0)
+                {
+                    return null;
+                }
+
+                if (fullPath.Count == 0)
+                {
+                    fullPath.AddRange(segmentPath);
+                }
+                else
+                {
+                    fullPath.AddRange(segmentPath.Skip(1));
+                }
+
+                segmentSource = segmentTarget;
+            }
+
+            return fullPath;
         }
 
         private IEnumerable<TableBase> GetAllReferencesIterator(TableBase table, HashSet<string> visited, bool includeSelfRef)

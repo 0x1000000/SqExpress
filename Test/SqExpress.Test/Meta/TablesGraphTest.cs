@@ -127,6 +127,17 @@ namespace SqExpress.Test.Meta
                     "[D1] [A0] JOIN [C1] [A1] ON [A0].[Fk]=[A1].[Id] JOIN [A1] [A2] ON [A1].[Fk]=[A2].[Id]"
                 )
             );
+
+            Assert.That(graph.TryToJoinTables(tD1, tA1, [tB1], out join), Is.True);
+            Assert.That(join, Is.Not.Null);
+
+            Assert.That(
+                join!.ToSql(),
+                Is.EqualTo(
+                    "[D1] [A0] JOIN [C1] [A1] ON [A0].[Fk]=[A1].[Id] JOIN [B1] [A2] ON [A1].[Fk]=[A2].[Id] JOIN [A1] [A3] ON [A2].[Fk]=[A3].[Id]"
+                )
+            );
+
         }
 
         [Test]
@@ -254,6 +265,54 @@ namespace SqExpress.Test.Meta
         }
 
         [Test]
+        public void TryToJoinTables_WithRequiredIntermediateTable_UsesSpecifiedCheckpoint()
+        {
+            var root = new RootTable();
+            var child = new ChildTable();
+            var shortcut = new ShortcutToChildAndRootTable();
+            var graph = TablesGraph.Create([root, child, shortcut]);
+
+            var ok = graph.TryToJoinTables(
+                child,
+                shortcut,
+                new TableBase[] { root },
+                out var join);
+
+            Assert.That(ok, Is.True);
+            Assert.That(join, Is.Not.Null);
+            Assert.That(
+                join!.ToSql(),
+                Is.EqualTo(
+                    "[dbo].[Child] [A0] JOIN [dbo].[Root] [A1] ON [A0].[RootId]=[A1].[Id] JOIN [dbo].[ShortcutToChildAndRoot] [A2] ON [A2].[RootId]=[A1].[Id]"
+                )
+            );
+        }
+
+        [Test]
+        public void TryToJoinTables_WithRequiredIntermediateTables_UsesOrderedCheckpoints()
+        {
+            var root = new RootTable();
+            var child = new ChildTable();
+            var grandChild = new GrandChildTable();
+            var graph = TablesGraph.Create([root, child, grandChild]);
+
+            var ok = graph.TryToJoinTables(
+                root,
+                grandChild,
+                new TableBase[] { child },
+                out var join);
+
+            Assert.That(ok, Is.True);
+            Assert.That(join, Is.Not.Null);
+            Assert.That(
+                join!.ToSql(),
+                Is.EqualTo(
+                    "[dbo].[Root] [A0] JOIN [dbo].[Child] [A1] ON [A1].[RootId]=[A0].[Id] JOIN [dbo].[GrandChild] [A2] ON [A2].[ChildId]=[A1].[Id]"
+                )
+            );
+        }
+
+        [Test]
         public void TryToJoinTables_WithMultipleRoutes_UsesShortestPath()
         {
             var root = new RootTable();
@@ -306,6 +365,11 @@ namespace SqExpress.Test.Meta
             Assert.That(disconnectedJoin, Is.Null);
             Assert.That(graph.TryToJoinTables(new UnknownTable(), root, out var unknownJoin), Is.False);
             Assert.That(unknownJoin, Is.Null);
+            Assert.That(
+                graph.TryToJoinTables(child, root, new TableBase[] { new UnknownTable() }, out var unknownIntermediateJoin),
+                Is.False
+            );
+            Assert.That(unknownIntermediateJoin, Is.Null);
         }
 
         [Test]

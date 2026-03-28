@@ -63,11 +63,11 @@ namespace SqExpress.Test.CodeGenUtil
                 {
                     public partial class TabTableZ : TableBase
                     {
-                        public TabTableZ() : this(alias: SqExpress.Alias.Auto)
+                        public TabTableZ(): this(alias: SqExpress.Alias.Auto)
                         {
                         }
 
-                        public TabTableZ(Alias alias) : base("dbo", "TableZ", alias)
+                        public TabTableZ(Alias alias): base(schema: "dbo", name: "TableZ", alias: alias)
                         {
                             this.Id = this.CreateInt32Column("Id", ColumnMeta.PrimaryKey().Identity().DefaultValue(0));
                             this.ValueA = this.CreateStringColumn(name: "ValueA", size: 255, isUnicode: true, isText: false, columnMeta: ColumnMeta.DefaultValue(""));
@@ -93,11 +93,11 @@ namespace SqExpress.Test.CodeGenUtil
                 {
                     public partial class TabTableA : TableBase
                     {
-                        public TabTableA() : this(alias: SqExpress.Alias.Auto)
+                        public TabTableA(): this(alias: SqExpress.Alias.Auto)
                         {
                         }
 
-                        public TabTableA(Alias alias) : base("dbo", "TableA", alias)
+                        public TabTableA(Alias alias): base(schema: "dbo", name: "TableA", alias: alias)
                         {
                             this.Id = this.CreateInt32Column("Id", ColumnMeta.PrimaryKey().Identity().DefaultValue(0).ForeignKey<TabTableZ>(t => t.Id));
                             this.Value = this.CreateDateTimeColumn("Value", false, ColumnMeta.DefaultValue(SqQueryBuilder.GetUtcDate()));
@@ -293,7 +293,6 @@ namespace SqExpress.Test.CodeGenUtil
                 .ToFullString();
 
             var normalizeNewLines = NormalizeNewLines(source);
-            Console.WriteLine(normalizeNewLines);
 
             Assert.That(
                 normalizeNewLines,
