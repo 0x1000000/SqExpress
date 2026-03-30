@@ -2007,7 +2007,7 @@ if (comparison != null)
 If your table descriptors contain foreign keys, SqExpress can build a navigation graph for them:
 
 ```cs
-var graph = TablesGraph.Create(AllTables.AllTables);
+var graph = TablesGraph.Create(AllTables.BuildAllAliasedTableList());
 ```
 
 `TablesGraph` treats foreign keys as table references:

@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Names;
+using SqExpress.Syntax;
 using SqExpress.Syntax.Select;
 
 namespace SqExpress
@@ -36,7 +37,7 @@ namespace SqExpress
 
         public static bool TryCreate(
             IReadOnlyList<TableBase> tables,
-            out TablesGraph? graph,
+            [NotNullWhen(true)]out TablesGraph? graph,
             out string? error)
         {
             graph = null;
@@ -120,7 +121,7 @@ namespace SqExpress
             return true;
         }
 
-        public bool Contains(TableBase table)
+        public bool Contains(ExprTable table)
         {
             if (table == null)
             {
@@ -130,7 +131,18 @@ namespace SqExpress
             return this._tablesByKey.ContainsKey(BuildTableKey(table.FullName));
         }
 
-        public bool References(TableBase table, TableBase referencedCandidateTable, bool includeSelfRef = false)
+        public bool TryGetTable(ExprTable table, [NotNullWhen(true)] out TableBase? canonicalTable)
+        {
+            canonicalTable = null;
+            if (table == null)
+            {
+                return false;
+            }
+
+            return this._tablesByKey.TryGetValue(BuildTableKey(table.FullName), out canonicalTable);
+        }
+
+        public bool References(ExprTable table, ExprTable referencedCandidateTable, bool includeSelfRef = false)
         {
             if (table == null || referencedCandidateTable == null)
             {
@@ -146,7 +158,7 @@ namespace SqExpress
             return this.GetReferences(canonical, includeSelfRef).Any(i => string.Equals(BuildTableKey(i.FullName), candidateKey, StringComparison.OrdinalIgnoreCase));
         }
 
-        public IReadOnlyList<TableBase> GetReferences(TableBase table, bool includeSelfRef = false)
+        public IReadOnlyList<TableBase> GetReferences(ExprTable table, bool includeSelfRef = false)
         {
             var canonical = this.ResolveTable(table);
             var key = BuildTableKey(canonical.FullName);
@@ -158,7 +170,7 @@ namespace SqExpress
             return includeSelfRef ? references : FilterSelfReference(canonical, references);
         }
 
-        public IEnumerable<TableBase> GetAllReferences(TableBase table, bool includeSelfRef = false)
+        public IEnumerable<TableBase> GetAllReferences(ExprTable table, bool includeSelfRef = false)
         {
             var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var reference in this.GetAllReferencesIterator(this.ResolveTable(table), visited, includeSelfRef))
@@ -167,7 +179,7 @@ namespace SqExpress
             }
         }
 
-        public IReadOnlyList<TableBase> GetReferencedBy(TableBase table, bool includeSelfRef = false)
+        public IReadOnlyList<TableBase> GetReferencedBy(ExprTable table, bool includeSelfRef = false)
         {
             var canonical = this.ResolveTable(table);
             var key = BuildTableKey(canonical.FullName);
@@ -179,7 +191,7 @@ namespace SqExpress
             return includeSelfRef ? referencedBy : FilterSelfReference(canonical, referencedBy);
         }
 
-        public IEnumerable<TableBase> GetAllReferencedBy(TableBase table, bool includeSelfRef = false)
+        public IEnumerable<TableBase> GetAllReferencedBy(ExprTable table, bool includeSelfRef = false)
         {
             var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var referencedBy in this.GetAllReferencedByIterator(this.ResolveTable(table), visited, includeSelfRef))
@@ -189,15 +201,15 @@ namespace SqExpress
         }
 
         public bool TryToJoinTables(
-            TableBase table1,
-            TableBase table2,
+            ExprTable table1,
+            ExprTable table2,
             [NotNullWhen(true)] out IExprTableSource? join)
             => this.TryToJoinTables(table1, table2, intermediateTables: null, out join);
 
         public bool TryToJoinTables(
-            TableBase table1,
-            TableBase table2,
-            IReadOnlyList<TableBase>? intermediateTables,
+            ExprTable table1,
+            ExprTable table2,
+            IReadOnlyList<ExprTable>? intermediateTables,
             [NotNullWhen(true)] out IExprTableSource? join)
         {
             join = null;
@@ -212,66 +224,104 @@ namespace SqExpress
                 return false;
             }
 
-            var path = this.TryBuildPath(canonicalTable1, canonicalTable2, intermediateTables);
+            var path = this.TryBuildPath(table1, canonicalTable1, table2, canonicalTable2, intermediateTables);
             if (path == null || path.Count == 0)
             {
                 return false;
             }
 
-            IExprTableSource source = path[0];
+            var previous = path[0];
+            IExprTableSource source = previous.ActualTable;
             for (var i = 1; i < path.Count; i++)
             {
+                var current = path[i];
                 source = new ExprJoinedTable(
                     source,
                     ExprJoinedTable.ExprJoinType.Inner,
-                    path[i],
-                    BuildJoinCondition(path[i - 1], path[i]));
+                    current.ActualTable,
+                    BuildJoinCondition(previous.CanonicalTable, current.CanonicalTable, previous.ActualTable, current.ActualTable));
+                previous = current;
             }
 
             join = source;
             return true;
         }
 
-        private List<TableBase>? TryBuildPath(
-            TableBase source,
-            TableBase target,
-            IReadOnlyList<TableBase>? intermediateTables)
+        private List<PathItem>? TryBuildPath(
+            ExprTable sourceActual,
+            TableBase sourceCanonical,
+            ExprTable targetActual,
+            TableBase targetCanonical,
+            IReadOnlyList<ExprTable>? intermediateTables)
         {
             if (intermediateTables == null || intermediateTables.Count == 0)
             {
-                return this.TryFindShortestPath(source, target);
+                var directPath = this.TryFindShortestPath(sourceCanonical, targetCanonical);
+                return directPath == null ? null : BuildActualPath(directPath, sourceActual, targetActual);
             }
 
-            var fullPath = new List<TableBase>();
-            var segmentSource = source;
+            var fullPath = new List<PathItem>();
+            var segmentSourceCanonical = sourceCanonical;
+            var segmentSourceActual = sourceActual;
 
             for (var i = 0; i <= intermediateTables.Count; i++)
             {
-                var segmentTargetInput = i < intermediateTables.Count ? intermediateTables[i] : target;
-                if (!this.TryResolveTable(segmentTargetInput, out var segmentTarget))
+                var segmentTargetActual = i < intermediateTables.Count ? intermediateTables[i] : targetActual;
+                if (!this.TryResolveTable(segmentTargetActual, out var segmentTargetCanonical))
                 {
                     return null;
                 }
 
-                var segmentPath = this.TryFindShortestPath(segmentSource, segmentTarget);
+                var segmentPath = this.TryFindShortestPath(segmentSourceCanonical, segmentTargetCanonical);
                 if (segmentPath == null || segmentPath.Count == 0)
                 {
                     return null;
                 }
 
+                var actualSegmentPath = BuildActualPath(segmentPath, segmentSourceActual, segmentTargetActual);
                 if (fullPath.Count == 0)
                 {
-                    fullPath.AddRange(segmentPath);
+                    fullPath.AddRange(actualSegmentPath);
                 }
                 else
                 {
-                    fullPath.AddRange(segmentPath.Skip(1));
+                    fullPath.AddRange(actualSegmentPath.Skip(1));
                 }
 
-                segmentSource = segmentTarget;
+                segmentSourceCanonical = segmentTargetCanonical;
+                segmentSourceActual = segmentTargetActual;
             }
 
             return fullPath;
+        }
+
+        private static List<PathItem> BuildActualPath(
+            IReadOnlyList<TableBase> canonicalPath,
+            ExprTable firstActual,
+            ExprTable lastActual)
+        {
+            var result = new List<PathItem>(canonicalPath.Count);
+            for (var i = 0; i < canonicalPath.Count; i++)
+            {
+                var canonicalTable = canonicalPath[i];
+                ExprTable actualTable;
+                if (i == 0)
+                {
+                    actualTable = firstActual;
+                }
+                else if (i == canonicalPath.Count - 1)
+                {
+                    actualTable = lastActual;
+                }
+                else
+                {
+                    actualTable = canonicalTable.WithAlias(SqQueryBuilder.TableAlias());
+                }
+
+                result.Add(new PathItem(canonicalTable, actualTable));
+            }
+
+            return result;
         }
 
         private IEnumerable<TableBase> GetAllReferencesIterator(TableBase table, HashSet<string> visited, bool includeSelfRef)
@@ -389,7 +439,7 @@ namespace SqExpress
             return path;
         }
 
-        private TableBase ResolveTable(TableBase table)
+        private TableBase ResolveTable(ExprTable table)
         {
             if (table == null)
             {
@@ -405,7 +455,7 @@ namespace SqExpress
             return canonical;
         }
 
-        private bool TryResolveTable(TableBase table, [NotNullWhen(true)] out TableBase? canonical)
+        private bool TryResolveTable(ExprTable table, [NotNullWhen(true)] out TableBase? canonical)
         {
             canonical = null;
             if (table == null)
@@ -416,15 +466,15 @@ namespace SqExpress
             return this._tablesByKey.TryGetValue(BuildTableKey(table.FullName), out canonical);
         }
 
-        private static ExprBoolean BuildJoinCondition(TableBase left, TableBase right)
+        private static ExprBoolean BuildJoinCondition(TableBase left, TableBase right, ExprTable actualLeft, ExprTable actualRight)
         {
-            var condition = TryBuildJoinCondition(left, right);
+            var condition = TryBuildJoinCondition(left, right, actualLeft, actualRight);
             if (!ReferenceEquals(condition, null))
             {
                 return condition;
             }
 
-            condition = TryBuildJoinCondition(right, left);
+            condition = TryBuildJoinCondition(right, left, actualRight, actualLeft);
             if (!ReferenceEquals(condition, null))
             {
                 return condition;
@@ -434,7 +484,7 @@ namespace SqExpress
                 $"No foreign key join condition was found between '{FormatTableName(left.FullName)}' and '{FormatTableName(right.FullName)}'.");
         }
 
-        private static ExprBoolean? TryBuildJoinCondition(TableBase child, TableBase referenced)
+        private static ExprBoolean? TryBuildJoinCondition(TableBase child, TableBase referenced, ExprTable actualChild, ExprTable actualReferenced)
         {
             ExprBoolean? result = null;
 
@@ -464,12 +514,32 @@ namespace SqExpress
                             $"Referenced column '{FormatTableName(referenced.FullName)}.{referencedColumn.ColumnName.Name}' was not found.");
                     }
 
-                    var condition = childColumn == referencedTableColumn;
+                    var condition =
+                        RetargetColumn(childColumn, actualChild)
+                        == RetargetColumn(referencedTableColumn, actualReferenced);
                     result = ReferenceEquals(result, null) ? condition : result & condition;
                 }
             }
 
             return result;
+        }
+
+        private static TableColumn RetargetColumn(TableColumn column, ExprTable actualTable)
+            => column
+                .WithTable(actualTable)
+                .WithSource(actualTable.Alias);
+
+        private readonly struct PathItem
+        {
+            public PathItem(TableBase canonicalTable, ExprTable actualTable)
+            {
+                this.CanonicalTable = canonicalTable;
+                this.ActualTable = actualTable;
+            }
+
+            public TableBase CanonicalTable { get; }
+
+            public ExprTable ActualTable { get; }
         }
 
         private static bool TryDetectCycle(

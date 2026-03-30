@@ -5,7 +5,6 @@ using NUnit.Framework;
 using SqExpress.DbMetadata;
 using SqExpress.SqlExport;
 using SqExpress.Syntax.Names;
-using SqExpress.Syntax.Select;
 using SqExpress.TableDecalationAttributes;
 
 namespace SqExpress.Test.Meta
@@ -247,6 +246,23 @@ namespace SqExpress.Test.Meta
         }
 
         [Test]
+        public void TryToJoinTables_UsesPassedEndpointObjectsInJoin()
+        {
+            var root = new RootTable().WithAlias(SqQueryBuilder.TableAlias("rt"));
+            var child = new ChildTable().WithAlias(SqQueryBuilder.TableAlias("ch"));
+            var graph = TablesGraph.Create([new RootTable(), new ChildTable()]);
+
+            var ok = graph.TryToJoinTables(child, root, out var join);
+
+            Assert.That(ok, Is.True);
+            Assert.That(join, Is.Not.Null);
+            Assert.That(
+                join!.ToSql(),
+                Is.EqualTo("[dbo].[Child] [ch] JOIN [dbo].[Root] [rt] ON [ch].[RootId]=[rt].[Id]")
+            );
+        }
+
+        [Test]
         public void TryToJoinTables_WithIntermediateTable_BuildsShortestPath()
         {
             var root = new RootTable();
@@ -383,6 +399,19 @@ namespace SqExpress.Test.Meta
             Assert.That(graph.Contains(root), Is.True);
             Assert.That(graph.Contains(new RootTable()), Is.True);
             Assert.That(graph.Contains(new UnknownTable()), Is.False);
+        }
+
+        [Test]
+        public void TryGetTable_ReturnsCanonicalInstance()
+        {
+            var root = new RootTable();
+            var graph = TablesGraph.Create([root]);
+
+            Assert.That(graph.TryGetTable(new RootTable(), out var canonicalRoot), Is.True);
+            Assert.That(canonicalRoot, Is.SameAs(root));
+
+            Assert.That(graph.TryGetTable(new UnknownTable(), out var canonicalUnknown), Is.False);
+            Assert.That(canonicalUnknown, Is.Null);
         }
 
         [Test]
