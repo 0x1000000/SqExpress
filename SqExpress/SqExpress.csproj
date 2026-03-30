@@ -18,6 +18,7 @@ Key features:
 - Complex query building with joins, subqueries, CTEs, set operators, analytic/window functions, and MERGE-style workflows
 - Syntax tree traversal and modification for dynamic query scenarios
 - T-SQL parser (`SqTSqlParser`) for importing supported SQL into SqExpress AST
+- Fail-closed validation and security-predicate rewriting workflows for AI-generated T-SQL within the supported parser surface
 - T-SQL to SqExpress transpilation, analyzer support, and code fixes
 - Table descriptors, create/drop script generation, and DTO/SqModel generation
 - Database-first scaffolding for table descriptors and models

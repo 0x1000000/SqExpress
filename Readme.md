@@ -5,6 +5,8 @@ For those who like SQL but hate raw strings.
 
 The library provides a generic SQL syntax tree with export to MS T-SQL, PostgreSQL, and MySQL text. It includes polyfills to compensate for features lacking in certain databases, such as the "MERGE" command. It also provides a set of builders and operators that will help you build complex SQL expressions. It also includes a T-SQL parser (`SqTSqlParser`) for converting existing SQL text into SqExpress AST.
 
+SqExpress is also a strong fit when SQL is produced dynamically, including by AI agents. Because SQL can be parsed into the SqExpress AST, validated against an allowed table model, traversed, rewritten with additional security predicates, and exported back to SQL, SqExpress can act as a fail-closed safety layer for AI-generated T-SQL within the supported parser surface.
+
 It does not use LINQ, and your C# code will be as close to real SQL as possible. This makes it ideal when you need full SQL flexibility to create efficient DB requests.
 
 SqExpress comes with a simple but efficient data access mechanism that wraps ADO.Net DbConnection and can be used with MS SQL Client, Npgsql, or MySQL Connector.
@@ -115,7 +117,9 @@ The tool runs entirely in the browser (WebAssembly). Your SQL is processed clien
 
 # Demo Application
 
-You can find a realistic usage of the library in this ASP.NET demo application - [SqGoods](https://github.com/0x1000000/SqGoods)
+You can find a realistic usage of the library in this AI-driven demo application - [SqDbAiAgent](https://github.com/0x1000000/SqDbAiAgent).
+
+`SqDbAiAgent` shows how SqExpress can act as a fail-closed safety layer for AI-generated T-SQL: the SQL is parsed, validated against the allowed schema, optionally rewritten with security predicates, and only then executed against SQL Server.
 
 # Get Started
 
@@ -2296,7 +2300,7 @@ Performance notes:
 
 ## Using in ASP.NET
 
-There is a demo ASP.NET project that shows how [SqExpress](https://github.com/0x1000000/SqGoods/tree/main) can be used in a real web app.
+There is a demo application, [SqDbAiAgent](https://github.com/0x1000000/SqDbAiAgent), that shows how SqExpress can be used as a fail-closed safety and validation layer for AI-generated T-SQL in a real SQL Server-backed workflow, so only validated and secured queries from the supported parser surface are allowed to reach execution.
 
 The ideas:
 
