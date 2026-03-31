@@ -1,7 +1,7 @@
 {
   "mainAssemblyName": "SqExpress.SqlTranspiler.Blazor",
   "resources": {
-    "hash": "sha256-FgIzrfIgaMnDIpbGw8EgC2uP9Mzk+WBac6JE6cItCBk=",
+    "hash": "sha256-tlBy4rDBG2PiZvxBRCVedvGecE2YDFD9Xu+amiY9F9o=",
     "jsModuleNative": {
       "dotnet.native.js": "sha256-1te8JmuurFg5emn3XN03ivBh4t26VSh9rul02Awoij8="
     },
@@ -9,7 +9,7 @@
       "dotnet.runtime.js": "sha256-ZDVyGEZEz4QOmKAwlgqf4qB6Psobwb9hIqMw9YpIo4I="
     },
     "wasmNative": {
-      "dotnet.native.wasm": "sha256-+f+EvMsaCKIa+ED1CnA/qQRW6qWc9idBVeqnnQvqqJM="
+      "dotnet.native.wasm": "sha256-m9gBEAcXZ5Lf6QiqMdyGQNJHXmgjBeKXBfeVAJ4P3ho="
     },
     "icu": {
       "icudt_CJK.dat": "sha256-SZLtQnRc0JkwqHab0VUVP7T3uBPSeYzxzDnpxPpUnHk=",
@@ -34,11 +34,12 @@
       "Microsoft.Extensions.Primitives.wasm": "sha256-Bi1hyBMWneH/ByWbqT/pNe0B7I/NQFklzD2g3Whdqlk=",
       "Microsoft.JSInterop.WebAssembly.wasm": "sha256-4soNkn8aqTulPavV5tgrBBe7jEypSOVIlJw/okXugLA=",
       "Microsoft.JSInterop.wasm": "sha256-h4y35qYW/ZECt9W2BY/V8Fit8/2hkz8c0ZWh3Mb8z7M=",
-      "SqExpress.SqlTranspiler.Blazor.wasm": "sha256-kTxgNSAHtCg8cqbOF5/TmVyR19tyvZbcs0tJ9tS7uzE=",
-      "SqExpress.SqlTranspiler.wasm": "sha256-n94Jx1efCzvoZqjTdSYY789ARAhMxRkX1YoOdZGOOjs=",
-      "SqExpress.wasm": "sha256-7b5Hn0Vj6Y12XgPiA+YcSQtiQYwhK0pYIKmzKeAQdlE=",
+      "SqExpress.CodeGen.Shared.wasm": "sha256-mPfYlFNn270xv7v3O31nZUbSuOKtMlGYfcwUxFn3Moc=",
+      "SqExpress.SqlTranspiler.Blazor.wasm": "sha256-yVIHx5+bUz3sKpowt1EtPZj2n95B+/X9a21yVagfCdQ=",
+      "SqExpress.SqlTranspiler.wasm": "sha256-1Lqji/pTJwW4ASexlLo6b2cMUFT8YJpNwqzuIBCSACI=",
+      "SqExpress.wasm": "sha256-K0JsNOBN3BsNEEjemh7kGbFHNmdGchmPPy0BEUpMsjU=",
       "System.Collections.Concurrent.wasm": "sha256-kw9Hx3za4Ng8qivxqdRDzc07szOvGRRaB3bR76Ed/CY=",
-      "System.Collections.Immutable.wasm": "sha256-lvmGkMy8VCW9bz2QQNM2lRqAt0216rSNrqUVyHOWL3Y=",
+      "System.Collections.Immutable.wasm": "sha256-mKKztblZG391kycnsOVQyBgLRJZaawgZrbE8201Evyo=",
       "System.Collections.NonGeneric.wasm": "sha256-WE28cX1qsmAWQf3srLNsRHP4dr6tntSsPLEmdVvHQVs=",
       "System.Collections.wasm": "sha256-GgGc+CEl8BdsGQMKucOlOgRHOLXkY5izCGkTBqU/eIs=",
       "System.ComponentModel.Primitives.wasm": "sha256-BA5LoG5HNWHO4ZLEqfLKU7hXZiJe4Af+HVjuxmHNI+o=",
@@ -53,12 +54,12 @@
       "System.IO.Compression.wasm": "sha256-PSLu9w/kptW/rmdH3RkXo9VsgLZ6gyQPa+4Q4RcBLjg=",
       "System.IO.MemoryMappedFiles.wasm": "sha256-I5/H0rHjngMlsnn6ZUOwyBJ9g2Fv6K0XKztMHxG4dKw=",
       "System.Linq.Expressions.wasm": "sha256-OdTdHznTwvfIozFGL0JmBFyGGn+hQEDpK6dnCpU0rNM=",
-      "System.Linq.wasm": "sha256-qVnVIlwle8fPiOesuxRrWBEV7PQoJtBsYqam7k6CSxs=",
+      "System.Linq.wasm": "sha256-6hb0Qb7ndlyJbiSjCaBCmFdWFy7rFyh3TQeyS06rUvE=",
       "System.Memory.wasm": "sha256-dZSoQ43lUIM9AxRMPRUdpVIRzJeCW03ktxc7XsvZ0bw=",
       "System.Net.Http.wasm": "sha256-wLGz82+QN/jFHhTy9+DAUDuEgqSnVym1dTh/xHAwhEE=",
       "System.Net.Primitives.wasm": "sha256-1qcsGHhOXcuqb9iJj964eAhM69peWtMX7e51LBkcZ1U=",
       "System.ObjectModel.wasm": "sha256-nDEJz6SvyUKz3eTqyKCdR8n/EnZhWVVgGVOnkyY5N7s=",
-      "System.Private.CoreLib.wasm": "sha256-egRk9Uh+/EPHnrjaUTIkVT748TKvdlwRXxohJpHdYZg=",
+      "System.Private.CoreLib.wasm": "sha256-PdQfbqO9L82eMVmxs1d1Jf9ykPP8JKqsp1frr/FmHVE=",
       "System.Private.Uri.wasm": "sha256-1lBbome+bKdEOUS+p2Mir0p0J/mR9TcNSVFxXHrkAdw=",
       "System.Private.Xml.Linq.wasm": "sha256-4dZfOUyizhgOFgBvgigMNvmS6td6hnCEkWhnCFijMPg=",
       "System.Private.Xml.wasm": "sha256-hlFYDBNOVUTvXcr8eI/MrPP19l3CoQoeQUHLhSjBodk=",
@@ -83,7 +84,8 @@
       "System.Xml.Linq.wasm": "sha256-7S5htdOhk5atRasRo4dCnLDmfszHScYLXiz4u+AwGyI=",
       "System.Xml.ReaderWriter.wasm": "sha256-n0E66byuEACCKNiBralzpg7g7YRkxz4lT2DuD45Toj4=",
       "System.Xml.XDocument.wasm": "sha256-DwQorre4tOUW7laZRzL56tUlktLwiO+n4ga7eK3Hc9U=",
-      "System.Xml.XPath.XDocument.wasm": "sha256-X7dq6lw0hxdfvB+inACImXxWb1e4bdZ2QnkocBdWwvs="
+      "System.Xml.XPath.XDocument.wasm": "sha256-X7dq6lw0hxdfvB+inACImXxWb1e4bdZ2QnkocBdWwvs=",
+      "netstandard.wasm": "sha256-Srn7PYHhxf3pIVHHmt0D9J+UcPmKihURApyOjmn1yhY="
     },
     "satelliteResources": {
       "cs": {
