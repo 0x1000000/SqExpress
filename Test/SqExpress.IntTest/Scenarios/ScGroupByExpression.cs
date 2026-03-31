@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using SqExpress.IntTest.Context;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Value;
-using SqExpress.TableDecalationAttributes;
+using SqExpress.TableDeclarationAttributes;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.IntTest.Scenarios

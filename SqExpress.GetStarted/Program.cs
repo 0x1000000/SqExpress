@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -19,7 +19,7 @@ using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
 using SqExpress.SyntaxTreeOperations;
-using SqExpress.TableDecalationAttributes;
+using SqExpress.TableDeclarationAttributes;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.GetStarted

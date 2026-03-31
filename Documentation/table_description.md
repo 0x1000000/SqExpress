@@ -3,7 +3,7 @@
 This document describes the attribute-based table declaration API in the namespace:
 
 ```cs
-using SqExpress.TableDecalationAttributes;
+using SqExpress.TableDeclarationAttributes;
 ```
 
 These attributes are consumed by the built-in source generator and produce `TableBase` or `TempTableBase` implementations at compile time.
@@ -283,7 +283,7 @@ Other values are parsed from text based on the column type:
 ## Example: Normal Table
 
 ```cs
-using SqExpress.TableDecalationAttributes;
+using SqExpress.TableDeclarationAttributes;
 
 [TableDescriptor("dbo", "User")]
 [Int32Column("UserId", Pk = true, Identity = true)]
@@ -301,7 +301,7 @@ public partial class TableUser
 ## Example: Temp Table
 
 ```cs
-using SqExpress.TableDecalationAttributes;
+using SqExpress.TableDeclarationAttributes;
 
 [TempTableDescriptor("#TmpUser")]
 [Int32Column("UserId", Pk = true)]

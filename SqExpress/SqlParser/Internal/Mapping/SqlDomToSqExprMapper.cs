@@ -488,7 +488,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
             var top = statement.TopLevelSelect;
             if (top == null)
             {
-                throw new MapException("Parsed SQL cannot be mapped to SqExpress AST.");
+                return MapSelectQueryExpression(statement.RawSql, context);
             }
 
             if (top.HasSetOperation)
@@ -545,18 +545,12 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 throw new MapException("Set query expression is empty.");
             }
 
-            var firstSelectIndex = FindFirstTopLevelKeyword(tokens, 0, "SELECT");
-            if (firstSelectIndex < 0)
-            {
-                throw new MapException("Set query expression does not contain SELECT.");
-            }
-
             var segmentRanges = new List<(int Start, int End)>();
             var operators = new List<ExprQueryExpressionType>();
-            var segmentStart = firstSelectIndex;
+            var segmentStart = 0;
             var depth = 0;
 
-            for (var i = firstSelectIndex; i < tokens.Count; i++)
+            for (var i = 0; i < tokens.Count; i++)
             {
                 if (tokens[i].Type == SqlTokenType.OpenParen)
                 {
@@ -690,8 +684,134 @@ namespace SqExpress.SqlParser.Internal.Mapping
         private static IExpr MapSelectWithSetOperation(string sql)
             => MapSelectWithSetOperation(sql, new MappingContext(null));
 
+        private static IExpr MapSelectQueryExpression(string sql, MappingContext context)
+        {
+            var normalizedSql = TrimEnclosingQueryParentheses(sql);
+            var tokens = SqlLexer.Tokenize(normalizedSql)
+                .Where(t => t.Type != SqlTokenType.EndOfFile && t.Type != SqlTokenType.Semicolon)
+                .ToList();
+
+            if (HasTopLevelSetOperator(tokens))
+            {
+                return MapSelectWithSetOperation(normalizedSql, context);
+            }
+
+            if (TryMapParenthesizedQueryExpressionWithTail(normalizedSql, tokens, context, out var mappedQueryExpression))
+            {
+                return mappedQueryExpression;
+            }
+
+            if (!SqlDomParser.TryParseSingleStatement(normalizedSql, out var statement, out _)
+                || statement == null
+                || statement.Kind != SqlDomStatementKind.Select)
+            {
+                throw new MapException("Parsed SQL cannot be mapped to SqExpress AST.");
+            }
+
+            var top = statement.TopLevelSelect;
+            if (top == null)
+            {
+                throw new MapException("Parsed SQL cannot be mapped to SqExpress AST.");
+            }
+
+            return MapSelect(statement, context);
+        }
+
+        private static bool TryMapParenthesizedQueryExpressionWithTail(
+            string sql,
+            IReadOnlyList<SqlToken> tokens,
+            MappingContext context,
+            [NotNullWhen(true)] out IExpr? result)
+        {
+            result = null;
+            if (tokens.Count < 2 || tokens[0].Type != SqlTokenType.OpenParen)
+            {
+                return false;
+            }
+
+            var closeParenIndex = FindMatchingCloseParen(tokens, 0);
+            if (closeParenIndex < 0 || closeParenIndex >= tokens.Count - 1)
+            {
+                return false;
+            }
+
+            var tailStart = closeParenIndex + 1;
+            var topLevelOrderIndex = FindFirstTopLevelKeyword(tokens, tailStart, tokens.Count, "ORDER");
+            var topLevelOffsetIndex = FindFirstTopLevelKeyword(tokens, tailStart, tokens.Count, "OFFSET");
+            if (topLevelOrderIndex != tailStart && topLevelOffsetIndex != tailStart)
+            {
+                return false;
+            }
+
+            var innerSql = SliceSqlByTokenRange(sql, tokens, 1, closeParenIndex);
+            var mappedInner = MapSelectQueryExpression(innerSql, context);
+            if (mappedInner is not IExprSubQuery subQuery)
+            {
+                throw new MapException("Parenthesized query expression cannot be represented as subquery.");
+            }
+
+            string? orderBySql = null;
+            string? offsetFetchSql = null;
+            if (topLevelOrderIndex == tailStart)
+            {
+                var orderByStart = topLevelOrderIndex + 1;
+                if (orderByStart < tokens.Count && tokens[orderByStart].IsKeyword("BY"))
+                {
+                    orderByStart++;
+                }
+
+                if (topLevelOffsetIndex > topLevelOrderIndex)
+                {
+                    orderBySql = SliceSqlByTokenRange(sql, tokens, orderByStart, topLevelOffsetIndex);
+                    offsetFetchSql = SliceSqlByTokenRange(sql, tokens, topLevelOffsetIndex, tokens.Count);
+                }
+                else
+                {
+                    orderBySql = SliceSqlByTokenRange(sql, tokens, orderByStart, tokens.Count);
+                }
+            }
+            else if (topLevelOffsetIndex == tailStart)
+            {
+                offsetFetchSql = SliceSqlByTokenRange(sql, tokens, topLevelOffsetIndex, tokens.Count);
+            }
+
+            if (!string.IsNullOrWhiteSpace(offsetFetchSql))
+            {
+                var (offset, fetch) = ParseOffsetFetch(offsetFetchSql!, context);
+                var orderList = !string.IsNullOrWhiteSpace(orderBySql)
+                    ? ParseOrderBy(orderBySql!, context).OrderList
+                    : Array.Empty<ExprOrderByItem>();
+                result = new ExprSelectOffsetFetch(subQuery, new ExprOrderByOffsetFetch(orderList, new ExprOffsetFetch(offset, fetch)));
+                return true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(orderBySql))
+            {
+                result = new ExprSelect(subQuery, ParseOrderBy(orderBySql!, context));
+                return true;
+            }
+
+            return false;
+        }
+
         private static IExprSubQuery ParseSetSegment(string sql, MappingContext context)
         {
+            sql = TrimEnclosingQueryParentheses(sql);
+            var tokens = SqlLexer.Tokenize(sql)
+                .Where(t => t.Type != SqlTokenType.EndOfFile && t.Type != SqlTokenType.Semicolon)
+                .ToList();
+
+            if (HasTopLevelSetOperator(tokens))
+            {
+                var mappedSet = MapSelectWithSetOperation(sql, context);
+                if (mappedSet is IExprSubQuery setSubQuery)
+                {
+                    return setSubQuery;
+                }
+
+                throw new MapException("Set query branch cannot be represented as subquery.");
+            }
+
             if (!SqlDomParser.TryParseSingleStatement(sql, out var statement, out _)
                 || statement == null
                 || statement.Kind != SqlDomStatementKind.Select)
@@ -2153,6 +2273,38 @@ namespace SqExpress.SqlParser.Internal.Mapping
             }
 
             return Math.Min(first, second);
+        }
+
+        private static bool HasTopLevelSetOperator(IReadOnlyList<SqlToken> tokens)
+            => FindFirstTopLevelKeyword(tokens, 0, "UNION") >= 0
+               || FindFirstTopLevelKeyword(tokens, 0, "INTERSECT") >= 0
+               || FindFirstTopLevelKeyword(tokens, 0, "EXCEPT") >= 0;
+
+        private static string TrimEnclosingQueryParentheses(string sql)
+        {
+            var currentSql = sql.Trim();
+
+            while (!string.IsNullOrWhiteSpace(currentSql))
+            {
+                var tokens = SqlLexer.Tokenize(currentSql)
+                    .Where(t => t.Type != SqlTokenType.EndOfFile && t.Type != SqlTokenType.Semicolon)
+                    .ToList();
+
+                if (tokens.Count < 2 || tokens[0].Type != SqlTokenType.OpenParen)
+                {
+                    return currentSql;
+                }
+
+                var closeParenIndex = FindMatchingCloseParen(tokens, 0);
+                if (closeParenIndex != tokens.Count - 1)
+                {
+                    return currentSql;
+                }
+
+                currentSql = SliceSqlByTokenRange(currentSql, tokens, 1, closeParenIndex);
+            }
+
+            return currentSql;
         }
 
         private static string SliceSqlByTokenRange(string sql, IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)

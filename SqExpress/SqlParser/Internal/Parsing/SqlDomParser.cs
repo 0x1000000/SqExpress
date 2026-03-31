@@ -55,7 +55,7 @@ namespace SqExpress.SqlParser.Internal.Parsing
 
             var cursor = new TokenCursor(tokens, rawSql);
             var withClause = ParseWithClause(cursor);
-            var kind = DetermineStatementKind(cursor.Current);
+            var kind = DetermineStatementKind(cursor.Tokens, cursor.Index);
 
             var topLevelSelect = ParseTopLevelSelectIfAny(rawSql, tokens, cursor.Index, kind);
 
@@ -164,9 +164,56 @@ namespace SqExpress.SqlParser.Internal.Parsing
             for (var i = 0; i < tokens.Count - 1; i++)
             {
                 if ((tokens[i].IsKeyword("ANY") || tokens[i].IsKeyword("SOME") || tokens[i].IsKeyword("ALL"))
-                    && tokens[i + 1].Type == SqlTokenType.OpenParen)
+                    && tokens[i + 1].Type == SqlTokenType.OpenParen
+                    && IsQuantifiedPredicateLead(tokens, i))
                 {
                     return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsQuantifiedPredicateLead(IReadOnlyList<SqlToken> tokens, int keywordIndex)
+        {
+            for (var i = keywordIndex - 1; i >= 0; i--)
+            {
+                var token = tokens[i];
+                if (token.Type == SqlTokenType.Comma
+                    || token.Type == SqlTokenType.OpenParen
+                    || token.IsKeyword("UNION")
+                    || token.IsKeyword("INTERSECT")
+                    || token.IsKeyword("EXCEPT")
+                    || token.IsKeyword("SELECT")
+                    || token.IsKeyword("FROM")
+                    || token.IsKeyword("WHERE")
+                    || token.IsKeyword("ON"))
+                {
+                    return false;
+                }
+
+                if (token.Type == SqlTokenType.CloseParen)
+                {
+                    return true;
+                }
+
+                if (token.Type == SqlTokenType.NumberLiteral
+                    || token.Type == SqlTokenType.StringLiteral
+                    || token.IsIdentifierLike)
+                {
+                    return true;
+                }
+
+                if (token.Type == SqlTokenType.Operator)
+                {
+                    return token.Text == "="
+                           || token.Text == "!"
+                           || token.Text == "<"
+                           || token.Text == ">"
+                           || token.Text == "<="
+                           || token.Text == ">="
+                           || token.Text == "<>"
+                           || token.Text == "!=";
                 }
             }
 
@@ -255,7 +302,7 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 return true;
             }
 
-            if (kind == SqlDomStatementKind.Select && IsSelectProjectionMissing(tokens, statementStartIndex))
+            if (kind == SqlDomStatementKind.Select && topLevelSelect != null && IsSelectProjectionMissing(tokens, statementStartIndex))
             {
                 error = "Syntax error: SELECT list is missing.";
                 return true;
@@ -1833,8 +1880,14 @@ namespace SqExpress.SqlParser.Internal.Parsing
             return false;
         }
 
-        private static SqlDomStatementKind DetermineStatementKind(SqlToken token)
+        private static SqlDomStatementKind DetermineStatementKind(IReadOnlyList<SqlToken> tokens, int startIndex)
         {
+            if (IsSelectStatementStart(tokens, startIndex, FindStatementEnd(tokens, startIndex)))
+            {
+                return SqlDomStatementKind.Select;
+            }
+
+            var token = tokens[startIndex];
             if (token.IsKeyword("SELECT"))
             {
                 return SqlDomStatementKind.Select;
@@ -1861,6 +1914,62 @@ namespace SqExpress.SqlParser.Internal.Parsing
             }
 
             return SqlDomStatementKind.Unknown;
+        }
+
+        private static bool IsSelectStatementStart(IReadOnlyList<SqlToken> tokens, int startIndex, int endExclusive)
+        {
+            if (startIndex >= endExclusive)
+            {
+                return false;
+            }
+
+            return IsQueryExpressionStart(tokens, startIndex, endExclusive);
+        }
+
+        private static bool IsQueryExpressionStart(IReadOnlyList<SqlToken> tokens, int startIndex, int endExclusive)
+        {
+            if (startIndex >= endExclusive)
+            {
+                return false;
+            }
+
+            if (tokens[startIndex].IsKeyword("SELECT"))
+            {
+                return true;
+            }
+
+            if (tokens[startIndex].Type != SqlTokenType.OpenParen)
+            {
+                return false;
+            }
+
+            return IsParenthesizedQueryExpression(tokens, startIndex, endExclusive);
+        }
+
+        private static bool IsParenthesizedQueryExpression(IReadOnlyList<SqlToken> tokens, int openParenIndex, int endExclusive)
+        {
+            if (openParenIndex >= endExclusive || tokens[openParenIndex].Type != SqlTokenType.OpenParen)
+            {
+                return false;
+            }
+
+            var closeParenIndex = FindMatchingCloseParen(tokens, openParenIndex);
+            if (closeParenIndex < 0 || closeParenIndex >= endExclusive)
+            {
+                return false;
+            }
+
+            if (!IsQueryExpressionStart(tokens, openParenIndex + 1, closeParenIndex))
+            {
+                return false;
+            }
+
+            return closeParenIndex == endExclusive - 1
+                   || tokens[closeParenIndex + 1].IsKeyword("UNION")
+                   || tokens[closeParenIndex + 1].IsKeyword("INTERSECT")
+                   || tokens[closeParenIndex + 1].IsKeyword("EXCEPT")
+                   || tokens[closeParenIndex + 1].IsKeyword("ORDER")
+                   || tokens[closeParenIndex + 1].IsKeyword("OFFSET");
         }
 
         private static SqlDomWithClause? ParseWithClause(TokenCursor cursor)

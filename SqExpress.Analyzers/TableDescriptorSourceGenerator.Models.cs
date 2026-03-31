@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SqExpress.Analyzers.Diagnostics;
 using SqExpress.CodeGen.Shared;
-using SqExpress.TableDecalationAttributes;
+using SqExpress.TableDeclarationAttributes;
 
 namespace SqExpress.Analyzers
 {

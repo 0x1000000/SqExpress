@@ -1,4 +1,4 @@
-using SqExpress.TableDecalationAttributes;
+using SqExpress.TableDeclarationAttributes;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.GetStarted;

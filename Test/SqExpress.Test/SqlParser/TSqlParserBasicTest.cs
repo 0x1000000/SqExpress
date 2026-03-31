@@ -531,6 +531,109 @@ namespace SqExpress.Test.SqlParser
                 Assert.Fail(errors);
             }
         }
+
+        [Test]
+        public void ParseNestedParenthesizedSetOperations_MapsSuccessfully()
+        {
+            const string inputSql = @"
+                   (
+                       (
+                           (
+                               SELECT 1 
+                               UNION 
+                               SELECT 2
+                           ) 
+                           UNION ALL 
+                           SELECT 2
+                       ) 
+                       EXCEPT 
+                       SELECT 2
+                   ) 
+                   INTERSECT 
+                   (
+                       SELECT 1 
+                       UNION 
+                       SELECT 2
+                   )";
+
+            if (!SqTSqlParser.TryParse(inputSql, out var expr, out var errors))
+            {
+                Assert.Fail(errors);
+            }
+
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(expr, Is.AssignableTo<IExprSubQuery>());
+        }
+
+        [Test]
+        public void ParseParenthesizedUnionBranch_MapsSuccessfully()
+        {
+            const string inputSql = @"(SELECT 1 UNION SELECT 2) UNION ALL SELECT 3";
+
+            if (!SqTSqlParser.TryParse(inputSql, out var expr, out var errors))
+            {
+                Assert.Fail(errors);
+            }
+
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(expr, Is.TypeOf<ExprQueryExpression>());
+        }
+
+        [Test]
+        public void ParseUnionWithParenthesizedRightBranch_MapsSuccessfully()
+        {
+            const string inputSql = @"SELECT 1 UNION ALL (SELECT 2 INTERSECT SELECT 2)";
+
+            if (!SqTSqlParser.TryParse(inputSql, out var expr, out var errors))
+            {
+                Assert.Fail(errors);
+            }
+
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(expr, Is.TypeOf<ExprQueryExpression>());
+        }
+
+        [Test]
+        public void ParseParenthesizedSetOperationWithTopLevelOrderBy_MapsSuccessfully()
+        {
+            const string inputSql = @"(SELECT 1 UNION ALL SELECT 2) ORDER BY 1";
+
+            if (!SqTSqlParser.TryParse(inputSql, out var expr, out var errors))
+            {
+                Assert.Fail(errors);
+            }
+
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(expr, Is.TypeOf<ExprSelect>());
+        }
+
+        [Test]
+        public void ParseDeeplyNestedGroupedSetOperations_MapsSuccessfully()
+        {
+            const string inputSql = @"((SELECT 1 EXCEPT SELECT 2) INTERSECT (SELECT 1 UNION SELECT 3)) UNION ALL SELECT 4";
+
+            if (!SqTSqlParser.TryParse(inputSql, out var expr, out var errors))
+            {
+                Assert.Fail(errors);
+            }
+
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(expr, Is.AssignableTo<IExprSubQuery>());
+        }
+
+        [Test]
+        public void ParseSetOperationBranchesWithOrderByOffsetFetch_MapsSuccessfully()
+        {
+            const string inputSql = @"(SELECT 1 UNION ALL SELECT 2) ORDER BY 1 OFFSET 0 ROW FETCH NEXT 1 ROW ONLY";
+
+            if (!SqTSqlParser.TryParse(inputSql, out var expr, out var errors))
+            {
+                Assert.Fail(errors);
+            }
+
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(expr, Is.TypeOf<ExprSelectOffsetFetch>());
+        }
     }
 }
 

@@ -9,7 +9,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SqExpress;
 using SqExpress.DbMetadata.Internal.Model;
 using SqExpress.Syntax.Type;
-using SqExpress.TableDecalationAttributes;
+using SqExpress.TableDeclarationAttributes;
 
 namespace SqExpress.CodeGen.Shared
 {

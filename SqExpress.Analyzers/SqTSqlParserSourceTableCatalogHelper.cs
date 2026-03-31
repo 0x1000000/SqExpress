@@ -5,7 +5,7 @@ using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using SqExpress.TableDecalationAttributes;
+using SqExpress.TableDeclarationAttributes;
 
 namespace SqExpress.Analyzers
 {

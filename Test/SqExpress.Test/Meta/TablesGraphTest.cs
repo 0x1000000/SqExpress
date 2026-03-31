@@ -5,7 +5,7 @@ using NUnit.Framework;
 using SqExpress.DbMetadata;
 using SqExpress.SqlExport;
 using SqExpress.Syntax.Names;
-using SqExpress.TableDecalationAttributes;
+using SqExpress.TableDeclarationAttributes;
 
 namespace SqExpress.Test.Meta
 {

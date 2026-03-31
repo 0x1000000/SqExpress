@@ -54,7 +54,7 @@ namespace SqExpress.GenSyntaxTraversal
                 Generate(projDir, @"SyntaxTreeOperations\Internal\ExprWalker.cs", traversalBuffer, GenerateWalker);
                 Generate(projDir, @"SyntaxTreeOperations\Internal\ExprWalkerPull.cs", traversalBuffer, GenerateWalkerPull);
                 Generate(projDir, @"SyntaxModifyExtensions.cs", traversalBuffer, GenerateSyntaxModify);
-                Generate(projDir, @"..\Reference\ast_reference.md", model, GenerateAstReferenceMarkdown, "<!-- CodeGenStart -->", "<!-- CodeGenEnd -->");
+                Generate(projDir, @"..\Documentation\ast_reference.md", model, GenerateAstReferenceMarkdown, "<!-- CodeGenStart -->", "<!-- CodeGenEnd -->");
                 Console.WriteLine("Done!");
             }
             catch (Exception e)

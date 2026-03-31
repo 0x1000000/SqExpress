@@ -201,6 +201,20 @@ namespace SqExpress.Test.SqlParser
             Assert.That(error, Does.Contain("GROUP BY clause cannot reference select alias: UserName."));
         }
 
+        [TestCase("(SELECT 1 UNION ALL )")]
+        [TestCase("SELECT 1 UNION ALL ()")]
+        [TestCase("SELECT 1 UNION ALL (SELECT 2 INTERSECT)")]
+        [TestCase("(SELECT 1 UNION ALL SELECT 2) ORDER")]
+        [TestCase("(SELECT 1 UNION ALL SELECT 2) ORDER BY")]
+        [TestCase("(SELECT 1 UNION ALL SELECT 2) ORDER BY 1 OFFSET")]
+        public void InvalidSetOperationSyntaxIsRejected(string sql)
+        {
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? _, out var error);
+
+            Assert.That(ok, Is.False);
+            Assert.That(error, Is.Not.Null.And.Not.Empty);
+        }
+
         private static IEnumerable<TestCaseData> InvalidSyntaxCases()
         {
             yield return new TestCaseData(

@@ -18,7 +18,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenDescriptorIsSimple_EmitsTableBasePattern()
         {
             var source = """
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 [TableDescriptor("dbo", "User")]
                 [Int32Column("UserId", Pk = true, Identity = true, DefaultValue = "1")]
@@ -49,7 +49,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenTempTableDescriptorIsSimple_EmitsTempTableBasePattern()
         {
             var source = """
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 [TempTableDescriptor("#UserTemp")]
                 [Int32Column("UserId", Pk = true, Identity = true)]
@@ -76,7 +76,7 @@ namespace SqExpress.Analyzers.Test
         {
             var source = """
                 using SqExpress;
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 [DerivedTableDescriptor(SqModel = "UserDto")]
                 [DerivedInt32Column("UserId", SqModels = "UserDto.Id")]
@@ -104,7 +104,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenDerivedColumnIsUsedWithoutDerivedTableDescriptor_ReportsDiagnostic()
         {
             var source = """
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 [DerivedInt32Column("UserId")]
                 public partial class UserDerived
@@ -121,7 +121,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenDerivedTableDescriptorUsesTableColumnAttribute_ReportsDiagnostic()
         {
             var source = """
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 [DerivedTableDescriptor]
                 [Int32Column("UserId")]
@@ -140,7 +140,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenNonDerivedDescriptorUsesDerivedColumnAttribute_ReportsDiagnostic(string descriptorAttribute)
         {
             var source = $$"""
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 [{{descriptorAttribute}}]
                 [DerivedInt32Column("UserId")]
@@ -159,7 +159,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenDerivedDescriptorIsMixedWithAnotherDescriptor_ReportsDiagnostic(string otherDescriptorAttribute)
         {
             var source = $$"""
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 [DerivedTableDescriptor]
                 [{{otherDescriptorAttribute}}]
@@ -177,7 +177,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenAllColumnTypesAreUsed_Compiles()
         {
             var source = """
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 [TableDescriptor("dbo", "EveryType")]
                 [BooleanColumn("BooleanValue")]
@@ -227,7 +227,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenForeignKeyIsDeclared_UsesResolvedTargetProperty()
         {
             var source = """
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 [TableDescriptor("dbo", "Company")]
                 [Int32Column("CompanyId", Pk = true)]
@@ -255,7 +255,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenPredefinedDefaultsAreUsed_UsesExpectedExpressions()
         {
             var source = """
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 [TableDescriptor("dbo", "Audit")]
                 [NullableDateTimeColumn("CreatedUtc", DefaultValue = "$utcNow")]
@@ -279,7 +279,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenRawDefaultsAreUsed_UsesUnsafeValueExpression()
         {
             var source = """
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 [TableDescriptor("dbo", "Audit")]
                 [NullableDateTimeColumn("CreatedUtc", DefaultValue = "$raw((sysutcdatetime()))")]
@@ -303,7 +303,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenDefaultValueCannotBeParsed_ReportsDiagnostic()
         {
             var source = """
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 [TableDescriptor("dbo", "User")]
                 [Int32Column("UserId", DefaultValue = "abc")]
@@ -327,7 +327,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenRawDefaultValueIsMalformed_ReportsDiagnostic(string defaultValue)
         {
             var source = $$"""
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 [TableDescriptor("dbo", "User")]
                 [StringColumn("Name", Unicode = true, MaxLength = 50, DefaultValue = "{{defaultValue}}")]
@@ -346,7 +346,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenDescriptorClassIsNotPartial_ReportsDiagnostic()
         {
             var source = """
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 [TableDescriptor("dbo", "User")]
                 [Int32Column("UserId")]
@@ -367,7 +367,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenDescriptorClassIsNested_EmitsNestedPartialDescriptor(string accessibility)
         {
             var source = $$"""
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 public partial class Outer
                 {
@@ -391,7 +391,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenNestedDescriptorContainingClassIsNotPartial_ReportsDiagnostic()
         {
             var source = """
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 public class Outer
                 {
@@ -412,7 +412,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenNestedDescriptorContainingClassIsInternalPartial_EmitsNestedDescriptor()
         {
             var source = """
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 internal partial class Outer
                 {
@@ -436,7 +436,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenNestedTempTableDescriptorContainingClassIsPartial_EmitsNestedDescriptor()
         {
             var source = """
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 internal partial class Outer
                 {
@@ -460,7 +460,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenNestedTempTableDescriptorMatchesProgramShape_EmitsNestedDescriptor()
         {
             var source = """
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 namespace Demo;
 
@@ -487,7 +487,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenIndexColumnDoesNotExist_ReportsDiagnostic()
         {
             var source = """
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 [TableDescriptor("dbo", "User")]
                 [Int32Column("UserId")]
@@ -506,7 +506,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenBothTableDescriptorKindsAreDeclared_ReportsDiagnostic()
         {
             var source = """
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 [TableDescriptor("dbo", "User")]
                 [TempTableDescriptor("#UserTemp")]
@@ -525,7 +525,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenDescriptorHasSqModel_GeneratesRecordWithoutWithMethods()
         {
             var source = """
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 [TableDescriptor("dbo", "User", SqModel = "UserDto")]
                 [Int32Column("UserId", Pk = true, Identity = true)]
@@ -552,7 +552,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenTempTableDescriptorHasSqModel_GeneratesModel()
         {
             var source = """
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 [TempTableDescriptor("#TmpUser", SqModel = "TmpUserDto")]
                 [Int32Column("UserId")]
@@ -575,7 +575,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenColumnSqModelsAddsAndRenamesMembership_DedupesCleanly()
         {
             var source = """
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 [TableDescriptor("dbo", "User", SqModel = "UserDto")]
                 [Int32Column("UserId", SqModels = "UserDto.Id,UserIdentity")]
@@ -601,7 +601,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenSqModelsEntryIsMalformed_ReportsDiagnostic()
         {
             var source = """
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 [TableDescriptor("dbo", "User")]
                 [Int32Column("UserId", SqModels = "UserDto.")]
@@ -619,7 +619,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenSameModelPropertyHasConflictingTypes_ReportsDiagnostic()
         {
             var source = """
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 [TableDescriptor("dbo", "User")]
                 [Int32Column("UserId", SqModels = "UserDto.Id")]
@@ -638,7 +638,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenSameTableMapsTwoColumnsToSameModelProperty_ReportsDiagnostic()
         {
             var source = """
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 [TableDescriptor("dbo", "User")]
                 [Int32Column("UserId", SqModels = "UserDto.Id")]
@@ -657,7 +657,7 @@ namespace SqExpress.Analyzers.Test
         public void Generate_WhenSqModelOptionsAreProvided_HonorsNamespaceAndImmutableClassMode()
         {
             var source = """
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 [TableDescriptor("dbo", "User", SqModel = "UserDto")]
                 [Int32Column("UserId")]

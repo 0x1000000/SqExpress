@@ -307,7 +307,7 @@ namespace SqExpress.Analyzers.Test
             var source = """
                 using SqExpress;
                 using SqExpress.SqlParser;
-                using SqExpress.TableDecalationAttributes;
+                using SqExpress.TableDeclarationAttributes;
 
                 [TableDescriptor("Jobs")]
                 [Int32Column("Id", Pk = true, Identity = true)]

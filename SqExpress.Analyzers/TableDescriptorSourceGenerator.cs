@@ -1,5 +1,5 @@
 using Microsoft.CodeAnalysis;
-using SqExpress.TableDecalationAttributes;
+using SqExpress.TableDeclarationAttributes;
 
 namespace SqExpress.Analyzers
 {
