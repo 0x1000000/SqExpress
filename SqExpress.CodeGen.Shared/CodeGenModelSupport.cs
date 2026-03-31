@@ -1,20 +1,20 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using SqExpress.CodeGenUtil.CodeGen.SqModel;
+
 using SqExpress.DbMetadata.Internal.Model;
 using SqExpress.QueryBuilders.RecordSetter;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select.SelectItems;
-using static SqExpress.CodeGenUtil.CodeGen.SyntaxHelpers;
+using SqExpress.Utils;
+using static SqExpress.CodeGen.Shared.CodeGenSyntaxHelpers;
 
-namespace SqExpress.CodeGenUtil.CodeGen
+namespace SqExpress.CodeGen.Shared
 {
-    internal class ModelClassGenerator
+    internal class CodeGenModelSupport
     {
         private const string MethodNameGetColumns = "GetColumns";
         private const string MethodNameGetColumnsWithPrefix = "GetColumnsWithPrefix";
@@ -47,7 +47,57 @@ namespace SqExpress.CodeGenUtil.CodeGen
             MethodNameIsNullWithPrefix
         };
 
-        public static CompilationUnitSyntax Generate(SqModelMeta meta, string defaultNamespace, string existingFilePath, bool rwClasses, bool nullRefTypes, ModelType modelType, IFileSystem fileSystem, out bool existing)
+        public static CompilationUnitSyntax Generate(
+            CodeGenSqModelMeta meta,
+            string defaultNamespace,
+            bool rwClasses,
+            bool nullRefTypes,
+            CodeGenModelType modelType)
+        {
+            return Generate(meta, defaultNamespace, string.Empty, rwClasses, nullRefTypes, modelType, DefaultFileSystem.Instance, out _);
+        }
+
+        public static string GetHintName(string modelNamespace, string modelName)
+        {
+            var typeName = string.IsNullOrEmpty(modelNamespace) ? modelName : modelNamespace + "." + modelName;
+            return $"{typeName.Replace('<', '_').Replace('>', '_').Replace('.', '_')}.SqModel.g.cs";
+        }
+
+        public static string GetClrTypeName(CodeGenColumnKind columnKind, bool nullRefTypes)
+        {
+            switch (columnKind)
+            {
+                case CodeGenColumnKind.Boolean: return "bool";
+                case CodeGenColumnKind.NullableBoolean: return "bool?";
+                case CodeGenColumnKind.Byte: return "byte";
+                case CodeGenColumnKind.NullableByte: return "byte?";
+                case CodeGenColumnKind.ByteArray: return "byte[]";
+                case CodeGenColumnKind.NullableByteArray: return "byte[]" + (nullRefTypes ? "?" : null);
+                case CodeGenColumnKind.Int16: return "short";
+                case CodeGenColumnKind.NullableInt16: return "short?";
+                case CodeGenColumnKind.Int32: return "int";
+                case CodeGenColumnKind.NullableInt32: return "int?";
+                case CodeGenColumnKind.Int64: return "long";
+                case CodeGenColumnKind.NullableInt64: return "long?";
+                case CodeGenColumnKind.Decimal: return "decimal";
+                case CodeGenColumnKind.NullableDecimal: return "decimal?";
+                case CodeGenColumnKind.Double: return "double";
+                case CodeGenColumnKind.NullableDouble: return "double?";
+                case CodeGenColumnKind.DateTime: return "DateTime";
+                case CodeGenColumnKind.NullableDateTime: return "DateTime?";
+                case CodeGenColumnKind.DateTimeOffset: return "DateTimeOffset";
+                case CodeGenColumnKind.NullableDateTimeOffset: return "DateTimeOffset?";
+                case CodeGenColumnKind.Guid: return "Guid";
+                case CodeGenColumnKind.NullableGuid: return "Guid?";
+                case CodeGenColumnKind.String: return "string";
+                case CodeGenColumnKind.NullableString: return "string" + (nullRefTypes ? "?" : null);
+                case CodeGenColumnKind.Xml: return "string";
+                case CodeGenColumnKind.NullableXml: return "string" + (nullRefTypes ? "?" : null);
+                default: throw new ArgumentOutOfRangeException(nameof(columnKind), columnKind, null);
+            }
+        }
+
+        public static CompilationUnitSyntax Generate(CodeGenSqModelMeta meta, string defaultNamespace, string existingFilePath, bool rwClasses, bool nullRefTypes, CodeGenModelType modelType, IFileSystem fileSystem, out bool existing)
         {
             CompilationUnitSyntax result;
             TypeDeclarationSyntax? existingClass = null;
@@ -88,11 +138,11 @@ namespace SqExpress.CodeGenUtil.CodeGen
 
             if (existingClass != null)
             {
-                result = existingClass.FindParentOrDefault<CompilationUnitSyntax>() ?? throw new SqExpressCodeGenException($"Could not find compilation unit in \"{existingFilePath}\"");
+                result = existingClass.FindParentOrDefault<CompilationUnitSyntax>() ?? throw new InvalidOperationException($"Could not find compilation unit in \"{existingFilePath}\"");
 
                 foreach (var usingDirectiveSyntax in result.Usings)
                 {
-                    var existingUsing = usingDirectiveSyntax.Name.ToFullString();
+                    var existingUsing = usingDirectiveSyntax.Name?.ToFullString() ?? string.Empty;
                     var index = namespaces.IndexOf(existingUsing);
                     if (index >= 0)
                     {
@@ -109,7 +159,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
 
                 var oldClass = existingClass;
 
-                if (oldClass is ClassDeclarationSyntax classDeclaration && modelType == ModelType.Record)
+                if (oldClass is ClassDeclarationSyntax classDeclaration && modelType == CodeGenModelType.Record)
                 {
                     oldClass = SyntaxFactory.RecordDeclaration(classDeclaration.AttributeLists,
                         classDeclaration.Modifiers,
@@ -138,7 +188,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
             return result.NormalizeWhitespace();
         }
 
-        private static TypeDeclarationSyntax GenerateClass(SqModelMeta meta, bool rwClasses, bool nullRefTypes, ModelType modelType, TypeDeclarationSyntax? existingClass)
+        private static TypeDeclarationSyntax GenerateClass(CodeGenSqModelMeta meta, bool rwClasses, bool nullRefTypes, CodeGenModelType modelType, TypeDeclarationSyntax? existingClass)
         {
             TypeDeclarationSyntax result;
             MemberDeclarationSyntax[]? oldMembers = null;
@@ -206,13 +256,13 @@ namespace SqExpress.CodeGenUtil.CodeGen
             }
             else
             {
-                result = (modelType == ModelType.Record
+                result = (modelType == CodeGenModelType.Record
                         ? (TypeDeclarationSyntax)SyntaxFactory
                             .RecordDeclaration(SyntaxFactory.Token(SyntaxKind.RecordKeyword), meta.Name)
                             .WithOpenBraceToken(SyntaxFactory.Token(SyntaxKind.OpenBraceToken))
                             .WithCloseBraceToken(SyntaxFactory.Token(SyntaxKind.CloseBraceToken))
                         : SyntaxFactory.ClassDeclaration(meta.Name))
-                    .WithModifiers(existingClass?.Modifiers ?? Modifiers(SyntaxKind.PublicKeyword));
+                    .WithModifiers(EnsurePartial(existingClass?.Modifiers ?? Modifiers(SyntaxKind.PublicKeyword)));
             }
 
             var comment = SyntaxFactory.TriviaList(SyntaxFactory.Comment("//Auto-generated by SqExpress Code-gen util"));
@@ -222,7 +272,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
                 .Concat(GenerateStaticFactoryWithPrefix(meta))
                 .Concat(rwClasses ? GenerateOrdinalStaticFactory(meta) : Array.Empty<MemberDeclarationSyntax>())
                 .Concat(Properties(meta, oldAttributes))
-                .Concat(modelType == ModelType.ImmutableClass ? GenerateWithModifiers(meta) : Array.Empty<MemberDeclarationSyntax>())
+                .Concat(modelType == CodeGenModelType.ImmutableClass ? GenerateWithModifiers(meta) : Array.Empty<MemberDeclarationSyntax>())
                 .Concat(GenerateGetColumns(meta))
                 .Concat(GenerateGetColumnsWithPrefix(meta))
                 .Concat(GenerateIsNull(meta))
@@ -244,7 +294,14 @@ namespace SqExpress.CodeGenUtil.CodeGen
             return result;
         }
 
-        public static IEnumerable<MemberDeclarationSyntax> Properties(SqModelMeta meta, IReadOnlyDictionary<string, SyntaxList<AttributeListSyntax>>? oldAttributes)
+        private static SyntaxTokenList EnsurePartial(SyntaxTokenList modifiers)
+        {
+            return modifiers.Any(static t => t.IsKind(SyntaxKind.PartialKeyword))
+                ? modifiers
+                : modifiers.Add(SyntaxFactory.Token(SyntaxKind.PartialKeyword));
+        }
+
+        public static IEnumerable<MemberDeclarationSyntax> Properties(CodeGenSqModelMeta meta, IReadOnlyDictionary<string, SyntaxList<AttributeListSyntax>>? oldAttributes)
         {
             return meta.Properties.Select(p =>
             {
@@ -265,7 +322,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
             });
         }
 
-        public static MemberDeclarationSyntax[] Constructors(SqModelMeta meta)
+        public static MemberDeclarationSyntax[] Constructors(CodeGenSqModelMeta meta)
         {
             var constructor = SyntaxFactory.ConstructorDeclaration(meta.Name)
                 .WithModifiers(Modifiers(SyntaxKind.PublicKeyword))
@@ -275,14 +332,14 @@ namespace SqExpress.CodeGenUtil.CodeGen
             return new MemberDeclarationSyntax[] {constructor};
         }
 
-        private static IEnumerable<Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax> GenerateConstructorAssignments(SqModelMeta meta)
+        private static IEnumerable<Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax> GenerateConstructorAssignments(CodeGenSqModelMeta meta)
         {
             return meta.Properties.Select(p =>
                 SyntaxFactory.ExpressionStatement(AssignmentThis(p.Name,
                     SyntaxFactory.IdentifierName(p.Name.FirstToLower()))));
         }
 
-        public static IEnumerable<MemberDeclarationSyntax> GenerateStaticFactory(SqModelMeta meta)
+        public static IEnumerable<MemberDeclarationSyntax> GenerateStaticFactory(CodeGenSqModelMeta meta)
         {
             return ExtractTableRefs(meta).Select(tableRef => SyntaxFactory
                     .MethodDeclaration(SyntaxFactory.ParseTypeName(meta.Name), MethodNameRead)
@@ -309,7 +366,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
                             null)))));
         }
 
-        public static IEnumerable<MemberDeclarationSyntax> GenerateStaticFactoryWithPrefix(SqModelMeta meta)
+        public static IEnumerable<MemberDeclarationSyntax> GenerateStaticFactoryWithPrefix(CodeGenSqModelMeta meta)
         {
             return ExtractTableRefs(meta).Select(tableRef => SyntaxFactory
                     .MethodDeclaration(SyntaxFactory.ParseTypeName(meta.Name), MethodNameReadWithPrefix)
@@ -340,7 +397,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
                             null)))));
         }
 
-        public static IEnumerable<MemberDeclarationSyntax> GenerateOrdinalStaticFactory(SqModelMeta meta)
+        public static IEnumerable<MemberDeclarationSyntax> GenerateOrdinalStaticFactory(CodeGenSqModelMeta meta)
         {
             return ExtractTableRefs(meta).Select(tableRef => SyntaxFactory
                     .MethodDeclaration(SyntaxFactory.ParseTypeName(meta.Name), MethodNameReadOrdinal)
@@ -372,7 +429,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
                             null)))));
         }
 
-        public static IEnumerable<MemberDeclarationSyntax> GenerateGetColumns(SqModelMeta meta)
+        public static IEnumerable<MemberDeclarationSyntax> GenerateGetColumns(CodeGenSqModelMeta meta)
         {
             return ExtractTableRefs(meta).Select(tableRef =>
                 {
@@ -404,7 +461,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
                 });
         }
 
-        public static IEnumerable<MemberDeclarationSyntax> GenerateIsNull(SqModelMeta meta)
+        public static IEnumerable<MemberDeclarationSyntax> GenerateIsNull(CodeGenSqModelMeta meta)
         {
             return ExtractTableRefs(meta).Select(tableRef => SyntaxFactory
                 .MethodDeclaration(SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.BoolKeyword)), MethodNameIsNull)
@@ -452,7 +509,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
                 )));
         }
 
-        public static IEnumerable<MemberDeclarationSyntax> GenerateIsNullWithPrefix(SqModelMeta meta, bool nullRefTypes)
+        public static IEnumerable<MemberDeclarationSyntax> GenerateIsNullWithPrefix(CodeGenSqModelMeta meta, bool nullRefTypes)
         {
             return ExtractTableRefs(meta)
                 .Select(tableRef => SyntaxFactory
@@ -500,7 +557,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
                     )));
         }
 
-        public static IEnumerable<MemberDeclarationSyntax> GenerateGetColumnsWithPrefix(SqModelMeta meta)
+        public static IEnumerable<MemberDeclarationSyntax> GenerateGetColumnsWithPrefix(CodeGenSqModelMeta meta)
         {
             return ExtractTableRefs(meta).Select(tableRef =>
                 {
@@ -536,12 +593,12 @@ namespace SqExpress.CodeGenUtil.CodeGen
                 });
         }
 
-        public static IEnumerable<MemberDeclarationSyntax> GenerateMapping(SqModelMeta meta)
+        public static IEnumerable<MemberDeclarationSyntax> GenerateMapping(CodeGenSqModelMeta meta)
         {
             return ExtractTableRefs(meta).SelectMany(tr => GenerateMapping(meta, tr));
         }
 
-        public static MemberDeclarationSyntax[] GenerateMapping(SqModelMeta meta, SqModelTableRef tableRef)
+        public static MemberDeclarationSyntax[] GenerateMapping(CodeGenSqModelMeta meta, CodeGenSqModelTableRef tableRef)
         {
             if (!HasUpdater(tableRef))
             {
@@ -563,7 +620,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
             }
 
 
-            static MemberDeclarationSyntax MethodDeclarationSyntax(SqModelMeta sqModelMeta, SqModelTableRef tableRef, string name, bool? pkFilter)
+            static MemberDeclarationSyntax MethodDeclarationSyntax(CodeGenSqModelMeta sqModelMeta, CodeGenSqModelTableRef tableRef, string name, bool? pkFilter)
             {
                 var setter = SyntaxFactory.IdentifierName("s");
                 ExpressionSyntax chain = setter;
@@ -593,7 +650,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
             }
         }
 
-        public static IEnumerable<MemberDeclarationSyntax> GenerateWithModifiers(SqModelMeta meta)
+        public static IEnumerable<MemberDeclarationSyntax> GenerateWithModifiers(CodeGenSqModelMeta meta)
         {
             return meta.Properties.Select(p =>
             {
@@ -620,12 +677,12 @@ namespace SqExpress.CodeGenUtil.CodeGen
             });
         }
 
-        public static IEnumerable<MemberDeclarationSyntax> GenerateReaderClass(SqModelMeta meta)
+        public static IEnumerable<MemberDeclarationSyntax> GenerateReaderClass(CodeGenSqModelMeta meta)
         {
             return ExtractTableRefs(meta, out var addName).SelectMany(tableRef => GenerateReaderClass(meta, tableRef, addName));
         }
 
-        public static IEnumerable<MemberDeclarationSyntax> GenerateReaderClass(SqModelMeta meta, SqModelTableRef tableRef, bool addName)
+        public static IEnumerable<MemberDeclarationSyntax> GenerateReaderClass(CodeGenSqModelMeta meta, CodeGenSqModelTableRef tableRef, bool addName)
         {
             string tableType = ExtractTableTypeName(meta, tableRef);
             var className = meta.Name + ReaderClassSuffix;
@@ -805,12 +862,12 @@ namespace SqExpress.CodeGenUtil.CodeGen
             return new MemberDeclarationSyntax[] {getReader, readerClassDeclaration};
         }
 
-        public static IEnumerable<MemberDeclarationSyntax> GenerateWriterClass(SqModelMeta meta)
+        public static IEnumerable<MemberDeclarationSyntax> GenerateWriterClass(CodeGenSqModelMeta meta)
         {
             return ExtractTableRefs(meta, out var addName).SelectMany(tableRef => GenerateWriterClass(meta, tableRef, addName));
         }
 
-        public static IEnumerable<MemberDeclarationSyntax> GenerateWriterClass(SqModelMeta meta, SqModelTableRef tableRef, bool addName)
+        public static IEnumerable<MemberDeclarationSyntax> GenerateWriterClass(CodeGenSqModelMeta meta, CodeGenSqModelTableRef tableRef, bool addName)
         {
             if (!HasUpdater(tableRef))
             {
@@ -937,7 +994,7 @@ namespace SqExpress.CodeGenUtil.CodeGen
             return new MemberDeclarationSyntax[] { getUpdater, updaterClassDeclaration };
         }
 
-        private static string ExtractTableTypeName(SqModelMeta meta, SqModelTableRef tableRef)
+        private static string ExtractTableTypeName(CodeGenSqModelMeta meta, CodeGenSqModelTableRef tableRef)
         {
             string tableType = tableRef.TableTypeName;
             if (tableType == meta.Name)
@@ -947,26 +1004,27 @@ namespace SqExpress.CodeGenUtil.CodeGen
             return tableType;
         }
 
-        private static IEnumerable<SqModelTableRef> ExtractTableRefs(SqModelMeta meta) 
+        private static IEnumerable<CodeGenSqModelTableRef> ExtractTableRefs(CodeGenSqModelMeta meta) 
             => ExtractTableRefs(meta, out _);
 
-        private static IEnumerable<SqModelTableRef> ExtractTableRefs(SqModelMeta meta, out bool multi)
+        private static IEnumerable<CodeGenSqModelTableRef> ExtractTableRefs(CodeGenSqModelMeta meta, out bool multi)
         {
             var first = meta.Properties.First();
             multi = first.Column.Count > 1;
             return first.Column.Select(c => c.TableRef);
         }
 
-        private static string ExtractTableColumnTypeName(SqModelTableRef tableRef)
+        private static string ExtractTableColumnTypeName(CodeGenSqModelTableRef tableRef)
             => tableRef.BaseTypeKindTag.Switch(
                 tableBaseRes: nameof(TableColumn), 
                 tempTableBaseRes: nameof(TableColumn), 
                 derivedTableBaseRes: nameof(ExprColumn));
 
-        private static bool HasUpdater(SqModelTableRef tableRef)
+        private static bool HasUpdater(CodeGenSqModelTableRef tableRef)
             => tableRef.BaseTypeKindTag.Switch(
                 tableBaseRes: true,
                 tempTableBaseRes: true,
                 derivedTableBaseRes: false);
     }
 }
+

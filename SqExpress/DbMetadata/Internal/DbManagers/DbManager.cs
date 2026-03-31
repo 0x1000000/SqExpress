@@ -41,11 +41,16 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
             }
         }
 
-        public async Task<IReadOnlyList<TableModel>> SelectTables()
+        public Task<IReadOnlyList<TableModel>> SelectTables()
+            => this.SelectTables(skipUnknownColumnTypes: false);
+
+        public async Task<IReadOnlyList<TableModel>> SelectTables(bool skipUnknownColumnTypes)
         {
             var (columnsRaw, indexes, fk) = await this.Database.LoadRawModels();
 
             var acc = new Dictionary<TableRef, Dictionary<ColumnRef, ColumnModel>>();
+            var skippedColumns = new HashSet<ColumnRef>();
+            var tablesWithBrokenPrimaryKey = new HashSet<TableRef>();
 
             foreach (var rawColumn in columnsRaw)
             {
@@ -60,11 +65,26 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
                     ? fkList 
                     : null;
 
-                var colModel = this.BuildColumnModel(
-                    rawColumn,
-                    indexes.Pks.TryGetValue(table, out var pkCols) ? pkCols.Columns : null,
-                    columnRefs
-                );
+                var pkColumns = indexes.Pks.TryGetValue(table, out var pkCols) ? pkCols.Columns : null;
+                if (!this.TryBuildColumnModel(
+                        rawColumn,
+                        pkColumns,
+                        columnRefs,
+                        out var colModel))
+                {
+                    if (skipUnknownColumnTypes)
+                    {
+                        skippedColumns.Add(rawColumn.DbName);
+                        if (pkColumns != null && pkColumns.Any(c => c.DbName.Equals(rawColumn.DbName)))
+                        {
+                            tablesWithBrokenPrimaryKey.Add(table);
+                        }
+                        continue;
+                    }
+
+                    throw new SqExpressException(
+                        $"Unsupported column type \"{rawColumn.TypeName}\" for {rawColumn.DbName.Schema}.{rawColumn.DbName.TableName}.{rawColumn.DbName.Name}. Consider using the option to skip unknown columns.");
+                }
 
                 colList.Add(colModel.DbName, colModel);
             }
@@ -73,19 +93,46 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
 
             var result = sortedTables.Select(
                     t =>
-                        new TableModel(
+                    {
+                        var columns = acc[key: t]
+                            .Select(p => p.Value)
+                            .OrderBy(c => c.Pk?.Index ?? 10000)
+                            .ThenBy(c => c.OrdinalPosition)
+                            .ToList();
+
+                        if (tablesWithBrokenPrimaryKey.Contains(t))
+                        {
+                            columns = columns
+                                .Select(c => new ColumnModel(
+                                    name: c.Name,
+                                    dbName: c.DbName,
+                                    ordinalPosition: c.OrdinalPosition,
+                                    columnType: c.ColumnType,
+                                    pk: null,
+                                    identity: c.Identity,
+                                    defaultValue: c.DefaultValue,
+                                    fk: c.Fk))
+                                .ToList();
+                        }
+
+                        var tableIndexes = indexes.Indexes.TryGetValue(key: t, value: out var tIndexes)
+                            ? tIndexes
+                            : new List<IndexModel>(capacity: 0);
+
+                        if (skipUnknownColumnTypes && skippedColumns.Count > 0)
+                        {
+                            tableIndexes = tableIndexes
+                                .Where(i => i.Columns.All(c => !skippedColumns.Contains(c.DbName)))
+                                .ToList();
+                        }
+
+                        return new TableModel(
                             name: this.ToTableCrlName(tableRef: t),
                             dbName: t,
-                            columns: acc[key: t]
-                                .Select(p => p.Value)
-                                .OrderBy(c => c.Pk?.Index ?? 10000)
-                                .ThenBy(c => c.OrdinalPosition)
-                                .ToList(),
-                            indexes: indexes.Indexes.TryGetValue(key: t, value: out var tIndexes)
-                                ? tIndexes
-                                : new List<IndexModel>(capacity: 0)
-                        )
-                )
+                            columns: columns,
+                            indexes: tableIndexes
+                        );
+                    })
                 .ToList();
 
             this.EnsureTableNamesAreUnique(result, this.Database.DefaultSchemaName);
@@ -93,7 +140,11 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
             return result;
         }
 
-        private ColumnModel BuildColumnModel(ColumnRawModel rawColumn, List<IndexColumnModel>? pkCols, List<ColumnRef>? fkList)
+        private bool TryBuildColumnModel(
+            ColumnRawModel rawColumn,
+            List<IndexColumnModel>? pkCols,
+            List<ColumnRef>? fkList,
+            out ColumnModel columnModel)
         {
             string clrName = ToColCrlName(rawColumn.DbName);
 
@@ -105,9 +156,14 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
                 pkInfo = new PkInfo(pkIndex.Value, pkCols[pkIndex.Value].IsDescending);
             }
 
-            var columnType = this.Database.GetColType(raw: rawColumn);
+            var columnType = this.Database.TryGetColType(raw: rawColumn);
+            if (columnType == null)
+            {
+                columnModel = default!;
+                return false;
+            }
 
-            return new ColumnModel(
+            columnModel = new ColumnModel(
                 name: clrName,
                 dbName: rawColumn.DbName,
                 ordinalPosition: rawColumn.OrdinalPosition,
@@ -117,6 +173,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
                 defaultValue: this.Database.ParseDefaultValue(rawColumn.DefaultValue, columnType),
                 fk: fkList
             );
+            return true;
         }
 
         private static string ToColCrlName(ColumnRef columnRef)

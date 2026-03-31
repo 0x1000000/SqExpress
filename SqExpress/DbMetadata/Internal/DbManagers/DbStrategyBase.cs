@@ -16,7 +16,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers
 
         public abstract Task<DbRawModels> LoadRawModels();
 
-        public abstract ColumnType GetColType(ColumnRawModel raw);
+        public abstract ColumnType? TryGetColType(ColumnRawModel raw);
 
         public abstract string DefaultSchemaName { get; }
 

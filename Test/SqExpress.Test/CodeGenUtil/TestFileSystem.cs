@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using SqExpress.CodeGenUtil;
+using SqExpress.CodeGen.Shared;
 
 namespace SqExpress.Test.CodeGenUtil
 {

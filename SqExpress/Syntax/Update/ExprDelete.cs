@@ -41,6 +41,11 @@ namespace SqExpress.Syntax.Update
         public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprDeleteOutput(this, arg);
 
+        public IReadOnlyList<IExprSelecting> ExtractSelecting()
+        {
+            return this.OutputColumns;
+        }
+
         public IReadOnlyList<string?> GetOutputColumnNames()
         {
             return this.OutputColumns.SelectToReadOnlyList(i => ((IExprNamedSelecting) i).OutputName);

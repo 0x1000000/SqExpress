@@ -9,6 +9,7 @@ using SqExpress.DbMetadata;
 using SqExpress.SqlExport;
 using SqExpress.SqlParser;
 using SqExpress.Syntax.Boolean.Predicate;
+using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Names;
@@ -165,6 +166,196 @@ namespace SqExpress.Test.SqlParser
             {
                 Assert.Fail(errors == null ? null : string.Join("\n", errors));
             }
+        }
+
+        [Test]
+        public void ParseSelectWhereLiteralNotLike_BuildsExpectedAstNodes()
+        {
+            const string inputSql = "SELECT 1 WHERE 'alpha' NOT LIKE 'z%'";
+
+            if (SqTSqlParser.TryParse(inputSql, out var expr, out var errors))
+            {
+                Assert.That(expr, Is.Not.Null);
+                Assert.That(expr, Is.TypeOf<ExprQuerySpecification>());
+
+                var query = (ExprQuerySpecification)expr!;
+                Assert.That(query.Where, Is.TypeOf<ExprBooleanNot>());
+                var not = (ExprBooleanNot)query.Where!;
+                Assert.That(not.Expr, Is.TypeOf<ExprLike>());
+
+                var like = (ExprLike)not.Expr;
+                Assert.That((like.Test as ExprStringLiteral)?.Value, Is.EqualTo("alpha"));
+                Assert.That((like.Pattern as ExprStringLiteral)?.Value, Is.EqualTo("z%"));
+            }
+            else
+            {
+                Assert.Fail(errors == null ? null : string.Join("\n", errors));
+            }
+        }
+
+        [Test]
+        public void ParseSelectWhereNotIn_BuildsExpectedAstNodes()
+        {
+            const string inputSql = "SELECT 1 WHERE 4 NOT IN (1,2,3)";
+
+            if (SqTSqlParser.TryParse(inputSql, out var expr, out var errors))
+            {
+                Assert.That(expr, Is.Not.Null);
+                Assert.That(expr, Is.TypeOf<ExprQuerySpecification>());
+
+                var query = (ExprQuerySpecification)expr!;
+                Assert.That(query.Where, Is.TypeOf<ExprBooleanNot>());
+                var not = (ExprBooleanNot)query.Where!;
+                Assert.That(not.Expr, Is.TypeOf<ExprInValues>());
+
+                var inValues = (ExprInValues)not.Expr;
+                Assert.That((inValues.TestExpression as ExprInt32Literal)?.Value, Is.EqualTo(4));
+                Assert.That(inValues.Items.Count, Is.EqualTo(3));
+            }
+            else
+            {
+                Assert.Fail(errors == null ? null : string.Join("\n", errors));
+            }
+        }
+
+        [Test]
+        public void ParseInsertWithoutInto_MapsSuccessfully()
+        {
+            const string inputSql = "INSERT dbo.Logs(Message, Severity) VALUES ('x', 1)";
+
+            if (SqTSqlParser.TryParse(inputSql, out var expr, out var errors))
+            {
+                Assert.That(expr, Is.Not.Null);
+                Assert.That(expr, Is.TypeOf<ExprInsert>());
+
+                var insert = (ExprInsert)expr!;
+                var target = insert.Target.AsExprTableFullName();
+                Assert.That(target.TableName.Name, Is.EqualTo("Logs"));
+                Assert.That(target.DbSchema?.Schema.Name, Is.EqualTo("dbo"));
+                Assert.That(insert.TargetColumns, Is.Not.Null);
+                Assert.That(insert.TargetColumns!.Count, Is.EqualTo(2));
+                Assert.That(insert.TargetColumns[0].Name, Is.EqualTo("Message"));
+                Assert.That(insert.TargetColumns[1].Name, Is.EqualTo("Severity"));
+                Assert.That(insert.Source, Is.TypeOf<ExprInsertValues>());
+            }
+            else
+            {
+                Assert.Fail(errors == null ? null : string.Join("\n", errors));
+            }
+        }
+
+        [Test]
+        public void ParseSelectWhereArithmeticComparisonInParentheses_MapsSuccessfully()
+        {
+            const string inputSql = "SELECT 1 WHERE (2 + 3) * 4 > 10";
+
+            var ok = SqTSqlParser.TryParse(inputSql, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+        }
+
+        [Test]
+        public void ParseSelectWhereLikeWithEscape_MapsSuccessfully()
+        {
+            const string inputSql = @"SELECT 1 WHERE 'abc' LIKE 'a%' ESCAPE '\\'";
+
+            var ok = SqTSqlParser.TryParse(inputSql, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+        }
+
+        [Test]
+        public void ParseSelectWhereInSubQueryWithSingleInnerTable_MapsSuccessfully()
+        {
+            const string inputSql = "SELECT * FROM dbo.Users WHERE Id IN (SELECT Severity FROM dbo.Logs)";
+
+            var ok = SqTSqlParser.TryParse(inputSql, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+        }
+
+        [Test]
+        public void ParseDeleteWhereInSubQueryWithSingleInnerTable_MapsSuccessfully()
+        {
+            const string inputSql = "DELETE FROM dbo.Users WHERE Id IN (SELECT Severity FROM dbo.Logs)";
+
+            var ok = SqTSqlParser.TryParse(inputSql, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+        }
+
+        [Test]
+        public void ParseDeleteWithCteWhereInSubQuery_MapsSuccessfully()
+        {
+            const string inputSql = "WITH C AS (SELECT 1 AS Id) DELETE FROM dbo.Users WHERE Id IN (SELECT Id FROM C)";
+
+            var ok = SqTSqlParser.TryParse(inputSql, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+        }
+
+        [Test]
+        public void ParseUpdateWithCteInFromAndUnqualifiedSetValue_MapsSuccessfully()
+        {
+            const string inputSql = "WITH C AS (SELECT 1 AS X) UPDATE dbo.Users SET Score = X FROM C WHERE Id = 1";
+
+            var ok = SqTSqlParser.TryParse(inputSql, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+        }
+
+        [Test]
+        public void ParseCrossJoinMultipleCtesWithUnqualifiedProjection_MapsSuccessfully()
+        {
+            const string inputSql = "WITH C AS (SELECT 1 AS A), D AS (SELECT 2 AS B) SELECT A + B FROM C CROSS JOIN D";
+
+            var ok = SqTSqlParser.TryParse(inputSql, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+        }
+
+        [Test]
+        public void ParseCommaSeparatedCteSources_MapsSuccessfully()
+        {
+            const string inputSql = "WITH C AS (SELECT 1 AS A), D AS (SELECT 2 AS B) SELECT * FROM C, D";
+
+            var ok = SqTSqlParser.TryParse(inputSql, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+        }
+
+        [Test]
+        public void ParseTopGroupedJoinWithDateAddAndOrderAlias()
+        {
+            var inputSql =
+                """
+                SELECT TOP 1
+                    e.EmployeeId,
+                    e.FirstName,
+                    e.LastName,
+                    SUM(sl.Quantity) AS TotalQuantitySold
+                FROM ops.SalesOrderLine sl
+                JOIN ops.SalesOrder so ON sl.SalesOrderId = so.SalesOrderId
+                JOIN ref.Employee e ON so.SalesRepId = e.EmployeeId
+                WHERE so.OrderDate >= DATEADD(MONTH, -1, CAST(GETDATE() AS date))
+                GROUP BY e.EmployeeId, e.FirstName, e.LastName
+                ORDER BY TotalQuantitySold DESC;
+                """;
+
+            if (!SqTSqlParser.TryParse(inputSql, out var expr, out var errors))
+            {
+                Assert.Fail(errors);
+            }
+
+            Assert.That(expr, Is.Not.Null);
         }
 
         [Test]
@@ -339,6 +530,109 @@ namespace SqExpress.Test.SqlParser
             {
                 Assert.Fail(errors);
             }
+        }
+
+        [Test]
+        public void ParseNestedParenthesizedSetOperations_MapsSuccessfully()
+        {
+            const string inputSql = @"
+                   (
+                       (
+                           (
+                               SELECT 1 
+                               UNION 
+                               SELECT 2
+                           ) 
+                           UNION ALL 
+                           SELECT 2
+                       ) 
+                       EXCEPT 
+                       SELECT 2
+                   ) 
+                   INTERSECT 
+                   (
+                       SELECT 1 
+                       UNION 
+                       SELECT 2
+                   )";
+
+            if (!SqTSqlParser.TryParse(inputSql, out var expr, out var errors))
+            {
+                Assert.Fail(errors);
+            }
+
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(expr, Is.AssignableTo<IExprSubQuery>());
+        }
+
+        [Test]
+        public void ParseParenthesizedUnionBranch_MapsSuccessfully()
+        {
+            const string inputSql = @"(SELECT 1 UNION SELECT 2) UNION ALL SELECT 3";
+
+            if (!SqTSqlParser.TryParse(inputSql, out var expr, out var errors))
+            {
+                Assert.Fail(errors);
+            }
+
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(expr, Is.TypeOf<ExprQueryExpression>());
+        }
+
+        [Test]
+        public void ParseUnionWithParenthesizedRightBranch_MapsSuccessfully()
+        {
+            const string inputSql = @"SELECT 1 UNION ALL (SELECT 2 INTERSECT SELECT 2)";
+
+            if (!SqTSqlParser.TryParse(inputSql, out var expr, out var errors))
+            {
+                Assert.Fail(errors);
+            }
+
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(expr, Is.TypeOf<ExprQueryExpression>());
+        }
+
+        [Test]
+        public void ParseParenthesizedSetOperationWithTopLevelOrderBy_MapsSuccessfully()
+        {
+            const string inputSql = @"(SELECT 1 UNION ALL SELECT 2) ORDER BY 1";
+
+            if (!SqTSqlParser.TryParse(inputSql, out var expr, out var errors))
+            {
+                Assert.Fail(errors);
+            }
+
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(expr, Is.TypeOf<ExprSelect>());
+        }
+
+        [Test]
+        public void ParseDeeplyNestedGroupedSetOperations_MapsSuccessfully()
+        {
+            const string inputSql = @"((SELECT 1 EXCEPT SELECT 2) INTERSECT (SELECT 1 UNION SELECT 3)) UNION ALL SELECT 4";
+
+            if (!SqTSqlParser.TryParse(inputSql, out var expr, out var errors))
+            {
+                Assert.Fail(errors);
+            }
+
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(expr, Is.AssignableTo<IExprSubQuery>());
+        }
+
+        [Test]
+        public void ParseSetOperationBranchesWithOrderByOffsetFetch_MapsSuccessfully()
+        {
+            const string inputSql = @"(SELECT 1 UNION ALL SELECT 2) ORDER BY 1 OFFSET 0 ROW FETCH NEXT 1 ROW ONLY";
+
+            if (!SqTSqlParser.TryParse(inputSql, out var expr, out var errors))
+            {
+                Assert.Fail(errors);
+            }
+
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(expr, Is.TypeOf<ExprSelectOffsetFetch>());
         }
     }
 }

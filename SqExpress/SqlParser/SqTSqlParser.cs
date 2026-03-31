@@ -44,7 +44,7 @@ namespace SqExpress.SqlParser
             [NotNullWhen(false)] out string? error)
         {
             var effectiveOptions = NormalizeOptions(options);
-            if (TryParseCore(sql, effectiveOptions, out result, out var tables, out var errors))
+            if (TryParseCore(sql, effectiveOptions, existingTables, out result, out var tables, out var errors))
             {
                 if (existingTables != null
                     && !TryValidateParsedTables(existingTables, tables!, effectiveOptions.DefaultSchema, out error))
@@ -89,7 +89,7 @@ namespace SqExpress.SqlParser
             [NotNullWhen(true)] out IReadOnlyList<SqTable>? tables,
             [NotNullWhen(false)] out string? error)
         {
-            if (TryParseCore(sql, NormalizeOptions(options), out result, out tables, out var errors))
+            if (TryParseCore(sql, NormalizeOptions(options), existingTables: null, out result, out tables, out var errors))
             {
                 error = null;
                 return true;
@@ -103,6 +103,7 @@ namespace SqExpress.SqlParser
         private static bool TryParseCore(
             string sql,
             SqTSqlParserOptions options,
+            IReadOnlyList<TableBase>? existingTables,
             [NotNullWhen(true)] out IExpr? result,
             [NotNullWhen(true)] out IReadOnlyList<SqTable>? tables,
             [NotNullWhen(false)] out IReadOnlyList<string>? errors)
@@ -116,7 +117,7 @@ namespace SqExpress.SqlParser
 
             var extractedTables = SqlDomTableArtifactExtractor.ExtractTables(statement!, options.DefaultSchema);
 
-            if (SqlDomToSqExprMapper.TryMap(statement!, options.DefaultSchema, out result, out _, out var mappingError))
+            if (SqlDomToSqExprMapper.TryMap(statement!, options.DefaultSchema, existingTables, out result, out _, out var mappingError))
             {
                 if (extractedTables.Count < 1 && result is ExprUpdate update)
                 {
@@ -151,14 +152,22 @@ namespace SqExpress.SqlParser
             string? defaultSchema,
             [NotNullWhen(false)] out string? error)
         {
+            const TableComparisonFlags comparisonFlags =
+                TableComparisonFlags.IgnoreExtraColumns
+                | TableComparisonFlags.IgnoreIndexes
+                | TableComparisonFlags.IgnoreColumnShape
+                | TableComparisonFlags.IgnoreColumnMeta;
+
             if (parsedTables.Count < 1)
             {
                 error = null;
                 return true;
             }
 
-            var parsedAsBaseTables = parsedTables.Cast<TableBase>().ToList();
-            var comparison = parsedAsBaseTables.CompareWith(existingTables, i => BuildTableComparisonKey(i, defaultSchema));
+            var comparison = parsedTables.CompareWith(
+                existingTables,
+                comparisonFlags,
+                i => BuildTableComparisonKey(i, defaultSchema));
             if (comparison == null)
             {
                 error = null;
@@ -173,7 +182,7 @@ namespace SqExpress.SqlParser
             var tableDifferences = new List<string>();
             foreach (var tableDifference in comparison.DifferentTables.OrderBy(i => BuildTableComparisonKey(i.Table.FullName, defaultSchema), StringComparer.Ordinal))
             {
-                var tableDiff = BuildTableDifferenceMessage(tableDifference.Table, tableDifference.TableComparison, defaultSchema);
+                var tableDiff = BuildTableDifferenceMessage(tableDifference.OtherTable, tableDifference.TableComparison, defaultSchema);
                 if (!string.IsNullOrEmpty(tableDiff))
                 {
                     tableDifferences.Add(tableDiff!);
@@ -208,12 +217,10 @@ namespace SqExpress.SqlParser
         private static string? BuildTableDifferenceMessage(TableBase expected, TableComparison comparison, string? defaultSchema)
         {
             var parsedOnlyColumns = comparison.MissedColumns.ToList();
-            var providedOnlyColumns = comparison.ExtraColumns.ToList();
 
             var changedColumns = new List<string>();
             foreach (var differentColumn in comparison.DifferentColumns.OrderBy(i => i.Column.ColumnName.Name, StringComparer.OrdinalIgnoreCase))
             {
-                // Parser type inference is heuristic, therefore type/nullability/meta mismatches are intentionally ignored here.
                 var relevantComparison = differentColumn.ColumnComparison & TableColumnComparison.DifferentName;
                 if (relevantComparison != TableColumnComparison.Equal)
                 {
@@ -221,34 +228,26 @@ namespace SqExpress.SqlParser
                 }
             }
 
-            var matchedProvidedOnlyIndexes = new HashSet<int>();
             var matchedParsedOnlyIndexes = new HashSet<int>();
+            var expectedColumnsByLowerName = expected.Columns
+                .GroupBy(i => i.ColumnName.Name.ToLowerInvariant(), StringComparer.Ordinal)
+                .ToDictionary(i => i.Key, i => i.First(), StringComparer.Ordinal);
             for (var m = 0; m < parsedOnlyColumns.Count; m++)
             {
                 var parsedOnly = parsedOnlyColumns[m];
                 var parsedOnlyLower = parsedOnly.ColumnName.Name.ToLowerInvariant();
-                for (var e = 0; e < providedOnlyColumns.Count; e++)
+
+                if (!expectedColumnsByLowerName.TryGetValue(parsedOnlyLower, out var expectedColumn))
                 {
-                    if (matchedProvidedOnlyIndexes.Contains(e))
-                    {
-                        continue;
-                    }
-
-                    var providedOnly = providedOnlyColumns[e];
-                    if (!string.Equals(providedOnly.ColumnName.Name.ToLowerInvariant(), parsedOnlyLower, StringComparison.Ordinal))
-                    {
-                        continue;
-                    }
-
-                    if (!string.Equals(providedOnly.ColumnName.Name, parsedOnly.ColumnName.Name, StringComparison.Ordinal))
-                    {
-                        changedColumns.Add($"[{parsedOnly.ColumnName.Name}] ({TableColumnComparison.DifferentName})");
-                    }
-
-                    matchedProvidedOnlyIndexes.Add(e);
-                    matchedParsedOnlyIndexes.Add(m);
-                    break;
+                    continue;
                 }
+
+                if (!string.Equals(expectedColumn.ColumnName.Name, parsedOnly.ColumnName.Name, StringComparison.Ordinal))
+                {
+                    changedColumns.Add($"[{parsedOnly.ColumnName.Name}] ({TableColumnComparison.DifferentName})");
+                }
+
+                matchedParsedOnlyIndexes.Add(m);
             }
 
             var extraColumns = parsedOnlyColumns

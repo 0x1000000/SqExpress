@@ -28,6 +28,21 @@
   - validates raw SQL during compilation
   - checks discovered SqExpress table descriptors
   - can convert supported `SqTSqlParser.Parse(...)` calls into generated SqExpress C# code
+- Added attribute-based `SqModel` source generation for table declarations:
+  - class-level `SqModel` on `[TableDescriptor]` / `[TempTableDescriptor]`
+  - column-level `SqModels` and `SqModelCast`
+  - source-generated DTO models now default to `record` shape when generated from analyzer-driven table declarations
+- Added dedicated derived-table descriptor support:
+  - `[DerivedTableDescriptor]`
+  - `Derived...Column` attributes for derived-table output columns
+  - analyzer validation preventing descriptor-family mixing and enforcing that `Derived...Column` is only used with derived-table descriptors
+- Added flags-based table comparison and inclusion helpers:
+  - `TableComparisonFlags` for `CompareWith(...)`
+  - `TableIncludesFlags` for `Includes(...)`
+- Added `TablesGraph` for foreign-key-graph navigation and join-path discovery:
+  - `Contains`, `References`, `GetReferences`, `GetAllReferences`, `GetReferencedBy`, `GetAllReferencedBy`
+  - `TryToJoinTables(...)` returning a joinable `IExprTableSource`
+  - deterministic shortest-path selection when several join routes exist
 - Added column-shape extraction helpers used by the `MERGE` polyfill to infer projected column names and SQL types from subqueries and table sources.
 - Added `TypedColumn` as a shared typed-column abstraction for table and custom columns.
 
@@ -38,6 +53,11 @@
 
 ### Breaking Changes
 - Some public syntax/source interfaces gained new members, including selecting-source and alias-related APIs, so custom implementations may need to be updated.
+- `IQuerySpecificationBuilderFiltered.GroupBy(...)` now accepts `ExprValue` / `IReadOnlyList<ExprValue>` instead of `ExprColumn` / `IReadOnlyList<ExprColumn>`.
+- `ExprOffsetFetch.Offset` and `ExprOffsetFetch.Fetch` are now `ExprValue` instead of `ExprInt32Literal`. In most existing code, the workaround is to cast explicitly to `ExprInt32Literal`.
+- `ExprLike.Test` and `ExprLike.Pattern` are now `ExprValue` instead of `ExprStringLiteral`. In most existing code, the workaround is to cast explicitly to `ExprStringLiteral`.
+- `SqModelGenType` now defaults to `Record` in `SqExpress.props`. `ImmutableClass` is still supported for backward compatibility.
+- The legacy file-based model builder (`genmodels` / property-level `[SqModel]`) is now deprecated and is planned for removal in `2.0`.
 
 # 1.1.1
 ### Bugfix

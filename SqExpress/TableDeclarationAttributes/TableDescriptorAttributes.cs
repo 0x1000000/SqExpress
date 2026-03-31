@@ -1,0 +1,531 @@
+using System;
+
+namespace SqExpress.TableDeclarationAttributes
+{
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+    public sealed class TableDescriptorAttribute : Attribute
+    {
+        public TableDescriptorAttribute(string name)
+        {
+            this.Name = name;
+        }
+
+        public TableDescriptorAttribute(string schema, string name)
+        {
+            this.Schema = schema;
+            this.Name = name;
+        }
+
+        public TableDescriptorAttribute(string databaseName, string schema, string name)
+        {
+            this.DatabaseName = databaseName;
+            this.Schema = schema;
+            this.Name = name;
+        }
+
+        public string? DatabaseName { get; }
+        public string? Schema { get; }
+        public string Name { get; }
+
+        public string? SqModel { get; set; }
+    }
+
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+    public sealed class TempTableDescriptorAttribute : Attribute
+    {
+        public TempTableDescriptorAttribute(string name)
+        {
+            this.Name = name;
+        }
+
+        public string Name { get; }
+
+        public string? SqModel { get; set; }
+    }
+
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+    public sealed class DerivedTableDescriptorAttribute : Attribute
+    {
+        public string? SqModel { get; set; }
+    }
+
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
+    public abstract class TableColumnAttributeBase : Attribute
+    {
+        protected TableColumnAttributeBase(string name)
+        {
+            this.Name = name;
+        }
+
+        public string Name { get; }
+
+        public string? PropertyName { get; set; }
+
+        public bool Pk { get; set; }
+
+        public bool Identity { get; set; }
+
+        public string? FkSchema { get; set; }
+
+        public string? FkDatabase { get; set; }
+
+        public string? FkTable { get; set; }
+
+        public string? FkColumn { get; set; }
+
+        public string? DefaultValue { get; set; }
+
+        public string? SqModels { get; set; }
+
+        public Type? SqModelCast { get; set; }
+    }
+
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
+    public abstract class DerivedColumnAttributeBase : Attribute
+    {
+        protected DerivedColumnAttributeBase(string name)
+        {
+            this.Name = name;
+        }
+
+        public string Name { get; }
+
+        public string? PropertyName { get; set; }
+
+        public string? SqModels { get; set; }
+
+        public Type? SqModelCast { get; set; }
+    }
+
+    public abstract class StringColumnAttributeBase : TableColumnAttributeBase
+    {
+        protected StringColumnAttributeBase(string name) : base(name)
+        {
+        }
+
+        public bool Unicode { get; set; }
+
+        public int MaxLength { get; set; } = -1;
+
+        public bool FixedLength { get; set; }
+
+        public bool Text { get; set; }
+    }
+
+    public abstract class ByteArrayColumnAttributeBase : TableColumnAttributeBase
+    {
+        protected ByteArrayColumnAttributeBase(string name) : base(name)
+        {
+        }
+
+        public int MaxLength { get; set; } = -1;
+
+        public bool FixedLength { get; set; }
+    }
+
+    public abstract class DecimalColumnAttributeBase : TableColumnAttributeBase
+    {
+        protected DecimalColumnAttributeBase(string name)
+            : base(name)
+        {
+        }
+
+        public int Precision { get; set; }
+
+        public int Scale { get; set; }
+    }
+
+    public abstract class DateTimeColumnAttributeBase : TableColumnAttributeBase
+    {
+        protected DateTimeColumnAttributeBase(string name) : base(name)
+        {
+        }
+
+        public bool IsDate { get; set; }
+    }
+
+    public sealed class BooleanColumnAttribute : TableColumnAttributeBase
+    {
+        public BooleanColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class NullableBooleanColumnAttribute : TableColumnAttributeBase
+    {
+        public NullableBooleanColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class ByteColumnAttribute : TableColumnAttributeBase
+    {
+        public ByteColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class NullableByteColumnAttribute : TableColumnAttributeBase
+    {
+        public NullableByteColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class ByteArrayColumnAttribute : ByteArrayColumnAttributeBase
+    {
+        public ByteArrayColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class NullableByteArrayColumnAttribute : ByteArrayColumnAttributeBase
+    {
+        public NullableByteArrayColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class Int16ColumnAttribute : TableColumnAttributeBase
+    {
+        public Int16ColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class NullableInt16ColumnAttribute : TableColumnAttributeBase
+    {
+        public NullableInt16ColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class Int32ColumnAttribute : TableColumnAttributeBase
+    {
+        public Int32ColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class NullableInt32ColumnAttribute : TableColumnAttributeBase
+    {
+        public NullableInt32ColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class Int64ColumnAttribute : TableColumnAttributeBase
+    {
+        public Int64ColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class NullableInt64ColumnAttribute : TableColumnAttributeBase
+    {
+        public NullableInt64ColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DoubleColumnAttribute : TableColumnAttributeBase
+    {
+        public DoubleColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class NullableDoubleColumnAttribute : TableColumnAttributeBase
+    {
+        public NullableDoubleColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DecimalColumnAttribute : DecimalColumnAttributeBase
+    {
+        public DecimalColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class NullableDecimalColumnAttribute : DecimalColumnAttributeBase
+    {
+        public NullableDecimalColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DateTimeColumnAttribute : DateTimeColumnAttributeBase
+    {
+        public DateTimeColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class NullableDateTimeColumnAttribute : DateTimeColumnAttributeBase
+    {
+        public NullableDateTimeColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DateTimeOffsetColumnAttribute : TableColumnAttributeBase
+    {
+        public DateTimeOffsetColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class NullableDateTimeOffsetColumnAttribute : TableColumnAttributeBase
+    {
+        public NullableDateTimeOffsetColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class GuidColumnAttribute : TableColumnAttributeBase
+    {
+        public GuidColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class NullableGuidColumnAttribute : TableColumnAttributeBase
+    {
+        public NullableGuidColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class StringColumnAttribute : StringColumnAttributeBase
+    {
+        public StringColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class NullableStringColumnAttribute : StringColumnAttributeBase
+    {
+        public NullableStringColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class XmlColumnAttribute : TableColumnAttributeBase
+    {
+        public XmlColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class NullableXmlColumnAttribute : TableColumnAttributeBase
+    {
+        public NullableXmlColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedBooleanColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedBooleanColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedNullableBooleanColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedNullableBooleanColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedByteColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedByteColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedNullableByteColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedNullableByteColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedByteArrayColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedByteArrayColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedNullableByteArrayColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedNullableByteArrayColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedInt16ColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedInt16ColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedNullableInt16ColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedNullableInt16ColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedInt32ColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedInt32ColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedNullableInt32ColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedNullableInt32ColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedInt64ColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedInt64ColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedNullableInt64ColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedNullableInt64ColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedDoubleColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedDoubleColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedNullableDoubleColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedNullableDoubleColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedDecimalColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedDecimalColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedNullableDecimalColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedNullableDecimalColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedDateTimeColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedDateTimeColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedNullableDateTimeColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedNullableDateTimeColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedDateTimeOffsetColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedDateTimeOffsetColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedNullableDateTimeOffsetColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedNullableDateTimeOffsetColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedGuidColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedGuidColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedNullableGuidColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedNullableGuidColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedStringColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedStringColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedNullableStringColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedNullableStringColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedXmlColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedXmlColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    public sealed class DerivedNullableXmlColumnAttribute : DerivedColumnAttributeBase
+    {
+        public DerivedNullableXmlColumnAttribute(string name) : base(name)
+        {
+        }
+    }
+
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
+    public sealed class IndexAttribute : Attribute
+    {
+        public IndexAttribute(string column, params string[] otherColumns)
+        {
+            this.Columns = new string[1 + otherColumns.Length];
+            this.Columns[0] = column;
+            Array.Copy(otherColumns, 0, this.Columns, 1, otherColumns.Length);
+        }
+
+        public string[] Columns { get; }
+
+        public string? Name { get; set; }
+
+        public bool Unique { get; set; }
+
+        public bool Clustered { get; set; }
+
+        public string[]? DescendingColumns { get; set; }
+    }
+}

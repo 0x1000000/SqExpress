@@ -302,6 +302,37 @@ namespace SqExpress.Analyzers.Test
         }
 
         [Test]
+        public async Task Analyze_WhenUnqualifiedSqlMatchesSchemaLessTableDescriptor_DoesNotReportMissingTableWarning()
+        {
+            var source = """
+                using SqExpress;
+                using SqExpress.SqlParser;
+                using SqExpress.TableDeclarationAttributes;
+
+                [TableDescriptor("Jobs")]
+                [Int32Column("Id", Pk = true, Identity = true)]
+                [NullableStringColumn("Name", Unicode = true, MaxLength = 255)]
+                public partial class TableJobs
+                {
+                }
+
+                public sealed class Host
+                {
+                    public object M()
+                    {
+                        return SqTSqlParser.Parse("INSERT INTO Jobs(Name) VALUES ('Item1'), ('Item2')");
+                    }
+                }
+                """;
+
+            var diagnostics = await GetDiagnosticsAsync(source);
+
+            Assert.That(diagnostics.Select(i => i.Id), Contains.Item("SQEX001"));
+            Assert.That(diagnostics.Select(i => i.Id), Does.Not.Contain("SQEX011"));
+            Assert.That(diagnostics.Select(i => i.Id), Does.Not.Contain("SQEX012"));
+        }
+
+        [Test]
         public async Task CodeFix_WhenParseUsesKnownTableAndWithParams_RewritesToSqExpress()
         {
             var source = CommonTypes + """

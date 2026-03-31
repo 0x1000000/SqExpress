@@ -1,9 +1,9 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.IO;
 
-namespace SqExpress.CodeGenUtil
+namespace SqExpress.CodeGen.Shared
 {
-    internal interface IFileSystem
+    public interface IFileSystem
     {
         bool DirectoryExists(string path);
 
@@ -14,7 +14,7 @@ namespace SqExpress.CodeGenUtil
         string ReadAllText(string path);
     }
 
-    internal class DefaultFileSystem : IFileSystem
+    public class DefaultFileSystem : IFileSystem
     {
         public static readonly DefaultFileSystem Instance = new DefaultFileSystem();
 

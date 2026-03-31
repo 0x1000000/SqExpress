@@ -56,7 +56,15 @@ public sealed class SqTable : TableBase
 
         return result;
     }
-    
+
+    public TableColumn GetColumn(string name)
+        => this.Columns.FirstOrDefault(c => string.Equals(
+                c.ColumnName.Name,
+                name,
+                StringComparison.InvariantCultureIgnoreCase
+            )
+        ) ?? throw new SqExpressException($"Could not find column {name} in table {this.FullName.TableName}");
+
     internal TableColumn AddColumn(ColumnModel columnModel, Func<ColumnRef, TableColumn> contextStorage)
     {
         return columnModel.ColumnType.Accept(new ColumnFactory(this, contextStorage), columnModel);
@@ -93,7 +101,7 @@ public sealed class SqTable : TableBase
                     case DefaultValueType.Raw:
                         if (columnModel.DefaultValue.Value.RawValue != null)
                         {
-                            defaultValue = SqQueryBuilder.Literal(columnModel.DefaultValue.Value.RawValue);
+                            defaultValue = SqQueryBuilder.UnsafeValue(columnModel.DefaultValue.Value.RawValue);
                         }
                         break;
                     case DefaultValueType.Null:
@@ -108,7 +116,7 @@ public sealed class SqTable : TableBase
                             }
                             else
                             {
-                                defaultValue = SqQueryBuilder.Literal(columnModel.DefaultValue.Value.RawValue);
+                                defaultValue = SqQueryBuilder.UnsafeValue(columnModel.DefaultValue.Value.RawValue);
                             }
                         }
                         break;
@@ -126,7 +134,7 @@ public sealed class SqTable : TableBase
                             }
                             else
                             {
-                                defaultValue = SqQueryBuilder.Literal(columnModel.DefaultValue.Value.RawValue);
+                                defaultValue = SqQueryBuilder.UnsafeValue(columnModel.DefaultValue.Value.RawValue);
                             }
                         }
                         break;

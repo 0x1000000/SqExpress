@@ -78,10 +78,12 @@ namespace SqExpress.SqlParser.Internal.Dom
     {
         public SqlDomSelectClause(
             IReadOnlyList<SqlDomSelectItem> items,
+            bool hasValidSelectListSyntax,
             SqlDomTableSource? from,
             bool hasFromClause,
             string? whereSql,
             string? groupBySql,
+            bool hasHavingClause,
             string? havingSql,
             string? orderBySql,
             string? offsetFetchSql,
@@ -90,10 +92,12 @@ namespace SqExpress.SqlParser.Internal.Dom
             bool hasSetOperation)
         {
             this.Items = items;
+            this.HasValidSelectListSyntax = hasValidSelectListSyntax;
             this.From = from;
             this.HasFromClause = hasFromClause;
             this.WhereSql = whereSql;
             this.GroupBySql = groupBySql;
+            this.HasHavingClause = hasHavingClause;
             this.HavingSql = havingSql;
             this.OrderBySql = orderBySql;
             this.OffsetFetchSql = offsetFetchSql;
@@ -104,6 +108,8 @@ namespace SqExpress.SqlParser.Internal.Dom
 
         public IReadOnlyList<SqlDomSelectItem> Items { get; }
 
+        public bool HasValidSelectListSyntax { get; }
+
         public SqlDomTableSource? From { get; }
 
         public bool HasFromClause { get; }
@@ -111,6 +117,8 @@ namespace SqExpress.SqlParser.Internal.Dom
         public string? WhereSql { get; }
 
         public string? GroupBySql { get; }
+
+        public bool HasHavingClause { get; }
 
         public string? HavingSql { get; }
 

@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using SqExpress.CodeGen.Shared;
 using SqExpress.DbMetadata;
 using SqExpress.SqlExport;
 using SqExpress.SqlParser;
@@ -57,21 +59,23 @@ namespace SqExpress.SqlTranspiler
 
         private sealed class ColumnSpec
         {
-            public ColumnSpec(string columnName, string propertyName, string typeName, string initExpression)
+            public ColumnSpec(CodeGenColumnModel column)
             {
-                this.ColumnName = columnName;
-                this.PropertyName = propertyName;
-                this.TypeName = typeName;
-                this.InitExpression = initExpression;
+                this.Column = column;
             }
 
-            public string ColumnName { get; }
+            public CodeGenColumnModel Column { get; }
 
-            public string PropertyName { get; }
+            public string ColumnName => this.Column.SqlName;
 
-            public string TypeName { get; }
+            public string PropertyName => this.Column.PropertyName ?? CodeGenTableDescriptorSupport.ToIdentifier(this.Column.SqlName);
 
-            public string InitExpression { get; }
+            public string TypeName => CodeGenTableDescriptorSupport.GetColumnPropertyTypeName(this.Column);
+
+            public ColumnSpec WithPropertyName(string propertyName)
+            {
+                return new ColumnSpec(CloneColumnModel(this.Column, propertyName: propertyName));
+            }
         }
 
         public SqExpressTranspileResult Transpile(string sql, SqExpressSqlTranspilerOptions? options = null)
@@ -430,7 +434,7 @@ namespace SqExpress.SqlTranspiler
                         adjusted = MakeNullableColumnSpec(adjusted);
                     }
 
-                    properties.Add(new ColumnSpec(adjusted.ColumnName, propName, adjusted.TypeName, adjusted.InitExpression));
+                    properties.Add(adjusted.WithPropertyName(propName));
                 }
 
                 var classColumnTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -900,53 +904,24 @@ namespace SqExpress.SqlTranspiler
             string tableName,
             IReadOnlyList<ColumnSpec> columns)
         {
-            var members = new List<MemberDeclarationSyntax>(columns.Count + 1);
-            foreach (var column in columns)
-            {
-                members.Add(
-                    PropertyDeclaration(ParseTypeName(column.TypeName), Identifier(column.PropertyName))
-                        .AddModifiers(Token(SyntaxKind.PublicKeyword))
-                        .WithAccessorList(
-                            AccessorList(List(new[]
-                            {
-                                AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
-                                    .WithSemicolonToken(Token(SyntaxKind.SemicolonToken))
-                            }))));
-            }
+            var tableModel = new CodeGenTableModel(
+                CodeGenTableKind.Table,
+                databaseName: null,
+                schemaName: schema,
+                tableName: tableName,
+                className: className,
+                @namespace: null,
+                fullyQualifiedTypeName: className,
+                columns: columns.Select(static c => c.Column).ToImmutableArray(),
+                indexes: ImmutableArray<CodeGenIndexModel>.Empty);
 
-            var ctorStatements = new List<RoslynStatementSyntax>(columns.Count);
-            foreach (var column in columns)
-            {
-                ctorStatements.Add(ParseStatement("this." + column.PropertyName + " = " + column.InitExpression + ";"));
-            }
-
-            var constructor = ConstructorDeclaration(className)
-                .AddModifiers(Token(SyntaxKind.PublicKeyword))
-                .WithParameterList(ParameterList(SeparatedList(new[]
+            return CodeGenTableDescriptorSupport.GenerateTableDescriptorClass(
+                tableModel,
+                new Dictionary<string, CodeGenTableModel>(StringComparer.OrdinalIgnoreCase)
                 {
-                    Parameter(Identifier("alias"))
-                        .WithType(ParseTypeName("Alias"))
-                        .WithDefault(EqualsValueClause(LiteralExpression(SyntaxKind.DefaultLiteralExpression, Token(SyntaxKind.DefaultKeyword))))
-                })))
-                .WithInitializer(
-                    ConstructorInitializer(SyntaxKind.BaseConstructorInitializer)
-                        .WithArgumentList(ArgumentList(SeparatedList(new[]
-                        {
-                            Argument(schema == null
-                                ? (ExpressionSyntax)LiteralExpression(SyntaxKind.NullLiteralExpression)
-                                : LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(schema))),
-                            Argument(LiteralExpression(SyntaxKind.StringLiteralExpression, Literal(tableName))),
-                            Argument(IdentifierName("alias"))
-                        }))))
-                .WithBody(Block(ctorStatements));
-
-            members.Add(constructor);
-
-            return ClassDeclaration(className)
-                .AddModifiers(Token(SyntaxKind.PublicKeyword), Token(SyntaxKind.SealedKeyword))
-                .WithBaseList(BaseList(
-                    SingletonSeparatedList<BaseTypeSyntax>(SimpleBaseType(ParseTypeName("TableBase")))))
-                .WithMembers(List(members));
+                    [tableModel.TableKey] = tableModel
+                },
+                CodeGenTableDescriptorRenderOptions.PublicSealedSingleAliasConstructor);
         }
 
         private static IReadOnlyList<TableUsage> SelectBuildTableUsages(
@@ -1066,118 +1041,111 @@ namespace SqExpress.SqlTranspiler
         private static ColumnSpec CreateColumnSpec(TableColumn column)
         {
             var propertyName = ToPascalCaseIdentifier(column.ColumnName.Name, "Column");
-            var literalName = ToCSharpStringLiteral(column.ColumnName.Name);
             var sqlType = column.SqlType;
 
             if (sqlType is ExprTypeBoolean)
             {
                 return column.IsNullable
-                    ? new ColumnSpec(column.ColumnName.Name, propertyName, "NullableBooleanTableColumn", "CreateNullableBooleanColumn(" + literalName + ")")
-                    : new ColumnSpec(column.ColumnName.Name, propertyName, "BooleanTableColumn", "CreateBooleanColumn(" + literalName + ")");
+                    ? CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.NullableBoolean)
+                    : CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.Boolean);
             }
 
             if (sqlType is ExprTypeByte)
             {
                 return column.IsNullable
-                    ? new ColumnSpec(column.ColumnName.Name, propertyName, "NullableByteTableColumn", "CreateNullableByteColumn(" + literalName + ")")
-                    : new ColumnSpec(column.ColumnName.Name, propertyName, "ByteTableColumn", "CreateByteColumn(" + literalName + ")");
+                    ? CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.NullableByte)
+                    : CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.Byte);
             }
 
             if (sqlType is ExprTypeInt16)
             {
                 return column.IsNullable
-                    ? new ColumnSpec(column.ColumnName.Name, propertyName, "NullableInt16TableColumn", "CreateNullableInt16Column(" + literalName + ")")
-                    : new ColumnSpec(column.ColumnName.Name, propertyName, "Int16TableColumn", "CreateInt16Column(" + literalName + ")");
+                    ? CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.NullableInt16)
+                    : CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.Int16);
             }
 
             if (sqlType is ExprTypeInt32)
             {
                 return column.IsNullable
-                    ? new ColumnSpec(column.ColumnName.Name, propertyName, "NullableInt32TableColumn", "CreateNullableInt32Column(" + literalName + ")")
-                    : new ColumnSpec(column.ColumnName.Name, propertyName, "Int32TableColumn", "CreateInt32Column(" + literalName + ")");
+                    ? CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.NullableInt32)
+                    : CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.Int32);
             }
 
             if (sqlType is ExprTypeInt64)
             {
                 return column.IsNullable
-                    ? new ColumnSpec(column.ColumnName.Name, propertyName, "NullableInt64TableColumn", "CreateNullableInt64Column(" + literalName + ")")
-                    : new ColumnSpec(column.ColumnName.Name, propertyName, "Int64TableColumn", "CreateInt64Column(" + literalName + ")");
+                    ? CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.NullableInt64)
+                    : CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.Int64);
             }
 
             if (sqlType is ExprTypeDecimal)
             {
                 return column.IsNullable
-                    ? new ColumnSpec(column.ColumnName.Name, propertyName, "NullableDecimalTableColumn", "CreateNullableDecimalColumn(" + literalName + ")")
-                    : new ColumnSpec(column.ColumnName.Name, propertyName, "DecimalTableColumn", "CreateDecimalColumn(" + literalName + ")");
+                    ? CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.NullableDecimal)
+                    : CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.Decimal);
             }
 
             if (sqlType is ExprTypeDouble)
             {
                 return column.IsNullable
-                    ? new ColumnSpec(column.ColumnName.Name, propertyName, "NullableDoubleTableColumn", "CreateNullableDoubleColumn(" + literalName + ")")
-                    : new ColumnSpec(column.ColumnName.Name, propertyName, "DoubleTableColumn", "CreateDoubleColumn(" + literalName + ")");
+                    ? CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.NullableDouble)
+                    : CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.Double);
             }
 
             if (sqlType is ExprTypeDateTime exprTypeDateTime)
             {
-                var dateArg = exprTypeDateTime.IsDate ? ", true" : string.Empty;
                 return column.IsNullable
-                    ? new ColumnSpec(column.ColumnName.Name, propertyName, "NullableDateTimeTableColumn", "CreateNullableDateTimeColumn(" + literalName + dateArg + ")")
-                    : new ColumnSpec(column.ColumnName.Name, propertyName, "DateTimeTableColumn", "CreateDateTimeColumn(" + literalName + dateArg + ")");
+                    ? CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.NullableDateTime, isDate: exprTypeDateTime.IsDate)
+                    : CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.DateTime, isDate: exprTypeDateTime.IsDate);
             }
 
             if (sqlType is ExprTypeDateTimeOffset)
             {
                 return column.IsNullable
-                    ? new ColumnSpec(column.ColumnName.Name, propertyName, "NullableDateTimeOffsetTableColumn", "CreateNullableDateTimeOffsetColumn(" + literalName + ")")
-                    : new ColumnSpec(column.ColumnName.Name, propertyName, "DateTimeOffsetTableColumn", "CreateDateTimeOffsetColumn(" + literalName + ")");
+                    ? CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.NullableDateTimeOffset)
+                    : CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.DateTimeOffset);
             }
 
             if (sqlType is ExprTypeGuid)
             {
                 return column.IsNullable
-                    ? new ColumnSpec(column.ColumnName.Name, propertyName, "NullableGuidTableColumn", "CreateNullableGuidColumn(" + literalName + ")")
-                    : new ColumnSpec(column.ColumnName.Name, propertyName, "GuidTableColumn", "CreateGuidColumn(" + literalName + ")");
+                    ? CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.NullableGuid)
+                    : CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.Guid);
             }
 
             if (sqlType is ExprTypeFixSizeByteArray fixedSizeByteArray)
             {
                 return column.IsNullable
-                    ? new ColumnSpec(column.ColumnName.Name, propertyName, "NullableByteArrayTableColumn", "CreateNullableFixedSizeByteArrayColumn(" + literalName + ", " + fixedSizeByteArray.Size + ")")
-                    : new ColumnSpec(column.ColumnName.Name, propertyName, "ByteArrayTableColumn", "CreateFixedSizeByteArrayColumn(" + literalName + ", " + fixedSizeByteArray.Size + ")");
+                    ? CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.NullableByteArray, maxLength: fixedSizeByteArray.Size, isFixedLength: true)
+                    : CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.ByteArray, maxLength: fixedSizeByteArray.Size, isFixedLength: true);
             }
 
             if (sqlType is ExprTypeByteArray byteArray)
             {
-                var sizeArg = byteArray.Size.HasValue ? byteArray.Size.Value.ToString() : "null";
                 return column.IsNullable
-                    ? new ColumnSpec(column.ColumnName.Name, propertyName, "NullableByteArrayTableColumn", "CreateNullableByteArrayColumn(" + literalName + ", " + sizeArg + ")")
-                    : new ColumnSpec(column.ColumnName.Name, propertyName, "ByteArrayTableColumn", "CreateByteArrayColumn(" + literalName + ", " + sizeArg + ")");
+                    ? CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.NullableByteArray, maxLength: byteArray.Size)
+                    : CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.ByteArray, maxLength: byteArray.Size);
             }
 
             if (sqlType is ExprTypeXml)
             {
                 return column.IsNullable
-                    ? new ColumnSpec(column.ColumnName.Name, propertyName, "NullableStringTableColumn", "CreateNullableXmlColumn(" + literalName + ")")
-                    : new ColumnSpec(column.ColumnName.Name, propertyName, "StringTableColumn", "CreateXmlColumn(" + literalName + ")");
+                    ? CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.NullableXml)
+                    : CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.Xml);
             }
 
             if (sqlType is ExprTypeFixSizeString fixedSizeString)
             {
-                var unicodeArg = fixedSizeString.IsUnicode ? ", true" : string.Empty;
                 return column.IsNullable
-                    ? new ColumnSpec(column.ColumnName.Name, propertyName, "NullableStringTableColumn", "CreateNullableFixedSizeStringColumn(" + literalName + ", " + fixedSizeString.Size + unicodeArg + ")")
-                    : new ColumnSpec(column.ColumnName.Name, propertyName, "StringTableColumn", "CreateFixedSizeStringColumn(" + literalName + ", " + fixedSizeString.Size + unicodeArg + ")");
+                    ? CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.NullableString, maxLength: fixedSizeString.Size, isUnicode: fixedSizeString.IsUnicode, isFixedLength: true)
+                    : CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.String, maxLength: fixedSizeString.Size, isUnicode: fixedSizeString.IsUnicode, isFixedLength: true);
             }
 
             if (sqlType is ExprTypeString exprTypeString)
             {
-                var sizeArg = exprTypeString.Size.HasValue ? exprTypeString.Size.Value.ToString() : "null";
-                var unicodeArg = exprTypeString.IsUnicode ? ", true" : ", false";
-                var textArg = exprTypeString.IsText ? ", true" : string.Empty;
                 return column.IsNullable
-                    ? new ColumnSpec(column.ColumnName.Name, propertyName, "NullableStringTableColumn", "CreateNullableStringColumn(" + literalName + ", " + sizeArg + unicodeArg + textArg + ")")
-                    : new ColumnSpec(column.ColumnName.Name, propertyName, "StringTableColumn", "CreateStringColumn(" + literalName + ", " + sizeArg + unicodeArg + textArg + ")");
+                    ? CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.NullableString, maxLength: exprTypeString.Size, isUnicode: exprTypeString.IsUnicode, isText: exprTypeString.IsText)
+                    : CreateColumnSpec(column.ColumnName.Name, propertyName, CodeGenColumnKind.String, maxLength: exprTypeString.Size, isUnicode: exprTypeString.IsUnicode, isText: exprTypeString.IsText);
             }
 
             return InferColumnSpec(column.ColumnName.Name);
@@ -1186,100 +1154,143 @@ namespace SqExpress.SqlTranspiler
         private static ColumnSpec InferColumnSpec(string columnName)
         {
             var propertyName = ToPascalCaseIdentifier(columnName, "Column");
-            var literalName = ToCSharpStringLiteral(columnName);
             var kind = InferKindFromColumnToken(columnName);
-            return InferColumnSpec(columnName, kind, propertyName, literalName);
+            return InferColumnSpec(columnName, kind, propertyName);
         }
 
         private static ColumnSpec InferColumnSpec(string columnName, ParamKind kind)
         {
             var propertyName = ToPascalCaseIdentifier(columnName, "Column");
-            var literalName = ToCSharpStringLiteral(columnName);
-            return InferColumnSpec(columnName, kind, propertyName, literalName);
+            return InferColumnSpec(columnName, kind, propertyName);
         }
 
-        private static ColumnSpec InferColumnSpec(string columnName, ParamKind kind, string propertyName, string literalName)
+        private static ColumnSpec InferColumnSpec(string columnName, ParamKind kind, string propertyName)
         {
             switch (kind)
             {
                 case ParamKind.Boolean:
-                    return new ColumnSpec(columnName, propertyName, "BooleanTableColumn", "CreateBooleanColumn(" + literalName + ")");
+                    return CreateColumnSpec(columnName, propertyName, CodeGenColumnKind.Boolean);
                 case ParamKind.Int32:
-                    return new ColumnSpec(columnName, propertyName, "Int32TableColumn", "CreateInt32Column(" + literalName + ")");
+                    return CreateColumnSpec(columnName, propertyName, CodeGenColumnKind.Int32);
                 case ParamKind.Decimal:
-                    return new ColumnSpec(columnName, propertyName, "DecimalTableColumn", "CreateDecimalColumn(" + literalName + ")");
+                    return CreateColumnSpec(columnName, propertyName, CodeGenColumnKind.Decimal);
                 case ParamKind.Guid:
-                    return new ColumnSpec(columnName, propertyName, "GuidTableColumn", "CreateGuidColumn(" + literalName + ")");
+                    return CreateColumnSpec(columnName, propertyName, CodeGenColumnKind.Guid);
                 case ParamKind.DateTime:
-                    return new ColumnSpec(columnName, propertyName, "DateTimeTableColumn", "CreateDateTimeColumn(" + literalName + ")");
+                    return CreateColumnSpec(columnName, propertyName, CodeGenColumnKind.DateTime);
                 case ParamKind.DateTimeOffset:
-                    return new ColumnSpec(columnName, propertyName, "DateTimeOffsetTableColumn", "CreateDateTimeOffsetColumn(" + literalName + ")");
+                    return CreateColumnSpec(columnName, propertyName, CodeGenColumnKind.DateTimeOffset);
                 case ParamKind.ByteArray:
-                    return new ColumnSpec(columnName, propertyName, "ByteArrayTableColumn", "CreateByteArrayColumn(" + literalName + ", null)");
+                    return CreateColumnSpec(columnName, propertyName, CodeGenColumnKind.ByteArray);
                 default:
-                    return new ColumnSpec(columnName, propertyName, "StringTableColumn", "CreateStringColumn(" + literalName + ", 255, true)");
+                    return CreateColumnSpec(columnName, propertyName, CodeGenColumnKind.String, maxLength: 255, isUnicode: true);
             }
+        }
+
+        private static ColumnSpec CreateColumnSpec(
+            string columnName,
+            string propertyName,
+            CodeGenColumnKind kind,
+            bool isUnicode = true,
+            int? maxLength = null,
+            bool isFixedLength = false,
+            bool isText = false,
+            int precision = 18,
+            int scale = 2,
+            bool isDate = false)
+        {
+            return new ColumnSpec(new CodeGenColumnModel(
+                kind,
+                sqlName: columnName,
+                propertyName: propertyName,
+                isPrimaryKey: false,
+                isIdentity: false,
+                foreignKeyDatabase: null,
+                foreignKeySchema: null,
+                foreignKeyTable: null,
+                foreignKeyColumn: null,
+                defaultValueKind: 0,
+                defaultValue: null,
+                isUnicode: isUnicode,
+                maxLength: maxLength,
+                isFixedLength: isFixedLength,
+                isText: isText,
+                precision: precision,
+                scale: scale,
+                isDate: isDate));
+        }
+
+        private static CodeGenColumnModel CloneColumnModel(CodeGenColumnModel source, string? propertyName = null, CodeGenColumnKind? kind = null)
+        {
+            return new CodeGenColumnModel(
+                kind ?? source.Kind,
+                source.SqlName,
+                propertyName ?? source.PropertyName,
+                source.IsPrimaryKey,
+                source.IsIdentity,
+                source.ForeignKeyDatabase,
+                source.ForeignKeySchema,
+                source.ForeignKeyTable,
+                source.ForeignKeyColumn,
+                source.DefaultValueKind,
+                source.DefaultValue,
+                source.IsUnicode,
+                source.MaxLength,
+                source.IsFixedLength,
+                source.IsText,
+                source.Precision,
+                source.Scale,
+                source.IsDate,
+                source.SqModels,
+                source.SqModelCastTypeName);
         }
 
         private static ColumnSpec MergeColumnSpec(ColumnSpec left, ColumnSpec right)
         {
-            if (string.Equals(left.TypeName, right.TypeName, StringComparison.Ordinal)
-                && string.Equals(left.InitExpression, right.InitExpression, StringComparison.Ordinal))
+            if (left.Column.Kind == right.Column.Kind
+                && left.Column.MaxLength == right.Column.MaxLength
+                && left.Column.IsUnicode == right.Column.IsUnicode
+                && left.Column.IsFixedLength == right.Column.IsFixedLength
+                && left.Column.IsText == right.Column.IsText
+                && left.Column.IsDate == right.Column.IsDate)
             {
                 return left;
             }
 
-            if (IsStringColumnType(left.TypeName) && !IsStringColumnType(right.TypeName))
+            if (IsStringColumnType(left.Column.Kind) && !IsStringColumnType(right.Column.Kind))
             {
-                return new ColumnSpec(left.ColumnName, left.PropertyName, right.TypeName, right.InitExpression);
+                return right.WithPropertyName(left.PropertyName);
             }
 
-            if (IsStringColumnType(right.TypeName) && !IsStringColumnType(left.TypeName))
+            if (IsStringColumnType(right.Column.Kind) && !IsStringColumnType(left.Column.Kind))
             {
                 return left;
             }
 
-            return new ColumnSpec(
-                left.ColumnName,
-                left.PropertyName,
-                "StringTableColumn",
-                "CreateStringColumn(" + ToCSharpStringLiteral(left.ColumnName) + ", 255, true)");
+            return CreateColumnSpec(left.ColumnName, left.PropertyName, CodeGenColumnKind.String, maxLength: 255, isUnicode: true);
         }
 
-        private static bool IsStringColumnType(string typeName)
-            => string.Equals(typeName, "StringTableColumn", StringComparison.Ordinal)
-               || string.Equals(typeName, "NullableStringTableColumn", StringComparison.Ordinal);
+        private static bool IsStringColumnType(CodeGenColumnKind kind)
+            => kind == CodeGenColumnKind.String
+               || kind == CodeGenColumnKind.NullableString
+               || kind == CodeGenColumnKind.Xml
+               || kind == CodeGenColumnKind.NullableXml;
 
         private static ColumnSpec MakeNullableColumnSpec(ColumnSpec source)
         {
-            if (source.TypeName == "StringTableColumn" && source.InitExpression.StartsWith("CreateStringColumn(", StringComparison.Ordinal))
+            switch (source.Column.Kind)
             {
-                return new ColumnSpec(
-                    source.ColumnName,
-                    source.PropertyName,
-                    "NullableStringTableColumn",
-                    source.InitExpression.Replace("CreateStringColumn(", "CreateNullableStringColumn("));
+                case CodeGenColumnKind.String:
+                    return new ColumnSpec(CloneColumnModel(source.Column, kind: CodeGenColumnKind.NullableString));
+                case CodeGenColumnKind.Xml:
+                    return new ColumnSpec(CloneColumnModel(source.Column, kind: CodeGenColumnKind.NullableXml));
+                case CodeGenColumnKind.Boolean:
+                    return new ColumnSpec(CloneColumnModel(source.Column, kind: CodeGenColumnKind.NullableBoolean));
+                case CodeGenColumnKind.Int32:
+                    return new ColumnSpec(CloneColumnModel(source.Column, kind: CodeGenColumnKind.NullableInt32));
+                default:
+                    return source;
             }
-
-            if (source.TypeName == "BooleanTableColumn" && source.InitExpression.StartsWith("CreateBooleanColumn(", StringComparison.Ordinal))
-            {
-                return new ColumnSpec(
-                    source.ColumnName,
-                    source.PropertyName,
-                    "NullableBooleanTableColumn",
-                    source.InitExpression.Replace("CreateBooleanColumn(", "CreateNullableBooleanColumn("));
-            }
-
-            if (source.TypeName == "Int32TableColumn" && source.InitExpression.StartsWith("CreateInt32Column(", StringComparison.Ordinal))
-            {
-                return new ColumnSpec(
-                    source.ColumnName,
-                    source.PropertyName,
-                    "NullableInt32TableColumn",
-                    source.InitExpression.Replace("CreateInt32Column(", "CreateNullableInt32Column("));
-            }
-
-            return source;
         }
 
         private static ExprAnalysis AnalyzeExpression(IExpr expr)

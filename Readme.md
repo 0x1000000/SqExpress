@@ -1,6 +1,7 @@
-﻿# SqExpress
+# SqExpress
 
 ![Logo](https://github.com/0x1000000/SqExpress/blob/main/SqExpress/Icon.png)
+For those who like SQL but hate raw strings.
 
 The library provides a generic SQL syntax tree with export to MS T-SQL, PostgreSQL, and MySQL text. It includes polyfills to compensate for features lacking in certain databases, such as the "MERGE" command. It also provides a set of builders and operators that will help you build complex SQL expressions. It also includes a T-SQL parser (`SqTSqlParser`) for converting existing SQL text into SqExpress AST.
 
@@ -11,6 +12,8 @@ SqExpress comes with a simple but efficient data access mechanism that wraps ADO
 You can use SqExpress together with the "Code First" concept when you declare SQL tables as C# classes with the possibility to generate recreation scripts for a target platform (MS SQL or PostgreSQL or MySQL).
 
 You can also use it in conjunction with the "Database First" concept using an included code modification utility. The utility can also be used to generate flexible DTO classes with all required database mappings.
+
+SqExpress is also a strong fit when SQL is produced dynamically, including by AI agents. Because SQL can be parsed into the SqExpress AST, validated against an allowed table model, traversed, rewritten with additional security predicates, and exported back to SQL, SqExpress can act as a fail-closed safety layer for AI-generated T-SQL within the supported parser surface.
 
 # Content
 
@@ -53,6 +56,7 @@ You can also use it in conjunction with the "Database First" concept using an in
 ### Database Table Metadata
 
 1. [Retrieving Database Table Metadata](#retrieving-database-table-metadata)
+2. [Navigating Table References with TablesGraph](#navigating-table-references-with-tablesgraph)
 
 ### Working with Expressions
 
@@ -113,7 +117,9 @@ The tool runs entirely in the browser (WebAssembly). Your SQL is processed clien
 
 # Demo Application
 
-You can find a realistic usage of the library in this ASP.NET demo application - [SqGoods](https://github.com/0x1000000/SqGoods)
+You can find a realistic usage of the library in this AI-driven demo application - [SqDbAiAgent](https://github.com/0x1000000/SqDbAiAgent).
+
+`SqDbAiAgent` shows how SqExpress can act as a fail-closed safety layer for AI-generated T-SQL: the SQL is parsed, validated against the allowed schema, optionally rewritten with security predicates, and only then executed against SQL Server.
 
 # Get Started
 
@@ -130,15 +136,30 @@ static void Main()
 {
     var query = SqQueryBuilder.Select("Hello World!").Done();
 
-    Console.WriteLine(TSqlExporter.Default.ToSql(query));
+    Console.WriteLine(query.ToSql(TSqlExporter.Default));
 }
+```
+
+The result will be:
+
+```sql
+SELECT 'Hello World!'
+```
+
+To avoid repeating **"SqQueryBuilder."**, add:
+
+```cs
+using static SqExpress.SqQueryBuilder;
+...
+    var query = /*SqQueryBuilder.*/Select("Hello World!").Done();
+
+    Console.WriteLine(query.ToSql(TSqlExporter.Default));
+
 ```
 
 As a second quick example, you can parse existing T-SQL and then modify/export it:
 
 ```cs
-using SqExpress.SqlParser;
-
 static void Main()
 {
     var expr = SqTSqlParser.Parse("SELECT 'Hi,' + @userName + '!'", [])
@@ -151,30 +172,44 @@ static void Main()
 
 The result will be:
 
-```
+```sql
 SELECT 'Hi,'+'John'+'!'
 ```
 
-Now let's get rid of the necessity in writing **"SqQueryBuilder."**:
-
-```cs
-using static SqExpress.SqQueryBuilder;
-...
-    var query = /*SqQueryBuilder.*/Select("Hello World!").Done();
-
-    Console.WriteLine(TSqlExporter.Default.ToSql(query));
-
-```
-
-The result will be:
-
-```
-SELECT 'Hello World!'
-```
+*Note: SqExpress supports quite sophisticated queries, but it does not aim to cover the full T-SQL language. Because SqExpress is designed to stay database-agnostic, the parser focuses on broadly portable SQL constructs and intentionally supports only a fail-closed subset of T-SQL.*
 
 SqExpress also includes a built-in Roslyn analyzer for `SqTSqlParser.Parse(...)`. It validates raw SQL and checks referenced tables against discovered SqExpress descriptors, but when possible it is better to use the `Convert SQL to SqExpress` code fix and replace raw SQL with generated C#.
 
+For an overview of the expression hierarchy behind SqExpress syntax nodes, see [AST Reference](Documentation/ast_reference.md).
+
+*Note: If your query references real tables, make sure the corresponding table descriptors already exist in your codebase, either handwritten or generated with [the table descriptors scaffolding tool](#table-descriptors-scaffolding). The analyzer relies on those descriptors and will report errors if the referenced tables cannot be resolved.*
+
 ![Convert SQL to SqExpress](sql-to-sqexpress.gif)
+
+And finally, here is how to execute the query against SQL Server:
+
+```cs
+static async Task Main()
+{
+    var database = new SqDatabase<SqlConnection>(
+        new SqlConnection("Server=(local);Database=master;Integrated Security=True;TrustServerCertificate=True"),
+        (connection, sqlText) => new SqlCommand(sqlText, connection),
+        TSqlExporter.Default /*Expressions will be converted to MS T-SQL*/,
+        ParametrizationMode.LiteralFallback /*Literals will be passed as parameters*/);
+
+    var userName = "John";
+
+    var result = (await Select(Literal("Hi,") + userName + "!").QueryScalar(database))?.ToString();
+
+    Console.WriteLine(result);
+}
+```
+
+The code executed by the MS SQL:
+
+```sql
+exec sp_executesql N'SELECT (@1)+(@2)+(@3)',N'@1 nvarchar(3),@2 nvarchar(4),@3 nvarchar(1)',@1=N'Hi,',@2=N'John',@3=N'!'
+```
 
 ## When to Use SqExpress (and When Not)
 
@@ -266,47 +301,39 @@ If SQL is incidental, a higher-level ORM can be simpler.
 
 ## Creating Table Descriptors
 
-Ok, let's try to select some data from a real table, but first we need to describe the table:
+Next, let's select some data from a real table, but first we need to describe the table.
 
-*Note: Such classes can be auto-generated (updated) using information from an existing database. [See "Table Descriptors Scaffolding"](#table-descriptors-scaffolding)*
+The recommended way is to declare the table with attributes and let the built-in source generator produce the `TableBase` implementation for you:
 
-```Cs
-public class TableUser : TableBase
+For the full attribute reference, see [Table Description Reference](Documentation/table_description.md).
+
+```cs
+using SqExpress.TableDeclarationAttributes;
+
+[TableDescriptor("dbo", "User")]
+[Int32Column("UserId", Pk = true, Identity = true)]
+[StringColumn("FirstName", Unicode = true, MaxLength = 255)]
+[StringColumn("LastName", Unicode = true, MaxLength = 255)]
+[Int32Column("Version", DefaultValue = "0")]
+[DateTimeColumn("ModifiedAt", DefaultValue = "$utcNow")]
+[Index("FirstName")]
+[Index("LastName")]
+public partial class TableUser
 {
-    public readonly Int32TableColumn UserId;
-    public readonly StringTableColumn FirstName;
-    public readonly StringTableColumn LastName;
-    //Audit Columns
-    public readonly Int32TableColumn Version;
-    public readonly DateTimeTableColumn ModifiedAt;
-
-    public TableUser(): this(default){}
-
-    public TableUser(Alias alias) : base("dbo", "User", alias)
-    {
-        this.UserId = this.CreateInt32Column("UserId", 
-            ColumnMeta.PrimaryKey().Identity());
-
-        this.FirstName = this.CreateStringColumn("FirstName", 
-            size: 255, isUnicode: true);
-
-        this.LastName = this.CreateStringColumn("LastName", 
-            size: 255, isUnicode: true);
-
-        this.Version = this.CreateInt32Column("Version",
-            ColumnMeta.DefaultValue(0));
-
-        this.ModifiedAt = this.CreateDateTimeColumn("ModifiedAt",
-            columnMeta: ColumnMeta.DefaultValue(SqQueryBuilder.GetUtcDate()));
-
-        //Indexes
-        this.AddIndex(this.FirstName);
-        this.AddIndex(this.LastName);
-    }
 }
 ```
 
-and if the table does not exist let's create it:
+*Note: Such classes can be auto-generated (and later updated) using information from an existing database. [See "Table Descriptors Scaffolding"](#table-descriptors-scaffolding)*
+
+Package Manager Console:
+
+```powershell
+Gen-Tables mssql -ConnectionString "Server=(local);Database=YourDatabase;Integrated Security=True;TrustServerCertificate=True" -UseTableDeclarationAttributes
+```
+
+*Note: Handwritten `TableBase` descriptors are still supported, but attribute-based declarations are now the recommended default.*
+
+If the table does not exist yet, create it first:
 
 ```cs
 static async Task Main()
@@ -503,84 +530,49 @@ Removed user id: 3
 
 ## More Tables and foreign keys
 
-To create more complex queries we need more than one table. Let's add a couple more:
+More complex queries usually need more than one table. Let's add a couple more:
 
 *dbo.Company*
 
 ```cs
-public class TableCompany : TableBase
-{
-    public readonly Int32TableColumn CompanyId;
-    public readonly StringTableColumn CompanyName;
+using SqExpress.TableDeclarationAttributes;
 
-    //Audit Columns
-    public readonly Int32TableColumn Version;
-    public readonly DateTimeTableColumn ModifiedAt;
-
-    public TableCompany() : this(default) { }
-
-    public TableCompany(Alias alias) : base("dbo", "Company", alias)
-    {
-        this.CompanyId = this.CreateInt32Column(
-            nameof(this.CompanyId), ColumnMeta.PrimaryKey().Identity());
-
-        this.CompanyName = this.CreateStringColumn(
-            nameof(this.CompanyName), 250);
-
-        this.Version = this.CreateInt32Column("Version",
-            ColumnMeta.DefaultValue(0));
-
-        this.ModifiedAt = this.CreateDateTimeColumn("ModifiedAt",
-            columnMeta: ColumnMeta.DefaultValue(SqQueryBuilder.GetUtcDate()));
-    }
-}
+[TableDescriptor("dbo", "Company")]
+[Int32Column("CompanyId", Pk = true, Identity = true)]
+[StringColumn("CompanyName", MaxLength = 250)]
+[Int32Column("Version", DefaultValue = "0")]
+[DateTimeColumn("ModifiedAt", DefaultValue = "$utcNow")]
+public partial class TableCompany;
 ```
 
 *dbo.Customer*
 
 ```cs
-public class TableCustomer : TableBase
-{
-    public Int32TableColumn CustomerId { get; }
-    public NullableInt32TableColumn UserId { get; }
-    public NullableInt32TableColumn CompanyId { get; }
+using SqExpress.TableDeclarationAttributes;
 
-    public TableCustomer() : this(default) { }
-
-    public TableCustomer(Alias alias) : base("dbo", "Customer", alias)
-    {
-        this.CustomerId = this.CreateInt32Column(
-            nameof(this.CustomerId), ColumnMeta.PrimaryKey().Identity());
-
-        this.UserId = this.CreateNullableInt32Column(
-            nameof(this.UserId), 
-            ColumnMeta.ForeignKey<TableUser>(u => u.UserId));
-
-        this.CompanyId = this.CreateNullableInt32Column(
-            nameof(this.CompanyId), 
-            ColumnMeta.ForeignKey<TableCompany>(u => u.CompanyId));
-
-        //Indexes            
-        this.AddUniqueIndex(this.UserId, this.CompanyId);
-        this.AddUniqueIndex(this.CompanyId, this.UserId);
-    }
-}
+[TableDescriptor("dbo", "Customer")]
+[Int32Column("CustomerId", Pk = true, Identity = true)]
+[NullableInt32Column("UserId", FkTable = "User", FkColumn = "UserId")]
+[NullableInt32Column("CompanyId", FkTable = "Company", FkColumn = "CompanyId")]
+[Index("UserId", "CompanyId", Unique = true)]
+[Index("CompanyId", "UserId", Unique = true)]
+public partial class TableCustomer;
 ```
 
-Pay attention to the way how the foreign keys are defined:
+Pay attention to how the foreign keys are defined:
 
 ```cs
-ColumnMeta.ForeignKey<TableUser>(u => u.UserId)
+[NullableInt32Column("UserId", FkTable = "User", FkColumn = "UserId")]
 ```
 
 And indexes:
 
 ```cs
-this.AddUniqueIndex(this.UserId, this.CompanyId);
-this.AddUniqueIndex(this.CompanyId, this.UserId);
+[Index("UserId", "CompanyId", Unique = true)]
+[Index("CompanyId", "UserId", Unique = true)]
 ```
 
-Since now we have the foreign keys we have to delete and create the table in the specific order:
+Now that we have foreign keys, the tables must be dropped and created in a specific order:
 
 ```cs
 var tables = new TableBase[]{ new TableUser() , new TableCompany(), new TableCustomer() };
@@ -595,7 +587,7 @@ foreach (var table in tables)
 }
 ```
 
-Now we can insert some companies:
+Now we can insert a few companies:
 
 ```cs
 var tCompany = new TableCompany();
@@ -678,7 +670,7 @@ Use these patterns when query complexity, performance tuning, and long-term main
 
 ## Joining Tables
 
-Now we can Join all the tables:
+Now we can join all the tables:
 
 ```cs
 var tUser = new TableUser();
@@ -825,6 +817,22 @@ public class DerivedTableCustomer : DerivedTableBase
 }
 ```
 
+*Alternatively, derived tables can also be declared with `[DerivedTableDescriptor]` and `Derived...Column` attributes when you prefer descriptor-style declarations:*
+
+```cs
+[DerivedTableDescriptor(SqModel = "CustomerData")]
+[DerivedInt32Column("CustomerId", SqModels = "CustomerData.Id")]
+[DerivedInt16Column("Type", SqModels = "CustomerData.CustomerType")]
+[DerivedStringColumn("Name")]
+public partial class DerivedTableCustomer
+{
+    protected override IExprSubQuery CreateQuery()
+    {
+        // same query body as above
+    }
+}
+```
+
 and this is how it can be reused:
 
 ```cs
@@ -890,7 +898,7 @@ Id: 2, Name: Allina Freeborne, Type: 1
 
 ## Subqueries
 
-It is not necessary to create a new class when you need a subquery - it can be directly described in an original expression. It is enough just to predefine the aliases for columns and tables:
+It is not necessary to create a new class when you need a subquery. It can be described directly in the original expression. It is enough just to predefine the aliases for columns and tables:
 
 ```cs
 var num = CustomColumnFactory.Int32("3");
@@ -1216,24 +1224,22 @@ DROP TABLE `tmpMergeDataSource`;
 
 ## Temporary Tables
 
-In some scenarios temporary tables might be very useful and you can create such table as follows:
+In some scenarios temporary tables might be very useful. Just like normal tables, the recommended way is now to declare them with attributes and let the source generator produce the `TempTableBase` implementation:
+
+The full attribute list is documented in [Table Description Reference](Documentation/table_description.md).
 
 ```cs
-public class TempTable : TempTableBase
+using SqExpress.TableDeclarationAttributes;
+
+[TempTableDescriptor("tempTable")]
+[Int32Column("Id", Pk = true, Identity = true)]
+[StringColumn("Name", MaxLength = 255)]
+public partial class TempTable
 {
-    public TempTable(Alias alias = default) : base("tempTable", alias)
-    {
-        this.Id = CreateInt32Column(nameof(Id),
-            ColumnMeta.PrimaryKey().Identity());
-
-        this.Name = CreateStringColumn(nameof(Name), 255);
-    }
-
-    public readonly Int32TableColumn Id;
-
-    public readonly StringTableColumn Name;
 }
 ```
+
+*Note: Handwritten `TempTableBase` descriptors are still supported when you want full manual control.*
 
 and then use it:
 
@@ -1570,6 +1576,8 @@ Notes:
 ## Syntax Tree
 
 You can go through an existing syntax tree object and modify if it is required:
+
+Reference: [AST Reference](Documentation/ast_reference.md)
 
 ```cs
 //Var some external filter..
@@ -1990,7 +1998,7 @@ foreach (var table in allTables.Reverse())
 The list of tables can be compared with each other:
 
 ```cs
-var declaredTables = AllTables.BuildAllTableList(SqlDialect.TSql);
+var declaredTables = AllTables.BuildAllTableList();
 var actualTables = await database.GetTables();
 
 var comparison = declaredTables.CompareWith(actualTables);
@@ -2012,16 +2020,102 @@ if (comparison != null)
 }
 ```
 
+## Navigating Table References with TablesGraph
+
+If your table descriptors contain foreign keys, SqExpress can build a navigation graph for them:
+
+```cs
+var graph = TablesGraph.Create(AllTables.BuildAllAliasedTableList());
+```
+
+`TablesGraph` treats foreign keys as table references:
+
+- referenced table = foreign-key target
+- referenced-by table = table containing the foreign key
+
+The graph models the real foreign-key structure:
+
+- a table can reference many tables
+- a table can be referenced by many tables
+- cycles are rejected during graph creation
+
+Basic navigation:
+
+```cs
+var tCustomer = new TableCustomer();
+var tCompany = new TableCompany();
+
+bool isInGraph = graph.Contains(tCustomer);
+bool referencesCompany = graph.References(tCustomer, tCompany);
+
+var directReferences = graph.GetReferences(tCustomer);
+var allReferences = graph.GetAllReferences(tCustomer).ToArray();
+var referencedBy = graph.GetReferencedBy(tCompany);
+var allReferencedBy = graph.GetAllReferencedBy(tCompany).ToArray();
+```
+
+Important behavior:
+
+- table identity is based on full table name, not object reference
+- another `TableBase` instance with the same full name is treated as the same table
+- `Contains(...)` and `References(...)` return `false` for tables outside the graph
+- `GetReferences(...)`, `GetAllReferences(...)`, `GetReferencedBy(...)`, and `GetAllReferencedBy(...)` throw if the table does not belong to the graph
+
+This is useful when you need to reason about descriptor relationships for features such as automatic security filters or join-path discovery.
+
+It can also build a joinable table source for two tables connected by foreign keys:
+
+```cs
+var tCustomer = new TableCustomer();
+var tUser = new TableUser();
+
+if (graph.TryToJoinTables(tCustomer, tUser, out var joinedSource))
+{
+    var query = Select(AllColumns())
+        .From(joinedSource)
+        .Done();
+}
+```
+
+`TryToJoinTables(...)` returns:
+
+- `false` if either table is outside the graph
+- `false` if no foreign-key path exists between the tables
+- `true` with a joined `IExprTableSource` when a path can be built
+
+When several paths exist, `TablesGraph` chooses the shortest path. If multiple shortest paths exist, the first one discovered from the original table/reference order is used.
+
+The returned value is a table source, not a complete `SELECT`, so it can be inserted into a bigger request.
+
 ## Table Descriptors Scaffolding
 
-**SqExpress** comes with the code-gen utility (it is located in the nuget package cache). It can read metadata form a database and create table descriptor classes in your code. It requires .Net Core 3.1+
+**SqExpress** comes with the code-gen utility (it is located in the NuGet package cache). It can read metadata from a database and create table descriptor classes in your code. It requires .NET Core 3.1+
 
 ```Package Manager Console```
 
+```powershell
+Gen-Tables -DbType {mssql | mysql | pgsql} -ConnectionString <string> [-OutputDir <string>] [-TableClassPrefix <string>] [-Namespace <string>] [-Verbosity {Quiet | Minimal | Normal | Detailed}] [-UseTableDeclarationAttributes] [-SkipUnknownColumnTypes]
 ```
-SYNTAX
-    Gen-Tables [-DbType] {mssql | mysql | pgsql} [-ConnectionString] <string> [-OutputDir <string>] [-TableClassPrefix <string>] [-Namespace <string>]
-```
+
+Parameters:
+
+- `-DbType`
+  Values: `mssql`, `mysql`, `pgsql`
+  Required.
+- `-ConnectionString`
+  Required.
+- `-OutputDir`
+  Optional. Output directory for generated `.cs` files.
+- `-TableClassPrefix`
+  Optional. Prefix for generated table descriptor class names. Default: `Table`.
+- `-Namespace`
+  Optional. Namespace for newly created files.
+- `-Verbosity`
+  Optional. Values: `Quiet`, `Minimal`, `Normal`, `Detailed`. Default: `Minimal`.
+- `-UseTableDeclarationAttributes`
+  Optional switch. Generates attribute-based partial declarations instead of direct `TableBase` descriptor classes.
+- `-SkipUnknownColumnTypes`
+  Optional switch. Skips unsupported database column types and generates descriptors from the remaining supported columns.
 
 ```GenerateTables.cmd```
 
@@ -2033,7 +2127,7 @@ for /F "tokens=*" %%a in ('dir "%root%" /b /a:d /o:n') do set "lib=%root%\%%a"
 
 set lib=%lib%\tools\codegen\SqExpress.CodeGenUtil.dll
 
-dotnet "%lib%" gentables mssql "MyConnectionString" --table-class-prefix "Tbl" -o ".\Tables" -n "MyCompany.MyProject.Tables"
+dotnet "%lib%" gentables mssql "MyConnectionString" --table-class-prefix "Tbl" -o ".\Tables" -n "MyCompany.MyProject.Tables" --use-table-declaration-attributes
 ```
 
 ```GenerateTables.sh```
@@ -2043,98 +2137,51 @@ dotnet "%lib%" gentables mssql "MyConnectionString" --table-class-prefix "Tbl" -
 
 lib=~/.nuget/packages/sqexpress/$(ls ~/.nuget/packages/sqexpress -r|head -n 1)/tools/codegen/SqExpress.CodeGenUtil.dll
 
-dotnet $lib gentables mssql "MyConnectionString" --table-class-prefix "Tbl" -o "./Tables" -n "MyCompany.MyProject.Tables"
+dotnet $lib gentables mssql "MyConnectionString" --table-class-prefix "Tbl" -o "./Tables" -n "MyCompany.MyProject.Tables" --use-table-declaration-attributes
 ```
 
-It uses Roslyn compiler so it does not overwrite existing files - it patched it with actual columns. All kind of changes like attributes, namespaces, interfaces will remain after next runs.
+It uses Roslyn compiler so it does not overwrite existing files - it patches them with actual columns/attributes. All kinds of changes like attributes, namespaces, interfaces, and helper methods will remain after next runs.
 
 ## DTOs Scaffolding
 
-You can add special attributes to column properties in table descriptors to provide information to the code-gen util to create (update) DTO classes with mappings:
+The primary way to generate DTO models is now directly from attribute-based table declarations. You can declare one model for the whole table with `SqModel`, and add extra per-column model memberships with `SqModels`.
+
+For the full attribute reference, see [Table Description Reference](Documentation/table_description.md).
 
 ```cs
-public class TableUser : TableBase
+[TableDescriptor("dbo", "User", SqModel = "UserDto")]
+[Int32Column("UserId", Pk = true, Identity = true, SqModels = "UserName.Id")]
+[StringColumn("FirstName", Unicode = true, MaxLength = 255, SqModels = "UserName")]
+[StringColumn("LastName", Unicode = true, MaxLength = 255, SqModels = "UserName")]
+[Int32Column("Version", DefaultValue = "0", SqModels = "AuditData")]
+[DateTimeColumn("ModifiedAt", DefaultValue = "$utcNow", SqModels = "AuditData")]
+public partial class TableUser
 {
-    [SqModel("UserName", PropertyName = "Id")]
-    public Int32TableColumn UserId { get; }
-
-    [SqModel("UserName")]
-    public StringTableColumn FirstName { get; }
-
-    [SqModel("UserName")]
-    public StringTableColumn LastName { get; }
-
-    //Audit Columns
-    [SqModel("AuditData")]
-    public Int32TableColumn Version { get; }
-
-    [SqModel("AuditData")]
-    public DateTimeTableColumn ModifiedAt { get; }
-
-    public TableUser(Alias alias) : base("dbo", "User", alias)
-    {
-        ...
-    }
 }
 ```
 
-To run the code-gen util before a project building, just define the following property in the project file:
+Rules:
 
-```
-<Project ..,>
-  <PropertyGroup>
-    ...
-    <SqModelGenEnable>true</SqModelGenEnable>
-    ...
-  </PropertyGroup>
-```
+- `SqModel = "UserDto"` on the table declaration means every declared column participates in `UserDto`.
+- `SqModels = "UserName.Id"` means the column participates in `UserName`, and the generated property name becomes `Id`.
+- `SqModelCast = typeof(SomeType)` can be used when the generated model should cast the read value to another CLR type.
 
-The list of all code-generation parameters can be found here: [SqExpress.props](https://github.com/0x1000000/SqExpress/blob/main/SqExpress/SqExpress.props).
+The built-in analyzer and source generator respect:
 
-The code generation tool can also be run from the command line:
+- `SqModelGenNamespace`
+- `SqModelGenType`
 
-```Package Manager Console```
+Current default:
 
-```
-SYNTAX
-    Gen-Models [-InputDir <string>] [-OutputDir <string>] [-Namespace <string>] [-NoRwClasses] [-NullRefTypes] [-CleanOutput] [-ModelType {ImmutableClass | Record}]  [<CommonParameters>]
-```
+- generated models default to `record`
+- `ImmutableClass` is still supported for backward compatibility
+- `With...` methods are omitted for records
 
-```GenerateModel.cmd```
-
-```cmd
-@echo off
-set root=%userprofile%\.nuget\packages\sqexpress
-
-for /F "tokens=*" %%a in ('dir "%root%" /b /a:d /o:n') do set "lib=%root%\%%a"
-
-set lib=%lib%\tools\codegen\SqExpress.CodeGenUtil.dll
-
-dotnet "%lib%" genmodels -i "." -o ".\Models" -n "SqExpress.GetStarted.Models" --null-ref-types
-```
-
-```generate-model.sh```
-
-```
-#!/bin/bash
-lib=~/.nuget/packages/sqexpress/$(ls ~/.nuget/packages/sqexpress -r|head -n 1)/tools/codegen/SqExpress.CodeGenUtil.dll
-dotnet $lib genmodels -i "." -o "./Models" -n "SqExpress.GetStarted.Models"
-```
-
-The result will be the following classes:
-
-```UserName.cs```
+The result will look like:
 
 ```cs
-public class UserName
+public record UserName
 {
-    public UserName(int id, string firstName, string lastName)
-    {
-        this.Id = id;
-        this.FirstName = firstName;
-        this.LastName = lastName;
-    }
-
     public static UserName Read(ISqDataRecordReader record, TableUser table)
     {
         return new UserName(id: table.UserId.Read(record), firstName: table.FirstName.Read(record), lastName: table.LastName.Read(record));
@@ -2165,42 +2212,16 @@ public class UserName
     {
         return s.Set(s.Target.FirstName, s.Source.FirstName).Set(s.Target.LastName, s.Source.LastName);
     }
-
-    public UserName WithId(int id)
-    {
-        return new UserName(id: id, firstName: this.FirstName, lastName: this.LastName);
-    }
-
-    public UserName WithFirstName(string firstName)
-    {
-        return new UserName(id: this.Id, firstName: firstName, lastName: this.LastName);
-    }
-
-    public UserName WithLastName(string lastName)
-    {
-        return new UserName(id: this.Id, firstName: this.FirstName, lastName: lastName);
-    }
 }
 ```
 
-and [```AuditData.cs```](https://github.com/0x1000000/SqExpress/blob/main/SqExpress.GetStarted/Models/AuditData.cs)
+Legacy note:
 
-You can use them as follows:
+- the old file-based `genmodels` flow and property-level `[SqModel]` attributes still work for now
+- that path is deprecated and planned for removal in `2.0`
+- new work should prefer attribute-based table declarations plus source-generated DTOs
 
-```cs
-var tUser = new TableUser();
-
-var users = await Select(UserName.GetColumns(tUser))
-    .From(tUser)
-    .QueryList(database, r => UserName.Read(r, tUser));
-
-foreach (var userName in users)
-{
-    Console.WriteLine($"{userName.Id} {userName.FirstName} {userName.LastName}");
-}
-```
-
-*Note: **SqModel** attribute can be also used for temporary and derived table descriptors.*
+*Note: attribute-based `SqModel` generation works for both `TableDescriptor` and `TempTableDescriptor`.*
 
 ## Model Selection
 
@@ -2306,7 +2327,7 @@ Performance notes:
 
 ## Using in ASP.NET
 
-There is a demo ASP.NET project that shows how [SqExpress](https://github.com/0x1000000/SqGoods/tree/main) can be used in a real web app.
+There is a demo application, [SqDbAiAgent](https://github.com/0x1000000/SqDbAiAgent), that shows how SqExpress can be used as a fail-closed safety and validation layer for AI-generated T-SQL in a real SQL Server-backed workflow, so only validated and secured queries from the supported parser surface are allowed to reach execution.
 
 The ideas:
 

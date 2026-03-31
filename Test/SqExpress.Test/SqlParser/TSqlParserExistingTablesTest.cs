@@ -181,6 +181,26 @@ namespace SqExpress.Test.SqlParser
         }
 
         [Test]
+        public void TryParse_WithExistingTables_WhenIndexAndMetaDiffer_StillReturnsTrue()
+        {
+            var sql = "SELECT [u].[Id] FROM [dbo].[Users] [u]";
+            var existing = new TableBase[]
+            {
+                SqTable.Create(
+                    "dbo",
+                    "Users",
+                    a => a.AppendInt32Column("Id", ColumnMeta.PrimaryKey().Identity().DefaultValue(1)),
+                    i => i.AppendIndex(i.Asc("Id")))
+            };
+
+            var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(error, Is.Null);
+        }
+
+        [Test]
         public void TryParse_WithExistingTables_WhenSimpleUpdateWithoutFrom_UsesUpdateTargetTableForValidation()
         {
             var sql = "UPDATE [dbo].[Users] SET [Name]='X' WHERE [Id]=1";
@@ -246,6 +266,28 @@ namespace SqExpress.Test.SqlParser
             {
                 CreateTable("sales", "Users", a => a.AppendInt32Column("Id")),
                 CreateTable("sales", "Orders", a => a.AppendInt32Column("OrderId").AppendInt32Column("UserId"))
+            };
+
+            var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr, Is.Not.Null);
+            Assert.That(error, Is.Null);
+        }
+
+        [Test]
+        public void TryParse_WithExistingTables_WhenUnqualifiedProjectionColumnsResolveUniquelyInJoin_ReturnsTrue()
+        {
+            var sql = "SELECT TOP 1 SalesOrderId, SUM(Amount) AS TotalSales FROM ops.Payment p JOIN ops.Invoice i ON p.InvoiceId = i.InvoiceId WHERE i.InvoiceDate >= DATEADD(month, -1, GETDATE()) GROUP BY SalesOrderId ORDER BY TotalSales DESC";
+            var existing = new TableBase[]
+            {
+                CreateTable("ops", "Payment", a => a
+                    .AppendInt32Column("InvoiceId")
+                    .AppendDecimalColumn("Amount")),
+                CreateTable("ops", "Invoice", a => a
+                    .AppendInt32Column("InvoiceId")
+                    .AppendInt32Column("SalesOrderId")
+                    .AppendDateTimeColumn("InvoiceDate"))
             };
 
             var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);

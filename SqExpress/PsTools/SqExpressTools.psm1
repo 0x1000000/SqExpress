@@ -11,7 +11,9 @@ function Gen-Tables
         [string] $ConnectionString,
         [string] $OutputDir,
         [string] $TableClassPrefix,
-        [string] $Namespace
+        [string] $Namespace,
+        [switch] $UseTableDeclarationAttributes,
+        [switch] $SkipUnknownColumnTypes
     )
 	
     CheckSqExpressReference
@@ -67,6 +69,16 @@ function Gen-Tables
     if($Namespace)
     {
         $args = $args + " -n " + $Namespace
+    }
+
+    if($UseTableDeclarationAttributes.IsPresent)
+    {
+        $args = $args + " --use-table-declaration-attributes"
+    }
+
+    if($SkipUnknownColumnTypes.IsPresent)
+    {
+        $args = $args + " --skip-unknown-column-types"
     }
 
     CodeGenUtil $args

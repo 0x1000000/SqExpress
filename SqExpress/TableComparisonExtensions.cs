@@ -10,14 +10,26 @@ namespace SqExpress;
 
 public static class TableComparisonExtensions
 {
-    public static TableListComparison? CompareWith(this IReadOnlyList<TableBase> thisList, IReadOnlyList<TableBase> otherList, Func<IExprTableFullName, object>? tableNameKeyExtractor = null)
+    public static TableListComparison? CompareWith(
+        this IReadOnlyList<TableBase> thisList,
+        IReadOnlyList<TableBase> otherList,
+        Func<IExprTableFullName, object>? tableNameKeyExtractor = null)
+        => CompareWith(thisList, otherList, TableComparisonFlags.Strict, tableNameKeyExtractor);
+
+    public static TableListComparison? CompareWith(
+        this IReadOnlyList<TableBase> thisList,
+        IReadOnlyList<TableBase> otherList,
+        TableComparisonFlags flags,
+        Func<IExprTableFullName, object>? tableNameKeyExtractor = null)
     {
         if (otherList.Count < 1)
         {
-            return thisList.Count < 1 ? null : new TableListComparison(thisList, Array.Empty<TableBase>(), Array.Empty<DifferentTables>());
+            return thisList.Count < 1
+                ? null
+                : new TableListComparison(thisList, Array.Empty<TableBase>(), Array.Empty<DifferentTables>());
         }
 
-        tableNameKeyExtractor ??= name => name.AsExprTableFullName();
+        tableNameKeyExtractor ??= name => BuildTableKey(name, flags);
 
         var thisTables = thisList.ToDictionary(c => tableNameKeyExtractor(c.FullName), c => c);
 
@@ -32,11 +44,11 @@ public static class TableComparisonExtensions
             if (thisTables.TryGetValue(tableNameKeyExtractor(otherTable.FullName), out var thisTable))
             {
                 sameNameColumns.Add(tableNameKeyExtractor(otherTable.FullName));
-                var tableComparison = thisTable.CompareWith(otherTable);
+                var tableComparison = thisTable.CompareWith(otherTable, flags);
                 if (tableComparison != null)
                 {
                     differentTables ??= new List<DifferentTables>();
-                    differentTables.Add(new (thisTable, otherTable, tableComparison));
+                    differentTables.Add(new(thisTable, otherTable, tableComparison));
                 }
             }
             else
@@ -66,10 +78,14 @@ public static class TableComparisonExtensions
         return new TableListComparison(
             missedTables == null ? Array.Empty<TableBase>() : missedTables,
             extraTables == null ? Array.Empty<TableBase>() : extraTables,
-            differentTables == null ? Array.Empty<DifferentTables>() : differentTables);
+            differentTables == null ? Array.Empty<DifferentTables>() : differentTables
+        );
     }
 
     public static TableComparison? CompareWith(this TableBase thisList, TableBase otherList)
+        => CompareWith(thisList, otherList, TableComparisonFlags.Strict);
+
+    public static TableComparison? CompareWith(this TableBase thisList, TableBase otherList, TableComparisonFlags flags)
     {
         var thisColumns = thisList.Columns.ToDictionary(c => c.ColumnName, c => c);
 
@@ -84,11 +100,11 @@ public static class TableComparisonExtensions
             if (thisColumns.TryGetValue(otherTableColumn.ColumnName, out var thisColumn))
             {
                 sameNameColumns.Add(otherTableColumn.ColumnName);
-                var tableColumnComparison = thisColumn.CompareWith(otherTableColumn);
+                var tableColumnComparison = thisColumn.CompareWith(otherTableColumn, flags);
                 if (tableColumnComparison != TableColumnComparison.Equal)
                 {
                     differentColumns ??= new List<DifferentColumns>();
-                    differentColumns.Add(new (thisColumn, otherTableColumn, tableColumnComparison));
+                    differentColumns.Add(new(thisColumn, otherTableColumn, tableColumnComparison));
                 }
             }
             else
@@ -110,7 +126,17 @@ public static class TableComparisonExtensions
             }
         }
 
-        var indexComparison = thisList.Indexes.CompareWith(otherList.Indexes);
+        var indexComparison = thisList.Indexes.CompareWith(otherList.Indexes, flags);
+
+        if (HasFlag(flags, TableComparisonFlags.IgnoreMissingColumns))
+        {
+            missedColumns = null;
+        }
+
+        if (HasFlag(flags, TableComparisonFlags.IgnoreExtraColumns))
+        {
+            extraColumns = null;
+        }
 
         if (missedColumns == null && extraColumns == null && differentColumns == null && indexComparison == null)
         {
@@ -120,30 +146,67 @@ public static class TableComparisonExtensions
         return new TableComparison(
             missedColumns == null ? Array.Empty<TableColumn>() : missedColumns,
             extraColumns == null ? Array.Empty<TableColumn>() : extraColumns,
-            differentColumns == null ? Array.Empty<DifferentColumns>() : differentColumns, indexComparison);
+            differentColumns == null ? Array.Empty<DifferentColumns>() : differentColumns,
+            indexComparison
+        );
     }
 
     private static IndexComparison? CompareWith(
         this IReadOnlyList<IndexMeta> thisIndexes,
         IReadOnlyList<IndexMeta> otherIndexes)
+        => CompareWith(thisIndexes, otherIndexes, TableComparisonFlags.Strict);
+
+    private static IndexComparison? CompareWith(
+        this IReadOnlyList<IndexMeta> thisIndexes,
+        IReadOnlyList<IndexMeta> otherIndexes,
+        TableComparisonFlags flags)
     {
+        if (HasFlag(flags, TableComparisonFlags.IgnoreIndexes))
+        {
+            return null;
+        }
+
         List<IndexMeta>? extraIndexes = null;
         List<IndexMeta>? missedIndexes = null;
 
-        var buffer = new HashSet<IndexMeta>(thisIndexes, IndexMetaEqualityComparer.Instance);
+        var matchedThisIndexes = new bool[thisIndexes.Count];
 
         foreach (var otherIndex in otherIndexes)
         {
-            if (!buffer.Remove(otherIndex))
+            var matched = false;
+            for (var i = 0; i < thisIndexes.Count; i++)
+            {
+                if (matchedThisIndexes[i])
+                {
+                    continue;
+                }
+
+                if (!IndexEquals(thisIndexes[i], otherIndex, flags))
+                {
+                    continue;
+                }
+
+                matchedThisIndexes[i] = true;
+                matched = true;
+                break;
+            }
+
+            if (!matched)
             {
                 extraIndexes ??= new();
                 extraIndexes.Add(otherIndex);
             }
         }
 
-        if (buffer.Count > 0)
+        for (var i = 0; i < thisIndexes.Count; i++)
         {
-            missedIndexes = buffer.ToList();
+            if (matchedThisIndexes[i])
+            {
+                continue;
+            }
+
+            missedIndexes ??= new List<IndexMeta>();
+            missedIndexes.Add(thisIndexes[i]);
         }
 
         if (extraIndexes == null && missedIndexes == null)
@@ -155,6 +218,12 @@ public static class TableComparisonExtensions
     }
 
     public static TableColumnComparison CompareWith(this TableColumn thisColumn, TableColumn otherColumn)
+        => CompareWith(thisColumn, otherColumn, TableComparisonFlags.Strict);
+
+    public static TableColumnComparison CompareWith(
+        this TableColumn thisColumn,
+        TableColumn otherColumn,
+        TableComparisonFlags flags)
     {
         var result = TableColumnComparison.Equal;
 
@@ -163,14 +232,18 @@ public static class TableComparisonExtensions
             result |= TableColumnComparison.DifferentName;
         }
 
-        result |= thisColumn.SqlType.Accept(ExprTypeComparer.Instance, otherColumn.SqlType);
+        result |= ApplyColumnShapeFlags(
+            thisColumn.SqlType.Accept(ExprTypeComparer.Instance, otherColumn.SqlType),
+            flags
+        );
 
-        if (thisColumn.IsNullable != otherColumn.IsNullable)
+        if (!HasFlag(flags, TableComparisonFlags.IgnoreColumnNullability) &&
+            thisColumn.IsNullable != otherColumn.IsNullable)
         {
             result |= TableColumnComparison.DifferentNullability;
         }
 
-        if (CompareWith(thisColumn.ColumnMeta, otherColumn.ColumnMeta) != ColumnMetaComparison.Equal)
+        if (CompareWith(thisColumn.ColumnMeta, otherColumn.ColumnMeta, flags) != ColumnMetaComparison.Equal)
         {
             result |= TableColumnComparison.DifferentMeta;
         }
@@ -179,6 +252,12 @@ public static class TableComparisonExtensions
     }
 
     public static ColumnMetaComparison CompareWith(this ColumnMeta? thisMeta, ColumnMeta? otherMeta)
+        => CompareWith(thisMeta, otherMeta, TableComparisonFlags.Strict);
+
+    public static ColumnMetaComparison CompareWith(
+        this ColumnMeta? thisMeta,
+        ColumnMeta? otherMeta,
+        TableComparisonFlags flags)
     {
         var result = ColumnMetaComparison.Equal;
 
@@ -189,38 +268,249 @@ public static class TableComparisonExtensions
 
         if (!(thisMeta != null && otherMeta != null))
         {
-            return ColumnMetaComparison.DifferentExistence;
+            return HasFlag(flags, TableComparisonFlags.IgnoreColumnMeta)
+                ? ColumnMetaComparison.Equal
+                : ColumnMetaComparison.DifferentExistence;
         }
 
-        if (thisMeta.IsIdentity != otherMeta.IsIdentity)
+        if (!ShouldIgnoreColumnIdentity(flags) && thisMeta.IsIdentity != otherMeta.IsIdentity)
         {
             result |= ColumnMetaComparison.DifferentIdentity;
         }
 
-        if (thisMeta.IsPrimaryKey != otherMeta.IsPrimaryKey)
+        if (!ShouldIgnoreColumnPrimaryKey(flags) && thisMeta.IsPrimaryKey != otherMeta.IsPrimaryKey)
         {
             result |= ColumnMetaComparison.DifferentPrimaryKey;
         }
 
-        if (!AreColumnListsEqual(thisMeta.ForeignKeyColumns, otherMeta.ForeignKeyColumns))
+        if (!ShouldIgnoreColumnForeignKeys(flags) && !AreColumnListsEqual(
+                thisMeta.ForeignKeyColumns,
+                otherMeta.ForeignKeyColumns
+            ))
         {
             result |= ColumnMetaComparison.DifferentFk;
         }
 
-        if (!ReferenceEquals(thisMeta.ColumnDefaultValue, null) && !ReferenceEquals(otherMeta.ColumnDefaultValue, null))
+        if (!ShouldIgnoreColumnDefaultValues(flags))
         {
-            if (TSqlExporter.Default.ToSql(thisMeta.ColumnDefaultValue).Trim('\'') != TSqlExporter.Default.ToSql(otherMeta.ColumnDefaultValue).Trim('\''))
+            if (!ReferenceEquals(thisMeta.ColumnDefaultValue, null) &&
+                !ReferenceEquals(otherMeta.ColumnDefaultValue, null))
+            {
+                if (TSqlExporter.Default.ToSql(thisMeta.ColumnDefaultValue).Trim('\'') !=
+                    TSqlExporter.Default.ToSql(otherMeta.ColumnDefaultValue).Trim('\''))
+                {
+                    result |= ColumnMetaComparison.DifferentDefaultValues;
+                }
+            }
+            else if (!(ReferenceEquals(thisMeta.ColumnDefaultValue, null) &&
+                       ReferenceEquals(otherMeta.ColumnDefaultValue, null)))
             {
                 result |= ColumnMetaComparison.DifferentDefaultValues;
             }
         }
-        else if (!(ReferenceEquals(thisMeta.ColumnDefaultValue, null) && ReferenceEquals(otherMeta.ColumnDefaultValue, null)))
+
+        return result;
+    }
+
+    public static bool Includes(
+        this IReadOnlyList<TableBase> thisList,
+        IReadOnlyList<TableBase> otherList,
+        TableIncludesFlags flags = TableIncludesFlags.Strict,
+        Func<IExprTableFullName, object>? tableNameKeyExtractor = null)
+    {
+        var comparison = thisList.CompareWith(
+            otherList,
+            ToComparisonFlags(flags) | TableComparisonFlags.IgnoreMissingColumns | TableComparisonFlags.IgnoreIndexes |
+            TableComparisonFlags.IgnoreColumnMeta,
+            tableNameKeyExtractor
+        );
+
+        if (comparison == null)
         {
-            result |= ColumnMetaComparison.DifferentDefaultValues;
+            return true;
+        }
+
+        return comparison.ExtraTables.Count == 0
+               && comparison.DifferentTables.Count == 0;
+    }
+
+    private static TableComparisonFlags ToComparisonFlags(TableIncludesFlags flags)
+    {
+        var result = TableComparisonFlags.Strict;
+
+        if (HasFlag(flags, TableIncludesFlags.IgnoreDatabase))
+        {
+            result |= TableComparisonFlags.IgnoreDatabase;
+        }
+
+        if (HasFlag(flags, TableIncludesFlags.IgnoreSchema))
+        {
+            result |= TableComparisonFlags.IgnoreSchema;
+        }
+
+        if (HasFlag(flags, TableIncludesFlags.IgnoreIndexes))
+        {
+            result |= TableComparisonFlags.IgnoreIndexes;
+        }
+
+        if (HasFlag(flags, TableIncludesFlags.IgnoreColumnShape))
+        {
+            result |= TableComparisonFlags.IgnoreColumnShape;
+        }
+        else
+        {
+            if (HasFlag(flags, TableIncludesFlags.IgnoreColumnTypes))
+            {
+                result |= TableComparisonFlags.IgnoreColumnTypes;
+            }
+
+            if (HasFlag(flags, TableIncludesFlags.IgnoreColumnTypeArguments))
+            {
+                result |= TableComparisonFlags.IgnoreColumnTypeArguments;
+            }
+
+            if (HasFlag(flags, TableIncludesFlags.IgnoreColumnNullability))
+            {
+                result |= TableComparisonFlags.IgnoreColumnNullability;
+            }
+        }
+
+        if (HasFlag(flags, TableIncludesFlags.IgnoreColumnMeta))
+        {
+            result |= TableComparisonFlags.IgnoreColumnMeta;
+        }
+        else
+        {
+            if (HasFlag(flags, TableIncludesFlags.IgnoreColumnPrimaryKey))
+            {
+                result |= TableComparisonFlags.IgnoreColumnPrimaryKey;
+            }
+
+            if (HasFlag(flags, TableIncludesFlags.IgnoreColumnIdentity))
+            {
+                result |= TableComparisonFlags.IgnoreColumnIdentity;
+            }
+
+            if (HasFlag(flags, TableIncludesFlags.IgnoreColumnForeignKeys))
+            {
+                result |= TableComparisonFlags.IgnoreColumnForeignKeys;
+            }
+
+            if (HasFlag(flags, TableIncludesFlags.IgnoreColumnDefaultValues))
+            {
+                result |= TableComparisonFlags.IgnoreColumnDefaultValues;
+            }
         }
 
         return result;
     }
+
+    private static object BuildTableKey(IExprTableFullName fullName, TableComparisonFlags flags)
+    {
+        var table = fullName.AsExprTableFullName();
+        var parts = new List<string>(3);
+
+        if (!HasFlag(flags, TableComparisonFlags.IgnoreDatabase))
+        {
+            parts.Add(table.DbSchema?.Database?.Name ?? string.Empty);
+        }
+
+        if (!HasFlag(flags, TableComparisonFlags.IgnoreSchema))
+        {
+            parts.Add(table.DbSchema?.Schema.Name ?? string.Empty);
+        }
+
+        parts.Add(table.TableName.Name);
+        return string.Join("|", parts).ToUpperInvariant();
+    }
+
+    private static TableColumnComparison ApplyColumnShapeFlags(
+        TableColumnComparison comparison,
+        TableComparisonFlags flags)
+    {
+        if (HasFlag(flags, TableComparisonFlags.IgnoreColumnShape))
+        {
+            comparison &= ~(TableColumnComparison.DifferentType | TableColumnComparison.DifferentArguments |
+                            TableColumnComparison.DifferentNullability);
+        }
+        else
+        {
+            if (HasFlag(flags, TableComparisonFlags.IgnoreColumnTypes))
+            {
+                comparison &= ~(TableColumnComparison.DifferentType | TableColumnComparison.DifferentArguments);
+            }
+            else if (HasFlag(flags, TableComparisonFlags.IgnoreColumnTypeArguments))
+            {
+                comparison &= ~TableColumnComparison.DifferentArguments;
+            }
+        }
+
+        return comparison;
+    }
+
+    private static bool IndexEquals(IndexMeta x, IndexMeta y, TableComparisonFlags flags)
+    {
+        if (x.Unique != y.Unique || x.Clustered != y.Clustered)
+        {
+            return false;
+        }
+
+        if (x.Columns.Count != y.Columns.Count)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < x.Columns.Count; i++)
+        {
+            if (!IndexColumnEquals(x.Columns[i], y.Columns[i], flags))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IndexColumnEquals(IndexMetaColumn x, IndexMetaColumn y, TableComparisonFlags flags)
+    {
+        if (x.GetType() != y.GetType())
+        {
+            return false;
+        }
+
+        if (x.Column.CompareWith(y.Column, flags) != TableColumnComparison.Equal)
+        {
+            return false;
+        }
+
+        return x.Descending == y.Descending;
+    }
+
+    private static bool HasFlag(TableComparisonFlags flags, TableComparisonFlags value)
+        => (flags & value) == value;
+
+    private static bool HasFlag(TableIncludesFlags flags, TableIncludesFlags value)
+        => (flags & value) == value;
+
+    private static bool ShouldIgnoreColumnPrimaryKey(TableComparisonFlags flags)
+        => HasFlag(flags, TableComparisonFlags.IgnoreColumnMeta) ||
+           HasFlag(flags, TableComparisonFlags.IgnoreColumnPrimaryKey);
+
+    private static bool ShouldIgnoreColumnIdentity(TableComparisonFlags flags)
+        => HasFlag(flags, TableComparisonFlags.IgnoreColumnMeta) ||
+           HasFlag(flags, TableComparisonFlags.IgnoreColumnIdentity);
+
+    private static bool ShouldIgnoreColumnForeignKeys(TableComparisonFlags flags)
+        => HasFlag(flags, TableComparisonFlags.IgnoreColumnMeta) || HasFlag(
+            flags,
+            TableComparisonFlags.IgnoreColumnForeignKeys
+        );
+
+    private static bool ShouldIgnoreColumnDefaultValues(TableComparisonFlags flags)
+        => HasFlag(flags, TableComparisonFlags.IgnoreColumnMeta) || HasFlag(
+            flags,
+            TableComparisonFlags.IgnoreColumnDefaultValues
+        );
 
     private static bool AreColumnListsEqual(IReadOnlyList<TableColumn>? list1, IReadOnlyList<TableColumn>? list2)
     {
@@ -244,6 +534,48 @@ public static class TableComparisonExtensions
     }
 }
 
+[Flags]
+public enum TableComparisonFlags
+{
+    Strict = 0,
+    IgnoreDatabase = 1 << 0,
+    IgnoreSchema = 1 << 1,
+    IgnoreMissingColumns = 1 << 2,
+    IgnoreExtraColumns = 1 << 3,
+    IgnoreIndexes = 1 << 4,
+    IgnoreColumnTypes = 1 << 5,
+    IgnoreColumnTypeArguments = 1 << 6,
+    IgnoreColumnNullability = 1 << 7,
+    IgnoreColumnPrimaryKey = 1 << 8,
+    IgnoreColumnIdentity = 1 << 9,
+    IgnoreColumnForeignKeys = 1 << 10,
+    IgnoreColumnDefaultValues = 1 << 11,
+
+    IgnoreColumnMeta = IgnoreColumnPrimaryKey | IgnoreColumnIdentity | IgnoreColumnForeignKeys |
+                       IgnoreColumnDefaultValues,
+    IgnoreColumnShape = IgnoreColumnTypes | IgnoreColumnTypeArguments | IgnoreColumnNullability
+}
+
+[Flags]
+public enum TableIncludesFlags
+{
+    Strict = 0,
+    IgnoreDatabase = 1 << 0,
+    IgnoreSchema = 1 << 1,
+    IgnoreIndexes = 1 << 2,
+    IgnoreColumnTypes = 1 << 3,
+    IgnoreColumnTypeArguments = 1 << 4,
+    IgnoreColumnNullability = 1 << 5,
+    IgnoreColumnPrimaryKey = 1 << 6,
+    IgnoreColumnIdentity = 1 << 7,
+    IgnoreColumnForeignKeys = 1 << 8,
+    IgnoreColumnDefaultValues = 1 << 9,
+
+    IgnoreColumnMeta = IgnoreColumnPrimaryKey | IgnoreColumnIdentity | IgnoreColumnForeignKeys |
+                       IgnoreColumnDefaultValues,
+    IgnoreColumnShape = IgnoreColumnTypes | IgnoreColumnTypeArguments | IgnoreColumnNullability
+}
+
 public record struct DifferentTables(TableBase Table, TableBase OtherTable, TableComparison TableComparison);
 
 public class TableListComparison
@@ -265,7 +597,10 @@ public class TableListComparison
     }
 }
 
-public record struct DifferentColumns(TableColumn Column, TableColumn OtherColumn, TableColumnComparison ColumnComparison);
+public record struct DifferentColumns(
+    TableColumn Column,
+    TableColumn OtherColumn,
+    TableColumnComparison ColumnComparison);
 
 public class TableComparison
 {
@@ -556,7 +891,7 @@ internal class IndexMetaEqualityComparer : IEqualityComparer<IndexMeta?>
 
         unchecked
         {
-            var hashCode =  obj.Unique.GetHashCode();
+            var hashCode = obj.Unique.GetHashCode();
             hashCode = (hashCode * 397) ^ obj.Clustered.GetHashCode();
             if (!ReferenceEquals(obj.Columns, null))
             {

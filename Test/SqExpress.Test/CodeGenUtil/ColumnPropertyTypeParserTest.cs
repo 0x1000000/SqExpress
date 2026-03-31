@@ -1,7 +1,7 @@
 ﻿#if NET
 using System.Linq;
 using NUnit.Framework;
-using SqExpress.CodeGenUtil.CodeGen;
+using SqExpress.CodeGen.Shared;
 
 namespace SqExpress.Test.CodeGenUtil
 {

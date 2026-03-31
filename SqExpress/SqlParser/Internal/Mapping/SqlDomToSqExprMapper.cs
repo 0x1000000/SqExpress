@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using SqExpress.DbMetadata;
+using SqExpress.SqlExport;
 using SqExpress.SqlParser.Internal.Dom;
 using SqExpress.SqlParser.Internal.Parsing;
 using SqExpress.Syntax;
@@ -28,6 +29,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
         public static bool TryMap(
             SqlDomStatement statement,
             string? defaultSchema,
+            IReadOnlyList<TableBase>? existingTables,
             [NotNullWhen(true)] out IExpr? result,
             out IReadOnlyList<SqTable>? tables,
             [NotNullWhen(false)] out string? error)
@@ -35,7 +37,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
             tables = null;
             try
             {
-                var context = new MappingContext(statement.WithClause, defaultSchema);
+                var context = new MappingContext(statement.WithClause, defaultSchema, existingTables);
                 result = statement.Kind switch
                 {
                     SqlDomStatementKind.Select => MapSelect(statement, context),
@@ -85,16 +87,22 @@ namespace SqExpress.SqlParser.Internal.Mapping
             private readonly Dictionary<string, DeferredSubQuery> _deferred;
             private readonly HashSet<string> _resolving;
             private readonly HashSet<string> _visibleTableReferences;
+            private readonly HashSet<string> _currentScopeVisibleTableReferences;
+            private readonly IReadOnlyList<TableBase>? _existingTables;
+            private readonly IReadOnlyDictionary<string, TableBase> _visibleTableBindings;
             private readonly bool _allowOuterTableReferencesInDerivedTables;
 
-            public MappingContext(SqlDomWithClause? withClause, string? defaultSchema = "dbo")
+            public MappingContext(SqlDomWithClause? withClause, string? defaultSchema = "dbo", IReadOnlyList<TableBase>? existingTables = null)
             {
                 this.DefaultSchema = string.IsNullOrWhiteSpace(defaultSchema) ? null : defaultSchema;
+                this._existingTables = existingTables;
                 this._domCtes = new Dictionary<string, SqlDomCte>(StringComparer.OrdinalIgnoreCase);
                 this._resolved = new Dictionary<string, IExprSubQuery>(StringComparer.OrdinalIgnoreCase);
                 this._deferred = new Dictionary<string, DeferredSubQuery>(StringComparer.OrdinalIgnoreCase);
                 this._resolving = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 this._visibleTableReferences = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                this._currentScopeVisibleTableReferences = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                this._visibleTableBindings = new Dictionary<string, TableBase>(StringComparer.OrdinalIgnoreCase);
                 this._allowOuterTableReferencesInDerivedTables = false;
 
                 if (withClause == null)
@@ -114,6 +122,9 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 Dictionary<string, DeferredSubQuery> deferred,
                 HashSet<string> resolving,
                 HashSet<string> visibleTableReferences,
+                HashSet<string> currentScopeVisibleTableReferences,
+                IReadOnlyList<TableBase>? existingTables,
+                IReadOnlyDictionary<string, TableBase> visibleTableBindings,
                 bool allowOuterTableReferencesInDerivedTables,
                 string? defaultSchema)
             {
@@ -123,6 +134,9 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 this._deferred = deferred;
                 this._resolving = resolving;
                 this._visibleTableReferences = visibleTableReferences;
+                this._currentScopeVisibleTableReferences = currentScopeVisibleTableReferences;
+                this._existingTables = existingTables;
+                this._visibleTableBindings = visibleTableBindings;
                 this._allowOuterTableReferencesInDerivedTables = allowOuterTableReferencesInDerivedTables;
             }
 
@@ -139,12 +153,19 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     }
                 }
 
+                var currentScope = new HashSet<string>(
+                    visibleTableReferences.Where(i => !string.IsNullOrWhiteSpace(i)),
+                    StringComparer.OrdinalIgnoreCase);
+
                 return new MappingContext(
                     this._domCtes,
                     this._resolved,
                     this._deferred,
                     this._resolving,
                     merged,
+                    currentScope,
+                    this._existingTables,
+                    this._visibleTableBindings,
                     this._allowOuterTableReferencesInDerivedTables,
                     this.DefaultSchema);
             }
@@ -166,6 +187,9 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     this._deferred,
                     this._resolving,
                     scoped,
+                    new HashSet<string>(scoped, StringComparer.OrdinalIgnoreCase),
+                    this._existingTables,
+                    this._visibleTableBindings,
                     this._allowOuterTableReferencesInDerivedTables,
                     this.DefaultSchema);
             }
@@ -178,7 +202,25 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     this._deferred,
                     this._resolving,
                     new HashSet<string>(this._visibleTableReferences, StringComparer.OrdinalIgnoreCase),
+                    new HashSet<string>(this._currentScopeVisibleTableReferences, StringComparer.OrdinalIgnoreCase),
+                    this._existingTables,
+                    this._visibleTableBindings,
                     allowOuterTableReferencesInDerivedTables,
+                    this.DefaultSchema);
+            }
+
+            public MappingContext WithVisibleTableBindings(IReadOnlyDictionary<string, TableBase> visibleTableBindings)
+            {
+                return new MappingContext(
+                    this._domCtes,
+                    this._resolved,
+                    this._deferred,
+                    this._resolving,
+                    new HashSet<string>(this._visibleTableReferences, StringComparer.OrdinalIgnoreCase),
+                    new HashSet<string>(this._currentScopeVisibleTableReferences, StringComparer.OrdinalIgnoreCase),
+                    this._existingTables,
+                    visibleTableBindings,
+                    this._allowOuterTableReferencesInDerivedTables,
                     this.DefaultSchema);
             }
 
@@ -188,8 +230,77 @@ namespace SqExpress.SqlParser.Internal.Mapping
             public int VisibleTableReferenceCount
                 => this._visibleTableReferences.Count;
 
+            public int CurrentScopeVisibleTableReferenceCount
+                => this._currentScopeVisibleTableReferences.Count;
+
+            public bool TryGetSingleNonCteCurrentScopeReference([NotNullWhen(true)] out string? tableReference)
+            {
+                tableReference = null;
+                string? match = null;
+                foreach (var visibleTableReference in this._currentScopeVisibleTableReferences)
+                {
+                    if (this._domCtes.ContainsKey(visibleTableReference))
+                    {
+                        continue;
+                    }
+
+                    if (match != null)
+                    {
+                        tableReference = null;
+                        return false;
+                    }
+
+                    match = visibleTableReference;
+                }
+
+                tableReference = match;
+                return match != null;
+            }
+
             public bool AllowOuterTableReferencesInDerivedTables
                 => this._allowOuterTableReferencesInDerivedTables;
+
+            public IReadOnlyList<TableBase>? ExistingTables
+                => this._existingTables;
+
+            public bool TryResolveUnqualifiedColumnInVisibleTables(string columnName, [NotNullWhen(true)] out string? tableReference)
+            {
+                tableReference = null;
+                string? match = null;
+                foreach (var visibleTableReference in this._visibleTableReferences)
+                {
+                    if (this._visibleTableBindings.TryGetValue(visibleTableReference, out var binding)
+                        && binding.Columns.Any(c => string.Equals(c.ColumnName.Name, columnName, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        if (match != null)
+                        {
+                            tableReference = null;
+                            return false;
+                        }
+
+                        match = visibleTableReference;
+                        continue;
+                    }
+
+                    if (!this.TryResolveCteQuery(visibleTableReference, out var query)
+                        || query == null
+                        || !query.GetOutputColumnNames().Any(i => string.Equals(i, columnName, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        continue;
+                    }
+
+                    if (match != null)
+                    {
+                        tableReference = null;
+                        return false;
+                    }
+
+                    match = visibleTableReference;
+                }
+
+                tableReference = match;
+                return match != null;
+            }
 
 
             public bool TryGetCteReference(string name, string? alias, [NotNullWhen(true)] out ExprCteQuery? cte)
@@ -377,7 +488,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
             var top = statement.TopLevelSelect;
             if (top == null)
             {
-                throw new MapException("Parsed SQL cannot be mapped to SqExpress AST.");
+                return MapSelectQueryExpression(statement.RawSql, context);
             }
 
             if (top.HasSetOperation)
@@ -386,15 +497,17 @@ namespace SqExpress.SqlParser.Internal.Mapping
             }
 
             IExprTableSource? from = top.From == null ? null : ParseTableSource(top.From, context);
-            var scopedContext = context.WithVisibleTableReferences(GetVisibleTableReferences(from));
+            var scopedContext = context
+                .WithVisibleTableReferences(GetVisibleTableReferences(from))
+                .WithVisibleTableBindings(BuildVisibleTableBindings(from, context.DefaultSchema, context.ExistingTables));
             var selectList = top.Items.Select(i => ParseSelectItem(i, scopedContext)).ToList();
             var selectAliases = BuildSelectAliasLookup(selectList);
             ExprBoolean? where = string.IsNullOrWhiteSpace(top.WhereSql) ? null : ParseBoolean(top.WhereSql!, scopedContext);
-            IReadOnlyList<ExprColumn>? groupBy = null;
+            IReadOnlyList<ExprValue>? groupBy = null;
             if (!string.IsNullOrWhiteSpace(top.GroupBySql))
             {
                 EnsureGroupByDoesNotReferenceSelectAliases(top.GroupBySql!, selectAliases);
-                groupBy = SplitComma(top.GroupBySql!).Select(i => ParseValue(i, scopedContext) as ExprColumn ?? throw new MapException("GROUP BY supports only columns.")).ToList();
+                groupBy = SplitComma(top.GroupBySql!).Select(i => ParseValue(i, scopedContext)).ToList();
             }
 
             ValidateGroupedSelectList(selectList, groupBy);
@@ -432,18 +545,12 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 throw new MapException("Set query expression is empty.");
             }
 
-            var firstSelectIndex = FindFirstTopLevelKeyword(tokens, 0, "SELECT");
-            if (firstSelectIndex < 0)
-            {
-                throw new MapException("Set query expression does not contain SELECT.");
-            }
-
             var segmentRanges = new List<(int Start, int End)>();
             var operators = new List<ExprQueryExpressionType>();
-            var segmentStart = firstSelectIndex;
+            var segmentStart = 0;
             var depth = 0;
 
-            for (var i = firstSelectIndex; i < tokens.Count; i++)
+            for (var i = 0; i < tokens.Count; i++)
             {
                 if (tokens[i].Type == SqlTokenType.OpenParen)
                 {
@@ -577,8 +684,134 @@ namespace SqExpress.SqlParser.Internal.Mapping
         private static IExpr MapSelectWithSetOperation(string sql)
             => MapSelectWithSetOperation(sql, new MappingContext(null));
 
+        private static IExpr MapSelectQueryExpression(string sql, MappingContext context)
+        {
+            var normalizedSql = TrimEnclosingQueryParentheses(sql);
+            var tokens = SqlLexer.Tokenize(normalizedSql)
+                .Where(t => t.Type != SqlTokenType.EndOfFile && t.Type != SqlTokenType.Semicolon)
+                .ToList();
+
+            if (HasTopLevelSetOperator(tokens))
+            {
+                return MapSelectWithSetOperation(normalizedSql, context);
+            }
+
+            if (TryMapParenthesizedQueryExpressionWithTail(normalizedSql, tokens, context, out var mappedQueryExpression))
+            {
+                return mappedQueryExpression;
+            }
+
+            if (!SqlDomParser.TryParseSingleStatement(normalizedSql, out var statement, out _)
+                || statement == null
+                || statement.Kind != SqlDomStatementKind.Select)
+            {
+                throw new MapException("Parsed SQL cannot be mapped to SqExpress AST.");
+            }
+
+            var top = statement.TopLevelSelect;
+            if (top == null)
+            {
+                throw new MapException("Parsed SQL cannot be mapped to SqExpress AST.");
+            }
+
+            return MapSelect(statement, context);
+        }
+
+        private static bool TryMapParenthesizedQueryExpressionWithTail(
+            string sql,
+            IReadOnlyList<SqlToken> tokens,
+            MappingContext context,
+            [NotNullWhen(true)] out IExpr? result)
+        {
+            result = null;
+            if (tokens.Count < 2 || tokens[0].Type != SqlTokenType.OpenParen)
+            {
+                return false;
+            }
+
+            var closeParenIndex = FindMatchingCloseParen(tokens, 0);
+            if (closeParenIndex < 0 || closeParenIndex >= tokens.Count - 1)
+            {
+                return false;
+            }
+
+            var tailStart = closeParenIndex + 1;
+            var topLevelOrderIndex = FindFirstTopLevelKeyword(tokens, tailStart, tokens.Count, "ORDER");
+            var topLevelOffsetIndex = FindFirstTopLevelKeyword(tokens, tailStart, tokens.Count, "OFFSET");
+            if (topLevelOrderIndex != tailStart && topLevelOffsetIndex != tailStart)
+            {
+                return false;
+            }
+
+            var innerSql = SliceSqlByTokenRange(sql, tokens, 1, closeParenIndex);
+            var mappedInner = MapSelectQueryExpression(innerSql, context);
+            if (mappedInner is not IExprSubQuery subQuery)
+            {
+                throw new MapException("Parenthesized query expression cannot be represented as subquery.");
+            }
+
+            string? orderBySql = null;
+            string? offsetFetchSql = null;
+            if (topLevelOrderIndex == tailStart)
+            {
+                var orderByStart = topLevelOrderIndex + 1;
+                if (orderByStart < tokens.Count && tokens[orderByStart].IsKeyword("BY"))
+                {
+                    orderByStart++;
+                }
+
+                if (topLevelOffsetIndex > topLevelOrderIndex)
+                {
+                    orderBySql = SliceSqlByTokenRange(sql, tokens, orderByStart, topLevelOffsetIndex);
+                    offsetFetchSql = SliceSqlByTokenRange(sql, tokens, topLevelOffsetIndex, tokens.Count);
+                }
+                else
+                {
+                    orderBySql = SliceSqlByTokenRange(sql, tokens, orderByStart, tokens.Count);
+                }
+            }
+            else if (topLevelOffsetIndex == tailStart)
+            {
+                offsetFetchSql = SliceSqlByTokenRange(sql, tokens, topLevelOffsetIndex, tokens.Count);
+            }
+
+            if (!string.IsNullOrWhiteSpace(offsetFetchSql))
+            {
+                var (offset, fetch) = ParseOffsetFetch(offsetFetchSql!, context);
+                var orderList = !string.IsNullOrWhiteSpace(orderBySql)
+                    ? ParseOrderBy(orderBySql!, context).OrderList
+                    : Array.Empty<ExprOrderByItem>();
+                result = new ExprSelectOffsetFetch(subQuery, new ExprOrderByOffsetFetch(orderList, new ExprOffsetFetch(offset, fetch)));
+                return true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(orderBySql))
+            {
+                result = new ExprSelect(subQuery, ParseOrderBy(orderBySql!, context));
+                return true;
+            }
+
+            return false;
+        }
+
         private static IExprSubQuery ParseSetSegment(string sql, MappingContext context)
         {
+            sql = TrimEnclosingQueryParentheses(sql);
+            var tokens = SqlLexer.Tokenize(sql)
+                .Where(t => t.Type != SqlTokenType.EndOfFile && t.Type != SqlTokenType.Semicolon)
+                .ToList();
+
+            if (HasTopLevelSetOperator(tokens))
+            {
+                var mappedSet = MapSelectWithSetOperation(sql, context);
+                if (mappedSet is IExprSubQuery setSubQuery)
+                {
+                    return setSubQuery;
+                }
+
+                throw new MapException("Set query branch cannot be represented as subquery.");
+            }
+
             if (!SqlDomParser.TryParseSingleStatement(sql, out var statement, out _)
                 || statement == null
                 || statement.Kind != SqlDomStatementKind.Select)
@@ -695,8 +928,9 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 throw new MapException("UPDATE target table is not resolved.");
             }
 
-            var scopedContext = context.WithVisibleTableReferences(
-                GetVisibleTableReferences(source).Concat(GetVisibleTableReferences(target)));
+            var scopedContext = context
+                .WithVisibleTableReferences(GetVisibleTableReferences(source).Concat(GetVisibleTableReferences(target)))
+                .WithVisibleTableBindings(BuildVisibleTableBindings(context.DefaultSchema, context.ExistingTables, source, target));
 
             var setSql = SliceSqlByTokenRange(sql, tokens, setPos + 1, setEnd);
             var setList = ParseSetClauses(setSql, scopedContext);
@@ -725,12 +959,11 @@ namespace SqExpress.SqlParser.Internal.Mapping
             }
 
             var intoIndex = FindFirstTopLevelKeyword(tokens, 0, "INTO");
-            if (intoIndex < 0 || intoIndex + 1 >= tokens.Count)
+            var cursor = intoIndex >= 0 ? intoIndex + 1 : 1;
+            if (cursor >= tokens.Count)
             {
                 throw new MapException("INSERT target table is not resolved.");
             }
-
-            var cursor = intoIndex + 1;
             var nameParts = ReadMultipartIdentifier(tokens, ref cursor);
             if (nameParts.Count < 1)
             {
@@ -802,6 +1035,11 @@ namespace SqExpress.SqlParser.Internal.Mapping
             {
                 var querySql = SliceSqlByTokenRange(sql, tokens, sourceStart, tokens.Count);
                 var query = ParseNestedSubQuery(querySql, context);
+                if (targetColumns != null && query.ExtractSelecting().Count != targetColumns.Count)
+                {
+                    throw new MapException("INSERT source column count does not match target column count.");
+                }
+
                 source = new ExprInsertQuery(query);
             }
 
@@ -928,8 +1166,9 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 }
             }
 
-            var scopedContext = context.WithVisibleTableReferences(
-                GetVisibleTableReferences(source).Concat(GetVisibleTableReferences(target)));
+            var scopedContext = context
+                .WithVisibleTableReferences(GetVisibleTableReferences(source).Concat(GetVisibleTableReferences(target)))
+                .WithVisibleTableBindings(BuildVisibleTableBindings(context.DefaultSchema, context.ExistingTables, source, target));
 
             ExprBoolean? filter = null;
             if (whereIndex >= 0)
@@ -999,17 +1238,17 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 throw new MapException("MERGE target table is not resolved.");
             }
 
-            var targetAlias = targetCursor < usingIndex && tokens[targetCursor].IsIdentifierLike
-                ? tokens[targetCursor].IdentifierValue
-                : targetParts[targetParts.Count - 1];
+            var targetAlias = ReadOptionalAliasToken(tokens, ref targetCursor, usingIndex)
+                ?? targetParts[targetParts.Count - 1];
             var targetTable = new ExprTable(
                 BuildTableFullName(context, targetParts),
                 new ExprTableAlias(new ExprAlias(targetAlias)));
 
             var sourceSql = SliceSqlByTokenRange(sql, tokens, usingIndex + 1, onIndex);
             var source = ParseTableSourceSql(sourceSql, context);
-            var scopedContext = context.WithVisibleTableReferences(
-                GetVisibleTableReferences(targetTable).Concat(GetVisibleTableReferences(source)));
+            var scopedContext = context
+                .WithVisibleTableReferences(GetVisibleTableReferences(targetTable).Concat(GetVisibleTableReferences(source)))
+                .WithVisibleTableBindings(BuildVisibleTableBindings(context.DefaultSchema, context.ExistingTables, targetTable, source));
 
             var firstWhen = FindFirstTopLevelKeyword(tokens, onIndex + 1, "WHEN");
             if (firstWhen < 0)
@@ -1186,6 +1425,34 @@ namespace SqExpress.SqlParser.Internal.Mapping
 
         private static IExprAssigning ParseAssigning(string sql)
             => ParseAssigning(sql, new MappingContext(null));
+
+        private static string? ReadOptionalAliasToken(IReadOnlyList<SqlToken> tokens, ref int index, int endExclusive)
+        {
+            if (index >= endExclusive)
+            {
+                return null;
+            }
+
+            if (tokens[index].IsKeyword("AS"))
+            {
+                if ((index + 1) < endExclusive && tokens[index + 1].IsIdentifierLike)
+                {
+                    index += 2;
+                    return tokens[index - 1].IdentifierValue;
+                }
+
+                return null;
+            }
+
+            if (tokens[index].IsIdentifierLike)
+            {
+                var alias = tokens[index].IdentifierValue;
+                index++;
+                return alias;
+            }
+
+            return null;
+        }
 
         private static void ParseMergeClause(
             string rawSql,
@@ -1406,7 +1673,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
                         throw new MapException("Invalid SET clause.");
                     }
 
-                    var leftColumn = ParseValue(i.Substring(0, eq).Trim(), context) as ExprColumn;
+                    var leftColumn = ParseSetLeftColumn(i.Substring(0, eq).Trim(), context);
                     if (leftColumn is null)
                     {
                         throw new MapException("SET left side must be a column.");
@@ -1416,6 +1683,43 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     return new ExprColumnSetClause(leftColumn, right);
                 })
                 .ToList();
+        }
+
+        private static ExprColumn? ParseSetLeftColumn(string sql, MappingContext context)
+        {
+            try
+            {
+                var parsed = ParseValue(sql, context) as ExprColumn;
+                if (parsed is not null)
+                {
+                    return parsed;
+                }
+            }
+            catch (MapException)
+            {
+            }
+
+            var tokens = SqlLexer.Tokenize(sql)
+                .Where(i => i.Type != SqlTokenType.EndOfFile)
+                .ToList();
+            if (tokens.Count < 1)
+            {
+                return null;
+            }
+
+            var cursor = 0;
+            var parts = ReadMultipartIdentifier(tokens, ref cursor);
+            if (parts.Count < 1 || cursor != tokens.Count)
+            {
+                return null;
+            }
+
+            return parts.Count switch
+            {
+                1 => new ExprColumn(null, new ExprColumnName(parts[0])),
+                2 => new ExprColumn(new ExprTableAlias(new ExprAlias(parts[0])), new ExprColumnName(parts[1])),
+                _ => null
+            };
         }
 
         private static bool HasEmptyTopLevelCommaSegment(IReadOnlyList<SqlToken> tokens)
@@ -1657,6 +1961,96 @@ namespace SqExpress.SqlParser.Internal.Mapping
         private static string? GetAliasName(ExprTableAlias? alias)
             => alias?.Alias is ExprAlias exprAlias ? exprAlias.Name : null;
 
+        private static IReadOnlyDictionary<string, TableBase> BuildVisibleTableBindings(
+            string? defaultSchema,
+            IReadOnlyList<TableBase>? existingTables,
+            params IExprTableSource?[] sources)
+        {
+            var result = new Dictionary<string, TableBase>(StringComparer.OrdinalIgnoreCase);
+            if (existingTables == null || existingTables.Count < 1)
+            {
+                return result;
+            }
+
+            for (var i = 0; i < sources.Length; i++)
+            {
+                AppendVisibleTableBindings(sources[i], defaultSchema, existingTables, result);
+            }
+
+            return result;
+        }
+
+        private static IReadOnlyDictionary<string, TableBase> BuildVisibleTableBindings(
+            IExprTableSource? source,
+            string? defaultSchema,
+            IReadOnlyList<TableBase>? existingTables)
+            => BuildVisibleTableBindings(defaultSchema, existingTables, source);
+
+        private static void AppendVisibleTableBindings(
+            IExprTableSource? source,
+            string? defaultSchema,
+            IReadOnlyList<TableBase> existingTables,
+            IDictionary<string, TableBase> result)
+        {
+            if (source == null)
+            {
+                return;
+            }
+
+            switch (source)
+            {
+                case ExprTable table:
+                    if (TryFindExistingTable(table.FullName.AsExprTableFullName(), defaultSchema, existingTables, out var existingTable))
+                    {
+                        result[GetAliasName(table.Alias) ?? table.FullName.AsExprTableFullName().TableName.Name] = existingTable;
+                    }
+
+                    return;
+
+                case ExprJoinedTable join:
+                    AppendVisibleTableBindings(join.Left, defaultSchema, existingTables, result);
+                    AppendVisibleTableBindings(join.Right, defaultSchema, existingTables, result);
+                    return;
+
+                case ExprCrossedTable cross:
+                    AppendVisibleTableBindings(cross.Left, defaultSchema, existingTables, result);
+                    AppendVisibleTableBindings(cross.Right, defaultSchema, existingTables, result);
+                    return;
+
+                case ExprLateralCrossedTable lateral:
+                    AppendVisibleTableBindings(lateral.Left, defaultSchema, existingTables, result);
+                    AppendVisibleTableBindings(lateral.Right, defaultSchema, existingTables, result);
+                    return;
+
+                default:
+                    return;
+            }
+        }
+
+        private static bool TryFindExistingTable(
+            ExprTableFullName fullName,
+            string? defaultSchema,
+            IReadOnlyList<TableBase> existingTables,
+            [NotNullWhen(true)] out TableBase? table)
+        {
+            var schema = fullName.DbSchema?.Schema.Name ?? defaultSchema;
+            var database = fullName.DbSchema?.Database?.Name;
+            var tableName = fullName.TableName.Name;
+
+            table = existingTables.FirstOrDefault(t =>
+            {
+                var existingName = t.FullName.AsExprTableFullName();
+                var existingSchema = existingName.DbSchema?.Schema.Name ?? defaultSchema;
+                var existingDatabase = existingName.DbSchema?.Database?.Name;
+
+                return string.Equals(existingName.TableName.Name, tableName, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(existingSchema, schema, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(existingDatabase, database, StringComparison.OrdinalIgnoreCase);
+            });
+
+            return table != null;
+        }
+
         private static IEnumerable<string> GetVisibleTableReferences(IExprTableSource? source)
         {
             if (source == null)
@@ -1881,6 +2275,38 @@ namespace SqExpress.SqlParser.Internal.Mapping
             return Math.Min(first, second);
         }
 
+        private static bool HasTopLevelSetOperator(IReadOnlyList<SqlToken> tokens)
+            => FindFirstTopLevelKeyword(tokens, 0, "UNION") >= 0
+               || FindFirstTopLevelKeyword(tokens, 0, "INTERSECT") >= 0
+               || FindFirstTopLevelKeyword(tokens, 0, "EXCEPT") >= 0;
+
+        private static string TrimEnclosingQueryParentheses(string sql)
+        {
+            var currentSql = sql.Trim();
+
+            while (!string.IsNullOrWhiteSpace(currentSql))
+            {
+                var tokens = SqlLexer.Tokenize(currentSql)
+                    .Where(t => t.Type != SqlTokenType.EndOfFile && t.Type != SqlTokenType.Semicolon)
+                    .ToList();
+
+                if (tokens.Count < 2 || tokens[0].Type != SqlTokenType.OpenParen)
+                {
+                    return currentSql;
+                }
+
+                var closeParenIndex = FindMatchingCloseParen(tokens, 0);
+                if (closeParenIndex != tokens.Count - 1)
+                {
+                    return currentSql;
+                }
+
+                currentSql = SliceSqlByTokenRange(currentSql, tokens, 1, closeParenIndex);
+            }
+
+            return currentSql;
+        }
+
         private static string SliceSqlByTokenRange(string sql, IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)
         {
             if (startInclusive < 0 || endExclusive > tokens.Count || startInclusive >= endExclusive)
@@ -2023,14 +2449,23 @@ namespace SqExpress.SqlParser.Internal.Mapping
             return true;
         }
 
-        private static IReadOnlyList<ExprValue>? ParseFunctionArgs(IReadOnlyList<SqlToken> argTokens, MappingContext context)
+        private static IReadOnlyList<ExprValue>? ParseFunctionArgs(
+            IReadOnlyList<IReadOnlyList<SqlToken>>? argSegments,
+            MappingContext context,
+            string? functionName = null)
         {
-            if (argTokens.Count < 1)
+            if (argSegments == null || argSegments.Count < 1)
             {
                 return null;
             }
 
-            return SplitComma(argTokens).Select(segment =>
+            if (argSegments.Any(i => i.Count < 1))
+            {
+                throw new MapException("Value expression is not supported.");
+            }
+
+            var normalizedFunctionName = functionName?.ToUpperInvariant();
+            return argSegments.Select((segment, index) =>
             {
                 if (segment.Count == 1 && segment[0].Type == SqlTokenType.Operator && segment[0].Text == "*")
                 {
@@ -2042,12 +2477,19 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     return ParseValue(string.Join(" ", segment.Skip(1).Select(t => t.Text)), context);
                 }
 
+                if (index == 0 &&
+                    (string.Equals(normalizedFunctionName, "DATEADD", StringComparison.Ordinal) ||
+                     string.Equals(normalizedFunctionName, "DATEDIFF", StringComparison.Ordinal)))
+                {
+                    return new ExprStringLiteral(string.Join(" ", segment.Select(t => t.Text)));
+                }
+
                 return ParseValue(string.Join(" ", segment.Select(t => t.Text)), context);
             }).ToList();
         }
 
         private static IReadOnlyList<ExprValue>? ParseFunctionArgs(IReadOnlyList<SqlToken> argTokens)
-            => ParseFunctionArgs(argTokens, new MappingContext(null));
+            => ParseFunctionArgs(argTokens.Count == 0 ? null : SplitComma(argTokens), new MappingContext(null));
 
         private static IReadOnlyList<SqlToken> ExtractOverTokens(IReadOnlyList<SqlToken> tailTokens)
         {
@@ -2167,6 +2609,11 @@ namespace SqExpress.SqlParser.Internal.Mapping
 
             var prev = tokens[tokens.Count - 2];
             if (prev.Type == SqlTokenType.Dot)
+            {
+                return false;
+            }
+
+            if (prev.Type == SqlTokenType.Operator)
             {
                 return false;
             }
@@ -2554,7 +3001,7 @@ namespace SqExpress.SqlParser.Internal.Mapping
             }
         }
 
-        private static void ValidateGroupedSelectList(IReadOnlyList<IExprSelecting> selectList, IReadOnlyList<ExprColumn>? groupBy)
+        private static void ValidateGroupedSelectList(IReadOnlyList<IExprSelecting> selectList, IReadOnlyList<ExprValue>? groupBy)
         {
             var inspections = selectList.Select(GroupedSelectInspection.Inspect).ToList();
             if (!inspections.Any(i => i.ContainsPlainAggregate) && (groupBy == null || groupBy.Count < 1))
@@ -2570,6 +3017,24 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     throw new MapException("SELECT list contains wildcard that is not allowed in grouped or aggregate query.");
                 }
 
+                if (!inspection.ContainsPlainAggregate)
+                {
+                    if (TryGetSelectingExpression(selectList[i], out var selectingExpression))
+                    {
+                        if (!ExpressionRequiresGrouping(selectingExpression))
+                        {
+                            continue;
+                        }
+
+                        if (!IsGroupedExpression(selectingExpression, groupBy))
+                        {
+                            throw new MapException("SELECT list contains expression that is neither grouped nor aggregated: " + FormatValueExpression(selectingExpression) + ".");
+                        }
+                    }
+
+                    continue;
+                }
+
                 for (var j = 0; j < inspection.NonAggregatedColumns.Count; j++)
                 {
                     var column = inspection.NonAggregatedColumns[j];
@@ -2581,7 +3046,72 @@ namespace SqExpress.SqlParser.Internal.Mapping
             }
         }
 
-        private static bool IsGroupedColumn(ExprColumn column, IReadOnlyList<ExprColumn>? groupBy)
+        private static bool TryGetSelectingExpression(IExprSelecting selecting, [NotNullWhen(true)] out ExprValue? expression)
+        {
+            switch (selecting)
+            {
+                case ExprAliasedColumn aliasedColumn:
+                    expression = aliasedColumn.Column;
+                    return true;
+                case ExprAliasedSelecting aliasedSelecting when aliasedSelecting.Value is ExprValue value:
+                    expression = value;
+                    return true;
+                case ExprValue value:
+                    expression = value;
+                    return true;
+                default:
+                    expression = null;
+                    return false;
+            }
+        }
+
+        private static bool IsGroupedExpression(ExprValue expression, IReadOnlyList<ExprValue>? groupBy)
+        {
+            if (groupBy == null || groupBy.Count < 1)
+            {
+                return false;
+            }
+
+            var target = TSqlExporter.Default.ToSql(expression);
+            for (var i = 0; i < groupBy.Count; i++)
+            {
+                if (string.Equals(TSqlExporter.Default.ToSql(groupBy[i]), target, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return AreAllReferencedColumnsGrouped(expression, groupBy);
+        }
+
+        private static bool ExpressionRequiresGrouping(ExprValue expression)
+            => expression.SyntaxTree().DescendantsAndSelf().OfType<ExprColumn>().Any();
+
+        private static bool AreAllReferencedColumnsGrouped(ExprValue expression, IReadOnlyList<ExprValue>? groupBy)
+        {
+            if (groupBy == null || groupBy.Count < 1)
+            {
+                return false;
+            }
+
+            var columns = expression.SyntaxTree().DescendantsAndSelf().OfType<ExprColumn>().ToList();
+            if (columns.Count < 1)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < columns.Count; i++)
+            {
+                if (!IsGroupedColumn(columns[i], groupBy))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool IsGroupedColumn(ExprColumn column, IReadOnlyList<ExprValue>? groupBy)
         {
             if (groupBy == null || groupBy.Count < 1)
             {
@@ -2591,7 +3121,11 @@ namespace SqExpress.SqlParser.Internal.Mapping
             var columnSource = GetColumnSourceName(column);
             for (var i = 0; i < groupBy.Count; i++)
             {
-                var groupedColumn = groupBy[i];
+                if (groupBy[i] is not ExprColumn groupedColumn)
+                {
+                    continue;
+                }
+
                 if (!string.Equals(groupedColumn.ColumnName.Name, column.ColumnName.Name, StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
@@ -2625,6 +3159,9 @@ namespace SqExpress.SqlParser.Internal.Mapping
             var source = GetColumnSourceName(column);
             return source == null ? column.ColumnName.Name : source + "." + column.ColumnName.Name;
         }
+
+        private static string FormatValueExpression(ExprValue value)
+            => TSqlExporter.Default.ToSql(value);
 
         private static (ExprValue offset, ExprValue? fetch) ParseOffsetFetch(string sql, MappingContext context)
         {
@@ -2684,19 +3221,16 @@ namespace SqExpress.SqlParser.Internal.Mapping
             IReadOnlyList<SqlToken> argTokens,
             IReadOnlyList<ExprValue>? args)
         {
-            var distinct = false;
-            ExprValue argument;
-            if (args == null || args.Count < 1)
+            if (args == null || args.Count != 1)
             {
-                argument = new ExprInt32Literal(1);
+                throw new MapException("Function '" + functionName + "' has invalid arguments.");
             }
-            else
+
+            var distinct = false;
+            var argument = args[0];
+            if (argTokens.Count > 0 && argTokens[0].IsKeyword("DISTINCT"))
             {
-                argument = args[0];
-                if (argTokens.Count > 0 && argTokens[0].IsKeyword("DISTINCT"))
-                {
-                    distinct = true;
-                }
+                distinct = true;
             }
 
             return new ExprAggregateFunction(distinct, new ExprFunctionName(true, functionName), argument);
@@ -2804,14 +3338,20 @@ namespace SqExpress.SqlParser.Internal.Mapping
 
             private ExprBoolean ParsePredicate()
             {
+                if (this.IsEnd)
+                {
+                    throw new MapException("Predicate operator is expected.");
+                }
+
                 if (this.TryKeyword("EXISTS"))
                 {
                     var nested = this.ReadParenthesizedTokens();
                     return new ExprExists(ParseNestedSubQuery(string.Join(" ", nested.Select(i => i.Text)), this._context));
                 }
 
-                if (this.TryType(SqlTokenType.OpenParen))
+                if (this.Current.Type == SqlTokenType.OpenParen && this.ShouldParseParenthesizedBoolean())
                 {
+                    this._index++;
                     var nested = this.ReadBalancedInner();
                     return new ExprParser(string.Join(" ", nested.Select(i => i.Text)), this._context).ParseBoolean();
                 }
@@ -2827,7 +3367,25 @@ namespace SqExpress.SqlParser.Internal.Mapping
 
                 if (this.TryKeyword("LIKE"))
                 {
-                    return new ExprLike(left, this.ParseAddSub());
+                    var like = new ExprLike(left, this.ParseAddSub());
+                    if (this.TryKeyword("ESCAPE"))
+                    {
+                        _ = this.ParseAddSub();
+                    }
+
+                    return like;
+                }
+
+                if (this.PeekKeyword("NOT") && this.PeekKeyword("LIKE", 1))
+                {
+                    this._index += 2;
+                    var like = new ExprLike(left, this.ParseAddSub());
+                    if (this.TryKeyword("ESCAPE"))
+                    {
+                        _ = this.ParseAddSub();
+                    }
+
+                    return new ExprBooleanNot(like);
                 }
 
                 if (this.TryKeyword("IN"))
@@ -2840,6 +3398,36 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     }
 
                     return new ExprInValues(left, SplitComma(nested).Select(i => new ExprParser(string.Join(" ", i.Select(t => t.Text)), this._context).ParseValue()).ToList());
+                }
+
+                if (this.PeekKeyword("NOT") && this.PeekKeyword("IN", 1))
+                {
+                    this._index += 2;
+                    var nested = this.ReadParenthesizedTokens();
+                    var nestedSql = string.Join(" ", nested.Select(i => i.Text));
+                    if (nested.Any(i => i.IsKeyword("SELECT")))
+                    {
+                        return new ExprBooleanNot(new ExprInSubQuery(left, ParseNestedSubQuery(nestedSql, this._context)));
+                    }
+
+                    return new ExprBooleanNot(new ExprInValues(left, SplitComma(nested).Select(i => new ExprParser(string.Join(" ", i.Select(t => t.Text)), this._context).ParseValue()).ToList()));
+                }
+
+                if (this.TryKeyword("BETWEEN"))
+                {
+                    var lower = this.ParseAddSub();
+                    this.ExpectKeyword("AND", "Expected AND in BETWEEN predicate.");
+                    var upper = this.ParseAddSub();
+                    return new ExprBooleanAnd(new ExprBooleanGtEq(left, lower), new ExprBooleanLtEq(left, upper));
+                }
+
+                if (this.PeekKeyword("NOT") && this.PeekKeyword("BETWEEN", 1))
+                {
+                    this._index += 2;
+                    var lower = this.ParseAddSub();
+                    this.ExpectKeyword("AND", "Expected AND in BETWEEN predicate.");
+                    var upper = this.ParseAddSub();
+                    return new ExprBooleanNot(new ExprBooleanAnd(new ExprBooleanGtEq(left, lower), new ExprBooleanLtEq(left, upper)));
                 }
 
                 var op = this.TryReadComparison();
@@ -2979,12 +3567,29 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     if (this.TryType(SqlTokenType.OpenParen))
                     {
                         var argsTokens = this.ReadBalancedInner();
+                        if (argsTokens.Count > 0
+                            && (argsTokens[argsTokens.Count - 1].Type == SqlTokenType.Comma
+                                || HasEmptyTopLevelCommaSegment(argsTokens)))
+                        {
+                            throw new MapException("Value expression is not supported.");
+                        }
+
                         var argSegments = argsTokens.Count == 0
                             ? null
                             : SplitComma(argsTokens);
-                        var args = ParseFunctionArgs(argsTokens, this._context);
                         var functionName = parts[parts.Count - 1];
                         var upperName = functionName.ToUpperInvariant();
+                        if ((upperName == "CONVERT" || upperName == "TRY_CONVERT") && (argSegments == null || argSegments.Count < 2))
+                        {
+                            throw new MapException("Function '" + parts[0] + "' has invalid arguments.");
+                        }
+
+                        if (parts.Count == 1 && TryMapSpecialScalarFunction(parts[0], argSegments, this._context, out var special))
+                        {
+                            return special;
+                        }
+
+                        var args = ParseFunctionArgs(argSegments, this._context, functionName);
 
                         if (!this.IsEnd && this.Current.IsKeyword("OVER"))
                         {
@@ -3013,10 +3618,20 @@ namespace SqExpress.SqlParser.Internal.Mapping
                                 return known;
                             }
 
+                            if (IsKnownScalarFunctionName(parts[0]))
+                            {
+                                throw new MapException("Function '" + parts[0] + "' has invalid arguments.");
+                            }
+
 	                            if (TryMapPortableScalarFunction(parts[0], args, out var portable))
 	                            {
 	                                return portable;
 	                            }
+
+                            if (IsPortableScalarFunctionName(parts[0]))
+                            {
+                                throw new MapException("Function '" + parts[0] + "' has invalid arguments.");
+                            }
 
 	                            return new ExprScalarFunction(null, new ExprFunctionName(true, parts[0]), args);
 	                        }
@@ -3034,8 +3649,28 @@ namespace SqExpress.SqlParser.Internal.Mapping
 
                     if (parts.Count == 1)
                     {
+                        if (TryMapKnownScalarFunction(parts[0], argSegments: null, args: null, out var knownWithoutParens))
+                        {
+                            return knownWithoutParens;
+                        }
+
                         if (this._context.VisibleTableReferenceCount > 1)
                         {
+                            if (this._context.TryResolveUnqualifiedColumnInVisibleTables(parts[0], out var resolvedTableReference))
+                            {
+                                return new ExprColumn(new ExprTableAlias(new ExprAlias(resolvedTableReference)), new ExprColumnName(parts[0]));
+                            }
+
+                            if (this._context.CurrentScopeVisibleTableReferenceCount == 1)
+                            {
+                                return new ExprColumn(null, new ExprColumnName(parts[0]));
+                            }
+
+                            if (this._context.TryGetSingleNonCteCurrentScopeReference(out var defaultTableReference))
+                            {
+                                return new ExprColumn(new ExprTableAlias(new ExprAlias(defaultTableReference)), new ExprColumnName(parts[0]));
+                            }
+
                             throw new MapException("Unqualified column reference is ambiguous in multi-table scope: " + parts[0] + ".");
                         }
 
@@ -3440,6 +4075,85 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 }
             }
 
+            private static bool IsKnownScalarFunctionName(string name)
+            {
+                switch (name.ToUpperInvariant())
+                {
+                    case "GETDATE":
+                    case "SYSDATETIME":
+                    case "CURRENT_TIMESTAMP":
+                    case "GETUTCDATE":
+                    case "SYSUTCDATETIME":
+                    case "GETUTCNOW":
+                    case "DATEADD":
+                    case "DATEDIFF":
+                    case "ISNULL":
+                    case "COALESCE":
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+
+            private bool ShouldParseParenthesizedBoolean()
+            {
+                var closeIndex = FindMatchingCloseParen(this._tokens, this._index);
+                if (closeIndex < 0)
+                {
+                    return true;
+                }
+
+                if (closeIndex == this._tokens.Count - 1)
+                {
+                    return true;
+                }
+
+                var next = this._tokens[closeIndex + 1];
+                return next.IsKeyword("AND")
+                       || next.IsKeyword("OR")
+                       || next.Type == SqlTokenType.CloseParen;
+            }
+
+            private static bool TryMapSpecialScalarFunction(
+                string name,
+                IReadOnlyList<IReadOnlyList<SqlToken>>? argSegments,
+                MappingContext context,
+                [NotNullWhen(true)] out ExprValue? result)
+            {
+                result = null;
+                if (argSegments == null)
+                {
+                    return false;
+                }
+
+                switch (name.ToUpperInvariant())
+                {
+                    case "IIF":
+                        return TryMapIif(argSegments, context, out result);
+
+                    default:
+                        return false;
+                }
+            }
+
+            private static bool TryMapIif(
+                IReadOnlyList<IReadOnlyList<SqlToken>> argSegments,
+                MappingContext context,
+                [NotNullWhen(true)] out ExprValue? result)
+            {
+                result = null;
+                if (argSegments.Count != 3)
+                {
+                    return false;
+                }
+
+                var condition = new ExprParser(string.Join(" ", argSegments[0].Select(i => i.Text)), context).ParseBoolean();
+                var whenTrue = new ExprParser(string.Join(" ", argSegments[1].Select(i => i.Text)), context).ParseValue();
+                var whenFalse = new ExprParser(string.Join(" ", argSegments[2].Select(i => i.Text)), context).ParseValue();
+                result = new ExprCase(new[] { new ExprCaseWhenThen(condition, whenTrue) }, whenFalse);
+                return true;
+            }
+
             private static bool TryMapDateAdd(
                 IReadOnlyList<IReadOnlyList<SqlToken>>? argSegments,
                 IReadOnlyList<ExprValue>? args,
@@ -3810,6 +4524,44 @@ namespace SqExpress.SqlParser.Internal.Mapping
 	                }
 	            }
 
+            private static bool IsPortableScalarFunctionName(string name)
+            {
+                switch (name.ToUpperInvariant())
+                {
+                    case "NULLIF":
+                    case "ABS":
+                    case "LOWER":
+                    case "UPPER":
+                    case "TRIM":
+                    case "LTRIM":
+                    case "RTRIM":
+                    case "REPLACE":
+                    case "SUBSTRING":
+                    case "ROUND":
+                    case "FLOOR":
+                    case "CEILING":
+                    case "LEN":
+                    case "CHAR_LENGTH":
+                    case "DATALENGTH":
+                    case "OCTET_LENGTH":
+                    case "YEAR":
+                    case "MONTH":
+                    case "DAY":
+                    case "HOUR":
+                    case "MINUTE":
+                    case "SECOND":
+                    case "LEFT":
+                    case "RIGHT":
+                    case "REPLICATE":
+                    case "CHARINDEX":
+                    case "STRPOS":
+                        return true;
+
+                    default:
+                        return false;
+                }
+            }
+
             private string NextIdentifier()
             {
                 if (!this.Current.IsIdentifierLike)
@@ -4021,6 +4773,12 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 }
 
                 return false;
+            }
+
+            private bool PeekKeyword(string keyword, int offset = 0)
+            {
+                var index = this._index + offset;
+                return index < this._tokens.Count && this._tokens[index].IsKeyword(keyword);
             }
 
             private void ExpectKeyword(string keyword, string error)

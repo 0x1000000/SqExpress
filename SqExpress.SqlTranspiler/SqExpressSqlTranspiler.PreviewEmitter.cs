@@ -1385,7 +1385,7 @@ namespace SqExpress.SqlTranspiler
 
                 if (query.GroupBy != null && query.GroupBy.Count > 0)
                 {
-                    builder = AppendInvocation(builder, MGroupBy, query.GroupBy.Select(i => this.RenderColumn(i, context)).ToArray());
+                    builder = AppendInvocation(builder, MGroupBy, query.GroupBy.Select(i => this.RenderValue(i, context)).ToArray());
                 }
 
                 return ToRenderedCode(builder);

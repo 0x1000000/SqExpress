@@ -112,6 +112,11 @@ namespace SqExpress.Test
         {
             throw new NotImplementedException();
         }
+
+        Task<IReadOnlyList<SqTable>> ISqDatabase.GetTables(bool skipUnknownColumnTypes, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
     }
 
 

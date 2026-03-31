@@ -24,7 +24,7 @@ namespace SqExpress.Syntax.Select
 
         public IReadOnlyList<IExprSelecting> ExtractSelecting() => this.Left.ExtractSelecting();
 
-        IExprSubQuery ISelectingSource.CreateSubQuery() => this;
+        IExprSubQuery ISubQuerySource.CreateSubQuery() => this;
     }
 
     public enum ExprQueryExpressionType

@@ -61,7 +61,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers.PgSql
             return new DbRawModels(cols, indexes, fks);
         }
 
-        public override ColumnType GetColType(ColumnRawModel raw)
+        public override ColumnType? TryGetColType(ColumnRawModel raw)
         {
             var type = raw.TypeName.ToLowerInvariant();
             switch (type)
@@ -139,9 +139,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers.PgSql
                 case "xml":
                     return new XmlColumnType(isNullable: raw.Nullable);
                 default:
-                    throw new SqExpressException(
-                        $"Not supported column type \"{raw.TypeName}\" for {raw.DbName.Schema}.{raw.DbName.TableName}.{raw.DbName.Name}"
-                    );
+                    return null;
             }
 
             int? CheckSize(int? size)

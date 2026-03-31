@@ -46,13 +46,20 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 return false;
             }
 
+            if (ContainsMalformedQuantifiedPredicate(tokens, out var malformedQuantifiedError))
+            {
+                statement = null;
+                errors = new[] { malformedQuantifiedError };
+                return false;
+            }
+
             var cursor = new TokenCursor(tokens, rawSql);
             var withClause = ParseWithClause(cursor);
-            var kind = DetermineStatementKind(cursor.Current);
+            var kind = DetermineStatementKind(cursor.Tokens, cursor.Index);
 
             var topLevelSelect = ParseTopLevelSelectIfAny(rawSql, tokens, cursor.Index, kind);
 
-            if (TryDetectBasicSyntaxError(tokens, cursor.Index, kind, topLevelSelect, out var syntaxError))
+            if (TryDetectBasicSyntaxError(rawSql, tokens, cursor.Index, kind, topLevelSelect, out var syntaxError))
             {
                 statement = null;
                 errors = new[] { syntaxError };
@@ -142,11 +149,106 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 return true;
             }
 
+            if (ContainsUnsupportedQuantifiedPredicate(tokens))
+            {
+                error = "Feature 'ANY/SOME/ALL predicates' is not supported by SqExpress parser.";
+                return true;
+            }
+
+            error = null;
+            return false;
+        }
+
+        private static bool ContainsUnsupportedQuantifiedPredicate(IReadOnlyList<SqlToken> tokens)
+        {
+            for (var i = 0; i < tokens.Count - 1; i++)
+            {
+                if ((tokens[i].IsKeyword("ANY") || tokens[i].IsKeyword("SOME") || tokens[i].IsKeyword("ALL"))
+                    && tokens[i + 1].Type == SqlTokenType.OpenParen
+                    && IsQuantifiedPredicateLead(tokens, i))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsQuantifiedPredicateLead(IReadOnlyList<SqlToken> tokens, int keywordIndex)
+        {
+            for (var i = keywordIndex - 1; i >= 0; i--)
+            {
+                var token = tokens[i];
+                if (token.Type == SqlTokenType.Comma
+                    || token.Type == SqlTokenType.OpenParen
+                    || token.IsKeyword("UNION")
+                    || token.IsKeyword("INTERSECT")
+                    || token.IsKeyword("EXCEPT")
+                    || token.IsKeyword("SELECT")
+                    || token.IsKeyword("FROM")
+                    || token.IsKeyword("WHERE")
+                    || token.IsKeyword("ON"))
+                {
+                    return false;
+                }
+
+                if (token.Type == SqlTokenType.CloseParen)
+                {
+                    return true;
+                }
+
+                if (token.Type == SqlTokenType.NumberLiteral
+                    || token.Type == SqlTokenType.StringLiteral
+                    || token.IsIdentifierLike)
+                {
+                    return true;
+                }
+
+                if (token.Type == SqlTokenType.Operator)
+                {
+                    return token.Text == "="
+                           || token.Text == "!"
+                           || token.Text == "<"
+                           || token.Text == ">"
+                           || token.Text == "<="
+                           || token.Text == ">="
+                           || token.Text == "<>"
+                           || token.Text == "!=";
+                }
+            }
+
+            return false;
+        }
+
+        private static bool ContainsMalformedQuantifiedPredicate(IReadOnlyList<SqlToken> tokens, [NotNullWhen(true)] out string? error)
+        {
+            for (var i = 1; i < tokens.Count; i++)
+            {
+                if (!tokens[i].IsKeyword("ANY") && !tokens[i].IsKeyword("SOME") && !tokens[i].IsKeyword("ALL"))
+                {
+                    continue;
+                }
+
+                if (tokens[i - 1].Type != SqlTokenType.Operator)
+                {
+                    continue;
+                }
+
+                if (i + 1 < tokens.Count && tokens[i + 1].Type == SqlTokenType.OpenParen)
+                {
+                    continue;
+                }
+
+                error = $"Syntax error: incorrect syntax near '{tokens[i].Text}'.";
+                return true;
+            }
+
             error = null;
             return false;
         }
 
         private static bool TryDetectBasicSyntaxError(
+            string sql,
             IReadOnlyList<SqlToken> tokens,
             int statementStartIndex,
             SqlDomStatementKind kind,
@@ -155,6 +257,12 @@ namespace SqExpress.SqlParser.Internal.Parsing
         {
             if (kind == SqlDomStatementKind.Unknown)
             {
+                if (statementStartIndex < tokens.Count && tokens[statementStartIndex].IsKeyword("AS"))
+                {
+                    error = "Syntax error: incorrect syntax near 'AS'.";
+                    return true;
+                }
+
                 error = "Unsupported or invalid statement start.";
                 return true;
             }
@@ -162,17 +270,6 @@ namespace SqExpress.SqlParser.Internal.Parsing
             if (HasUnbalancedParentheses(tokens))
             {
                 error = "Syntax error: unbalanced parentheses.";
-                return true;
-            }
-
-            if (TryDetectSelectClauseError(topLevelSelect, out error))
-            {
-                return true;
-            }
-
-            if (HasDanglingTailToken(tokens))
-            {
-                error = "Syntax error: unexpected end of statement.";
                 return true;
             }
 
@@ -188,7 +285,24 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 return true;
             }
 
-            if (kind == SqlDomStatementKind.Select && IsSelectProjectionMissing(tokens, statementStartIndex))
+            if (kind == SqlDomStatementKind.Select && HasUnexpectedOnWithoutJoin(tokens, statementStartIndex))
+            {
+                error = "Syntax error: ON clause is invalid.";
+                return true;
+            }
+
+            if (TryDetectSelectClauseError(topLevelSelect, out error))
+            {
+                return true;
+            }
+
+            if (HasDanglingTailToken(tokens))
+            {
+                error = "Syntax error: unexpected end of statement.";
+                return true;
+            }
+
+            if (kind == SqlDomStatementKind.Select && topLevelSelect != null && IsSelectProjectionMissing(tokens, statementStartIndex))
             {
                 error = "Syntax error: SELECT list is missing.";
                 return true;
@@ -197,6 +311,26 @@ namespace SqExpress.SqlParser.Internal.Parsing
             if (HasEmptyInPredicate(tokens))
             {
                 error = "Syntax error: IN predicate list cannot be empty.";
+                return true;
+            }
+
+            if (TryDetectInvalidInPredicateList(tokens, out error))
+            {
+                return true;
+            }
+
+            if (TryDetectInvalidNestedQueryOperand(sql, tokens, out error))
+            {
+                return true;
+            }
+
+            if (TryDetectOrderWithoutBy(tokens, out error))
+            {
+                return true;
+            }
+
+            if (TryDetectEmptyQuantifiedOrExistsPredicate(tokens, out error))
+            {
                 return true;
             }
 
@@ -211,9 +345,29 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 return true;
             }
 
+            if (kind == SqlDomStatementKind.Insert && TryDetectInvalidInsertColumnsClause(tokens, statementStartIndex, out error))
+            {
+                return true;
+            }
+
+            if (kind == SqlDomStatementKind.Insert && TryDetectInvalidInsertTargetClause(tokens, statementStartIndex, out error))
+            {
+                return true;
+            }
+
+            if (kind == SqlDomStatementKind.Insert && TryDetectInvalidInsertValuesClause(tokens, statementStartIndex, out error))
+            {
+                return true;
+            }
+
             if (kind == SqlDomStatementKind.Delete && !HasDeleteTarget(tokens, statementStartIndex))
             {
                 error = "Syntax error: DELETE statement must contain target.";
+                return true;
+            }
+
+            if (kind == SqlDomStatementKind.Delete && TryDetectInvalidDeleteTargetSyntax(tokens, statementStartIndex, out error))
+            {
                 return true;
             }
 
@@ -241,8 +395,27 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 return true;
             }
 
+            if (selectClause.HasHavingClause)
+            {
+                error = "Syntax error: incorrect syntax near 'HAVING'.";
+                return true;
+            }
+
             if (TryDetectInvalidWildcardProjectionAlias(selectClause.Items, out error))
             {
+                return true;
+            }
+
+            if (TryDetectInvalidProjectionAlias(selectClause.Items, out error))
+            {
+                return true;
+            }
+
+            if (!selectClause.HasValidSelectListSyntax)
+            {
+                error = selectClause.Items.Count == 0
+                    ? "Syntax error: SELECT list is missing."
+                    : "Syntax error: SELECT list is invalid.";
                 return true;
             }
 
@@ -294,6 +467,24 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 if (IsWildcardProjectionAlias(item.Sql, item.Alias!))
                 {
                     error = $"Syntax error: incorrect syntax near '{item.Alias}'.";
+                    return true;
+                }
+            }
+
+            error = null;
+            return false;
+        }
+
+        private static bool TryDetectInvalidProjectionAlias(
+            IReadOnlyList<SqlDomSelectItem> items,
+            [NotNullWhen(true)] out string? error)
+        {
+            for (var i = 0; i < items.Count; i++)
+            {
+                var item = items[i];
+                if (item.Alias != null && string.IsNullOrWhiteSpace(item.Alias))
+                {
+                    error = "Syntax error: SELECT list is invalid.";
                     return true;
                 }
             }
@@ -464,6 +655,12 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 return true;
             }
 
+            if (HasInvalidUpdateSetAssignment(tokens, setIndex + 1, end))
+            {
+                error = "Syntax error: UPDATE SET clause is invalid.";
+                return true;
+            }
+
             error = null;
             return false;
         }
@@ -525,6 +722,506 @@ namespace SqExpress.SqlParser.Internal.Parsing
                    && !tokens[cursor].IsKeyword("WHERE")
                    && !tokens[cursor].IsKeyword("OUTPUT")
                    && !tokens[cursor].IsKeyword("FROM");
+        }
+
+        private static bool TryDetectInvalidDeleteTargetSyntax(
+            IReadOnlyList<SqlToken> tokens,
+            int statementStartIndex,
+            [NotNullWhen(true)] out string? error)
+        {
+            error = null;
+            var cursor = statementStartIndex + 1;
+            if (cursor < tokens.Count && tokens[cursor].IsKeyword("TOP"))
+            {
+                cursor++;
+                if (cursor < tokens.Count && tokens[cursor].Type == SqlTokenType.OpenParen)
+                {
+                    var close = FindMatchingCloseParen(tokens, cursor);
+                    if (close < 0)
+                    {
+                        return false;
+                    }
+
+                    cursor = close + 1;
+                }
+                else if (cursor < tokens.Count)
+                {
+                    cursor++;
+                }
+
+                if (cursor < tokens.Count && tokens[cursor].IsKeyword("PERCENT"))
+                {
+                    cursor++;
+                }
+            }
+
+            if (cursor < tokens.Count && tokens[cursor].IsKeyword("AS"))
+            {
+                error = "Syntax error: DELETE target is invalid.";
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryDetectInvalidInsertColumnsClause(
+            IReadOnlyList<SqlToken> tokens,
+            int statementStartIndex,
+            [NotNullWhen(true)] out string? error)
+        {
+            error = null;
+
+            var intoIndex = FindTopLevelKeywordIndex(tokens, statementStartIndex + 1, "INTO");
+            if (intoIndex < 0)
+            {
+                return false;
+            }
+
+            var boundary = FindFirstTopLevel(tokens, intoIndex + 1, new[] { "OUTPUT", "VALUES", "SELECT", "DEFAULT" });
+            if (boundary < 0)
+            {
+                boundary = FindStatementEnd(tokens, intoIndex + 1);
+            }
+
+            var openParen = -1;
+            var depth = 0;
+            for (var i = intoIndex + 1; i < boundary; i++)
+            {
+                if (tokens[i].Type == SqlTokenType.OpenParen)
+                {
+                    if (depth == 0)
+                    {
+                        openParen = i;
+                        break;
+                    }
+
+                    depth++;
+                }
+                else if (tokens[i].Type == SqlTokenType.CloseParen && depth > 0)
+                {
+                    depth--;
+                }
+            }
+
+            if (openParen < 0)
+            {
+                return false;
+            }
+
+            var closeParen = FindMatchingCloseParen(tokens, openParen);
+            if (closeParen < 0 || closeParen >= boundary || !IsValidTopLevelCommaSeparatedClause(tokens, openParen + 1, closeParen))
+            {
+                error = "Syntax error: INSERT column list is invalid.";
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryDetectEmptyQuantifiedOrExistsPredicate(
+            IReadOnlyList<SqlToken> tokens,
+            [NotNullWhen(true)] out string? error)
+        {
+            for (var i = 0; i < tokens.Count - 2; i++)
+            {
+                if (tokens[i].Type != SqlTokenType.Identifier)
+                {
+                    continue;
+                }
+
+                if (tokens[i + 1].Type != SqlTokenType.OpenParen
+                    || tokens[i + 2].Type != SqlTokenType.CloseParen)
+                {
+                    continue;
+                }
+
+                if (tokens[i].IsKeyword("EXISTS"))
+                {
+                    error = "Syntax error: EXISTS predicate cannot be empty.";
+                    return true;
+                }
+
+                if (tokens[i].IsKeyword("ANY") || tokens[i].IsKeyword("SOME") || tokens[i].IsKeyword("ALL"))
+                {
+                    error = "Syntax error: quantified predicate operand cannot be empty.";
+                    return true;
+                }
+            }
+
+            error = null;
+            return false;
+        }
+
+        private static bool TryDetectInvalidInsertTargetClause(
+            IReadOnlyList<SqlToken> tokens,
+            int statementStartIndex,
+            [NotNullWhen(true)] out string? error)
+        {
+            error = null;
+
+            var intoIndex = FindTopLevelKeywordIndex(tokens, statementStartIndex + 1, "INTO");
+            if (intoIndex < 0)
+            {
+                return false;
+            }
+
+            var boundary = FindFirstTopLevel(tokens, intoIndex + 1, new[] { "OUTPUT", "VALUES", "SELECT", "DEFAULT" });
+            if (boundary < 0)
+            {
+                boundary = FindStatementEnd(tokens, intoIndex + 1);
+            }
+
+            var openParen = -1;
+            for (var i = intoIndex + 1; i < boundary; i++)
+            {
+                if (tokens[i].Type == SqlTokenType.OpenParen)
+                {
+                    openParen = i;
+                    break;
+                }
+            }
+
+            var targetEnd = openParen >= 0 ? openParen : boundary;
+            if (!IsValidMultipartIdentifier(tokens, intoIndex + 1, targetEnd))
+            {
+                error = "Syntax error: INSERT target is invalid.";
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryDetectInvalidInsertValuesClause(
+            IReadOnlyList<SqlToken> tokens,
+            int statementStartIndex,
+            [NotNullWhen(true)] out string? error)
+        {
+            error = null;
+
+            var valuesIndex = FindTopLevelKeywordIndex(tokens, statementStartIndex + 1, "VALUES");
+            if (valuesIndex < 0)
+            {
+                return false;
+            }
+
+            var end = FindStatementEnd(tokens, valuesIndex + 1);
+            var index = valuesIndex + 1;
+
+            while (index < end)
+            {
+                while (index < end && tokens[index].Type == SqlTokenType.Comma)
+                {
+                    index++;
+                }
+
+                if (index >= end)
+                {
+                    break;
+                }
+
+                if (tokens[index].Type != SqlTokenType.OpenParen)
+                {
+                    return false;
+                }
+
+                var closeParen = FindMatchingCloseParen(tokens, index);
+                if (closeParen < 0 || closeParen >= end || !IsValidTopLevelCommaSeparatedClause(tokens, index + 1, closeParen))
+                {
+                    error = "Syntax error: INSERT VALUES clause is invalid.";
+                    return true;
+                }
+
+                index = closeParen + 1;
+                if (index < end && tokens[index].Type == SqlTokenType.Comma)
+                {
+                    index++;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool TryDetectInvalidInPredicateList(
+            IReadOnlyList<SqlToken> tokens,
+            [NotNullWhen(true)] out string? error)
+        {
+            for (var i = 0; i < tokens.Count - 2; i++)
+            {
+                if (!tokens[i].IsKeyword("IN") || tokens[i + 1].Type != SqlTokenType.OpenParen)
+                {
+                    continue;
+                }
+
+                var closeParen = FindMatchingCloseParen(tokens, i + 1);
+                if (closeParen < 0)
+                {
+                    continue;
+                }
+
+                if (closeParen == i + 2)
+                {
+                    continue;
+                }
+
+                var firstContentIndex = i + 2;
+                if (tokens[firstContentIndex].IsKeyword("SELECT") || tokens[firstContentIndex].IsKeyword("WITH"))
+                {
+                    continue;
+                }
+
+                if (!IsValidTopLevelCommaSeparatedClause(tokens, firstContentIndex, closeParen))
+                {
+                    error = "Syntax error: IN predicate list is invalid.";
+                    return true;
+                }
+            }
+
+            error = null;
+            return false;
+        }
+
+        private static bool TryDetectInvalidNestedQueryOperand(
+            string sql,
+            IReadOnlyList<SqlToken> tokens,
+            [NotNullWhen(true)] out string? error)
+        {
+            for (var i = 0; i < tokens.Count - 1; i++)
+            {
+                if (IsKeyword(tokens, i, "CROSS") && IsKeyword(tokens, i + 1, "APPLY"))
+                {
+                    if (TryDetectInvalidParenthesizedQuery(sql, tokens, i + 2, requireQuery: false, "Syntax error: FROM clause is invalid.", out error))
+                    {
+                        return true;
+                    }
+
+                    continue;
+                }
+
+                if (IsKeyword(tokens, i, "OUTER") && IsKeyword(tokens, i + 1, "APPLY"))
+                {
+                    if (TryDetectInvalidParenthesizedQuery(sql, tokens, i + 2, requireQuery: false, "Syntax error: FROM clause is invalid.", out error))
+                    {
+                        return true;
+                    }
+
+                    continue;
+                }
+
+                if (tokens[i].IsKeyword("ANY") || tokens[i].IsKeyword("SOME") || tokens[i].IsKeyword("ALL"))
+                {
+                    if (TryDetectInvalidParenthesizedQuery(sql, tokens, i + 1, requireQuery: true, "Syntax error: quantified predicate operand is invalid.", out error))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            error = null;
+            return false;
+        }
+
+        private static bool TryDetectInvalidParenthesizedQuery(
+            string sql,
+            IReadOnlyList<SqlToken> tokens,
+            int openParenIndex,
+            bool requireQuery,
+            string errorMessage,
+            [NotNullWhen(true)] out string? error)
+        {
+            error = null;
+            if (openParenIndex >= tokens.Count || tokens[openParenIndex].Type != SqlTokenType.OpenParen)
+            {
+                return false;
+            }
+
+            var closeParen = FindMatchingCloseParen(tokens, openParenIndex);
+            if (closeParen < 0)
+            {
+                return false;
+            }
+
+            var innerSql = sql.Substring(tokens[openParenIndex].End, tokens[closeParen].Start - tokens[openParenIndex].End).Trim();
+            if (!TryClassifyNestedQuerySql(innerSql, requireQuery, out var isInvalid))
+            {
+                return false;
+            }
+
+            if (isInvalid)
+            {
+                error = errorMessage;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryClassifyNestedQuerySql(string innerSql, bool requireQuery, out bool isInvalid)
+        {
+            isInvalid = false;
+            if (string.IsNullOrWhiteSpace(innerSql))
+            {
+                return false;
+            }
+
+            var innerTokens = GetMeaningfulTokens(innerSql);
+            if (innerTokens.Count == 0)
+            {
+                return false;
+            }
+
+            if (innerTokens[0].IsKeyword("SELECT") || innerTokens[0].IsKeyword("WITH"))
+            {
+                isInvalid = !TryParseSingleStatement(innerSql, out _, out _);
+                return true;
+            }
+
+            if (innerTokens[0].IsKeyword("VALUES"))
+            {
+                isInvalid = !IsValidValuesTableSourceSql(innerSql);
+                return true;
+            }
+
+            if (requireQuery)
+            {
+                isInvalid = true;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool IsValidValuesTableSourceSql(string sql)
+        {
+            var tokens = GetMeaningfulTokens(sql);
+            if (tokens.Count < 2 || !tokens[0].IsKeyword("VALUES"))
+            {
+                return false;
+            }
+
+            var end = FindStatementEnd(tokens, 1);
+            var index = 1;
+            var sawRow = false;
+            while (index < end)
+            {
+                if (tokens[index].Type != SqlTokenType.OpenParen)
+                {
+                    return false;
+                }
+
+                var closeParen = FindMatchingCloseParen(tokens, index);
+                if (closeParen < 0 || closeParen >= end || !IsValidTopLevelCommaSeparatedClause(tokens, index + 1, closeParen))
+                {
+                    return false;
+                }
+
+                sawRow = true;
+                index = closeParen + 1;
+                if (index >= end)
+                {
+                    break;
+                }
+
+                if (tokens[index].Type != SqlTokenType.Comma)
+                {
+                    return false;
+                }
+
+                index++;
+                if (index >= end)
+                {
+                    return false;
+                }
+            }
+
+            return sawRow;
+        }
+
+        private static bool HasInvalidUpdateSetAssignment(IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)
+        {
+            var segmentStart = startInclusive;
+            var depth = 0;
+            for (var i = startInclusive; i <= endExclusive; i++)
+            {
+                var isBoundary = i == endExclusive;
+                if (!isBoundary)
+                {
+                    if (tokens[i].Type == SqlTokenType.OpenParen)
+                    {
+                        depth++;
+                    }
+                    else if (tokens[i].Type == SqlTokenType.CloseParen && depth > 0)
+                    {
+                        depth--;
+                    }
+
+                    if (!(depth == 0 && tokens[i].Type == SqlTokenType.Comma))
+                    {
+                        continue;
+                    }
+                }
+
+                if (segmentStart >= i || !IsValidUpdateSetAssignment(tokens, segmentStart, i))
+                {
+                    return true;
+                }
+
+                segmentStart = i + 1;
+            }
+
+            return false;
+        }
+
+        private static bool IsValidUpdateSetAssignment(IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)
+        {
+            var equalsIndex = FindTopLevelEquals(tokens, startInclusive, endExclusive);
+            if (equalsIndex <= startInclusive || equalsIndex >= endExclusive - 1)
+            {
+                return false;
+            }
+
+            return IsValidMultipartIdentifier(tokens, startInclusive, equalsIndex);
+        }
+
+        private static int FindTopLevelEquals(IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)
+        {
+            var depth = 0;
+            for (var i = startInclusive; i < endExclusive; i++)
+            {
+                if (tokens[i].Type == SqlTokenType.OpenParen)
+                {
+                    depth++;
+                    continue;
+                }
+
+                if (tokens[i].Type == SqlTokenType.CloseParen)
+                {
+                    if (depth > 0)
+                    {
+                        depth--;
+                    }
+
+                    continue;
+                }
+
+                if (depth == 0 && tokens[i].Type == SqlTokenType.Operator && tokens[i].Text == "=")
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private static bool IsValidMultipartIdentifier(IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)
+        {
+            if (endExclusive <= startInclusive)
+            {
+                return false;
+            }
+
+            var index = startInclusive;
+            var nameParts = ParseMultipartIdentifier(tokens, ref index, endExclusive);
+            return nameParts.Count >= 1 && index == endExclusive;
         }
 
         private static bool IsValidTopLevelCommaSeparatedClause(string? sql)
@@ -883,6 +1580,92 @@ namespace SqExpress.SqlParser.Internal.Parsing
             return false;
         }
 
+        private static bool TryDetectOrderWithoutBy(IReadOnlyList<SqlToken> tokens, [NotNullWhen(true)] out string? error)
+        {
+            for (var i = 0; i < tokens.Count; i++)
+            {
+                if (!tokens[i].IsKeyword("ORDER"))
+                {
+                    continue;
+                }
+
+                if (i + 1 < tokens.Count && tokens[i + 1].IsKeyword("BY"))
+                {
+                    continue;
+                }
+
+                error = i + 1 < tokens.Count
+                    ? "Syntax error: incorrect syntax near '" + tokens[i + 1].Text + "'."
+                    : "Syntax error: ORDER BY clause is invalid.";
+                return true;
+            }
+
+            error = null;
+            return false;
+        }
+
+        private static bool HasUnexpectedOnWithoutJoin(IReadOnlyList<SqlToken> tokens, int statementStartIndex)
+        {
+            var fromIndex = FindTopLevelKeywordIndex(tokens, statementStartIndex + 1, "FROM");
+            if (fromIndex < 0)
+            {
+                return false;
+            }
+
+            var boundary = FindFirstTopLevel(tokens, fromIndex + 1, new[] { "WHERE", "GROUP", "HAVING", "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT" });
+            if (boundary < 0)
+            {
+                boundary = FindStatementEnd(tokens, fromIndex + 1);
+            }
+
+            var depth = 0;
+            var pendingJoinCondition = false;
+            for (var i = fromIndex + 1; i < boundary; i++)
+            {
+                if (tokens[i].Type == SqlTokenType.OpenParen)
+                {
+                    depth++;
+                    continue;
+                }
+
+                if (tokens[i].Type == SqlTokenType.CloseParen)
+                {
+                    if (depth > 0)
+                    {
+                        depth--;
+                    }
+
+                    continue;
+                }
+
+                if (depth != 0)
+                {
+                    continue;
+                }
+
+                if (IsJoinLead(tokens, i))
+                {
+                    pendingJoinCondition = !(
+                        (IsKeyword(tokens, i, "CROSS") && i + 1 < boundary && IsKeyword(tokens, i + 1, "JOIN"))
+                        || (IsKeyword(tokens, i, "CROSS") && i + 1 < boundary && IsKeyword(tokens, i + 1, "APPLY"))
+                        || (IsKeyword(tokens, i, "OUTER") && i + 1 < boundary && IsKeyword(tokens, i + 1, "APPLY")));
+                    continue;
+                }
+
+                if (tokens[i].IsKeyword("ON"))
+                {
+                    if (!pendingJoinCondition)
+                    {
+                        return true;
+                    }
+
+                    pendingJoinCondition = false;
+                }
+            }
+
+            return false;
+        }
+
         private static bool IsSelectProjectionMissing(IReadOnlyList<SqlToken> tokens, int startIndex)
         {
             var index = startIndex + 1;
@@ -892,6 +1675,11 @@ namespace SqExpress.SqlParser.Internal.Parsing
             }
 
             if (tokens[index].IsKeyword("DISTINCT"))
+            {
+                index++;
+            }
+
+            if (index < tokens.Count && tokens[index].IsKeyword("ALL"))
             {
                 index++;
             }
@@ -912,6 +1700,11 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 else if (index < tokens.Count)
                 {
                     index++;
+                }
+
+                if (index < tokens.Count && tokens[index].IsKeyword("WITH") && IsKeyword(tokens, index + 1, "TIES"))
+                {
+                    index += 2;
                 }
             }
 
@@ -1087,8 +1880,14 @@ namespace SqExpress.SqlParser.Internal.Parsing
             return false;
         }
 
-        private static SqlDomStatementKind DetermineStatementKind(SqlToken token)
+        private static SqlDomStatementKind DetermineStatementKind(IReadOnlyList<SqlToken> tokens, int startIndex)
         {
+            if (IsSelectStatementStart(tokens, startIndex, FindStatementEnd(tokens, startIndex)))
+            {
+                return SqlDomStatementKind.Select;
+            }
+
+            var token = tokens[startIndex];
             if (token.IsKeyword("SELECT"))
             {
                 return SqlDomStatementKind.Select;
@@ -1117,6 +1916,62 @@ namespace SqExpress.SqlParser.Internal.Parsing
             return SqlDomStatementKind.Unknown;
         }
 
+        private static bool IsSelectStatementStart(IReadOnlyList<SqlToken> tokens, int startIndex, int endExclusive)
+        {
+            if (startIndex >= endExclusive)
+            {
+                return false;
+            }
+
+            return IsQueryExpressionStart(tokens, startIndex, endExclusive);
+        }
+
+        private static bool IsQueryExpressionStart(IReadOnlyList<SqlToken> tokens, int startIndex, int endExclusive)
+        {
+            if (startIndex >= endExclusive)
+            {
+                return false;
+            }
+
+            if (tokens[startIndex].IsKeyword("SELECT"))
+            {
+                return true;
+            }
+
+            if (tokens[startIndex].Type != SqlTokenType.OpenParen)
+            {
+                return false;
+            }
+
+            return IsParenthesizedQueryExpression(tokens, startIndex, endExclusive);
+        }
+
+        private static bool IsParenthesizedQueryExpression(IReadOnlyList<SqlToken> tokens, int openParenIndex, int endExclusive)
+        {
+            if (openParenIndex >= endExclusive || tokens[openParenIndex].Type != SqlTokenType.OpenParen)
+            {
+                return false;
+            }
+
+            var closeParenIndex = FindMatchingCloseParen(tokens, openParenIndex);
+            if (closeParenIndex < 0 || closeParenIndex >= endExclusive)
+            {
+                return false;
+            }
+
+            if (!IsQueryExpressionStart(tokens, openParenIndex + 1, closeParenIndex))
+            {
+                return false;
+            }
+
+            return closeParenIndex == endExclusive - 1
+                   || tokens[closeParenIndex + 1].IsKeyword("UNION")
+                   || tokens[closeParenIndex + 1].IsKeyword("INTERSECT")
+                   || tokens[closeParenIndex + 1].IsKeyword("EXCEPT")
+                   || tokens[closeParenIndex + 1].IsKeyword("ORDER")
+                   || tokens[closeParenIndex + 1].IsKeyword("OFFSET");
+        }
+
         private static SqlDomWithClause? ParseWithClause(TokenCursor cursor)
         {
             if (!cursor.Current.IsKeyword("WITH"))
@@ -1129,6 +1984,11 @@ namespace SqExpress.SqlParser.Internal.Parsing
 
             while (cursor.Current.IsIdentifierLike)
             {
+                if (cursor.Current.IsKeyword("AS"))
+                {
+                    break;
+                }
+
                 var cteName = cursor.Current.IdentifierValue;
                 cursor.MoveNext();
 
@@ -1163,6 +2023,11 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 cursor.Index = closeIndex + 1;
                 if (cursor.Current.Type == SqlTokenType.Comma)
                 {
+                    if (cursor.Index + 1 >= cursor.Tokens.Count || !cursor.Tokens[cursor.Index + 1].IsIdentifierLike)
+                    {
+                        break;
+                    }
+
                     cursor.MoveNext();
                     continue;
                 }
@@ -1219,6 +2084,11 @@ namespace SqExpress.SqlParser.Internal.Parsing
                     index++;
                 }
 
+                if (tokens[index].IsKeyword("WITH") && IsKeyword(tokens, index + 1, "TIES"))
+                {
+                    index += 2;
+                }
+
                 topSql = SliceSql(sql, tokens, topStart, index);
             }
 
@@ -1229,12 +2099,14 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 selectEnd = FindStatementEnd(tokens, index);
             }
 
+            var hasValidSelectListSyntax = IsValidTopLevelCommaSeparatedClause(tokens, selectStart, selectEnd);
             var items = ParseSelectItems(sql, tokens, selectStart, selectEnd);
 
             SqlDomTableSource? from = null;
             string? whereSql = null;
             string? groupBySql = null;
             string? havingSql = null;
+            var hasHavingClause = false;
             string? orderBySql = null;
             string? offsetFetchSql = null;
             var hasSetOperation = false;
@@ -1290,6 +2162,7 @@ namespace SqExpress.SqlParser.Internal.Parsing
 
                 if (tokens[current].IsKeyword("HAVING"))
                 {
+                    hasHavingClause = true;
                     var end = FindFirstTopLevel(tokens, current + 1, new[] { "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT" });
                     if (end < 0)
                     {
@@ -1340,10 +2213,12 @@ namespace SqExpress.SqlParser.Internal.Parsing
 
             return new SqlDomSelectClause(
                 items,
+                hasValidSelectListSyntax,
                 from,
                 hasFromClause,
                 whereSql,
                 groupBySql,
+                hasHavingClause,
                 havingSql,
                 orderBySql,
                 offsetFetchSql,
@@ -1469,6 +2344,19 @@ namespace SqExpress.SqlParser.Internal.Parsing
 
             while (index < endExclusive)
             {
+                if (tokens[index].Type == SqlTokenType.Comma)
+                {
+                    index++;
+                    var rightCross = ParseTableFactor(sql, tokens, ref index, endExclusive);
+                    if (rightCross == null)
+                    {
+                        return null;
+                    }
+
+                    left = new SqlDomJoinedTableSource(left, rightCross, SqlDomJoinType.Cross, null);
+                    continue;
+                }
+
                 if (!TryParseJoinType(tokens, ref index, endExclusive, out var joinType))
                 {
                     break;
@@ -1477,7 +2365,13 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 var right = ParseTableFactor(sql, tokens, ref index, endExclusive);
                 if (right == null)
                 {
-                    break;
+                    return null;
+                }
+
+                if ((joinType == SqlDomJoinType.CrossApply || joinType == SqlDomJoinType.OuterApply)
+                    && right is SqlDomNamedTableSource)
+                {
+                    return null;
                 }
 
                 string? onSql = null;
@@ -1497,7 +2391,7 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 left = new SqlDomJoinedTableSource(left, right, joinType, onSql);
             }
 
-            return left;
+            return index == endExclusive ? left : null;
         }
 
         private static SqlDomTableSource? ParseTableFactor(string sql, IReadOnlyList<SqlToken> tokens, ref int index, int endExclusive)
@@ -1529,6 +2423,11 @@ namespace SqExpress.SqlParser.Internal.Parsing
 
                 if (innerSql.StartsWith("VALUES", StringComparison.OrdinalIgnoreCase))
                 {
+                    if (!IsValidValuesTableSourceSql(innerSql))
+                    {
+                        return null;
+                    }
+
                     return new SqlDomValuesTableSource(innerSql, alias, columnAliases);
                 }
 
@@ -1805,10 +2704,16 @@ namespace SqExpress.SqlParser.Internal.Parsing
 
             if (IsKeyword(tokens, index, "AS"))
             {
-                index++;
+                if (index + 1 < endExclusive && IsValidAliasToken(tokens[index + 1]))
+                {
+                    index += 2;
+                    return tokens[index - 1].IdentifierValue;
+                }
+
+                return null;
             }
 
-            if (index < endExclusive && tokens[index].IsIdentifierLike && !IsReservedWord(tokens[index]))
+            if (index < endExclusive && IsValidAliasToken(tokens[index]))
             {
                 var alias = tokens[index].IdentifierValue;
                 index++;
@@ -1816,6 +2721,13 @@ namespace SqExpress.SqlParser.Internal.Parsing
             }
 
             return null;
+        }
+
+        private static bool IsValidAliasToken(SqlToken token)
+        {
+            return token.IsIdentifierLike
+                   && !IsReservedWord(token)
+                   && !string.IsNullOrWhiteSpace(token.IdentifierValue);
         }
 
         private static IReadOnlyList<string> ParseOptionalColumnAliasList(IReadOnlyList<SqlToken> tokens, ref int index, int endExclusive)

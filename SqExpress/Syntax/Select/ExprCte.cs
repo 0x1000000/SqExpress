@@ -25,7 +25,7 @@ namespace SqExpress.Syntax.Select
 
         public IReadOnlyList<IExprSelecting> ExtractSelecting() => this.CreateQuery().ExtractSelecting();
 
-        IExprSubQuery ISelectingSource.CreateSubQuery() => this.CreateQuery();
+        IExprSubQuery ISubQuerySource.CreateSubQuery() => this.CreateQuery();
     }
 
     [SqCustomTraversal]

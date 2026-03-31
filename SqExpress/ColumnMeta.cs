@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Value;
 using SqExpress.Utils;
 
@@ -29,6 +30,8 @@ namespace SqExpress
         public static ColumnMetaBuilder Identity() => ColumnMetaBuilder.Default.Identity();
 
         public static ColumnMetaBuilder ForeignKey<TTable>(Func<TTable, TableColumn> fkFactory) where TTable : TableBase, new() => ColumnMetaBuilder.Default.ForeignKey(fkFactory);
+
+        public static ColumnMetaBuilder ForeignKey(TableColumn column) => ColumnMetaBuilder.Default.ForeignKey(column);
 
         public static ColumnMetaBuilder DefaultValue(ExprValue defaultValue) => ColumnMetaBuilder.Default.DefaultValue(defaultValue);
 
@@ -87,6 +90,15 @@ namespace SqExpress
                 var newFks = this._fks == null
                     ? new [] {fkColumn}
                     : Helpers.Combine(this._fks, fkColumn);
+
+                return new ColumnMetaBuilder(this._isPrimaryKey, this._isIdentity, newFks, this._defaultValue);
+            }
+
+            public ColumnMetaBuilder ForeignKey(TableColumn column)
+            {
+                var newFks = this._fks == null
+                    ? new [] { column }
+                    : Helpers.Combine(this._fks, column);
 
                 return new ColumnMetaBuilder(this._isPrimaryKey, this._isIdentity, newFks, this._defaultValue);
             }

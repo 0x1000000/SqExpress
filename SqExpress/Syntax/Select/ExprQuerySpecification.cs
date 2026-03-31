@@ -17,9 +17,9 @@ namespace SqExpress.Syntax.Select
 
         public ExprBoolean? Where { get; }
 
-        public IReadOnlyList<ExprColumn>? GroupBy { get; }
+        public IReadOnlyList<ExprValue>? GroupBy { get; }
 
-        public ExprQuerySpecification(IReadOnlyList<IExprSelecting> selectList, ExprValue? top, bool distinct, IExprTableSource? from, ExprBoolean? where, IReadOnlyList<ExprColumn>? groupBy)
+        public ExprQuerySpecification(IReadOnlyList<IExprSelecting> selectList, ExprValue? top, bool distinct, IExprTableSource? from, ExprBoolean? where, IReadOnlyList<ExprValue>? groupBy)
         {
             this.SelectList = selectList;
             this.Top = top;
@@ -51,6 +51,6 @@ namespace SqExpress.Syntax.Select
             return this.SelectList;
         }
 
-        IExprSubQuery ISelectingSource.CreateSubQuery() => this;
+        IExprSubQuery ISubQuerySource.CreateSubQuery() => this;
     }
 }

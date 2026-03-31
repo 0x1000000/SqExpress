@@ -2,6 +2,7 @@
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
+using SqExpress.Syntax.Value;
 
 namespace SqExpress.QueryBuilders.Select
 {
@@ -32,11 +33,11 @@ namespace SqExpress.QueryBuilders.Select
 
     public interface IQuerySpecificationBuilderFiltered : IQuerySpecificationBuilderFinal
     {
-        public IQuerySpecificationBuilderFinal GroupBy(ExprColumn column, params ExprColumn[] otherColumns);
+        public IQuerySpecificationBuilderFinal GroupBy(ExprValue value, params ExprValue[] otherValues);
 
-        public IQuerySpecificationBuilderFinal GroupBy(ExprColumn column1, ExprColumn column2, params ExprColumn[] otherColumns);
+        public IQuerySpecificationBuilderFinal GroupBy(ExprValue value1, ExprValue value2, params ExprValue[] otherValues);
 
-        public IQuerySpecificationBuilderFinal GroupBy(IReadOnlyList<ExprColumn> columns);
+        public IQuerySpecificationBuilderFinal GroupBy(IReadOnlyList<ExprValue> values);
     }
 
     public interface IQuerySpecificationBuilderFinal : IQueryExpressionBuilder, IExprSubQueryFinal

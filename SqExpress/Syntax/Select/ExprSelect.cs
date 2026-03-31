@@ -2,7 +2,7 @@
 
 namespace SqExpress.Syntax.Select
 {
-    public class ExprSelect : IExprQuery
+    public class ExprSelect : IExprReadOnlyQuery
     {
         public ExprSelect(IExprSubQuery selectQuery, ExprOrderBy orderBy)
         {
@@ -16,6 +16,8 @@ namespace SqExpress.Syntax.Select
 
         public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
             => visitor.VisitExprSelect(this, arg);
+
+        public IReadOnlyList<IExprSelecting> ExtractSelecting() => this.SelectQuery.ExtractSelecting();
 
         public IReadOnlyList<string?> GetOutputColumnNames() => this.SelectQuery.GetOutputColumnNames();
     }

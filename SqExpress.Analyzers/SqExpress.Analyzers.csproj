@@ -20,6 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\SqExpress.CodeGen.Shared\SqExpress.CodeGen.Shared.csproj" />
     <ProjectReference Include="..\SqExpress\SqExpress.csproj" />
     <ProjectReference Include="..\SqExpress.SqlTranspiler\SqExpress.SqlTranspiler.csproj" />
   </ItemGroup>
@@ -34,7 +35,8 @@
       <TargetPathWithTargetPlatformMoniker Include="@(ReferenceCopyLocalPaths)"
                                            Condition="'%(ReferenceCopyLocalPaths.Extension)' == '.dll'
                                            and ('%(ReferenceCopyLocalPaths.Filename)' == 'SqExpress'
-                                           or '%(ReferenceCopyLocalPaths.Filename)' == 'SqExpress.SqlTranspiler')">
+                                           or '%(ReferenceCopyLocalPaths.Filename)' == 'SqExpress.SqlTranspiler'
+                                           or '%(ReferenceCopyLocalPaths.Filename)' == 'SqExpress.CodeGen.Shared')">
         <TargetPlatformMoniker>$(TargetPlatformMoniker)</TargetPlatformMoniker>
         <TargetPlatformIdentifier>$(TargetPlatformIdentifier)</TargetPlatformIdentifier>
         <TargetFrameworkIdentifier>$(TargetFrameworkIdentifier)</TargetFrameworkIdentifier>
@@ -49,7 +51,8 @@
       <TfmSpecificBuildOutput Include="@(ReferenceCopyLocalPaths)"
                               Condition="'%(ReferenceCopyLocalPaths.Extension)' == '.dll'
                               and ('%(ReferenceCopyLocalPaths.Filename)' == 'SqExpress'
-                              or '%(ReferenceCopyLocalPaths.Filename)' == 'SqExpress.SqlTranspiler')"
+                              or '%(ReferenceCopyLocalPaths.Filename)' == 'SqExpress.SqlTranspiler'
+                              or '%(ReferenceCopyLocalPaths.Filename)' == 'SqExpress.CodeGen.Shared')"
                               PackagePath="analyzers/dotnet/cs" />
     </ItemGroup>
   </Target>

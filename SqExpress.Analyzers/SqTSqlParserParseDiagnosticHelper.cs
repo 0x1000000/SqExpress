@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SqExpress.DbMetadata;
 using SqExpress.SqlParser;
 using SqExpress.Syntax;
@@ -15,6 +14,8 @@ namespace SqExpress.Analyzers
 {
     internal static class SqTSqlParserParseDiagnosticHelper
     {
+        private const string DefaultParserSchema = "dbo";
+
         public static bool TryGetSqlParseFailureMessage(
             SqTSqlParserInvocation match,
             out string failureMessage)
@@ -56,7 +57,8 @@ namespace SqExpress.Analyzers
 
             foreach (var expectedKey in expectedKeys)
             {
-                if (!sourceCatalog.TryGetValue(expectedKey, out var candidates) || candidates.Count < 1)
+                var candidates = SqTSqlParserSourceTableCatalogHelper.GetSourceTableMatches(sourceCatalog, expectedKey, DefaultParserSchema);
+                if (candidates.Count < 1)
                 {
                     missing.Add(FormatTableKey(expectedKey));
                     continue;
@@ -117,7 +119,8 @@ namespace SqExpress.Analyzers
             var resolvedTableClasses = new Dictionary<string, SourceTableInfo>(StringComparer.OrdinalIgnoreCase);
             foreach (var tableKey in resolvableTables.Keys)
             {
-                if (!sourceCatalog.TryGetValue(tableKey, out var candidates) || candidates.Count != 1)
+                var candidates = SqTSqlParserSourceTableCatalogHelper.GetSourceTableMatches(sourceCatalog, tableKey, DefaultParserSchema);
+                if (candidates.Count != 1)
                 {
                     return false;
                 }

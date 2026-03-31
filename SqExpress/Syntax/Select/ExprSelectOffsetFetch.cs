@@ -24,5 +24,5 @@ public class ExprSelectOffsetFetch : IExprSubQuery
         return this.SelectQuery.ExtractSelecting();
     }
 
-    IExprSubQuery ISelectingSource.CreateSubQuery() => this;
+    IExprSubQuery ISubQuerySource.CreateSubQuery() => this;
 }
