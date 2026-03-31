@@ -32,6 +32,10 @@
   - class-level `SqModel` on `[TableDescriptor]` / `[TempTableDescriptor]`
   - column-level `SqModels` and `SqModelCast`
   - source-generated DTO models now default to `record` shape when generated from analyzer-driven table declarations
+- Added dedicated derived-table descriptor support:
+  - `[DerivedTableDescriptor]`
+  - `Derived...Column` attributes for derived-table output columns
+  - analyzer validation preventing descriptor-family mixing and enforcing that `Derived...Column` is only used with derived-table descriptors
 - Added flags-based table comparison and inclusion helpers:
   - `TableComparisonFlags` for `CompareWith(...)`
   - `TableIncludesFlags` for `Includes(...)`

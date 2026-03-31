@@ -1,22 +1,11 @@
-﻿namespace SqExpress.GetStarted
-{
-    public class TableCustomer : TableBase
-    {
-        public Int32TableColumn CustomerId { get; }
-        public NullableInt32TableColumn UserId { get; }
-        public NullableInt32TableColumn CompanyId { get; }
+using SqExpress.TableDecalationAttributes;
 
-        public TableCustomer() : this(default) { }
+namespace SqExpress.GetStarted;
 
-        public TableCustomer(Alias alias) : base("dbo", "Customer", alias)
-        {
-            this.CustomerId = this.CreateInt32Column(nameof(this.CustomerId), ColumnMeta.PrimaryKey().Identity());
-            this.UserId = this.CreateNullableInt32Column(nameof(this.UserId), ColumnMeta.ForeignKey<TableUser>(u => u.UserId));
-            this.CompanyId = this.CreateNullableInt32Column(nameof(this.CompanyId), ColumnMeta.ForeignKey<TableCompany>(u => u.CompanyId));
-
-            //Indexes            
-            this.AddUniqueIndex(this.UserId, this.CompanyId);
-            this.AddUniqueIndex(this.CompanyId, this.UserId);
-        }
-    }
-}
+[TableDescriptor("dbo", "Customer")]
+[Int32Column("CustomerId", Pk = true, Identity = true)]
+[NullableInt32Column("UserId", FkTable = "User", FkColumn = "UserId")]
+[NullableInt32Column("CompanyId", FkTable = "Company", FkColumn = "CompanyId")]
+[Index("UserId", "CompanyId", Unique = true)]
+[Index("CompanyId", "UserId", Unique = true)]
+public partial class TableCustomer;

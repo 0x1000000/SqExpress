@@ -770,40 +770,41 @@ SELECT [UserId] FROM [dbo].[user]
 
 ## Derived Tables
 
-The previous query is quite complex so it makes sense to store it as a derived table and reuse it in future:
+The previous query is quite complex, so it makes sense to store it as a derived table and reuse it.
+
+SqExpress supports descriptor attributes for derived tables too. Use:
+
+- `[DerivedTableDescriptor]` on the class
+- `Derived...Column` attributes for the projected columns
+
+Unlike physical table descriptors, derived-table descriptors describe the output shape of a query, not database metadata such as PK/FK/default values.
 
 ```cs
-public class DerivedTableCustomer : DerivedTableBase
+using SqExpress.TableDecalationAttributes;
+using static SqExpress.SqQueryBuilder;
+
+[DerivedTableDescriptor(SqModel = "CustomerData")]
+[DerivedInt32Column("CustomerId", SqModels = "CustomerData.Id")]
+[DerivedInt16Column("Type", SqModels = "CustomerData.CustomerType")]
+[DerivedStringColumn("Name")]
+public partial class DerivedTableCustomer
 {
-    public readonly Int32CustomColumn CustomerId;
-
-    public readonly Int16CustomColumn Type;
-
-    public readonly StringCustomColumn Name;
-
-    public DerivedTableCustomer(Alias alias = default) : base(alias)
-    {
-        this.CustomerId = this.CreateInt32Column("CustomerId");
-        this.Type = this.CreateInt16Column("Type");
-        this.Name = this.CreateStringColumn("Name");
-    }
-
     protected override IExprSubQuery CreateQuery()
     {
         var tUser = new TableUser();
         var tCompany = new TableCompany();
         var tCustomer = new TableCustomer();
 
-        return /*SqQueryBuilder.*/Select(
+        return Select(
                 tCustomer.CustomerId.As(this.CustomerId),
-                /*SqQueryBuilder.*/Case()
+                Case()
                     .When(IsNotNull(tUser.UserId))
                     .Then(Cast(Literal(1), SqlType.Int16))
                     .When(IsNotNull(tCompany.CompanyId))
                     .Then(Cast(Literal(2), SqlType.Int16))
                     .Else(Null)
                     .As(this.Type),
-                /*SqQueryBuilder.*/Case()
+                Case()
                     .When(IsNotNull(tUser.UserId))
                     .Then(tUser.FirstName + " " + tUser.LastName)
                     .When(IsNotNull(tCompany.CompanyId))
@@ -818,6 +819,8 @@ public class DerivedTableCustomer : DerivedTableBase
     }
 }
 ```
+
+*NOTE: The same derived-table descriptor can also be written manually without attributes if you prefer the explicit style.*
 
 and this is how it can be reused:
 

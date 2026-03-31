@@ -164,7 +164,11 @@ namespace SqExpress.Analyzers
                 var tableRef = new CodeGenSqModelTableRef(
                     candidate.Model.ClassName,
                     candidate.Model.Namespace ?? string.Empty,
-                    candidate.Model.Kind == CodeGenTableKind.TempTable ? BaseTypeKindTag.TempTableBase : BaseTypeKindTag.TableBase);
+                    candidate.Model.Kind == CodeGenTableKind.TempTable
+                        ? BaseTypeKindTag.TempTableBase
+                        : candidate.Model.Kind == CodeGenTableKind.DerivedTable
+                            ? BaseTypeKindTag.DerivedTableBase
+                            : BaseTypeKindTag.TableBase);
 
                 foreach (var column in candidate.Model.Columns)
                 {

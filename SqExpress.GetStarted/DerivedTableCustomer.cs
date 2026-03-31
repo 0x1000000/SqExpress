@@ -1,52 +1,40 @@
-﻿using static SqExpress.SqQueryBuilder;
+using SqExpress.TableDecalationAttributes;
+using static SqExpress.SqQueryBuilder;
 
-namespace SqExpress.GetStarted
+namespace SqExpress.GetStarted;
+
+[DerivedTableDescriptor(SqModel = "CustomerData")]
+[DerivedInt32Column("CustomerId", SqModels = "CustomerData.Id")]
+[DerivedInt16Column("Type", SqModels = "CustomerData.CustomerType")]
+[DerivedStringColumn("Name")]
+public partial class DerivedTableCustomer
 {
-    public class DerivedTableCustomer : DerivedTableBase
+    protected override IExprSubQuery CreateQuery()
     {
-        [SqModel("CustomerData", PropertyName = "Id")]
-        public Int32CustomColumn CustomerId { get; }
+        var tUser = new TableUser();
+        var tCompany = new TableCompany();
+        var tCustomer = new TableCustomer();
 
-        [SqModel("CustomerData", PropertyName = "CustomerType")]
-        public Int16CustomColumn Type { get; }
-
-        [SqModel("CustomerData")]
-        public StringCustomColumn Name { get; }
-
-        public DerivedTableCustomer(Alias alias = default) : base(alias)
-        {
-            this.CustomerId = this.CreateInt32Column("CustomerId");
-            this.Type = this.CreateInt16Column("Type");
-            this.Name = this.CreateStringColumn("Name");
-        }
-
-        protected override IExprSubQuery CreateQuery()
-        {
-            var tUser = new TableUser();
-            var tCompany = new TableCompany();
-            var tCustomer = new TableCustomer();
-
-            return Select(
-                    tCustomer.CustomerId.As(this.CustomerId),
-                    Case()
-                        .When(IsNotNull(tUser.UserId))
-                        .Then(Cast(Literal(1), SqlType.Int16))
-                        .When(IsNotNull(tCompany.CompanyId))
-                        .Then(Cast(Literal(2), SqlType.Int16))
-                        .Else(Null)
-                        .As(this.Type),
-                    Case()
-                        .When(IsNotNull(tUser.UserId))
-                        .Then(tUser.FirstName + " " + tUser.LastName)
-                        .When(IsNotNull(tCompany.CompanyId))
-                        .Then(tCompany.CompanyName)
-                        .Else(Null)
-                        .As(this.Name)
-                )
-                .From(tCustomer)
-                .LeftJoin(tUser, on: tUser.UserId == tCustomer.UserId)
-                .LeftJoin(tCompany, on: tCompany.CompanyId == tCustomer.CompanyId)
-                .Done();
-        }
+        return Select(
+                tCustomer.CustomerId.As(this.CustomerId),
+                Case()
+                    .When(IsNotNull(tUser.UserId))
+                    .Then(Cast(Literal(1), SqlType.Int16))
+                    .When(IsNotNull(tCompany.CompanyId))
+                    .Then(Cast(Literal(2), SqlType.Int16))
+                    .Else(Null)
+                    .As(this.Type),
+                Case()
+                    .When(IsNotNull(tUser.UserId))
+                    .Then(tUser.FirstName + " " + tUser.LastName)
+                    .When(IsNotNull(tCompany.CompanyId))
+                    .Then(tCompany.CompanyName)
+                    .Else(Null)
+                    .As(this.Name)
+            )
+            .From(tCustomer)
+            .LeftJoin(tUser, on: tUser.UserId == tCustomer.UserId)
+            .LeftJoin(tCompany, on: tCompany.CompanyId == tCustomer.CompanyId)
+            .Done();
     }
 }

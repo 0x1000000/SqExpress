@@ -19,11 +19,12 @@ using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
 using SqExpress.SyntaxTreeOperations;
+using SqExpress.TableDecalationAttributes;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.GetStarted
 {
-    class Program
+    partial class Program
     {
         static async Task Main()
         {
@@ -64,10 +65,11 @@ namespace SqExpress.GetStarted
                 await connection.OpenAsync();
 
                 using (var database = new SqDatabase<SqlConnection>(
-                    connection: connection,
-                    commandFactory: SqlCommandFactory,
-                    sqlExporter: TSqlExporter.Default,
-                    ParametrizationMode.LiteralFallback))
+                           connection: connection,
+                           commandFactory: SqlCommandFactory,
+                           sqlExporter: TSqlExporter.Default,
+                           ParametrizationMode.LiteralFallback
+                       ))
                 {
                     await Script(database, isMsSql: true);
                 }
@@ -133,7 +135,10 @@ namespace SqExpress.GetStarted
                 using (var database = new SqDatabase<MySqlConnection>(
                            connection: connection,
                            commandFactory: MySqlCommandFactory,
-                           sqlExporter: new MySqlExporter(builderOptions: SqlBuilderOptions.Default, MySqlFlavor.MariaDb),
+                           sqlExporter: new MySqlExporter(
+                               builderOptions: SqlBuilderOptions.Default,
+                               MySqlFlavor.MariaDb
+                           ),
                            parametrizationMode: ParametrizationMode.LiteralFallback
                        ))
                 {
@@ -153,7 +158,8 @@ namespace SqExpress.GetStarted
             catch (Exception e)
             {
                 Console.WriteLine(
-                    $"Could not open {dbName} database ({e.Message}). Check that the connection string is correct \"{connection.ConnectionString}\".");
+                    $"Could not open {dbName} database ({e.Message}). Check that the connection string is correct \"{connection.ConnectionString}\"."
+                );
                 return false;
             }
         }
@@ -213,10 +219,12 @@ namespace SqExpress.GetStarted
             await InsertDataInto(tUser, data)
                 .MapData(s => s
                     .Set(s.Target.FirstName, s.Source.FirstName)
-                    .Set(s.Target.LastName, s.Source.LastName))
+                    .Set(s.Target.LastName, s.Source.LastName)
+                )
                 .AlsoInsert(s => s
                     .Set(s.Target.Version, 1)
-                    .Set(s.Target.ModifiedAt, GetUtcDate()))
+                    .Set(s.Target.ModifiedAt, GetUtcDate())
+                )
                 .Exec(database);
         }
 
@@ -227,11 +235,13 @@ namespace SqExpress.GetStarted
             var selectResult = await Select(tUser.UserId, tUser.FirstName, tUser.LastName)
                 .From(tUser)
                 .OrderBy(tUser.FirstName, tUser.LastName)
-                .QueryList(database,
+                .QueryList(
+                    database,
                     r => (
                         Id: tUser.UserId.Read(r),
                         FirstName: tUser.FirstName.Read(r),
-                        LastName: tUser.LastName.Read(r)));
+                        LastName: tUser.LastName.Read(r))
+                );
 
             foreach (var record in selectResult)
             {
@@ -253,7 +263,8 @@ namespace SqExpress.GetStarted
             //Writing to console without storing in memory
             await Select(tUser.Columns)
                 .From(tUser)
-                .Query(database,
+                .Query(
+                    database,
                     record =>
                     {
                         Console.Write(tUser.UserId.Read(record) + ",");
@@ -261,7 +272,8 @@ namespace SqExpress.GetStarted
                         Console.Write(tUser.LastName.Read(record) + ",");
                         Console.Write(tUser.Version.Read(record) + ",");
                         Console.WriteLine(tUser.ModifiedAt.Read(record).ToString("s"));
-                    });
+                    }
+                );
         }
 
         private static async Task Step5DeletingData(ISqDatabase database)
@@ -283,10 +295,13 @@ namespace SqExpress.GetStarted
                 .MapData(s => s.Set(s.Target.CompanyName, s.Source))
                 .AlsoInsert(s => s
                     .Set(s.Target.Version, 1)
-                    .Set(s.Target.ModifiedAt, GetUtcDate()))
+                    .Set(s.Target.ModifiedAt, GetUtcDate())
+                )
                 .Output(tCompany.CompanyId, tCompany.CompanyName)
-                .Query(database,
-                    r => Console.WriteLine($"Id: {tCompany.CompanyId.Read(r)}, Name: {tCompany.CompanyName.Read(r)}"));
+                .Query(
+                    database,
+                    r => Console.WriteLine($"Id: {tCompany.CompanyId.Read(r)}, Name: {tCompany.CompanyName.Read(r)}")
+                );
         }
 
         private static async Task Step7CreatingCustomers(ISqDatabase database)
@@ -301,10 +316,14 @@ namespace SqExpress.GetStarted
                 .From(
                     Select(tUser.UserId)
                         .From(tUser)
-                        .Where(!Exists(
-                            SelectOne()
-                                .From(tSubCustomer)
-                                .Where(tSubCustomer.UserId == tUser.UserId))))
+                        .Where(
+                            !Exists(
+                                SelectOne()
+                                    .From(tSubCustomer)
+                                    .Where(tSubCustomer.UserId == tUser.UserId)
+                            )
+                        )
+                )
                 .Exec(database);
 
             //Companies
@@ -312,10 +331,14 @@ namespace SqExpress.GetStarted
                 .From(
                     Select(tCompany.CompanyId)
                         .From(tCompany)
-                        .Where(!Exists(
-                            SelectOne()
-                                .From(tSubCustomer)
-                                .Where(tSubCustomer.CompanyId == tCompany.CompanyId))))
+                        .Where(
+                            !Exists(
+                                SelectOne()
+                                    .From(tSubCustomer)
+                                    .Where(tSubCustomer.CompanyId == tCompany.CompanyId)
+                            )
+                        )
+                )
                 .Exec(database);
         }
 
@@ -348,8 +371,10 @@ namespace SqExpress.GetStarted
                 .From(tCustomer)
                 .LeftJoin(tUser, on: tUser.UserId == tCustomer.UserId)
                 .LeftJoin(tCompany, on: tCompany.CompanyId == tCustomer.CompanyId)
-                .QueryList(database,
-                    r => (Id: tCustomer.CustomerId.Read(r), CustomerType: cType.Read(r), Name: cName.Read(r)));
+                .QueryList(
+                    database,
+                    r => (Id: tCustomer.CustomerId.Read(r), CustomerType: cType.Read(r), Name: cName.Read(r))
+                );
 
             foreach (var customer in customers)
             {
@@ -398,7 +423,19 @@ namespace SqExpress.GetStarted
 
             var sum = CustomColumnFactory.Int32("Sum");
 
-            var numbers = Values(3, 1, 1, 7, 3, 7, 3, 7, 7, 8).AsColumns(num);
+            var numbers = Values(
+                    3,
+                    1,
+                    1,
+                    7,
+                    3,
+                    7,
+                    3,
+                    7,
+                    7,
+                    8
+                )
+                .AsColumns(num);
             var numbersSubQuery = TableAlias();
 
             var mostFrequentNum = (int?)await
@@ -441,13 +478,18 @@ namespace SqExpress.GetStarted
                         .OverOrderBy(user.FirstName)
                         .FrameClause(
                             FrameBorder.UnboundedPreceding,
-                            FrameBorder.UnboundedFollowing)
-                        .As(cLast))
+                            FrameBorder.UnboundedFollowing
+                        )
+                        .As(cLast)
+                )
                 .From(user)
-                .Query(database,
+                .Query(
+                    database,
                     r => Console.WriteLine(
                         $"Num: {cNum.Read(r)}, Name: {cUserName.Read(r)}, " +
-                        $"First: {cFirst.Read(r)}, Last: {cLast.Read(r)}"));
+                        $"First: {cFirst.Read(r)}, Last: {cLast.Read(r)}"
+                    )
+                );
         }
 
         private static async Task Step12Merge(ISqDatabase database, bool output)
@@ -468,39 +510,50 @@ namespace SqExpress.GetStarted
             {
                 await MergeDataInto(tableUser, data)
                     .MapDataKeys(s => s
-                        .Set(s.Target.FirstName, s.Source.FirstName))
+                        .Set(s.Target.FirstName, s.Source.FirstName)
+                    )
                     .MapData(s => s
-                        .Set(s.Target.LastName, s.Source.LastName))
+                        .Set(s.Target.LastName, s.Source.LastName)
+                    )
                     .WhenMatchedThenUpdate()
                     .AlsoSet(s => s
                         .Set(s.Target.Version, s.Target.Version + 1)
-                        .Set(s.Target.ModifiedAt, GetUtcDate()))
+                        .Set(s.Target.ModifiedAt, GetUtcDate())
+                    )
                     .WhenNotMatchedByTargetThenInsert()
                     .AlsoInsert(s => s
                         .Set(s.Target.Version, 1)
-                        .Set(s.Target.ModifiedAt, GetUtcDate()))
+                        .Set(s.Target.ModifiedAt, GetUtcDate())
+                    )
                     .Output((t, s, m) => m.Inserted(t.UserId.As(inserted)).Deleted(t.UserId.As(deleted)).Action(action))
                     .Done()
-                    .Query(database,
+                    .Query(
+                        database,
                         r => Console.WriteLine(
-                            $"UserId Inserted: {inserted.Read(r)},UserId Deleted: {deleted.Read(r)} , Action: {action.Read(r)}"));
+                            $"UserId Inserted: {inserted.Read(r)},UserId Deleted: {deleted.Read(r)} , Action: {action.Read(r)}"
+                        )
+                    );
             }
             else
             {
                 //PG and My SQL do not support MERGE natively
                 await MergeDataInto(tableUser, data)
                     .MapDataKeys(s => s
-                        .Set(s.Target.FirstName, s.Source.FirstName))
+                        .Set(s.Target.FirstName, s.Source.FirstName)
+                    )
                     .MapData(s => s
-                        .Set(s.Target.LastName, s.Source.LastName))
+                        .Set(s.Target.LastName, s.Source.LastName)
+                    )
                     .WhenMatchedThenUpdate()
                     .AlsoSet(s => s
                         .Set(s.Target.Version, s.Target.Version + 1)
-                        .Set(s.Target.ModifiedAt, GetUtcDate()))
+                        .Set(s.Target.ModifiedAt, GetUtcDate())
+                    )
                     .WhenNotMatchedByTargetThenInsert()
                     .AlsoInsert(s => s
                         .Set(s.Target.Version, 1)
-                        .Set(s.Target.ModifiedAt, GetUtcDate()))
+                        .Set(s.Target.ModifiedAt, GetUtcDate())
+                    )
                     .Done()
                     .Exec(database);
             }
@@ -517,21 +570,27 @@ namespace SqExpress.GetStarted
 
             //Users
             await InsertInto(tmp, tmp.Name)
-                .From(Select(tableUser.FirstName + " " + tableUser.LastName)
-                    .From(tableUser))
+                .From(
+                    Select(tableUser.FirstName + " " + tableUser.LastName)
+                        .From(tableUser)
+                )
                 .Exec(database);
 
             //Companies
             await InsertInto(tmp, tmp.Name)
-                .From(Select(tableCompany.CompanyName)
-                    .From(tableCompany))
+                .From(
+                    Select(tableCompany.CompanyName)
+                        .From(tableCompany)
+                )
                 .Exec(database);
 
             await Select(tmp.Columns)
                 .From(tmp)
                 .OrderBy(tmp.Name)
-                .Query(database,
-                    r => Console.WriteLine($"Id: {tmp.Id.Read(r)}, Name: {tmp.Name.Read(r)}"));
+                .Query(
+                    database,
+                    r => Console.WriteLine($"Id: {tmp.Id.Read(r)}, Name: {tmp.Name.Read(r)}")
+                );
 
             //Dropping the temp table is optional
             //It will be automatically removed when
@@ -560,27 +619,31 @@ namespace SqExpress.GetStarted
             {
                 baseSelect = (ExprQuerySpecification)baseSelect.SyntaxTree()
                     .Modify(e =>
-                    {
-                        var result = e;
-                        //Joining with the sub query
-                        if (e is TableCustomer table)
                         {
-                            var derivedTable = new DerivedTableCustomer();
+                            var result = e;
+                            //Joining with the sub query
+                            if (e is TableCustomer table)
+                            {
+                                var derivedTable = new DerivedTableCustomer();
 
-                            result = new ExprJoinedTable(
-                                table,
-                                ExprJoinedTable.ExprJoinType.Inner,
-                                derivedTable,
-                                table.CustomerId == derivedTable.CustomerId);
+                                result = new ExprJoinedTable(
+                                    table,
+                                    ExprJoinedTable.ExprJoinType.Inner,
+                                    derivedTable,
+                                    table.CustomerId == derivedTable.CustomerId
+                                );
+                            }
+
+                            return result;
                         }
-
-                        return result;
-                    })!;
+                    )!;
             }
 
             await baseSelect!
-                .Query(database,
-                    r => Console.WriteLine($"Id: {tableCustomer.CustomerId.Read(r)}"));
+                .Query(
+                    database,
+                    r => Console.WriteLine($"Id: {tableCustomer.CustomerId.Read(r)}")
+                );
         }
 
         private static async Task Step15SyntaxModification(ISqDatabase database)
@@ -628,13 +691,19 @@ namespace SqExpress.GetStarted
                 .Select(ModelEmptyReader.Get<TableCustomer>())
                 .LeftJoin(UserName.GetReader(), on: t => t.Table.UserId == t.JoinedTable1.UserId)
                 .LeftJoin(CompanyName.GetReader(), on: t => t.Table.CompanyId == t.JoinedTable2.CompanyId)
-                .Find(0,
+                .Find(
+                    0,
                     10,
                     filter: null,
-                    order: t => Asc(IsNull(t.JoinedTable1.FirstName + t.JoinedTable1.LastName,
-                        t.JoinedTable2.CompanyName)),
-                    r => (r.JoinedModel1 != null ? r.JoinedModel1.FirstName + " "+ r.JoinedModel1.LastName : null) ??
-                         r.JoinedModel2?.Name ?? "Unknown")
+                    order: t => Asc(
+                        IsNull(
+                            t.JoinedTable1.FirstName + t.JoinedTable1.LastName,
+                            t.JoinedTable2.CompanyName
+                        )
+                    ),
+                    r => (r.JoinedModel1 != null ? r.JoinedModel1.FirstName + " " + r.JoinedModel1.LastName : null) ??
+                         r.JoinedModel2?.Name ?? "Unknown"
+                )
                 .QueryPage(database);
 
             foreach (var name in page.Items)
@@ -720,13 +789,43 @@ namespace SqExpress.GetStarted
 
             var filter1Items =
                 filter1.SyntaxTree()
-                    .ExportToPlainList((i, id, index, b, s, value) =>
-                        FilterPlainItem.Create(filterIds[0], i, id, index, b, s, value ?? string.Empty));
+                    .ExportToPlainList((
+                            i,
+                            id,
+                            index,
+                            b,
+                            s,
+                            value) =>
+                        FilterPlainItem.Create(
+                            filterIds[0],
+                            i,
+                            id,
+                            index,
+                            b,
+                            s,
+                            value ?? string.Empty
+                        )
+                    );
 
             var filter2Items =
                 filter2.SyntaxTree()
-                    .ExportToPlainList((i, id, index, b, s, value) =>
-                        FilterPlainItem.Create(filterIds[1], i, id, index, b, s, value ?? string.Empty));
+                    .ExportToPlainList((
+                            i,
+                            id,
+                            index,
+                            b,
+                            s,
+                            value) =>
+                        FilterPlainItem.Create(
+                            filterIds[1],
+                            i,
+                            id,
+                            index,
+                            b,
+                            s,
+                            value ?? string.Empty
+                        )
+                    );
 
             await InsertDataInto(tableFavoriteFilterItem, filter1Items.Concat(filter2Items))
                 .MapData(s => s
@@ -753,39 +852,51 @@ namespace SqExpress.GetStarted
                         isTypeTag: tableFavoriteFilterItem.IsTypeTag.Read(r),
                         arrayIndex: tableFavoriteFilterItem.ArrayIndex.Read(r),
                         tag: tableFavoriteFilterItem.Tag.Read(r),
-                        value: tableFavoriteFilterItem.Value.Read(r) ?? string.Empty));
+                        value: tableFavoriteFilterItem.Value.Read(r) ?? string.Empty
+                    )
+                );
 
             var restoredFilter1 = (ExprBoolean)ExprDeserializer
-                .DeserializeFormPlainList(restoredFilterItems.Where(fi =>
-                    fi.FavoriteFilterId == filterIds[0]));
+                .DeserializeFormPlainList(
+                    restoredFilterItems.Where(fi =>
+                        fi.FavoriteFilterId == filterIds[0]
+                    )
+                );
 
             var restoredFilter2 = (ExprBoolean)ExprDeserializer
-                .DeserializeFormPlainList(restoredFilterItems.Where(fi =>
-                    fi.FavoriteFilterId == filterIds[1]));
+                .DeserializeFormPlainList(
+                    restoredFilterItems.Where(fi =>
+                        fi.FavoriteFilterId == filterIds[1]
+                    )
+                );
 
             Console.WriteLine("Filter 1");
             await Select(tableUser.FirstName, tableUser.LastName)
                 .From(tableUser)
                 .Where(restoredFilter1)
-                .Query(database,
+                .Query(
+                    database,
                     (object?)null,
                     (s, r) =>
                     {
                         Console.WriteLine($"{tableUser.FirstName.Read(r)} {tableUser.LastName.Read(r)}");
                         return s;
-                    });
+                    }
+                );
 
             Console.WriteLine("Filter 2");
             await Select(tableUser.FirstName, tableUser.LastName)
                 .From(tableUser)
                 .Where(restoredFilter2)
-                .Query(database,
+                .Query(
+                    database,
                     (object?)null,
                     (s, r) =>
                     {
                         Console.WriteLine($"{tableUser.FirstName.Read(r)} {tableUser.LastName.Read(r)}");
                         return s;
-                    });
+                    }
+                );
         }
 
         private static async Task Step21ExportDataToJson(ISqDatabase database)
@@ -844,7 +955,8 @@ namespace SqExpress.GetStarted
 
                 await Select(table.Columns)
                     .From(table)
-                    .Query(database,
+                    .Query(
+                        database,
                         r =>
                         {
                             writer.WriteStartArray();
@@ -855,7 +967,8 @@ namespace SqExpress.GetStarted
                             }
 
                             writer.WriteEndArray();
-                        });
+                        }
+                    );
 
                 writer.WriteEndArray();
             }
@@ -910,8 +1023,10 @@ namespace SqExpress.GetStarted
                         e.EnumerateArray()
                             .Select((c, i) =>
                                 columnsDict[colIndexes[i]!]
-                                    .FromString(c.ValueKind == JsonValueKind.Null ? null : c.GetString()))
-                            .ToList());
+                                    .FromString(c.ValueKind == JsonValueKind.Null ? null : c.GetString())
+                            )
+                            .ToList()
+                    );
 
                 var insertExpr = IdentityInsertInto(table, table.Columns).Values(rowsEnumerable);
                 if (!insertExpr.Insert.Source.IsEmpty)
@@ -934,18 +1049,10 @@ namespace SqExpress.GetStarted
             };
             return tables;
         }
-    }
 
-    public class TempTable : TempTableBase
-    {
-        public TempTable(Alias alias = default) : base("tempTable", alias)
-        {
-            this.Id = CreateInt32Column(nameof(Id), ColumnMeta.PrimaryKey().Identity());
-            this.Name = CreateStringColumn(nameof(Name), 255);
-        }
-
-        public readonly Int32TableColumn Id;
-
-        public readonly StringTableColumn Name;
+        [TempTableDescriptor("tempTable")]
+        [Int32Column("Id", Pk = true, Identity = true)]
+        [StringColumn("Name", MaxLength = 255)]
+        private partial class TempTable;
     }
 }

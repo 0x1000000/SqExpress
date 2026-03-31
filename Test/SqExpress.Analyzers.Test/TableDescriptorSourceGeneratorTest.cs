@@ -37,8 +37,8 @@ namespace SqExpress.Analyzers.Test
             Assert.That(generated, Does.Contain("using SqExpress;"));
             Assert.That(generated, Does.Contain("using SqExpress.Syntax.Type;"));
             Assert.That(generated, Does.Contain("partial class User : TableBase"));
-            Assert.That(generated, Does.Contain("public User() : this(alias: SqExpress.Alias.Auto)"));
-            Assert.That(generated, Does.Contain("public User(Alias alias) : base(\"dbo\", \"User\", alias)"));
+            Assert.That(generated, Does.Contain("public User(): this(alias: SqExpress.Alias.Auto)"));
+            Assert.That(generated, Does.Contain("public User(Alias alias): base(schema: \"dbo\", name: \"User\", alias: alias)"));
             Assert.That(generated, Does.Contain("this.UserId = this.CreateInt32Column(\"UserId\", ColumnMeta.PrimaryKey().Identity().DefaultValue(1));"));
             Assert.That(generated, Does.Contain("this.Name = this.CreateStringColumn(name: \"Name\", size: 255, isUnicode: true, isText: false, columnMeta: null);"));
             Assert.That(generated, Does.Contain("this.DisplayName = this.CreateNullableStringColumn(name: \"Display Name\", size: 255, isUnicode: true, isText: false, columnMeta: null);"));
@@ -65,10 +65,112 @@ namespace SqExpress.Analyzers.Test
 
             Assert.That(result.Diagnostics, Is.Empty, FormatDiagnostics(result.Diagnostics));
             Assert.That(generated, Does.Contain("partial class UserTemp : TempTableBase"));
-            Assert.That(generated, Does.Contain("public UserTemp() : this(alias: SqExpress.Alias.Auto)"));
-            Assert.That(generated, Does.Contain("public UserTemp(Alias alias) : base(\"#UserTemp\", alias)"));
+            Assert.That(generated, Does.Contain("public UserTemp(): this(alias: SqExpress.Alias.Auto)"));
+            Assert.That(generated, Does.Contain("public UserTemp(Alias alias): base(name: \"#UserTemp\", alias: alias)"));
             Assert.That(generated, Does.Contain("this.UserId = this.CreateInt32Column(\"UserId\", ColumnMeta.PrimaryKey().Identity());"));
             Assert.That(generated, Does.Contain("this.AddIndex(this.Name);"));
+        }
+
+        [Test]
+        public void Generate_WhenDerivedTableDescriptorIsSimple_EmitsDerivedTableBasePattern()
+        {
+            var source = """
+                using SqExpress;
+                using SqExpress.TableDecalationAttributes;
+
+                [DerivedTableDescriptor(SqModel = "UserDto")]
+                [DerivedInt32Column("UserId", SqModels = "UserDto.Id")]
+                [DerivedStringColumn("Name")]
+                public partial class UserDerived
+                {
+                    protected override IExprSubQuery CreateQuery() => SqQueryBuilder.Select(1).Done();
+                }
+                """;
+
+            var result = RunGenerator(source);
+            var generated = GetGeneratedSource(result, "UserDerived");
+
+            Assert.That(result.Diagnostics, Is.Empty, FormatDiagnostics(result.Diagnostics));
+            Assert.That(generated, Does.Contain("partial class UserDerived : DerivedTableBase"));
+            Assert.That(generated, Does.Contain("public UserDerived(Alias alias = default): base(alias)"));
+            Assert.That(generated, Does.Contain("this.UserId = this.CreateInt32Column(\"UserId\");"));
+            Assert.That(generated, Does.Contain("this.Name = this.CreateStringColumn(\"Name\");"));
+            Assert.That(generated, Does.Contain("public Int32CustomColumn UserId { get; }"));
+            Assert.That(generated, Does.Contain("public StringCustomColumn Name { get; }"));
+            Assert.That(GetGeneratedSource(result, "UserDto"), Does.Contain("public partial record UserDto"));
+        }
+
+        [Test]
+        public void Generate_WhenDerivedColumnIsUsedWithoutDerivedTableDescriptor_ReportsDiagnostic()
+        {
+            var source = """
+                using SqExpress.TableDecalationAttributes;
+
+                [DerivedInt32Column("UserId")]
+                public partial class UserDerived
+                {
+                }
+                """;
+
+            var result = RunGenerator(source);
+
+            Assert.That(result.Diagnostics.Select(static d => d.Id), Contains.Item("SQEX123"));
+        }
+
+        [Test]
+        public void Generate_WhenDerivedTableDescriptorUsesTableColumnAttribute_ReportsDiagnostic()
+        {
+            var source = """
+                using SqExpress.TableDecalationAttributes;
+
+                [DerivedTableDescriptor]
+                [Int32Column("UserId")]
+                public partial class UserDerived
+                {
+                }
+                """;
+
+            var result = RunGenerator(source);
+
+            Assert.That(result.Diagnostics.Select(static d => d.Id), Contains.Item("SQEX124"));
+        }
+
+        [TestCase("TableDescriptor(\"dbo\", \"User\")")]
+        [TestCase("TempTableDescriptor(\"#User\")")]
+        public void Generate_WhenNonDerivedDescriptorUsesDerivedColumnAttribute_ReportsDiagnostic(string descriptorAttribute)
+        {
+            var source = $$"""
+                using SqExpress.TableDecalationAttributes;
+
+                [{{descriptorAttribute}}]
+                [DerivedInt32Column("UserId")]
+                public partial class UserDescriptor
+                {
+                }
+                """;
+
+            var result = RunGenerator(source);
+
+            Assert.That(result.Diagnostics.Select(static d => d.Id), Contains.Item("SQEX124"));
+        }
+
+        [TestCase("TableDescriptor(\"dbo\", \"User\")")]
+        [TestCase("TempTableDescriptor(\"#User\")")]
+        public void Generate_WhenDerivedDescriptorIsMixedWithAnotherDescriptor_ReportsDiagnostic(string otherDescriptorAttribute)
+        {
+            var source = $$"""
+                using SqExpress.TableDecalationAttributes;
+
+                [DerivedTableDescriptor]
+                [{{otherDescriptorAttribute}}]
+                public partial class UserDerived
+                {
+                }
+                """;
+
+            var result = RunGenerator(source);
+
+            Assert.That(result.Diagnostics.Select(static d => d.Id), Contains.Item("SQEX122"));
         }
 
         [Test]
@@ -256,6 +358,129 @@ namespace SqExpress.Analyzers.Test
             var result = RunGenerator(source);
 
             Assert.That(result.Diagnostics.Select(static d => d.Id), Contains.Item("SQEX101"));
+        }
+
+        [Test]
+        [TestCase("public")]
+        [TestCase("internal")]
+        [TestCase("private")]
+        public void Generate_WhenDescriptorClassIsNested_EmitsNestedPartialDescriptor(string accessibility)
+        {
+            var source = $$"""
+                using SqExpress.TableDecalationAttributes;
+
+                public partial class Outer
+                {
+                    [TableDescriptor("dbo", "User")]
+                    [Int32Column("UserId")]
+                    {{accessibility}} partial class User
+                    {
+                    }
+                }
+                """;
+
+            var result = RunGenerator(source);
+            var generated = GetGeneratedSource(result, "User");
+
+            Assert.That(result.Diagnostics, Is.Empty, FormatDiagnostics(result.Diagnostics));
+            Assert.That(generated, Does.Contain("public partial class Outer"));
+            Assert.That(generated, Does.Contain($"{accessibility} partial class User : TableBase"));
+        }
+
+        [Test]
+        public void Generate_WhenNestedDescriptorContainingClassIsNotPartial_ReportsDiagnostic()
+        {
+            var source = """
+                using SqExpress.TableDecalationAttributes;
+
+                public class Outer
+                {
+                    [TableDescriptor("dbo", "User")]
+                    [Int32Column("UserId")]
+                    private partial class User
+                    {
+                    }
+                }
+                """;
+
+            var result = RunGenerator(source);
+
+            Assert.That(result.Diagnostics.Select(static d => d.Id), Contains.Item("SQEX102"));
+        }
+
+        [Test]
+        public void Generate_WhenNestedDescriptorContainingClassIsInternalPartial_EmitsNestedDescriptor()
+        {
+            var source = """
+                using SqExpress.TableDecalationAttributes;
+
+                internal partial class Outer
+                {
+                    [TableDescriptor("dbo", "User")]
+                    [Int32Column("UserId")]
+                    internal partial class User
+                    {
+                    }
+                }
+                """;
+
+            var result = RunGenerator(source);
+            var generated = GetGeneratedSource(result, "User");
+
+            Assert.That(result.Diagnostics, Is.Empty, FormatDiagnostics(result.Diagnostics));
+            Assert.That(generated, Does.Contain("internal partial class Outer"));
+            Assert.That(generated, Does.Contain("internal partial class User : TableBase"));
+        }
+
+        [Test]
+        public void Generate_WhenNestedTempTableDescriptorContainingClassIsPartial_EmitsNestedDescriptor()
+        {
+            var source = """
+                using SqExpress.TableDecalationAttributes;
+
+                internal partial class Outer
+                {
+                    [TempTableDescriptor("#TmpUser")]
+                    [Int32Column("UserId")]
+                    internal partial class TmpUser
+                    {
+                    }
+                }
+                """;
+
+            var result = RunGenerator(source);
+            var generated = GetGeneratedSource(result, "TmpUser");
+
+            Assert.That(result.Diagnostics, Is.Empty, FormatDiagnostics(result.Diagnostics));
+            Assert.That(generated, Does.Contain("internal partial class Outer"));
+            Assert.That(generated, Does.Contain("internal partial class TmpUser : TempTableBase"));
+        }
+
+        [Test]
+        public void Generate_WhenNestedTempTableDescriptorMatchesProgramShape_EmitsNestedDescriptor()
+        {
+            var source = """
+                using SqExpress.TableDecalationAttributes;
+
+                namespace Demo;
+
+                partial class Program
+                {
+                    [TempTableDescriptor("tempTable")]
+                    [Int32Column("Id", Pk = true, Identity = true)]
+                    [StringColumn("Name")]
+                    internal partial class TempTable
+                    {
+                    }
+                }
+                """;
+
+            var result = RunGenerator(source);
+            var generated = GetGeneratedSource(result, "TempTable");
+
+            Assert.That(result.Diagnostics, Is.Empty, FormatDiagnostics(result.Diagnostics));
+            Assert.That(generated, Does.Contain("partial class Program"));
+            Assert.That(generated, Does.Contain("internal partial class TempTable : TempTableBase"));
         }
 
         [Test]

@@ -1,10 +1,22 @@
 using System.Collections.Immutable;
 namespace SqExpress.CodeGen.Shared
 {
+    public enum CodeGenAccessibility
+    {
+        None,
+        Public,
+        Internal,
+        Private,
+        Protected,
+        ProtectedInternal,
+        PrivateProtected
+    }
+
     public enum CodeGenTableKind
     {
         Table,
-        TempTable
+        TempTable,
+        DerivedTable
     }
 
     public enum CodeGenColumnKind
@@ -80,7 +92,9 @@ namespace SqExpress.CodeGen.Shared
             string fullyQualifiedTypeName,
             ImmutableArray<CodeGenColumnModel> columns,
             ImmutableArray<CodeGenIndexModel> indexes,
-            string? sqModelName = null)
+            string? sqModelName = null,
+            CodeGenAccessibility declaredAccessibility = CodeGenAccessibility.None,
+            ImmutableArray<CodeGenContainingTypeModel> containingTypes = default)
         {
             this.Kind = kind;
             this.DatabaseName = databaseName;
@@ -92,6 +106,8 @@ namespace SqExpress.CodeGen.Shared
             this.Columns = columns;
             this.Indexes = indexes;
             this.SqModelName = sqModelName;
+            this.DeclaredAccessibility = declaredAccessibility;
+            this.ContainingTypes = containingTypes.IsDefault ? ImmutableArray<CodeGenContainingTypeModel>.Empty : containingTypes;
         }
 
         public CodeGenTableKind Kind { get; }
@@ -114,9 +130,30 @@ namespace SqExpress.CodeGen.Shared
 
         public string? SqModelName { get; }
 
+        public CodeGenAccessibility DeclaredAccessibility { get; }
+
+        public ImmutableArray<CodeGenContainingTypeModel> ContainingTypes { get; }
+
         public string TableKey => CodeGenTableDescriptorSupport.BuildTableKey(this.Kind, this.DatabaseName, this.SchemaName, this.TableName);
 
-        public string TableDisplayName => this.Kind == CodeGenTableKind.TempTable ? $"temp table [{this.TableName}]" : this.TableKey;
+        public string TableDisplayName => this.Kind == CodeGenTableKind.TempTable
+            ? $"temp table [{this.TableName}]"
+            : this.Kind == CodeGenTableKind.DerivedTable
+                ? $"derived table [{this.TableName}]"
+                : this.TableKey;
+    }
+
+    public sealed class CodeGenContainingTypeModel
+    {
+        public CodeGenContainingTypeModel(string name, CodeGenAccessibility accessibility)
+        {
+            this.Name = name;
+            this.Accessibility = accessibility;
+        }
+
+        public string Name { get; }
+
+        public CodeGenAccessibility Accessibility { get; }
     }
 
     public sealed class CodeGenColumnModel

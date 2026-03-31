@@ -24,23 +24,42 @@ namespace SqExpress.Analyzers
             var allAttributes = classSymbol.GetAttributes();
             var tableDescriptorAttribute = allAttributes.FirstOrDefault(static a => a.AttributeClass?.ToDisplayString() == TableDescriptorAttributeName);
             var tempTableDescriptorAttribute = allAttributes.FirstOrDefault(static a => a.AttributeClass?.ToDisplayString() == TempTableDescriptorAttributeName);
+            var derivedTableDescriptorAttribute = allAttributes.FirstOrDefault(static a => a.AttributeClass?.ToDisplayString() == DerivedTableDescriptorAttributeName);
+            var hasDerivedColumnAttributes = allAttributes.Any(static a => InheritsFrom(a.AttributeClass, DerivedColumnAttributeBaseName));
 
-            if (tableDescriptorAttribute == null && tempTableDescriptorAttribute == null)
+            if (tableDescriptorAttribute == null && tempTableDescriptorAttribute == null && derivedTableDescriptorAttribute == null && !hasDerivedColumnAttributes)
             {
                 return null;
             }
 
-            var activeDescriptorAttribute = tableDescriptorAttribute ?? tempTableDescriptorAttribute!;
-            var tableKind = tempTableDescriptorAttribute != null ? CodeGenTableKind.TempTable : CodeGenTableKind.Table;
+            var activeDescriptorAttribute = tableDescriptorAttribute ?? tempTableDescriptorAttribute ?? derivedTableDescriptorAttribute!;
+            var tableKind = derivedTableDescriptorAttribute != null || hasDerivedColumnAttributes
+                ? CodeGenTableKind.DerivedTable
+                : tempTableDescriptorAttribute != null
+                    ? CodeGenTableKind.TempTable
+                    : CodeGenTableKind.Table;
 
             var columns = ImmutableArray.CreateBuilder<CodeGenColumnModel>();
             var indexes = ImmutableArray.CreateBuilder<CodeGenIndexModel>();
             var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
 
+            var descriptorCount = (tableDescriptorAttribute != null ? 1 : 0)
+                                + (tempTableDescriptorAttribute != null ? 1 : 0)
+                                + (derivedTableDescriptorAttribute != null ? 1 : 0);
             if (tableDescriptorAttribute != null && tempTableDescriptorAttribute != null)
             {
                 diagnostics.Add(CreateDiagnostic(DiagnosticDescriptors.TableDescriptorAndTempTableDescriptorAreMutuallyExclusive, GetAttributeLocation(tableDescriptorAttribute, classSymbol), classSymbol.Name));
                 diagnostics.Add(CreateDiagnostic(DiagnosticDescriptors.TableDescriptorAndTempTableDescriptorAreMutuallyExclusive, GetAttributeLocation(tempTableDescriptorAttribute, classSymbol), classSymbol.Name));
+            }
+            else if (descriptorCount > 1)
+            {
+                foreach (var descriptorAttribute in allAttributes.Where(static a =>
+                             a.AttributeClass?.ToDisplayString() == TableDescriptorAttributeName ||
+                             a.AttributeClass?.ToDisplayString() == TempTableDescriptorAttributeName ||
+                             a.AttributeClass?.ToDisplayString() == DerivedTableDescriptorAttributeName))
+                {
+                    diagnostics.Add(CreateDiagnostic(DiagnosticDescriptors.TableDescriptorAttributesAreMutuallyExclusive, GetAttributeLocation(descriptorAttribute, classSymbol), classSymbol.Name));
+                }
             }
 
             if (classSymbol.TypeKind != TypeKind.Class)
@@ -53,7 +72,8 @@ namespace SqExpress.Analyzers
                 diagnostics.Add(CreateDiagnostic(DiagnosticDescriptors.TableDescriptorMustBePartial, classSymbol, classSymbol.Name));
             }
 
-            if (classSymbol.ContainingType != null)
+            var containingTypes = GetContainingTypes(classSymbol);
+            if (classSymbol.ContainingType != null && containingTypes.IsDefault)
             {
                 diagnostics.Add(CreateDiagnostic(DiagnosticDescriptors.TableDescriptorMustBeTopLevel, classSymbol, classSymbol.Name));
             }
@@ -70,12 +90,18 @@ namespace SqExpress.Analyzers
                 diagnostics.Add(CreateDiagnostic(DiagnosticDescriptors.TableDescriptorMustNotSpecifyBaseType, classSymbol, classSymbol.Name));
             }
 
-            if (!TryReadTableIdentity(activeDescriptorAttribute, tableKind, out var databaseName, out var schemaName, out var tableName))
+            string? databaseName = null;
+            string? schemaName = null;
+            var tableName = classSymbol.Name;
+            if (activeDescriptorAttribute != null &&
+                !TryReadTableIdentity(activeDescriptorAttribute, tableKind, classSymbol.Name, out databaseName, out schemaName, out tableName))
             {
                 diagnostics.Add(CreateDiagnostic(DiagnosticDescriptors.TableDescriptorHasInvalidDeclaration, GetAttributeLocation(activeDescriptorAttribute, classSymbol), classSymbol.Name));
             }
 
-            var tableAttributeLocation = GetAttributeLocation(activeDescriptorAttribute, classSymbol);
+            var tableAttributeLocation = activeDescriptorAttribute != null
+                ? GetAttributeLocation(activeDescriptorAttribute, classSymbol)
+                : classSymbol.Locations.FirstOrDefault(static l => l.IsInSource) ?? Location.None;
             var columnLocationsBySqlName = ImmutableDictionary.CreateBuilder<string, ImmutableArray<Location>.Builder>(StringComparer.OrdinalIgnoreCase);
             var propertyLocationsByName = ImmutableDictionary.CreateBuilder<string, ImmutableArray<Location>.Builder>(StringComparer.Ordinal);
             var indexLocations = ImmutableArray.CreateBuilder<IndexAttributeLocation>();
@@ -89,7 +115,7 @@ namespace SqExpress.Analyzers
                 }
 
                 var attributeTypeName = attributeClass.ToDisplayString();
-                if (attributeTypeName == TableDescriptorAttributeName || attributeTypeName == TempTableDescriptorAttributeName)
+                if (attributeTypeName == TableDescriptorAttributeName || attributeTypeName == TempTableDescriptorAttributeName || attributeTypeName == DerivedTableDescriptorAttributeName)
                 {
                     continue;
                 }
@@ -97,6 +123,59 @@ namespace SqExpress.Analyzers
                 if (InheritsFrom(attributeClass, ColumnAttributeBaseName))
                 {
                     var attributeLocation = GetAttributeLocation(attribute, classSymbol);
+                    if (derivedTableDescriptorAttribute != null)
+                    {
+                        diagnostics.Add(CreateDiagnostic(
+                            DiagnosticDescriptors.ColumnAttributeIsNotCompatibleWithDescriptor,
+                            attributeLocation,
+                            TrimAttributeSuffix(attributeClass.Name),
+                            classSymbol.Name,
+                            nameof(DerivedTableDescriptorAttribute).Replace(nameof(Attribute), string.Empty)));
+                        continue;
+                    }
+
+                    if (TryReadColumnDescriptor(attribute, classSymbol, out var columnDescriptor, out var defaultValueDiagnostic))
+                    {
+                        columns.Add(columnDescriptor);
+                        AddLocation(columnLocationsBySqlName, columnDescriptor.SqlName, attributeLocation);
+                        AddLocation(propertyLocationsByName, string.IsNullOrWhiteSpace(columnDescriptor.PropertyName) ? CodeGenTableDescriptorSupport.ToIdentifier(columnDescriptor.SqlName) : columnDescriptor.PropertyName!, attributeLocation);
+                    }
+                    else if (defaultValueDiagnostic != null)
+                    {
+                        diagnostics.Add(defaultValueDiagnostic);
+                    }
+
+                    continue;
+                }
+
+                if (InheritsFrom(attributeClass, DerivedColumnAttributeBaseName))
+                {
+                    var attributeLocation = GetAttributeLocation(attribute, classSymbol);
+                    if (derivedTableDescriptorAttribute == null)
+                    {
+                        if (tableDescriptorAttribute != null || tempTableDescriptorAttribute != null)
+                        {
+                            diagnostics.Add(CreateDiagnostic(
+                                DiagnosticDescriptors.ColumnAttributeIsNotCompatibleWithDescriptor,
+                                attributeLocation,
+                                TrimAttributeSuffix(attributeClass.Name),
+                                classSymbol.Name,
+                                tableDescriptorAttribute != null
+                                    ? nameof(TableDescriptorAttribute).Replace(nameof(Attribute), string.Empty)
+                                    : nameof(TempTableDescriptorAttribute).Replace(nameof(Attribute), string.Empty)));
+                        }
+                        else
+                        {
+                            diagnostics.Add(CreateDiagnostic(
+                                DiagnosticDescriptors.DerivedColumnRequiresDerivedTableDescriptor,
+                                attributeLocation,
+                                TrimAttributeSuffix(attributeClass.Name),
+                                classSymbol.Name));
+                        }
+
+                        continue;
+                    }
+
                     if (TryReadColumnDescriptor(attribute, classSymbol, out var columnDescriptor, out var defaultValueDiagnostic))
                     {
                         columns.Add(columnDescriptor);
@@ -131,7 +210,9 @@ namespace SqExpress.Analyzers
                 classSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
                 columns.ToImmutable(),
                 indexes.ToImmutable(),
-                GetNamedString(activeDescriptorAttribute, nameof(TableDescriptorAttribute.SqModel)));
+                GetDescriptorSqModelName(activeDescriptorAttribute, tableKind),
+                MapAccessibility(classSymbol.DeclaredAccessibility),
+                containingTypes.IsDefault ? ImmutableArray<CodeGenContainingTypeModel>.Empty : containingTypes);
 
             return new TableDescriptorCandidate(
                 classSymbol,
@@ -143,11 +224,17 @@ namespace SqExpress.Analyzers
                 indexLocations.ToImmutable());
         }
 
-        private static bool TryReadTableIdentity(AttributeData attribute, CodeGenTableKind tableKind, out string? databaseName, out string? schemaName, out string tableName)
+        private static bool TryReadTableIdentity(AttributeData attribute, CodeGenTableKind tableKind, string className, out string? databaseName, out string? schemaName, out string tableName)
         {
             databaseName = null;
             schemaName = null;
             tableName = string.Empty;
+
+            if (tableKind == CodeGenTableKind.DerivedTable)
+            {
+                tableName = className;
+                return attribute.ConstructorArguments.Length == 0;
+            }
 
             if (tableKind == CodeGenTableKind.TempTable)
             {
@@ -293,6 +380,32 @@ namespace SqExpress.Analyzers
                 nameof(NullableStringColumnAttribute) => CodeGenColumnKind.NullableString,
                 nameof(XmlColumnAttribute) => CodeGenColumnKind.Xml,
                 nameof(NullableXmlColumnAttribute) => CodeGenColumnKind.NullableXml,
+                nameof(DerivedBooleanColumnAttribute) => CodeGenColumnKind.Boolean,
+                nameof(DerivedNullableBooleanColumnAttribute) => CodeGenColumnKind.NullableBoolean,
+                nameof(DerivedByteColumnAttribute) => CodeGenColumnKind.Byte,
+                nameof(DerivedNullableByteColumnAttribute) => CodeGenColumnKind.NullableByte,
+                nameof(DerivedByteArrayColumnAttribute) => CodeGenColumnKind.ByteArray,
+                nameof(DerivedNullableByteArrayColumnAttribute) => CodeGenColumnKind.NullableByteArray,
+                nameof(DerivedInt16ColumnAttribute) => CodeGenColumnKind.Int16,
+                nameof(DerivedNullableInt16ColumnAttribute) => CodeGenColumnKind.NullableInt16,
+                nameof(DerivedInt32ColumnAttribute) => CodeGenColumnKind.Int32,
+                nameof(DerivedNullableInt32ColumnAttribute) => CodeGenColumnKind.NullableInt32,
+                nameof(DerivedInt64ColumnAttribute) => CodeGenColumnKind.Int64,
+                nameof(DerivedNullableInt64ColumnAttribute) => CodeGenColumnKind.NullableInt64,
+                nameof(DerivedDoubleColumnAttribute) => CodeGenColumnKind.Double,
+                nameof(DerivedNullableDoubleColumnAttribute) => CodeGenColumnKind.NullableDouble,
+                nameof(DerivedDecimalColumnAttribute) => CodeGenColumnKind.Decimal,
+                nameof(DerivedNullableDecimalColumnAttribute) => CodeGenColumnKind.NullableDecimal,
+                nameof(DerivedDateTimeColumnAttribute) => CodeGenColumnKind.DateTime,
+                nameof(DerivedNullableDateTimeColumnAttribute) => CodeGenColumnKind.NullableDateTime,
+                nameof(DerivedDateTimeOffsetColumnAttribute) => CodeGenColumnKind.DateTimeOffset,
+                nameof(DerivedNullableDateTimeOffsetColumnAttribute) => CodeGenColumnKind.NullableDateTimeOffset,
+                nameof(DerivedGuidColumnAttribute) => CodeGenColumnKind.Guid,
+                nameof(DerivedNullableGuidColumnAttribute) => CodeGenColumnKind.NullableGuid,
+                nameof(DerivedStringColumnAttribute) => CodeGenColumnKind.String,
+                nameof(DerivedNullableStringColumnAttribute) => CodeGenColumnKind.NullableString,
+                nameof(DerivedXmlColumnAttribute) => CodeGenColumnKind.Xml,
+                nameof(DerivedNullableXmlColumnAttribute) => CodeGenColumnKind.NullableXml,
                 _ => null
             };
         }
@@ -312,8 +425,54 @@ namespace SqExpress.Analyzers
             return false;
         }
 
+        private static ImmutableArray<CodeGenContainingTypeModel> GetContainingTypes(INamedTypeSymbol classSymbol)
+        {
+            if (classSymbol.ContainingType == null)
+            {
+                return ImmutableArray<CodeGenContainingTypeModel>.Empty;
+            }
+
+            var stack = new Stack<CodeGenContainingTypeModel>();
+            var current = classSymbol.ContainingType;
+            while (current != null)
+            {
+                if (current.TypeKind != TypeKind.Class || !IsPartial(current))
+                {
+                    return default;
+                }
+
+                stack.Push(new CodeGenContainingTypeModel(current.Name, MapAccessibility(current.DeclaredAccessibility)));
+                current = current.ContainingType;
+            }
+
+            return stack.ToImmutableArray();
+        }
+
+        private static bool IsPartial(INamedTypeSymbol typeSymbol)
+            => typeSymbol.DeclaringSyntaxReferences.Any(static r =>
+                r.GetSyntax() is Microsoft.CodeAnalysis.CSharp.Syntax.TypeDeclarationSyntax t && t.Modifiers.Any(SyntaxKind.PartialKeyword));
+
+        private static CodeGenAccessibility MapAccessibility(Accessibility accessibility)
+            => accessibility switch
+            {
+                Accessibility.Public => CodeGenAccessibility.Public,
+                Accessibility.Internal => CodeGenAccessibility.Internal,
+                Accessibility.Private => CodeGenAccessibility.Private,
+                Accessibility.Protected => CodeGenAccessibility.Protected,
+                Accessibility.ProtectedAndInternal => CodeGenAccessibility.PrivateProtected,
+                Accessibility.ProtectedOrInternal => CodeGenAccessibility.ProtectedInternal,
+                _ => CodeGenAccessibility.None
+            };
+
         private static string? GetNamedString(AttributeData attribute, string name)
             => attribute.NamedArguments.FirstOrDefault(i => i.Key == name).Value.Value as string;
+
+        private static string? GetDescriptorSqModelName(AttributeData? attribute, CodeGenTableKind tableKind)
+            => attribute == null
+                ? null
+                : tableKind == CodeGenTableKind.DerivedTable
+                ? GetNamedString(attribute, nameof(DerivedTableDescriptorAttribute.SqModel))
+                : GetNamedString(attribute, nameof(TableDescriptorAttribute.SqModel));
 
         private static bool GetNamedBool(AttributeData attribute, string name)
             => attribute.NamedArguments.FirstOrDefault(i => i.Key == name).Value.Value as bool? ?? false;

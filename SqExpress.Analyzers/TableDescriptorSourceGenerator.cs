@@ -8,7 +8,9 @@ namespace SqExpress.Analyzers
     {
         private static readonly string TableDescriptorAttributeName = typeof(TableDescriptorAttribute).FullName!;
         private static readonly string TempTableDescriptorAttributeName = typeof(TempTableDescriptorAttribute).FullName!;
+        private static readonly string DerivedTableDescriptorAttributeName = typeof(DerivedTableDescriptorAttribute).FullName!;
         private static readonly string ColumnAttributeBaseName = typeof(TableColumnAttributeBase).FullName!;
+        private static readonly string DerivedColumnAttributeBaseName = typeof(DerivedColumnAttributeBase).FullName!;
         private static readonly string IndexAttributeName = typeof(IndexAttribute).FullName!;
 
         public void Initialize(IncrementalGeneratorInitializationContext context)

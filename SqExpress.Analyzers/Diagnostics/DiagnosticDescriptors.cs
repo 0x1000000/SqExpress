@@ -60,12 +60,12 @@ namespace SqExpress.Analyzers.Diagnostics
 
         public static readonly DiagnosticDescriptor TableDescriptorMustBeTopLevel = new DiagnosticDescriptor(
             id: "SQEX102",
-            title: "Table descriptor class must be top-level",
-            messageFormat: "Table descriptor class '{0}' must be top-level",
+            title: "Nested table descriptor requires partial containing classes",
+            messageFormat: "Nested table descriptor class '{0}' requires every containing class to be partial",
             category: "SourceGeneration",
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true,
-            description: "Reports nested table descriptor classes, which are not supported by the generator.");
+            description: "Reports nested table descriptor classes whose containing type chain is not fully partial.");
 
         public static readonly DiagnosticDescriptor TableDescriptorMustBeNonGeneric = new DiagnosticDescriptor(
             id: "SQEX103",
@@ -237,5 +237,32 @@ namespace SqExpress.Analyzers.Diagnostics
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true,
             description: "Reports attribute-based SqModel declarations that do not produce a consistent multi-table model shape.");
+
+        public static readonly DiagnosticDescriptor TableDescriptorAttributesAreMutuallyExclusive = new DiagnosticDescriptor(
+            id: "SQEX122",
+            title: "Table descriptor attributes are mutually exclusive",
+            messageFormat: "Class '{0}' cannot declare multiple descriptor attributes",
+            category: "SourceGeneration",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            description: "Reports classes that declare more than one incompatible descriptor attribute.");
+
+        public static readonly DiagnosticDescriptor DerivedColumnRequiresDerivedTableDescriptor = new DiagnosticDescriptor(
+            id: "SQEX123",
+            title: "Derived column attribute requires DerivedTableDescriptor",
+            messageFormat: "Attribute '{0}' on class '{1}' requires [DerivedTableDescriptor]",
+            category: "SourceGeneration",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            description: "Reports derived-column attributes that are declared outside a derived-table descriptor.");
+
+        public static readonly DiagnosticDescriptor ColumnAttributeIsNotCompatibleWithDescriptor = new DiagnosticDescriptor(
+            id: "SQEX124",
+            title: "Column attribute is not compatible with descriptor",
+            messageFormat: "Attribute '{0}' on class '{1}' cannot be used with [{2}]",
+            category: "SourceGeneration",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            description: "Reports column attributes that belong to a different descriptor family.");
     }
 }
