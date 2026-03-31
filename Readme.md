@@ -176,9 +176,13 @@ The result will be:
 SELECT 'Hi,'+'John'+'!'
 ```
 
+*Note: SqExpress supports quite sophisticated queries, but it does not aim to cover the full T-SQL language. Because SqExpress is designed to stay database-agnostic, the parser focuses on broadly portable SQL constructs and intentionally supports only a fail-closed subset of T-SQL.*
+
 SqExpress also includes a built-in Roslyn analyzer for `SqTSqlParser.Parse(...)`. It validates raw SQL and checks referenced tables against discovered SqExpress descriptors, but when possible it is better to use the `Convert SQL to SqExpress` code fix and replace raw SQL with generated C#.
 
 For an overview of the expression hierarchy behind SqExpress syntax nodes, see [AST Reference](Documentation/ast_reference.md).
+
+*Note: If your query references real tables, make sure the corresponding table descriptors already exist in your codebase, either handwritten or generated with [the table descriptors scaffolding tool](#table-descriptors-scaffolding). The analyzer relies on those descriptors and will report errors if the referenced tables cannot be resolved.*
 
 ![Convert SQL to SqExpress](sql-to-sqexpress.gif)
 
@@ -2089,16 +2093,29 @@ The returned value is a table source, not a complete `SELECT`, so it can be inse
 
 ```Package Manager Console```
 
-```
-SYNTAX
-    Gen-Tables [-DbType] {mssql | mysql | pgsql} [-ConnectionString] <string> [-OutputDir <string>] [-TableClassPrefix <string>] [-Namespace <string>] [-UseTableDeclarationAttributes]
+```powershell
+Gen-Tables -DbType {mssql | mysql | pgsql} -ConnectionString <string> [-OutputDir <string>] [-TableClassPrefix <string>] [-Namespace <string>] [-Verbosity {Quiet | Minimal | Normal | Detailed}] [-UseTableDeclarationAttributes] [-SkipUnknownColumnTypes]
 ```
 
-To generate attribute-based declarations instead of direct `TableBase` classes:
+Parameters:
 
-```
--UseTableDeclarationAttributes
-```
+- `-DbType`
+  Values: `mssql`, `mysql`, `pgsql`
+  Required.
+- `-ConnectionString`
+  Required.
+- `-OutputDir`
+  Optional. Output directory for generated `.cs` files.
+- `-TableClassPrefix`
+  Optional. Prefix for generated table descriptor class names. Default: `Table`.
+- `-Namespace`
+  Optional. Namespace for newly created files.
+- `-Verbosity`
+  Optional. Values: `Quiet`, `Minimal`, `Normal`, `Detailed`. Default: `Minimal`.
+- `-UseTableDeclarationAttributes`
+  Optional switch. Generates attribute-based partial declarations instead of direct `TableBase` descriptor classes.
+- `-SkipUnknownColumnTypes`
+  Optional switch. Skips unsupported database column types and generates descriptors from the remaining supported columns.
 
 ```GenerateTables.cmd```
 
