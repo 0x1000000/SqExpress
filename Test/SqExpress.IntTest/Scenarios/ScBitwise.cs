@@ -14,6 +14,7 @@ namespace SqExpress.IntTest.Scenarios
             var value = rawValue switch
             {
                 int i => i,
+                long l => (int)l,
                 ulong l => (int)l,
                 _ => throw new ArgumentOutOfRangeException(rawValue?.GetType().Name ?? "null")
             };

@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
+using SqExpress;
 using SqExpress.IntTest.Context;
 using SqExpress.IntTest.Tables;
 using SqExpress.Syntax.Names;
@@ -14,7 +15,18 @@ public class ScGetTables : IScenario
         var actualTables = await context.Database.GetTables();
         var declaredTables = AllTables.BuildAllTableList(context.Dialect);
 
-        var tableListComparison = declaredTables.CompareWith(actualTables, t => t.TableName.ToLower());
+        //SQLite introspection collapses several declared types/defaults to affinity-level metadata,
+        //so this comparison keeps structure strict while relaxing type/default round-tripping.
+        var comparisonFlags = context.Dialect.IsSqlite()
+            ? TableComparisonFlags.IgnoreColumnTypes |
+              TableComparisonFlags.IgnoreColumnTypeArguments |
+              TableComparisonFlags.IgnoreColumnDefaultValues
+            : TableComparisonFlags.Strict;
+
+        var tableListComparison = declaredTables.CompareWith(
+            actualTables,
+            comparisonFlags,
+            t => t.TableName.ToLower());
         if (tableListComparison != null)
         {
             PrintComparison(context, tableListComparison);
@@ -41,14 +53,13 @@ public class ScGetTables : IScenario
                 context.WriteLine($"{prefix} - {table.TableName.Name} is referenced by:");
                 foreach (var child in children)
                 {
-                    Print(child, prefix +"  ");
+                    Print(child, prefix + "  ");
                 }
             }
             else
             {
                 context.WriteLine($"{prefix} - {table.TableName.Name}");
             }
-
         }
     }
 

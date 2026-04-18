@@ -1,5 +1,6 @@
 using System;
 using NUnit.Framework;
+using SqExpress.SqlExport;
 
 namespace SqExpress.Test.QueryBuilder;
 
@@ -129,6 +130,61 @@ public class MergeTest
 
         Assert.That(sql, Does.Contain("WITH \"__sqexpress_merge_source\"(\"Expr1\",\"BB\",\"UserId\",\"Expr4\") AS("));
         Assert.That(sql, Does.Contain("FROM \"__sqexpress_merge_source\" \"S\""));
+    }
+
+    [Test]
+    public void SqliteMergePolyfill_UsesTempTableAndTargetOnlyDelete()
+    {
+        var t = Tables.User();
+
+        var data = new[] { new { Id = 1, FirstName = "Alice" }, new { Id = 2, FirstName = "Bob" } };
+        var valueTable = SqQueryBuilder.ValueTable(data, s => s.Set(t.UserId, s.Item.Id).Set(t.FirstName, s.Item.FirstName));
+
+        var sql = SqQueryBuilder
+            .MergeInto(t, valueTable)
+            .On(t.UserId == valueTable.Column(t.UserId))
+            .WhenMatched()
+                .ThenDelete()
+            .WhenNotMatchedBySource()
+                .ThenDelete()
+            .Done()
+            .ToSql(SqliteExporter.Default);
+
+        Assert.That(sql, Does.Contain("CREATE TEMP TABLE \"tmpMergeDataSource\""));
+        Assert.That(sql, Does.Contain("DELETE FROM \"user\" WHERE EXISTS("));
+        Assert.That(sql, Does.Contain("DELETE FROM \"user\" WHERE NOT EXISTS("));
+        Assert.That(sql, Does.Not.Contain("DELETE FROM \"user\" \"A0\""));
+    }
+
+    [Test]
+    public void SqliteMergePolyfill_RewritesMatchedInsertUpdateFlow()
+    {
+        var t = Tables.User();
+
+        var data = new[] { new { Id = 1, FirstName = "Alice" }, new { Id = 2, FirstName = "Bob" } };
+        var valueTable = SqQueryBuilder.ValueTable(data, s => s.Set(t.UserId, s.Item.Id).Set(t.FirstName, s.Item.FirstName));
+
+        var sql = SqQueryBuilder
+            .MergeInto(t, valueTable)
+            .On(t.UserId == valueTable.Column(t.UserId))
+            .WhenMatchedAnd(t.FirstName != valueTable.Column(t.FirstName))
+                .ThenUpdate()
+                    .Set(t.FirstName, valueTable.Column(t.FirstName))
+                    .Set(t.Modified, SqQueryBuilder.GetUtcDate())
+            .WhenNotMatchedByTarget()
+                .ThenInsert()
+                    .Set(t.UserId, valueTable.Column(t.UserId))
+                    .Set(t.FirstName, valueTable.Column(t.FirstName))
+                    .Set(t.Modified, SqQueryBuilder.GetUtcDate())
+            .WhenNotMatchedBySource()
+                .ThenUpdate()
+                    .Set(t.Modified, SqQueryBuilder.GetUtcDate())
+            .Done()
+            .ToSql(SqliteExporter.Default);
+
+        Assert.That(sql, Does.Contain("UPDATE \"user\" SET \"FirstName\"=\"A0\".\"FirstName\",\"Modified\"=CURRENT_TIMESTAMP FROM \"tmpMergeDataSource\" \"A0\""));
+        Assert.That(sql, Does.Contain("INSERT INTO \"user\"(\"UserId\",\"FirstName\",\"Modified\") SELECT \"A0\".\"UserId\",\"A0\".\"FirstName\",CURRENT_TIMESTAMP FROM \"tmpMergeDataSource\" \"A0\" WHERE NOT EXISTS("));
+        Assert.That(sql, Does.Contain("UPDATE \"user\" SET \"Modified\"=CURRENT_TIMESTAMP WHERE NOT EXISTS("));
     }
 
 }

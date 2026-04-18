@@ -77,6 +77,14 @@ namespace SqExpress.IntTest.Scenarios
                     overflowRows: 667,
                     overflowColumns: 3
                 ),
+                //SQLite defaults to a 32766-parameter ceiling, so the boundary case is tuned to that limit.
+                SqlDialect.Sqlite => new BoundaryCase(
+                    parametersLimit: 32766,
+                    boundaryRows: 10922,
+                    boundaryColumns: 3,
+                    overflowRows: 10923,
+                    overflowColumns: 3
+                ),
                 _ => new BoundaryCase(
                     parametersLimit: 65535,
                     boundaryRows: 21845,

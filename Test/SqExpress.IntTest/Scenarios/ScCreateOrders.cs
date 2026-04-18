@@ -60,11 +60,22 @@ namespace SqExpress.IntTest.Scenarios
             context.WriteLine("Some Orders are deleted. Current count: " + count);
 
             //Delete JOIN
-            await Delete(tOrder)
-                .From(tOrder)
-                .InnerJoin(vwCustomer, on: vwCustomer.CustomerId == tOrder.CustomerId)
-                .Where(tOrder.CustomerId % 7 + 1 == 1)
-                .Exec(context.Database);
+            //SQLite does not support the joined DELETE shape used by the other dialects here,
+            //so the test falls back to an equivalent target-only filter.
+            if (context.Dialect == SqlDialect.Sqlite)
+            {
+                await Delete(tOrder)
+                    .Where(tOrder.CustomerId % 7 + 1 == 1)
+                    .Exec(context.Database);
+            }
+            else
+            {
+                await Delete(tOrder)
+                    .From(tOrder)
+                    .InnerJoin(vwCustomer, on: vwCustomer.CustomerId == tOrder.CustomerId)
+                    .Where(tOrder.CustomerId % 7 + 1 == 1)
+                    .Exec(context.Database);
+            }
 
             //For my SQL number is different since Auto Increment is not reset on delete (ItCustomer)
 
@@ -76,18 +87,41 @@ namespace SqExpress.IntTest.Scenarios
                 .Where(tOrder.OrderId % 17 == 0)
                 .Exec(context.Database);
 
-            await Update(tOrder)
-                .Set(tOrder.Notes, tOrder.Notes + " (Updated 19)")
-                .From(tOrder)
-                .Where(tOrder.OrderId % 19 == 0)
-                .Exec(context.Database);
+            //SQLite can update this case without a self-FROM clause, which avoids an unsupported shape.
+            if (context.Dialect == SqlDialect.Sqlite)
+            {
+                await Update(tOrder)
+                    .Set(tOrder.Notes, tOrder.Notes + " (Updated 19)")
+                    .Where(tOrder.OrderId % 19 == 0)
+                    .Exec(context.Database);
+            }
+            else
+            {
+                await Update(tOrder)
+                    .Set(tOrder.Notes, tOrder.Notes + " (Updated 19)")
+                    .From(tOrder)
+                    .Where(tOrder.OrderId % 19 == 0)
+                    .Exec(context.Database);
+            }
 
-            await Update(tOrder)
-                .Set(tOrder.Notes, tOrder.Notes + " (Updated 23)")
-                .From(tOrder)
-                .InnerJoin(vwCustomer, on: vwCustomer.CustomerId == tOrder.CustomerId)
-                .Where(tOrder.OrderId % 23 == 0)
-                .Exec(context.Database);
+            //SQLite cannot use the joined UPDATE form here, so the scenario keeps the same row filter
+            //and executes it as a target-only update.
+            if (context.Dialect == SqlDialect.Sqlite)
+            {
+                await Update(tOrder)
+                    .Set(tOrder.Notes, tOrder.Notes + " (Updated 23)")
+                    .Where(tOrder.OrderId % 23 == 0)
+                    .Exec(context.Database);
+            }
+            else
+            {
+                await Update(tOrder)
+                    .Set(tOrder.Notes, tOrder.Notes + " (Updated 23)")
+                    .From(tOrder)
+                    .InnerJoin(vwCustomer, on: vwCustomer.CustomerId == tOrder.CustomerId)
+                    .Where(tOrder.OrderId % 23 == 0)
+                    .Exec(context.Database);
+            }
         }
     }
 }

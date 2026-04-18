@@ -13,11 +13,22 @@ public class ScDeleteCustomersByTopUser : IScenario
         var tUser = AllTables.GetItUser(context.Dialect);
         var topUsers = new TopFirstNameUsers(context.Dialect, 5);
 
-        await Delete(tCustomer)
-            .From(tCustomer)
-            .InnerJoin(topUsers, @on: topUsers.UserId == tCustomer.UserId)
-            .All()
-            .Exec(context.Database);
+        //SQLite does not support the joined DELETE form used for the other engines,
+        //so this scenario rewrites the same operation as an IN subquery.
+        if (context.Dialect == SqlDialect.Sqlite)
+        {
+            await Delete(tCustomer)
+                .Where(tCustomer.UserId.In(Select(topUsers.UserId).From(topUsers)))
+                .Exec(context.Database);
+        }
+        else
+        {
+            await Delete(tCustomer)
+                .From(tCustomer)
+                .InnerJoin(topUsers, @on: topUsers.UserId == tCustomer.UserId)
+                .All()
+                .Exec(context.Database);
+        }
 
         context.WriteLine("Deleted:");
 

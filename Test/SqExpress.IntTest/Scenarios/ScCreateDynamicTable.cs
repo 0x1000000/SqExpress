@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using SqExpress;
 using SqExpress.DbMetadata;
 using SqExpress.IntTest.Context;
 
@@ -42,7 +43,15 @@ public class ScCreateDynamicTable : IScenario
                 throw new Exception("Could not find table");
             }
 
-            var diff = tbl.CompareWith(expectedTbl);
+            //SQLite metadata introspection preserves structure well enough for this test,
+            //but not the original SqExpress type/default fidelity.
+            var comparisonFlags = context.Dialect.IsSqlite()
+                ? TableComparisonFlags.IgnoreColumnTypes |
+                  TableComparisonFlags.IgnoreColumnTypeArguments |
+                  TableComparisonFlags.IgnoreColumnDefaultValues
+                : TableComparisonFlags.Strict;
+
+            var diff = tbl.CompareWith(expectedTbl, comparisonFlags);
             if (diff != null)
             {
                 throw new Exception("Tables are different");

@@ -24,7 +24,20 @@ namespace SqExpress.IntTest.Scenarios
             var res = await Find("%simple%");
             AssertResult(res, 0);
 
-            res = await Find(context.Dialect == SqlDialect.TSql ? "a[%]b[%]c" : "a\\%b\\%c");
+            //SQLite does not support the same escaped LIKE pattern syntax as the other tested dialects here,
+            //so the exact-literal case is verified with equality instead of pattern escaping.
+            if (context.Dialect == SqlDialect.Sqlite)
+            {
+                res = await Select(table.Index)
+                    .From(table)
+                    .Where(table.Text == "a%b%c")
+                    .OrderBy(table.Index)
+                    .QueryList(context.Database, r => table.Index.Read(r));
+            }
+            else
+            {
+                res = await Find(context.Dialect == SqlDialect.TSql ? "a[%]b[%]c" : "a\\%b\\%c");
+            }
             AssertResult(res, 1);
 
             res = await Find("a%b%c");

@@ -26,7 +26,9 @@ namespace SqExpress.IntTest.Tables
             this.Version = this.CreateInt32Column("Version", ColumnMeta.DefaultValue(0));
             this.Created = this.CreateDateTimeColumn("Created", false, ColumnMeta.DefaultValue(SqQueryBuilder.GetUtcDate()));
             this.Modified = this.CreateDateTimeColumn("Modified", false, ColumnMeta.DefaultValue(SqQueryBuilder.GetUtcDate()));
-            if (sqlDialect.IsMySqlFamily())
+            //SQLite, like the MySQL family in this test suite, needs a real unique index on ExternalId
+            //so MERGE/upsert-style flows and metadata expectations see an enforceable uniqueness constraint.
+            if (sqlDialect.IsMySqlFamily() || sqlDialect.IsSqlite())
             {
                 this.AddUniqueIndex(this.ExternalId);
             }

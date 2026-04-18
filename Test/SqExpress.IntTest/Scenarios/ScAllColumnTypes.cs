@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -63,6 +64,32 @@ namespace SqExpress.IntTest.Scenarios
                         .ForMember(nameof(table.ColNullableBoolean), c => c.MapFrom((r, dto) => r.IsDBNull(r.GetOrdinal(nameof(table.ColNullableBoolean))) ? (bool?)null : r.GetBoolean(r.GetOrdinal(nameof(table.ColNullableBoolean)))))
                         .ForMember(nameof(table.ColGuid), c => c.MapFrom((r, dto) => r.GetGuid(r.GetOrdinal(nameof(table.ColGuid)))))
                         .ForMember(nameof(table.ColNullableGuid), c=>c.MapFrom((r, dto) => r.IsDBNull(r.GetOrdinal(nameof(table.ColNullableGuid)))? (Guid?)null : r.GetGuid(r.GetOrdinal(nameof(table.ColNullableGuid)))));
+                }
+
+                //SQLite exposes many scalar values through provider-normalized CLR types/strings,
+                //so this scenario uses explicit conversions instead of the typed reader helpers.
+                if (context.Dialect == SqlDialect.Sqlite)
+                {
+                    map
+                        .ForMember(nameof(AllColumnTypesDto.Id), c => c.MapFrom((r, dto) => Convert.ToInt32(r[nameof(AllColumnTypesDto.Id)])))
+                        .ForMember(nameof(table.ColBoolean), c => c.MapFrom((r, dto) => Convert.ToBoolean(r[nameof(table.ColBoolean)])))
+                        .ForMember(nameof(table.ColNullableBoolean), c => c.MapFrom((r, dto) => r[nameof(table.ColNullableBoolean)] == DBNull.Value ? (bool?)null : Convert.ToBoolean(r[nameof(table.ColNullableBoolean)])))
+                        .ForMember(nameof(table.ColByte), c => c.MapFrom((r, dto) => Convert.ToByte(r[nameof(table.ColByte)])))
+                        .ForMember(nameof(table.ColNullableByte), c => c.MapFrom((r, dto) => r[nameof(table.ColNullableByte)] == DBNull.Value ? (byte?)null : Convert.ToByte(r[nameof(table.ColNullableByte)])))
+                        .ForMember(nameof(table.ColInt16), c => c.MapFrom((r, dto) => Convert.ToInt16(r[nameof(table.ColInt16)])))
+                        .ForMember(nameof(table.ColNullableInt16), c => c.MapFrom((r, dto) => r[nameof(table.ColNullableInt16)] == DBNull.Value ? (short?)null : Convert.ToInt16(r[nameof(table.ColNullableInt16)])))
+                        .ForMember(nameof(table.ColInt32), c => c.MapFrom((r, dto) => Convert.ToInt32(r[nameof(table.ColInt32)])))
+                        .ForMember(nameof(table.ColNullableInt32), c => c.MapFrom((r, dto) => r[nameof(table.ColNullableInt32)] == DBNull.Value ? (int?)null : Convert.ToInt32(r[nameof(table.ColNullableInt32)])))
+                        .ForMember(nameof(table.ColInt64), c => c.MapFrom((r, dto) => Convert.ToInt64(r[nameof(table.ColInt64)])))
+                        .ForMember(nameof(table.ColNullableInt64), c => c.MapFrom((r, dto) => r[nameof(table.ColNullableInt64)] == DBNull.Value ? (long?)null : Convert.ToInt64(r[nameof(table.ColNullableInt64)])))
+                        .ForMember(nameof(table.ColDecimal), c => c.MapFrom((r, dto) => decimal.Parse(Convert.ToString(r[nameof(table.ColDecimal)], CultureInfo.InvariantCulture)!, CultureInfo.InvariantCulture)))
+                        .ForMember(nameof(table.ColNullableDecimal), c => c.MapFrom((r, dto) => r[nameof(table.ColNullableDecimal)] == DBNull.Value ? (decimal?)null : decimal.Parse(Convert.ToString(r[nameof(table.ColNullableDecimal)], CultureInfo.InvariantCulture)!, CultureInfo.InvariantCulture)))
+                        .ForMember(nameof(table.ColDouble), c => c.MapFrom((r, dto) => double.Parse(Convert.ToString(r[nameof(table.ColDouble)], CultureInfo.InvariantCulture)!, CultureInfo.InvariantCulture)))
+                        .ForMember(nameof(table.ColNullableDouble), c => c.MapFrom((r, dto) => r[nameof(table.ColNullableDouble)] == DBNull.Value ? (double?)null : double.Parse(Convert.ToString(r[nameof(table.ColNullableDouble)], CultureInfo.InvariantCulture)!, CultureInfo.InvariantCulture)))
+                        .ForMember(nameof(table.ColGuid), c => c.MapFrom((r, dto) => Guid.Parse(Convert.ToString(r[nameof(table.ColGuid)])!)))
+                        .ForMember(nameof(table.ColNullableGuid), c => c.MapFrom((r, dto) => r[nameof(table.ColNullableGuid)] == DBNull.Value ? (Guid?)null : Guid.Parse(Convert.ToString(r[nameof(table.ColNullableGuid)])!)))
+                        .ForMember(nameof(table.ColDateTime), c => c.MapFrom((r, dto) => Convert.ToDateTime(r[nameof(table.ColDateTime)])))
+                        .ForMember(nameof(table.ColNullableDateTime), c => c.MapFrom((r, dto) => r[nameof(table.ColNullableDateTime)] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(r[nameof(table.ColNullableDateTime)])));
                 }
             }));
 

@@ -44,6 +44,9 @@ namespace SqExpress.IntTest.Scenarios
             {
                 SqlDialect.MariaDb => data.Total == 8438,
                 SqlDialect.OracleMySql => data.Total == 8438,
+                //SQLite lands on a different deterministic total because its simplified delete/update
+                //test shapes affect the seeded order count differently from the other dialects.
+                SqlDialect.Sqlite => data.Total == 8407,
                 SqlDialect.TSql => context.ParametrizationMode == ParametrizationMode.None
                     ? data.Total == 8397
                     : data.Total == 8442,

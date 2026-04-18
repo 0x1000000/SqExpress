@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Threading.Tasks;
 using SqExpress.IntTest.Context;
 using SqExpress.IntTest.Tables;
@@ -38,7 +39,9 @@ namespace SqExpress.IntTest.Scenarios
         {
             var rawResult = await Select(Cast((Literal(7) + 3 - Literal(1)) * 2 / 6, SqlType.Double))
                 .QueryScalar(context.Database);
-            var doubleResult = rawResult == null ? (double?)null : Convert.ToDouble(rawResult);
+            var doubleResult = rawResult == null
+                ? (double?)null
+                : double.Parse(Convert.ToString(rawResult, CultureInfo.InvariantCulture)!, CultureInfo.InvariantCulture);
 
             if (Math.Abs((doubleResult ?? 0) - 3.0) > 0)
             {
@@ -72,7 +75,9 @@ namespace SqExpress.IntTest.Scenarios
         {
             var rawResult = await Select(Coalesce(Null, Null, 2.123456m))
                 .QueryScalar(context.Database);
-            var result = rawResult == null ? (decimal?)null : Convert.ToDecimal(rawResult);
+            var result = rawResult == null
+                ? (decimal?)null
+                : decimal.Parse(Convert.ToString(rawResult, CultureInfo.InvariantCulture)!, CultureInfo.InvariantCulture);
 
             if (result != 2.123456m)
             {

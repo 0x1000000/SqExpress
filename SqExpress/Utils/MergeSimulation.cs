@@ -14,7 +14,11 @@ namespace SqExpress.Utils
 {
     internal static class MergeSimulation
     {
-        public static ExprList ConvertMerge(ExprMerge merge, string tempTableName, bool useJoinBasedInsertAntiMatch = false)
+        public static ExprList ConvertMerge(
+            ExprMerge merge,
+            string tempTableName,
+            bool useJoinBasedInsertAntiMatch = false,
+            bool useTargetOnlyDelete = false)
         {
             var acc = new List<IExprExec>();
 
@@ -36,7 +40,7 @@ namespace SqExpress.Utils
             acc.AddRange(exprInsertIntoTmp.Expressions);
 
             //MATCHED
-            var e = WhenMatched(merge, tempTable);
+            var e = WhenMatched(merge, tempTable, useTargetOnlyDelete);
             if (e != null)
             {
                 acc.Add(e);
@@ -50,7 +54,7 @@ namespace SqExpress.Utils
             }
 
             //NOT MATCHED BY SOURCE
-            e = WhenNotMatchedBySource(merge, tempTable);
+            e = WhenNotMatchedBySource(merge, tempTable, useTargetOnlyDelete);
             if (e != null)
             {
                 acc.Add(e);
@@ -158,7 +162,7 @@ namespace SqExpress.Utils
             return new ExtractKeysResult(accTarget, accSource);
         }
 
-        private static IExprExec? WhenMatched(ExprMerge merge, TempTableBase tempTable)
+        private static IExprExec? WhenMatched(ExprMerge merge, TempTableBase tempTable, bool useTargetOnlyDelete)
         {
             IExprExec? e = null;
             if (merge.WhenMatched != null)
@@ -183,7 +187,7 @@ namespace SqExpress.Utils
                         filter = filter & delete.And;
                     }
 
-                    e = SqQueryBuilder.Delete(merge.TargetTable).From(merge.TargetTable).Where(filter);
+                    e = BuildDelete(merge.TargetTable, filter, useTargetOnlyDelete);
                 }
                 else
                 {
@@ -257,7 +261,7 @@ namespace SqExpress.Utils
             return e;
         }
 
-        private static IExprExec? WhenNotMatchedBySource(ExprMerge merge, TempTableBase tempTable)
+        private static IExprExec? WhenNotMatchedBySource(ExprMerge merge, TempTableBase tempTable, bool useTargetOnlyDelete)
         {
             IExprExec? e = null;
             if (merge.WhenNotMatchedBySource != null)
@@ -273,7 +277,7 @@ namespace SqExpress.Utils
                         filter = filter & delete.And;
                     }
 
-                    e = SqQueryBuilder.Delete(merge.TargetTable).From(merge.TargetTable).Where(filter);
+                    e = BuildDelete(merge.TargetTable, filter, useTargetOnlyDelete);
                 }
                 else if (merge.WhenNotMatchedBySource is ExprMergeMatchedUpdate update)
                 {
@@ -294,6 +298,13 @@ namespace SqExpress.Utils
             }
 
             return e;
+        }
+
+        private static IExprExec BuildDelete(ExprTable targetTable, ExprBoolean filter, bool useTargetOnlyDelete)
+        {
+            return useTargetOnlyDelete
+                ? SqQueryBuilder.Delete(targetTable).Where(filter)
+                : SqQueryBuilder.Delete(targetTable).From(targetTable).Where(filter);
         }
 
         private readonly struct ExtractKeysResult

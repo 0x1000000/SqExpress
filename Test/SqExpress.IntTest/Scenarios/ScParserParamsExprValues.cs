@@ -97,8 +97,8 @@ public class ScParserParamsExprValues : IScenario
         AssertValue(row, "Int16V", int16Value, v => Convert.ToInt16(v));
         AssertValue(row, "Int32V", int32Value, v => Convert.ToInt32(v));
         AssertValue(row, "Int64V", int64Value, v => Convert.ToInt64(v));
-        AssertValue(row, "DecimalV", decimalValue, v => Convert.ToDecimal(v));
-        AssertValue(row, "DoubleV", doubleValue, v => Convert.ToDouble(v));
+        AssertValue(row, "DecimalV", decimalValue, v => decimal.Parse(Convert.ToString(v, CultureInfo.InvariantCulture)!, CultureInfo.InvariantCulture));
+        AssertValue(row, "DoubleV", doubleValue, v => double.Parse(Convert.ToString(v, CultureInfo.InvariantCulture)!, CultureInfo.InvariantCulture));
         AssertValue(row, "StringV", stringValue, v => Convert.ToString(v) ?? string.Empty);
         AssertValue(row, "GuidV", guidValue, ReadGuid);
         AssertValue(row, "DateTimeV", dateTimeValue, ReadDateTime);

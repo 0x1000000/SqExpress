@@ -1,3 +1,7 @@
+# 1.3.0
+### New Features
+- Added SQLite support, including SQL export, DDL generation, runtime integration, and integration-test coverage.
+
 # 1.2.0
 ### New Features
 - Added non-generic syntax tree visitor support with `IExprVisitor` and `ExprVisitorBase`.

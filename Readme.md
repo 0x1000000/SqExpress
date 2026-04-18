@@ -3,13 +3,13 @@
 ![Logo](https://github.com/0x1000000/SqExpress/blob/main/SqExpress/Icon.png)
 For those who like SQL but hate raw strings.
 
-The library provides a generic SQL syntax tree with export to MS T-SQL, PostgreSQL, and MySQL text. It includes polyfills to compensate for features lacking in certain databases, such as the "MERGE" command. It also provides a set of builders and operators that will help you build complex SQL expressions. It also includes a T-SQL parser (`SqTSqlParser`) for converting existing SQL text into SqExpress AST.
+The library provides a generic SQL syntax tree with export to MS T-SQL, PostgreSQL, MySQL, and SQLite text. It includes polyfills to compensate for features lacking in certain databases, such as the "MERGE" command. It also provides a set of builders and operators that will help you build complex SQL expressions. It also includes a T-SQL parser (`SqTSqlParser`) for converting existing SQL text into SqExpress AST.
 
 It does not use LINQ, and your C# code will be as close to real SQL as possible. This makes it ideal when you need full SQL flexibility to create efficient DB requests.
 
-SqExpress comes with a simple but efficient data access mechanism that wraps ADO.Net DbConnection and can be used with MS SQL Client, Npgsql, or MySQL Connector.
+SqExpress comes with a simple but efficient data access mechanism that wraps ADO.Net DbConnection and can be used with MS SQL Client, Npgsql, MySQL Connector, or `Microsoft.Data.Sqlite`.
 
-You can use SqExpress together with the "Code First" concept when you declare SQL tables as C# classes with the possibility to generate recreation scripts for a target platform (MS SQL or PostgreSQL or MySQL).
+You can use SqExpress together with the "Code First" concept when you declare SQL tables as C# classes with the possibility to generate recreation scripts for a target platform (MS SQL or PostgreSQL or MySQL or SQLite).
 
 You can also use it in conjunction with the "Database First" concept using an included code modification utility. The utility can also be used to generate flexible DTO classes with all required database mappings.
 
@@ -78,7 +78,8 @@ SqExpress is also a strong fit when SQL is produced dynamically, including by AI
 2. [Using in ASP.NET](#using-in-aspnet)
 3. [PostgreSQL](#postgresql)
 4. [MySQL](#mysql)
-5. [AutoMapper](#automapper)
+5. [SQLite](#sqlite)
+6. [AutoMapper](#automapper)
 
 ---
 ---
@@ -221,7 +222,7 @@ Use SqExpress when:
 - You need complex queries (CTE, window functions, set operations, MERGE-style workflows).
 - You want code to stay close to SQL while still getting strong typing and IntelliSense.
 - You want table descriptors, metadata comparison, and code generation in one workflow.
-- You need one query model that can export to MS SQL, PostgreSQL, and MySQL.
+- You need one query model that can export to MS SQL, PostgreSQL, MySQL, and SQLite.
 
 SqExpress shines the most in two areas:
 
@@ -2317,6 +2318,7 @@ Current exporter parameter limits:
 - MS SQL (`TSqlExporter`): `2000`
 - PostgreSQL (`PgSqlExporter`): `65535`
 - MySQL (`MySqlExporter`): `65535`
+- SQLite (`SqliteExporter`): `32766`
 
 Performance notes:
 
@@ -2396,6 +2398,36 @@ using (var connection = new MySqlConnection(connectionString))
 ```
 
 *Note: You need to add **MySql.Data** or **MySqlConnector** package to your project.*
+
+## SQLite
+
+You can also run SqExpress against SQLite, including in-memory databases:
+
+```cs
+DbCommand SqliteCommandFactory(SqliteConnection connection, string sqlText)
+{
+    return new SqliteCommand(sqlText, connection);
+}
+
+const string connectionString =
+    "Data Source=SqExpress;Mode=Memory;Cache=Shared";
+
+using (var connection = new SqliteConnection(connectionString))
+{
+    connection.Open();
+
+    using (var database = new SqDatabase<SqliteConnection>(
+        connection: connection,
+        commandFactory: SqliteCommandFactory,
+        sqlExporter: SqliteExporter.Default,
+        parametrizationMode: ParametrizationMode.LiteralFallback))
+    {
+        ...
+    }
+}
+```
+
+*Note: You need to add **Microsoft.Data.Sqlite** package to your project.*
 
 ## AutoMapper
 

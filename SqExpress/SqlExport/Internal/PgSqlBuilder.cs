@@ -29,7 +29,7 @@ namespace SqExpress.SqlExport.Internal
         {
         }
 
-        private PgSqlBuilder(SqlBuilderOptions? options, StringBuilder? externalBuilder, SqlAliasGenerator aliasGenerator, bool dismissCteInject)
+        protected PgSqlBuilder(SqlBuilderOptions? options, StringBuilder? externalBuilder, SqlAliasGenerator aliasGenerator, bool dismissCteInject)
             : base(options, externalBuilder, aliasGenerator, dismissCteInject)
         {
         }

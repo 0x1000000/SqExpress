@@ -15,6 +15,14 @@ public class ScTransactionsDeadlock : IScenario
 {
     public async Task Exec(IScenarioContext context)
     {
+        //SQLite uses single-writer locking rather than server-style deadlock detection,
+        //so this deadlock scenario is not a portability target there.
+        if (context.Dialect == SqlDialect.Sqlite)
+        {
+            context.WriteLine("Skipped for SQLite: single-writer locking surfaces table locks instead of deadlock semantics.");
+            return;
+        }
+
         await using var connection1 = context.CreteConnection();
         await using var connection2 = context.CreteConnection();
 

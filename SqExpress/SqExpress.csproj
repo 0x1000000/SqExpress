@@ -7,14 +7,14 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <Authors>Dmitry Tikhonov</Authors>
     <Company />
-    <Version>1.2.0</Version>
-    <Summary>SqExpress is a SQL query builder that allows you to create SQL expressions directly in C# code with strong typing and IntelliSense.</Summary>
+    <Version>1.3.0</Version>
+    <Summary>SqExpress is a SQL query builder that lets you create SQL expressions directly in C# with strong typing and export them to MS T-SQL, PostgreSQL, MySQL, and SQLite.</Summary>
     <PackageReleaseNotes>https://github.com/0x1000000/SqExpress/blob/main/CHANGELOG.md</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Description>SqExpress is for those who like SQL but hate raw strings. It lets you build SQL directly in C# with strong typing and IntelliSense, while keeping the code close to real SQL and avoiding LINQ translation.
 
 Key features:
-- Strongly typed SQL AST with export to MS T-SQL, PostgreSQL, and MySQL
+- Strongly typed SQL AST with export to MS T-SQL, PostgreSQL, MySQL, and SQLite
 - Complex query building with joins, subqueries, CTEs, set operators, analytic/window functions, and MERGE-style workflows
 - Syntax tree traversal and modification for dynamic query scenarios
 - T-SQL parser (`SqTSqlParser`) for importing supported SQL into SqExpress AST
@@ -24,7 +24,7 @@ Key features:
 - Database-first scaffolding for table descriptors and models
 - Live database metadata retrieval and table-list comparison with flags-based diff/inclusion helpers
 - Foreign-key graph navigation and join-path discovery with `TablesGraph`
-- Lightweight ADO.NET-based data access for MS SQL Client, Npgsql, and MySQL connectors
+- Lightweight ADO.NET-based data access for MS SQL Client, Npgsql, MySQL connectors, and `Microsoft.Data.Sqlite`
 
 SqExpress works well for both code-first and database-first workflows.
 
@@ -33,9 +33,9 @@ Here's an article that explains the library principles: ["Syntax Tree and Altern
     <PackageIcon>Icon.png</PackageIcon>
     <Copyright>Dmitry Tikhonov</Copyright>
     <PackageProjectUrl>https://github.com/0x1000000/SqExpress</PackageProjectUrl>
-    <PackageTags>query postgresql  tsql mysql builder mssql dataaccess</PackageTags>
-    <AssemblyVersion>1.2.0</AssemblyVersion>
-    <FileVersion>1.2.0</FileVersion>
+    <PackageTags>query postgresql tsql mysql sqlite builder mssql dataaccess ado.net</PackageTags>
+    <AssemblyVersion>1.3.0</AssemblyVersion>
+    <FileVersion>1.3.0</FileVersion>
     <AssemblyOriginatorKeyFile>..\SqExpress.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>
     <DelaySign>false</DelaySign>

@@ -201,7 +201,7 @@ public class ScPortableScalarFunctions : IScenario
 
     private static void AssertDecimalResult(Dictionary<string, object?> actual, string name, decimal expected)
     {
-        var actualValue = Convert.ToDecimal(actual[name]);
+        var actualValue = decimal.Parse(Convert.ToString(actual[name], CultureInfo.InvariantCulture)!, CultureInfo.InvariantCulture);
         if (actualValue != expected)
         {
             throw new Exception($"{name}: expected {PrintValue(expected)} but was {PrintValue(actualValue)}");

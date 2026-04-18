@@ -808,7 +808,7 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
-        public bool VisitExprScalarFunction(ExprScalarFunction exprScalarFunction, IExpr? parent)
+        public virtual bool VisitExprScalarFunction(ExprScalarFunction exprScalarFunction, IExpr? parent)
         {
             if (exprScalarFunction.Schema != null)
             {
@@ -836,7 +836,7 @@ namespace SqExpress.SqlExport.Internal
 
         public abstract bool VisitExprPortableScalarFunction(ExprPortableScalarFunction exprPortableScalarFunction, IExpr? arg);
 
-        public bool VisitExprTableFunction(ExprTableFunction exprTableFunction, IExpr? arg)
+        public virtual bool VisitExprTableFunction(ExprTableFunction exprTableFunction, IExpr? arg)
         {
             if (exprTableFunction.Schema != null)
             {
@@ -1285,7 +1285,7 @@ namespace SqExpress.SqlExport.Internal
 
         }
 
-        public bool VisitExprDerivedTableQuery(ExprDerivedTableQuery exprDerivedTableQuery, IExpr? parent)
+        public virtual bool VisitExprDerivedTableQuery(ExprDerivedTableQuery exprDerivedTableQuery, IExpr? parent)
         {
             this.AcceptPar('(', exprDerivedTableQuery.Query, ')', exprDerivedTableQuery);
             exprDerivedTableQuery.Alias.Accept(this, exprDerivedTableQuery);

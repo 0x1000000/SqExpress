@@ -5,6 +5,7 @@ using SqExpress.DbMetadata.Internal.DbManagers;
 using SqExpress.DbMetadata.Internal.DbManagers.MsSql;
 using SqExpress.DbMetadata.Internal.DbManagers.MySql;
 using SqExpress.DbMetadata.Internal.DbManagers.PgSql;
+using SqExpress.DbMetadata.Internal.DbManagers.Sqlite;
 using SqExpress.DbMetadata.Internal.Model;
 using SqExpress.SqlExport;
 using SqExpress.StatementSyntax;
@@ -394,16 +395,19 @@ namespace SqExpress.DataAccess
         {
             this.CheckDisposed();
 
-            if (string.IsNullOrEmpty(this._connection.Database))
+            if (string.IsNullOrEmpty(this._connection.Database) && this._sqlExporter is not SqliteExporter)
             {
                 throw new SqExpressException("Connection should include a database name");
             }
 
+            var databaseName = string.IsNullOrEmpty(this._connection.Database) ? "main" : this._connection.Database;
+
             IDbStrategy dbStrategy = this._sqlExporter switch
             {
-                TSqlExporter => new MsSqlDbStrategy(this, this._connection.Database),
-                PgSqlExporter => new PgSqlDbStrategy(this, this._connection.Database),
-                MySqlExporter e => new MySqlDbStrategy(this, this._connection.Database, e.Flavor),
+                TSqlExporter => new MsSqlDbStrategy(this, databaseName),
+                PgSqlExporter => new PgSqlDbStrategy(this, databaseName),
+                MySqlExporter e => new MySqlDbStrategy(this, databaseName, e.Flavor),
+                SqliteExporter => new SqliteDbStrategy(this, databaseName, this._connection),
                 _ => throw new SqExpressException("Unknown sqlExporter")
             };
 

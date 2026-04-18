@@ -109,9 +109,10 @@ namespace SqExpress.IntTest.Scenarios
                 .OrderBy(tt.Id)
                 .QueryList(context.Database, r => TestMergeDataRow.Read(r, tt));
 
-            if (RowDataToString(dataFromDb) != "1,17,3;2,11,0")
+            var rowData = RowDataToString(dataFromDb);
+            if (rowData != "1,17,3;2,11,0")
             {
-                throw new Exception("Incorrect data");
+                throw new Exception("Incorrect data: " + rowData);
             }
 
             context.WriteLine("Deleting ON MATCH using MERGE..");

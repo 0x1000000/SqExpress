@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using NUnit.Framework;
+using SqExpress.SqlExport;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.Test.QueryBuilder
@@ -23,8 +24,6 @@ namespace SqExpress.Test.QueryBuilder
             Assert.AreEqual("SELECT MIN(DISTINCT [UserId])OVER(ORDER BY [Version]) FROM [dbo].[user]", Select(MinDistinct(userTable.UserId).OverOrderBy(userTable.Version)).From(userTable).Done().ToSql());
             Assert.AreEqual("SELECT MIN(DISTINCT [UserId])OVER(PARTITION BY [Version] ORDER BY [Version]) FROM [dbo].[user]", Select(MinDistinct(userTable.UserId).OverPartitionBy(userTable.Version).OrderBy(userTable.Version)).From(userTable).Done().ToSql());
             Assert.AreEqual("SELECT MIN(DISTINCT [UserId])OVER(PARTITION BY [Version]) FROM [dbo].[user]", Select(MinDistinct(userTable.UserId).OverPartitionBy(userTable.Version).NoOrderBy()).From(userTable).Done().ToSql());
-
-
 
             Assert.AreEqual("SELECT MAX([UserId]) FROM [dbo].[user]", Select(Max(userTable.UserId)).From(userTable).Done().ToSql());
             Assert.AreEqual("SELECT MAX(DISTINCT [UserId]) FROM [dbo].[user]", Select(MaxDistinct(userTable.UserId)).From(userTable).Done().ToSql());
@@ -84,6 +83,25 @@ namespace SqExpress.Test.QueryBuilder
             var sql = Select(Hour(new DateTime(2020, 2, 3, 4, 5, 6))).Done().ToOracleSql();
 
             Assert.AreEqual("SELECT HOUR('2020-02-03 04:05:06.000')", sql);
+        }
+
+        [Test]
+        public void Sqlite_ScalarFunction_IgnoresSchemaPrefix()
+        {
+            var sql = ScalarFunctionCustom("dbo", "MyFunc", 1).ToSql(SqliteExporter.Default);
+
+            Assert.AreEqual("\"MyFunc\"(1)", sql);
+        }
+
+        [Test]
+        public void Sqlite_TableFunction_IgnoresSchemaPrefix()
+        {
+            var sql = SelectOne()
+                .From(TableFunctionCustom("dbo", "MyTableFunc", 1).As(TableAlias("T")))
+                .Done()
+                .ToSql(SqliteExporter.Default);
+
+            Assert.AreEqual("SELECT 1 FROM \"MyTableFunc\"(1) \"T\"", sql);
         }
     }
 }

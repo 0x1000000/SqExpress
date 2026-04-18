@@ -27,7 +27,8 @@ namespace SqExpress.IntTest.Context
         TSql,
         PgSql,
         MariaDb,
-        OracleMySql
+        OracleMySql,
+        Sqlite
     }
 
     [VisitorToMethod("GetExporter")]
@@ -40,5 +41,7 @@ namespace SqExpress.IntTest.Context
         public ISqlExporter CaseMariaDb() => MySqlExporter.MariaDbDefault;
 
         public ISqlExporter CaseOracleMySql() => MySqlExporter.OracleDefault;
+
+        public ISqlExporter CaseSqlite() => SqliteExporter.Default;
     }
 }

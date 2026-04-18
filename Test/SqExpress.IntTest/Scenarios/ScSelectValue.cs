@@ -15,9 +15,13 @@ namespace SqExpress.IntTest.Scenarios
             var tUser = AllTables.GetItUser(context.Dialect);
             var tUserSub = AllTables.GetItUser(context.Dialect);
 
-            var userId = (int?)await SelectTop(1, tUser.UserId)
+            var userIdObj = await SelectTop(1, tUser.UserId)
                 .From(tUser)
                 .QueryScalar(context.Database);
+
+            var userId = userIdObj == null
+                ? (int?)null
+                : Convert.ToInt32(userIdObj);
 
             var email = await Select(UserEmail.GetColumns(tUser))
                 .From(tUser)

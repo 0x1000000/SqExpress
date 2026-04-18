@@ -13,9 +13,13 @@ namespace SqExpress.IntTest.Scenarios
             var tUser = AllTables.GetItUser(context.Dialect);
             var tCustomer = AllTables.GetItCustomer();
 
-            var maxVersion = (int?) await Select(Max(tUser.Version))
+            var maxVersionObj = await Select(Max(tUser.Version))
                 .From(tUser)
                 .QueryScalar(context.Database);
+
+            var maxVersion = maxVersionObj == null
+                ? (int?)null
+                : Convert.ToInt32(maxVersionObj);
 
             var countBefore = (long?)await Select(Cast(CountOne(), SqlType.Int64))
                 .From(tUser)
