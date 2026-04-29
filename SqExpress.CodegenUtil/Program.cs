@@ -80,9 +80,12 @@ namespace SqExpress.CodeGenUtil
 
             string directory = EnsureDirectory(options.OutputDir, logger, "Output", true);
 
-            if (string.IsNullOrEmpty(options.ConnectionString))
+            if (string.IsNullOrEmpty(options.Source))
             {
-                throw new SqExpressCodeGenException("Connection string cannot be empty");
+                throw new SqExpressCodeGenException(
+                    options.ConnectionType == ConnectionType.Ef
+                        ? "EF project or assembly path cannot be empty"
+                        : "Connection string cannot be empty");
             }
             var existingCode = (IReadOnlyDictionary<TableRef, Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax>)
                 new Dictionary<TableRef, Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax>();
@@ -95,19 +98,33 @@ namespace SqExpress.CodeGenUtil
                     : "No table descriptor classes found.");
             }
 
-            var sqlManager = CreateDbManager(options);
-
-            logger.LogNormal("Connecting to database...");
-
-            var connectionTest = await sqlManager.TryOpenConnection();
-            if (!string.IsNullOrEmpty(connectionTest))
+            IReadOnlyList<TableModel> tables;
+            if (options.ConnectionType == ConnectionType.Ef)
             {
-                throw new SqExpressCodeGenException(connectionTest);
+                using var efSource = EfProjectDbContextFactory.Create(options.Source, options.DbContext);
+                logger.LogNormal("Reading EF model metadata...");
+                tables = EfModelTableReader.SelectTables(
+                    efSource.Model,
+                    efSource.ProviderName ?? string.Empty,
+                    options.TableClassPrefix,
+                    options.SkipUnknownColumnTypes);
             }
+            else
+            {
+                using var sqlManager = CreateDbManager(options);
 
-            logger.LogNormal("Success!");
+                logger.LogNormal("Connecting to database...");
 
-            var tables = await sqlManager.SelectTables(options.SkipUnknownColumnTypes);
+                var connectionTest = await sqlManager.TryOpenConnection();
+                if (!string.IsNullOrEmpty(connectionTest))
+                {
+                    throw new SqExpressCodeGenException(connectionTest);
+                }
+
+                logger.LogNormal("Success!");
+
+                tables = await sqlManager.SelectTables(options.SkipUnknownColumnTypes);
+            }
 
             if(logger.IsNormalOrHigher)
             {
@@ -252,11 +269,11 @@ namespace SqExpress.CodeGenUtil
                 case ConnectionType.MsSql:
                     try
                     {
-                        connection = new SqlConnection(options.ConnectionString);
+                        connection = new SqlConnection(options.Source);
                     }
                     catch (ArgumentException e)
                     {
-                        throw new SqExpressCodeGenException($"MsSQL connection string has incorrect format \"{options.ConnectionString}\"", e);
+                        throw new SqExpressCodeGenException($"MsSQL connection string has incorrect format \"{options.Source}\"", e);
                     }
 
                     if (string.IsNullOrEmpty(connection.Database))
@@ -267,11 +284,11 @@ namespace SqExpress.CodeGenUtil
                 case ConnectionType.MySql:
                     try
                     {
-                        connection = new MySqlConnection(options.ConnectionString);
+                        connection = new MySqlConnection(options.Source);
                     }
                     catch (ArgumentException e)
                     {
-                        throw new SqExpressCodeGenException($"MySQL connection string has incorrect format \"{options.ConnectionString}\"", e);
+                        throw new SqExpressCodeGenException($"MySQL connection string has incorrect format \"{options.Source}\"", e);
                     }
 
                     if (string.IsNullOrEmpty(connection.Database))
@@ -282,11 +299,11 @@ namespace SqExpress.CodeGenUtil
                 case ConnectionType.PgSql:
                     try
                     {
-                        connection = new NpgsqlConnection(options.ConnectionString);
+                        connection = new NpgsqlConnection(options.Source);
                     }
                     catch (ArgumentException e)
                     {
-                        throw new SqExpressCodeGenException($"PgSQL connection string has incorrect format \"{options.ConnectionString}\"", e);
+                        throw new SqExpressCodeGenException($"PgSQL connection string has incorrect format \"{options.Source}\"", e);
                     }
 
                     if (string.IsNullOrEmpty(connection.Database))

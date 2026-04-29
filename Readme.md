@@ -2094,19 +2094,26 @@ The returned value is a table source, not a complete `SELECT`, so it can be inse
 
 **SqExpress** comes with the code-gen utility (it is located in the NuGet package cache). It can read metadata from a database and create table descriptor classes in your code. It requires .NET Core 3.1+
 
+For full `Gen-Tables`, EF mode, generated table attributes, and MSBuild project property documentation, see [Table Generation Reference](Documentation/table_generation.md).
+
 ```Package Manager Console```
 
 ```powershell
 Gen-Tables -DbType {mssql | mysql | pgsql} -ConnectionString <string> [-OutputDir <string>] [-TableClassPrefix <string>] [-Namespace <string>] [-Verbosity {Quiet | Minimal | Normal | Detailed}] [-UseTableDeclarationAttributes] [-SkipUnknownColumnTypes]
+Gen-Tables ef [[-Project] <project-name-or-path>] [-DbContext <type-name>] [-OutputDir <string>] [-TableClassPrefix <string>] [-Namespace <string>] [-Verbosity {Quiet | Minimal | Normal | Detailed}] [-UseTableDeclarationAttributes] [-SkipUnknownColumnTypes]
 ```
 
 Parameters:
 
 - `-DbType`
-  Values: `mssql`, `mysql`, `pgsql`
+  Values: `mssql`, `mysql`, `pgsql`, `ef`
   Required.
 - `-ConnectionString`
-  Required.
+  Required for `mssql`, `mysql`, and `pgsql`.
+- `-Project`
+  Optional for `ef`. Project name or `.csproj` path. Relative paths are resolved from the selected Package Manager Console project directory. If omitted, the selected project is used.
+- `-DbContext`
+  Optional for `ef`. Use it when the target project contains multiple contexts and no single design-time factory can be inferred.
 - `-OutputDir`
   Optional. Output directory for generated `.cs` files.
 - `-TableClassPrefix`
@@ -2119,6 +2126,8 @@ Parameters:
   Optional switch. Generates attribute-based partial declarations instead of direct `TableBase` descriptor classes.
 - `-SkipUnknownColumnTypes`
   Optional switch. Skips unsupported database column types and generates descriptors from the remaining supported columns.
+
+The `ef` mode creates the target `DbContext` and reads EF relational model metadata without opening a database connection. The generated descriptors reflect the configured EF database mapping.
 
 ```GenerateTables.cmd```
 

@@ -5,23 +5,24 @@ namespace SqExpress.CodeGenUtil
     [Verb("gentables", HelpText = "Generate table descriptor classes.")]
     public class GenTablesOptions
     {
-        public GenTablesOptions(ConnectionType connectionType, string connectionString, string tableClassPrefix, string outputDir, string @namespace, Verbosity verbosity, bool useTableDeclarationAttributes = false, bool skipUnknownColumnTypes = false)
+        public GenTablesOptions(ConnectionType connectionType, string source, string tableClassPrefix, string outputDir, string @namespace, Verbosity verbosity, bool useTableDeclarationAttributes = false, bool skipUnknownColumnTypes = false, string dbContext = "")
         {
             this.ConnectionType = connectionType;
-            this.ConnectionString = connectionString;
+            this.Source = source;
             this.TableClassPrefix = tableClassPrefix;
             this.OutputDir = outputDir;
             this.Namespace = @namespace;
             this.Verbosity = verbosity;
             this.UseTableDeclarationAttributes = useTableDeclarationAttributes;
             this.SkipUnknownColumnTypes = skipUnknownColumnTypes;
+            this.DbContext = dbContext;
         }
 
-        [Value(1, MetaName = "CONNECTION_TYPE", Required = true, HelpText = "Connection Type: \"mssql\" or \"mysql\" or \"pgsql\".")]
+        [Value(1, MetaName = "CONNECTION_TYPE", Required = true, HelpText = "Connection Type: \"mssql\" or \"mysql\" or \"pgsql\" or \"ef\".")]
         public ConnectionType ConnectionType { get; }
 
-        [Value(2, MetaName = "CONNECTION_STRING", Required = true, HelpText = "Database connection string.")]
-        public string ConnectionString { get; }
+        [Value(2, MetaName = "CONNECTION_STRING_OR_EF_PROJECT", Required = false, HelpText = "Database connection string, or EF project/assembly path for \"ef\".")]
+        public string Source { get; }
 
         [Option("table-class-prefix", Required = false, Default = "Table", HelpText = "Prefix for table descriptor class names.")]
         public string TableClassPrefix { get; }
@@ -40,13 +41,17 @@ namespace SqExpress.CodeGenUtil
 
         [Option("skip-unknown-column-types", Required = false, Default = false, HelpText = "Skip unsupported database column types and generate table descriptors from the remaining supported columns.")]
         public bool SkipUnknownColumnTypes { get; }
+
+        [Option("db-context", Required = false, Default = "", HelpText = "EF DbContext type name for \"ef\" mode when it cannot be inferred.")]
+        public string DbContext { get; }
     }
 
     public enum ConnectionType
     {
         MsSql = 1,
         MySql = 2,
-        PgSql = 3
+        PgSql = 3,
+        Ef = 4
     }
 
     public enum Verbosity

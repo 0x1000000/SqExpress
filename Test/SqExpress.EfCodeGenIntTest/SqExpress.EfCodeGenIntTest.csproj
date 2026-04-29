@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="..\..\SqExpress\SqExpress.props" />
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <SqExpressCodeGenPath>..\..\SqExpress.CodegenUtil\bin\$(Configuration)\net8.0\SqExpress.CodeGenUtil.dll</SqExpressCodeGenPath>
+    <SqEfTablesGenEnable>true</SqEfTablesGenEnable>
+    <SqEfTablesGenOutput>Tables</SqEfTablesGenOutput>
+    <SqEfTablesGenNamespace>SqExpress.EfCodeGenIntTest.Tables</SqEfTablesGenNamespace>
+    <SqEfTablesGenTableClassPrefix>Table</SqEfTablesGenTableClassPrefix>
+    <SqEfTablesGenDbContext>EfCodeGenDbContext</SqEfTablesGenDbContext>
+    <SqEfTablesGenUseTableDeclarationAttributes>true</SqEfTablesGenUseTableDeclarationAttributes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.5">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive; compile</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.5" />
+    <PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\SqExpress\SqExpress.csproj" />
+    <ProjectReference Include="..\..\SqExpress.Analyzers\SqExpress.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <Target Name="BuildCodeGenUtilForEfIntTest" BeforeTargets="SqEfTablesGen">
+    <MSBuild
+      Projects="..\..\SqExpress.CodegenUtil\SqExpress.CodeGenUtil.csproj"
+      Targets="Restore;Build"
+      Properties="Configuration=$(Configuration)" />
+  </Target>
+
+  <Import Project="..\..\SqExpress\SqExpress.targets" />
+</Project>

@@ -4,11 +4,13 @@ function Gen-Tables
 {
     [CmdletBinding(PositionalBinding = $false)]
     param(
-        [ValidateSet('mssql','mysql','pgsql')]
+        [ValidateSet('mssql','mysql','pgsql','ef')]
         [Parameter(Position = 0, Mandatory = $true)]
         [string] $DbType,
-        [Parameter(Position = 1, Mandatory = $true)]
+        [Alias('Project')]
+        [Parameter(Position = 1, Mandatory = $false)]
         [string] $ConnectionString,
+        [string] $DbContext,
         [string] $OutputDir,
         [string] $TableClassPrefix,
         [string] $Namespace,
@@ -18,7 +20,20 @@ function Gen-Tables
 	
     CheckSqExpressReference
 
-    $args = "gentables $DbType ""$ConnectionString"""
+    if($DbType -eq 'ef')
+    {
+        $efProject = ResolveEfProject $ConnectionString
+        $args = "gentables ef ""$efProject"""
+    }
+    else
+    {
+        if(!$ConnectionString)
+        {
+            WriteErrorMessage "ConnectionString is required for database table generation"
+            exit
+        }
+        $args = "gentables $DbType ""$ConnectionString"""
+    }
 
     #OutputDir
     if(!$OutputDir)
@@ -79,6 +94,11 @@ function Gen-Tables
     if($SkipUnknownColumnTypes.IsPresent)
     {
         $args = $args + " --skip-unknown-column-types"
+    }
+
+    if($DbType -eq 'ef' -and $DbContext)
+    {
+        $args = $args + " --db-context """ + $DbContext + """"
     }
 
     CodeGenUtil $args
@@ -309,6 +329,33 @@ function GetCurrentProjectOutput()
     }
 
 	return $targetPath
+}
+
+function ResolveEfProject($project)
+{
+    if(!$project)
+    {
+        return (Get-Project).FileName
+    }
+
+    try
+    {
+        $vsProject = Get-Project -Name $project -ErrorAction Stop
+        if($vsProject)
+        {
+            return $vsProject.FileName
+        }
+    }
+    catch
+    {
+    }
+
+    if([IO.Path]::IsPathRooted($project))
+    {
+        return [IO.Path]::GetFullPath($project)
+    }
+
+    return [IO.Path]::GetFullPath([IO.Path]::Combine((GetCurrentProjectDir), $project))
 }
 
 function WriteErrorMessage($message, $noPrefix)

@@ -1,4 +1,8 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Condition="'$(SqEfTablesGenExcludeOutputFromCompile)'=='true' Or '$(SqEfTablesGenExcludeOutputFromCompile)'=='True'">
+    <Compile Remove="$(SqEfTablesGenOutput)\**\*.cs" />
+  </ItemGroup>
+
   <Target Name="SqModelGen" BeforeTargets="BeforeBuild" Condition="'$(SqModelGenEnable)'=='True'">
     <Error Condition="!Exists('$(SqExpressCodeGenPath)')" Text="Could not find the SqExpress code-generation tool"></Error>
     <PropertyGroup>
@@ -16,6 +20,38 @@
       WorkingDirectory="$(MSBuildProjectDirectory)"/>
     <ItemGroup>
       <Compile Include="$(SqModelGenOutput)/*" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="SqEfTablesGen" BeforeTargets="BeforeBuild" Condition="'$(SqEfTablesGenEnable)'=='True'">
+    <Error Condition="!Exists('$(SqExpressCodeGenPath)')" Text="Could not find the SqExpress code-generation tool"></Error>
+    <PropertyGroup>
+      <SqEfTablesGenIsCurrentProject Condition="'$(SqEfTablesGenProject)' == ''">true</SqEfTablesGenIsCurrentProject>
+      <SqEfTablesGenIsCurrentProject Condition="'$(SqEfTablesGenProject)' != ''">false</SqEfTablesGenIsCurrentProject>
+      <SqEfTablesGenSource Condition="'$(SqEfTablesGenIsCurrentProject)' == 'true'">$(TargetPath)</SqEfTablesGenSource>
+      <SqEfTablesGenSource Condition="'$(SqEfTablesGenIsCurrentProject)' != 'true'">$(SqEfTablesGenProject)</SqEfTablesGenSource>
+      <SqEfTablesGenTableClassPrefixParam Condition="'$(SqEfTablesGenTableClassPrefix)' != ''"> --table-class-prefix &quot;$(SqEfTablesGenTableClassPrefix)&quot;</SqEfTablesGenTableClassPrefixParam>
+      <SqEfTablesGenTableClassPrefixParam Condition="'$(SqEfTablesGenTableClassPrefix)' == ''"></SqEfTablesGenTableClassPrefixParam>
+      <SqEfTablesGenDbContextParam Condition="'$(SqEfTablesGenDbContext)' != ''"> --db-context &quot;$(SqEfTablesGenDbContext)&quot;</SqEfTablesGenDbContextParam>
+      <SqEfTablesGenDbContextParam Condition="'$(SqEfTablesGenDbContext)' == ''"></SqEfTablesGenDbContextParam>
+      <SqEfTablesGenUseTableDeclarationAttributesParam Condition="'$(SqEfTablesGenUseTableDeclarationAttributes)'=='True' Or '$(SqEfTablesGenUseTableDeclarationAttributes)'=='true'"> --use-table-declaration-attributes</SqEfTablesGenUseTableDeclarationAttributesParam>
+      <SqEfTablesGenUseTableDeclarationAttributesParam Condition="'$(SqEfTablesGenUseTableDeclarationAttributes)'!='True' And '$(SqEfTablesGenUseTableDeclarationAttributes)'!='true'"></SqEfTablesGenUseTableDeclarationAttributesParam>
+      <SqEfTablesGenSkipUnknownColumnTypesParam Condition="'$(SqEfTablesGenSkipUnknownColumnTypes)'=='True' Or '$(SqEfTablesGenSkipUnknownColumnTypes)'=='true'"> --skip-unknown-column-types</SqEfTablesGenSkipUnknownColumnTypesParam>
+      <SqEfTablesGenSkipUnknownColumnTypesParam Condition="'$(SqEfTablesGenSkipUnknownColumnTypes)'!='True' And '$(SqEfTablesGenSkipUnknownColumnTypes)'!='true'"></SqEfTablesGenSkipUnknownColumnTypesParam>
+    </PropertyGroup>
+    <ItemGroup>
+      <Compile Remove="$(SqEfTablesGenOutput)\**\*.cs" />
+    </ItemGroup>
+    <MSBuild
+      Condition="'$(SqEfTablesGenIsCurrentProject)' == 'true'"
+      Projects="$(MSBuildProjectFullPath)"
+      Targets="Build"
+      Properties="SqEfTablesGenEnable=false;SqEfTablesGenExcludeOutputFromCompile=true" />
+    <Exec
+      Command="dotnet &quot;$(SqExpressCodeGenPath)&quot; gentables ef &quot;$(SqEfTablesGenSource)&quot; -o &quot;$(SqEfTablesGenOutput)&quot; -n &quot;$(SqEfTablesGenNamespace)&quot; -v quiet$(SqEfTablesGenTableClassPrefixParam)$(SqEfTablesGenDbContextParam)$(SqEfTablesGenUseTableDeclarationAttributesParam)$(SqEfTablesGenSkipUnknownColumnTypesParam)"
+      WorkingDirectory="$(MSBuildProjectDirectory)" />
+    <ItemGroup>
+      <Compile Include="$(SqEfTablesGenOutput)\**\*.cs" />
     </ItemGroup>
   </Target>
 </Project>
