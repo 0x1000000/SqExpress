@@ -223,19 +223,18 @@ function CodeGenUtil($arguments){
     Write-Host "dotnet $cmd"
 
     $process = [Diagnostics.Process]::Start($startInfo)
-
-    while (($line = $process.StandardOutput.ReadLine()) -ne $null)
-    {
-        Write-Host $line
-    }
-
+    $standardOutput = $process.StandardOutput.ReadToEndAsync()
+    $standardError = $process.StandardError.ReadToEndAsync()
     $process.WaitForExit()
+
+    $standardOutput.Result -split "\r?\n" | Where-Object { $_ -ne "" } | ForEach-Object {
+        Write-Host $_
+    }
 
     if ($process.ExitCode)
     {
-        while (($line = $process.StandardError.ReadLine()) -ne $null)
-        {
-            WriteErrorMessage $line $true
+        $standardError.Result -split "\r?\n" | Where-Object { $_ -ne "" } | ForEach-Object {
+            WriteErrorMessage $_ $true
         }
         exit
     }

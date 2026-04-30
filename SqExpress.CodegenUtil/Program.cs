@@ -51,17 +51,12 @@ namespace SqExpress.CodeGenUtil
         {
             try
             {
-                task(opts).Wait();
+                task(opts).GetAwaiter().GetResult();
                 return 0;
             }
             catch (SqExpressCodeGenException e)
             {
                 Console.WriteLine(e.Message);
-                return 1;
-            }
-            catch (AggregateException e) when (e.InnerException is SqExpressCodeGenException sqExpressCodeGenException)
-            {
-                Console.Error.WriteLine(sqExpressCodeGenException.Message);
                 return 1;
             }
             catch (Exception e)

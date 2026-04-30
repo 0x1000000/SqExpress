@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 
 namespace SqExpress.CodeGenUtil
@@ -111,21 +112,22 @@ namespace SqExpress.CodeGenUtil
             };
 
             using var process = Process.Start(startInfo) ?? throw new SqExpressCodeGenException("Could not start dotnet.");
-            output = process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd();
+            var standardOutput = process.StandardOutput.ReadToEndAsync();
+            var standardError = process.StandardError.ReadToEndAsync();
             process.WaitForExit();
+            output = standardOutput.GetAwaiter().GetResult() + standardError.GetAwaiter().GetResult();
             return process.ExitCode;
         }
 
         private static object CreateDbContext(Assembly assembly, string? dbContextTypeName)
         {
-            var dbContextTypes = assembly
-                .GetTypes()
+            var assemblyTypes = GetAssemblyTypes(assembly);
+            var dbContextTypes = assemblyTypes
                 .Where(t => !t.IsAbstract && IsDbContextType(t))
                 .ToList();
 
             var selectedContextType = SelectDbContextType(dbContextTypes, dbContextTypeName);
-            var factoryTypes = assembly
-                .GetTypes()
+            var factoryTypes = assemblyTypes
                 .Where(t => !t.IsAbstract && t.GetInterfaces().Any(IsDesignTimeFactoryInterface))
                 .ToList();
 
@@ -155,6 +157,50 @@ namespace SqExpress.CodeGenUtil
 
             throw new SqExpressCodeGenException(
                 $"Could not create EF DbContext \"{selectedContextType.FullName}\". Add IDesignTimeDbContextFactory<{selectedContextType.Name}> or a parameterless constructor.");
+        }
+
+        private static IReadOnlyList<Type> GetAssemblyTypes(Assembly assembly)
+        {
+            try
+            {
+                return assembly.GetTypes();
+            }
+            catch (ReflectionTypeLoadException e)
+            {
+                throw new SqExpressCodeGenException(CreateTypeLoadMessage(assembly, e), e);
+            }
+        }
+
+        private static string CreateTypeLoadMessage(Assembly assembly, ReflectionTypeLoadException exception)
+        {
+            var loaderMessages = exception.LoaderExceptions
+                .Where(e => e != null)
+                .Select(e => e!.Message)
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+
+            var runtimeAssembly = exception.LoaderExceptions
+                .OfType<FileNotFoundException>()
+                .Select(e => e.FileName)
+                .FirstOrDefault(name => name != null && name.StartsWith("System.Runtime,", StringComparison.OrdinalIgnoreCase));
+
+            var result =
+                $"Could not load EF project assembly \"{assembly.Location}\". " +
+                $"SqExpress.CodeGenUtil is running on {RuntimeInformation.FrameworkDescription}.";
+
+            if (runtimeAssembly != null)
+            {
+                result +=
+                    $"{Environment.NewLine}The EF project appears to require \"{runtimeAssembly}\". " +
+                    "Run the code-generation tool with a compatible .NET runtime, or target the EF project to a runtime available to the tool.";
+            }
+
+            if (loaderMessages.Count > 0)
+            {
+                result += $"{Environment.NewLine}Loader errors:{Environment.NewLine}- " + string.Join($"{Environment.NewLine}- ", loaderMessages);
+            }
+
+            return result;
         }
 
         private static Type? SelectDbContextType(IReadOnlyList<Type> dbContextTypes, string? dbContextTypeName)
