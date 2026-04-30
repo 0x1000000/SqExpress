@@ -16,6 +16,7 @@
     <SqEfTablesGenNamespace>$(MSBuildProjectName).Tables</SqEfTablesGenNamespace>
     <SqEfTablesGenTableClassPrefix></SqEfTablesGenTableClassPrefix>
     <SqEfTablesGenDbContext></SqEfTablesGenDbContext>
+    <SqEfTablesGenFramework></SqEfTablesGenFramework>
     <SqEfTablesGenUseTableDeclarationAttributes>true</SqEfTablesGenUseTableDeclarationAttributes>
     <SqEfTablesGenSkipUnknownColumnTypes>true</SqEfTablesGenSkipUnknownColumnTypes>
   </PropertyGroup>

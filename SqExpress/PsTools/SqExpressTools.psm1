@@ -11,6 +11,7 @@ function Gen-Tables
         [Parameter(Position = 1, Mandatory = $false)]
         [string] $ConnectionString,
         [string] $DbContext,
+        [string] $Framework,
         [string] $OutputDir,
         [string] $TableClassPrefix,
         [string] $Namespace,
@@ -99,6 +100,11 @@ function Gen-Tables
     if($DbType -eq 'ef' -and $DbContext)
     {
         $args = $args + " --db-context """ + $DbContext + """"
+    }
+
+    if($DbType -eq 'ef' -and $Framework)
+    {
+        $args = $args + " --framework """ + $Framework + """"
     }
 
     CodeGenUtil $args

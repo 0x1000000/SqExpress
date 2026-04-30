@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <Import Project="..\..\SqExpress\SqExpress.props" />
 
   <PropertyGroup>
@@ -9,11 +9,6 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <SqExpressCodeGenPath>..\..\SqExpress.CodegenUtil\bin\$(Configuration)\net8.0\SqExpress.CodeGenUtil.dll</SqExpressCodeGenPath>
     <SqEfTablesGenEnable>true</SqEfTablesGenEnable>
-    <SqEfTablesGenOutput>Tables</SqEfTablesGenOutput>
-    <SqEfTablesGenNamespace>SqExpress.EfCodeGenIntTest.Tables</SqEfTablesGenNamespace>
-    <SqEfTablesGenTableClassPrefix>Table</SqEfTablesGenTableClassPrefix>
-    <SqEfTablesGenDbContext>EfCodeGenDbContext</SqEfTablesGenDbContext>
-    <SqEfTablesGenUseTableDeclarationAttributes>true</SqEfTablesGenUseTableDeclarationAttributes>
   </PropertyGroup>
 
   <ItemGroup>
@@ -30,7 +25,7 @@
     <ProjectReference Include="..\..\SqExpress.Analyzers\SqExpress.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
-  <Target Name="BuildCodeGenUtilForEfIntTest" BeforeTargets="SqEfTablesGen">
+  <Target Name="BuildCodeGenUtilForEfIntTest" BeforeTargets="SqEfTablesGen" Condition="'$(SqEfTablesGenEnable)'=='True' And '$(SqEfTablesGenExcludeOutputFromCompile)'!='true' And '$(SqEfTablesGenExcludeOutputFromCompile)'!='True'">
     <MSBuild
       Projects="..\..\SqExpress.CodegenUtil\SqExpress.CodeGenUtil.csproj"
       Targets="Restore;Build"

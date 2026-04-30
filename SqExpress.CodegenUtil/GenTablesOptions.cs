@@ -5,7 +5,7 @@ namespace SqExpress.CodeGenUtil
     [Verb("gentables", HelpText = "Generate table descriptor classes.")]
     public class GenTablesOptions
     {
-        public GenTablesOptions(ConnectionType connectionType, string source, string tableClassPrefix, string outputDir, string @namespace, Verbosity verbosity, bool useTableDeclarationAttributes = false, bool skipUnknownColumnTypes = false, string dbContext = "")
+        public GenTablesOptions(ConnectionType connectionType, string source, string tableClassPrefix, string outputDir, string @namespace, Verbosity verbosity, bool useTableDeclarationAttributes = false, bool skipUnknownColumnTypes = false, string dbContext = "", string framework = "")
         {
             this.ConnectionType = connectionType;
             this.Source = source;
@@ -16,12 +16,13 @@ namespace SqExpress.CodeGenUtil
             this.UseTableDeclarationAttributes = useTableDeclarationAttributes;
             this.SkipUnknownColumnTypes = skipUnknownColumnTypes;
             this.DbContext = dbContext;
+            this.Framework = framework;
         }
 
         [Value(1, MetaName = "CONNECTION_TYPE", Required = true, HelpText = "Connection Type: \"mssql\" or \"mysql\" or \"pgsql\" or \"ef\".")]
         public ConnectionType ConnectionType { get; }
 
-        [Value(2, MetaName = "CONNECTION_STRING_OR_EF_PROJECT", Required = false, HelpText = "Database connection string, or EF project/assembly path for \"ef\".")]
+        [Value(2, MetaName = "CONNECTION_STRING_OR_EF_PROJECT", Required = false, HelpText = "Database connection string, or EF .csproj path for \"ef\".")]
         public string Source { get; }
 
         [Option("table-class-prefix", Required = false, Default = "Table", HelpText = "Prefix for table descriptor class names.")]
@@ -44,6 +45,9 @@ namespace SqExpress.CodeGenUtil
 
         [Option("db-context", Required = false, Default = "", HelpText = "EF DbContext type name for \"ef\" mode when it cannot be inferred.")]
         public string DbContext { get; }
+
+        [Option("framework", Required = false, Default = "", HelpText = "Target framework for \"ef\" mode when the EF project targets multiple frameworks.")]
+        public string Framework { get; }
     }
 
     public enum ConnectionType

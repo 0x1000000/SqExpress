@@ -12,7 +12,7 @@ The Visual Studio Package Manager Console entry point is `Gen-Tables`.
 Gen-Tables mssql -ConnectionString "<connection-string>"
 Gen-Tables mysql -ConnectionString "<connection-string>"
 Gen-Tables pgsql -ConnectionString "<connection-string>"
-Gen-Tables ef [[-Project] <project-name-or-path>] [-DbContext <type-name>]
+Gen-Tables ef [[-Project] <project-name-or-path>] [-DbContext <type-name>] [-Framework <tfm>]
 ```
 
 Common options:
@@ -44,6 +44,8 @@ Gen-Tables mssql `
 
 `ef` mode creates a target EF Core `DbContext` and reads its public EF relational model metadata. It does not open a database connection and does not read physical database metadata.
 
+For `.csproj` inputs, SqExpress creates a temporary console extractor project under the target project's `obj\SqExpress\EfMetadataExtractor` directory. That extractor references the target project, runs on the target framework, creates the context, serializes the public EF relational metadata, and exits. This avoids loading newer target assemblies into the code-generation utility process, so projects targeting a newer .NET runtime can still be inspected by a universal package tool.
+
 Example using the selected Package Manager Console project:
 
 ```powershell
@@ -53,7 +55,7 @@ Gen-Tables ef -UseTableDeclarationAttributes
 Example using another project:
 
 ```powershell
-Gen-Tables ef ".\Data\MyApp.Data.csproj" -DbContext AppDbContext -UseTableDeclarationAttributes
+Gen-Tables ef ".\Data\MyApp.Data.csproj" -DbContext AppDbContext -Framework net8.0 -UseTableDeclarationAttributes
 ```
 
 When `Project` is supplied, it can be:
@@ -63,6 +65,8 @@ When `Project` is supplied, it can be:
 - a path relative to the selected Package Manager Console project directory.
 
 When `Project` is omitted, the selected Package Manager Console project is used.
+
+Use `-Framework` when the EF project targets multiple frameworks or when the selected framework must be explicit.
 
 ### DbContext Resolution
 
@@ -107,7 +111,7 @@ The underlying code-generation utility can be called directly:
 
 ```powershell
 dotnet "<path-to-package>\tools\codegen\SqExpress.CodeGenUtil.dll" gentables mssql "<connection-string>" --use-table-declaration-attributes
-dotnet "<path-to-package>\tools\codegen\SqExpress.CodeGenUtil.dll" gentables ef "<project-or-assembly-path>" --db-context AppDbContext --use-table-declaration-attributes
+dotnet "<path-to-package>\tools\codegen\SqExpress.CodeGenUtil.dll" gentables ef "<project-path.csproj>" --db-context AppDbContext --framework net8.0 --use-table-declaration-attributes
 ```
 
 The Package Manager Console function is usually preferred because it resolves the selected project and package tool path for you.
@@ -126,6 +130,7 @@ When SqExpress is referenced as a NuGet package, `SqExpress.props` and `SqExpres
     <SqEfTablesGenNamespace>MyApp.Tables</SqEfTablesGenNamespace>
     <SqEfTablesGenTableClassPrefix>Table</SqEfTablesGenTableClassPrefix>
     <SqEfTablesGenDbContext>AppDbContext</SqEfTablesGenDbContext>
+    <SqEfTablesGenFramework>net8.0</SqEfTablesGenFramework>
     <SqEfTablesGenUseTableDeclarationAttributes>true</SqEfTablesGenUseTableDeclarationAttributes>
   </PropertyGroup>
 </Project>
@@ -138,16 +143,17 @@ Source-tree integration tests or custom package layouts may import `SqExpress.pr
 | Property | Default | Description |
 |---|---|---|
 | `SqEfTablesGenEnable` | `false` | Enables EF table generation during build. |
-| `SqEfTablesGenProject` | empty | EF project or assembly source. Empty means the current project output. |
+| `SqEfTablesGenProject` | empty | EF `.csproj` source. Empty means the current project. |
 | `SqEfTablesGenOutput` | `Tables` | Directory for generated `.cs` files. |
 | `SqEfTablesGenNamespace` | `$(MSBuildProjectName).Tables` | Namespace for generated files. |
 | `SqEfTablesGenTableClassPrefix` | empty | Optional generated table class prefix. |
 | `SqEfTablesGenDbContext` | empty | Optional context type name. Use when context resolution is ambiguous. |
+| `SqEfTablesGenFramework` | empty | Optional target framework passed to EF extraction. Defaults to the current `$(TargetFramework)` during build. |
 | `SqEfTablesGenUseTableDeclarationAttributes` | `true` | Generates attribute-based partial declarations when `true`. |
 | `SqEfTablesGenSkipUnknownColumnTypes` | `true` | Skips unsupported EF column types when `true`; fails on them when `false`. |
 | `SqExpressCodeGenPath` | package tool path | Path to `SqExpress.CodeGenUtil.dll`. Normally set by SqExpress props. |
 
-`SqEfTablesGenProject` can point to a different project or assembly. When it is empty, the target uses the current project output and performs an inner build with EF generation disabled so the project can be built before descriptors are generated.
+`SqEfTablesGenProject` can point to a different project file. When it is empty, the target uses the current project file. The temporary extractor project builds the EF project with EF table generation disabled before descriptors are generated.
 
 `SqExpressCodeGenPath` normally should not be set by application projects. It is useful only for source-tree integration tests or unusual build layouts where the packaged `tools/codegen` path is not available.
 
@@ -155,8 +161,8 @@ Source-tree integration tests or custom package layouts may import `SqExpress.pr
 
 Same-project EF generation has an unavoidable bootstrap step:
 
-1. Build the project without EF table generation.
-2. Load the built assembly and read EF relational metadata.
+1. Create and build the temporary extractor project with EF table generation disabled on the target project reference.
+2. Run the temporary extractor app and read EF relational metadata from the target project.
 3. Generate table declaration files.
 4. Compile the final project with generated descriptors included.
 

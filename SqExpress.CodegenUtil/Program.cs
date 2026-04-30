@@ -9,6 +9,7 @@ using CommandLine;
 using MySqlConnector;
 using Npgsql;
 using SqExpress.CodeGen.Shared;
+using SqExpress.CodeGenUtil.Ef;
 using SqExpress.CodeGenUtil.Logger;
 using SqExpress.DbMetadata.Internal.DbManagers;
 using SqExpress.DbMetadata.Internal.DbManagers.MsSql;
@@ -75,11 +76,11 @@ namespace SqExpress.CodeGenUtil
 
             string directory = EnsureDirectory(options.OutputDir, logger, "Output", true);
 
-            if (string.IsNullOrEmpty(options.Source))
+            if (string.IsNullOrWhiteSpace(options.Source))
             {
                 throw new SqExpressCodeGenException(
                     options.ConnectionType == ConnectionType.Ef
-                        ? "EF project or assembly path cannot be empty"
+                        ? "EF project path cannot be empty"
                         : "Connection string cannot be empty");
             }
             var existingCode = (IReadOnlyDictionary<TableRef, Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax>)
@@ -96,13 +97,13 @@ namespace SqExpress.CodeGenUtil
             IReadOnlyList<TableModel> tables;
             if (options.ConnectionType == ConnectionType.Ef)
             {
-                using var efSource = EfProjectDbContextFactory.Create(options.Source, options.DbContext);
                 logger.LogNormal("Reading EF model metadata...");
-                tables = EfModelTableReader.SelectTables(
-                    efSource.Model,
-                    efSource.ProviderName ?? string.Empty,
-                    options.TableClassPrefix,
-                    options.SkipUnknownColumnTypes);
+                var efProjectPath = ValidateEfProjectPath(options.Source);
+                var metadata = await EfMetadataExtractorRunner.Extract(
+                    efProjectPath,
+                    options.DbContext,
+                    string.IsNullOrWhiteSpace(options.Framework) ? null : options.Framework);
+                tables = EfMetadataTableReader.SelectTables(metadata, options.TableClassPrefix, options.SkipUnknownColumnTypes);
             }
             else
             {
@@ -166,7 +167,7 @@ namespace SqExpress.CodeGenUtil
                 {
                     text = CodeGenTableDescriptorSupport.GenerateTableDescriptor(table, tableMap, options.Namespace, existingCode, options.SkipUnknownColumnTypes, out existing).ToFullString();
                 }
-                await File.WriteAllTextAsync(filePath, text);
+                await WriteAllTextIfChangedAsync(filePath, text);
 
                 if (logger.IsDetailed) logger.LogDetailed(existing ? "Existing file updated." : "New file created.");
             }
@@ -175,7 +176,7 @@ namespace SqExpress.CodeGenUtil
 
             if (logger.IsDetailed) logger.LogDetailed($"AllTables to \"{allTablePath}\".");
 
-            await File.WriteAllTextAsync(allTablePath, CodeGenAllTablesSupport.Generate(allTablePath, tables, options.Namespace, options.TableClassPrefix, DefaultFileSystem.Instance).ToFullString());
+            await WriteAllTextIfChangedAsync(allTablePath, CodeGenAllTablesSupport.Generate(allTablePath, tables, options.Namespace, options.TableClassPrefix, DefaultFileSystem.Instance).ToFullString());
 
             logger.LogMinimal("Table proxy classes generation successfully completed!");
         }
@@ -224,7 +225,7 @@ namespace SqExpress.CodeGenUtil
             {
                 string path = Path.Combine(outDirectory, $"{meta.Name}.cs");
                 if (logger.IsDetailed) logger.LogDetailed(path);
-                await File.WriteAllTextAsync(
+                await WriteAllTextIfChangedAsync(
                     path,
                     CodeGenModelSupport.Generate(
                         meta,
@@ -309,6 +310,46 @@ namespace SqExpress.CodeGenUtil
                 default:
                     throw new SqExpressCodeGenException("Unknown connection type: " + options.ConnectionType);
             }
+        }
+
+        private static string ValidateEfProjectPath(string source)
+        {
+            string fullPath;
+            try
+            {
+                fullPath = Path.GetFullPath(source, Directory.GetCurrentDirectory());
+            }
+            catch (Exception e) when (e is ArgumentException || e is NotSupportedException || e is PathTooLongException)
+            {
+                throw new SqExpressCodeGenException($"EF project path \"{source}\" has invalid format.", e);
+            }
+
+            if (!string.Equals(Path.GetExtension(fullPath), ".csproj", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new SqExpressCodeGenException(
+                    $"EF table generation expects a .csproj path. Received \"{source}\". Pass the EF project file so SqExpress can run metadata extraction in the project's target framework.");
+            }
+
+            if (!File.Exists(fullPath))
+            {
+                throw new SqExpressCodeGenException($"Could not find EF project \"{source}\".");
+            }
+
+            return fullPath;
+        }
+
+        private static async Task WriteAllTextIfChangedAsync(string path, string text)
+        {
+            if (File.Exists(path))
+            {
+                var existing = await File.ReadAllTextAsync(path);
+                if (string.Equals(existing, text, StringComparison.Ordinal))
+                {
+                    return;
+                }
+            }
+
+            await File.WriteAllTextAsync(path, text);
         }
 
         private static string EnsureDirectory(string directory, ILogger logger, string dirAlias, bool create)

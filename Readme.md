@@ -2100,7 +2100,7 @@ For full `Gen-Tables`, EF mode, generated table attributes, and MSBuild project 
 
 ```powershell
 Gen-Tables -DbType {mssql | mysql | pgsql} -ConnectionString <string> [-OutputDir <string>] [-TableClassPrefix <string>] [-Namespace <string>] [-Verbosity {Quiet | Minimal | Normal | Detailed}] [-UseTableDeclarationAttributes] [-SkipUnknownColumnTypes]
-Gen-Tables ef [[-Project] <project-name-or-path>] [-DbContext <type-name>] [-OutputDir <string>] [-TableClassPrefix <string>] [-Namespace <string>] [-Verbosity {Quiet | Minimal | Normal | Detailed}] [-UseTableDeclarationAttributes] [-SkipUnknownColumnTypes]
+Gen-Tables ef [[-Project] <project-name-or-path>] [-DbContext <type-name>] [-Framework <tfm>] [-OutputDir <string>] [-TableClassPrefix <string>] [-Namespace <string>] [-Verbosity {Quiet | Minimal | Normal | Detailed}] [-UseTableDeclarationAttributes] [-SkipUnknownColumnTypes]
 ```
 
 Parameters:
@@ -2114,6 +2114,8 @@ Parameters:
   Optional for `ef`. Project name or `.csproj` path. Relative paths are resolved from the selected Package Manager Console project directory. If omitted, the selected project is used.
 - `-DbContext`
   Optional for `ef`. Use it when the target project contains multiple contexts and no single design-time factory can be inferred.
+- `-Framework`
+  Optional for `ef`. Use it when the target project has multiple target frameworks or a specific target framework should be inspected.
 - `-OutputDir`
   Optional. Output directory for generated `.cs` files.
 - `-TableClassPrefix`
