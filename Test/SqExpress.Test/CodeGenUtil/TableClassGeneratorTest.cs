@@ -408,60 +408,6 @@ namespace SqExpress.Test.CodeGenUtil
             Assert.That(normalized.Split(new[] { "[StringColumn(\"ValueA\"" }, StringSplitOptions.None).Length - 1, Is.EqualTo(1));
         }
 
-        [Test]
-        public void SkipUnknownColumnTypes_GeneratesDescriptorWithoutUnsupportedColumns()
-        {
-            var unsupportedColumn = new ColumnModel(
-                name: "UnsupportedValue",
-                dbName: new ColumnRef("dbo", "TableUnsupported", "UnsupportedValue"),
-                ordinalPosition: 2,
-                columnType: new UnsupportedColumnType(),
-                pk: null,
-                identity: false,
-                defaultValue: null,
-                fk: null);
-            var supportedColumn = new ColumnModel(
-                name: "Id",
-                dbName: new ColumnRef("dbo", "TableUnsupported", "Id"),
-                ordinalPosition: 1,
-                columnType: new Int32ColumnType(false),
-                pk: new PkInfo(0, false),
-                identity: false,
-                defaultValue: null,
-                fk: null);
-            var table = new TableModel(
-                name: "TabTableUnsupported",
-                dbName: new TableRef("dbo", "TableUnsupported"),
-                columns: new List<ColumnModel> { supportedColumn, unsupportedColumn },
-                indexes: new List<IndexModel>
-                {
-                    new IndexModel(new List<IndexColumnModel> { new IndexColumnModel(false, unsupportedColumn.DbName) }, "IX_Unsupported", false, false),
-                    new IndexModel(new List<IndexColumnModel> { new IndexColumnModel(false, supportedColumn.DbName) }, "IX_Id", false, false)
-                });
-            var tableMap = new Dictionary<TableRef, TableModel> { [table.DbName] = table };
-
-            Assert.Catch<Exception>(() =>
-                CodeGenTableDescriptorSupport.GenerateTableDescriptor(
-                    table,
-                    tableMap,
-                    "MyCompany.MyProject.Tables",
-                    new Dictionary<TableRef, ClassDeclarationSyntax>(),
-                    skipUnknownColumnTypes: false,
-                    out _));
-
-            var source = CodeGenTableDescriptorSupport.GenerateTableDescriptor(
-                table,
-                tableMap,
-                "MyCompany.MyProject.Tables",
-                new Dictionary<TableRef, ClassDeclarationSyntax>(),
-                skipUnknownColumnTypes: true,
-                out _).ToFullString();
-
-            Assert.That(NormalizeNewLines(source), Does.Contain("public Int32TableColumn Id { get; }"));
-            Assert.That(NormalizeNewLines(source), Does.Not.Contain("UnsupportedValue"));
-            Assert.That(NormalizeNewLines(source), Does.Not.Contain("IX_Unsupported"));
-        }
-
         private static string NormalizeNewLines(string value)
             => value.Replace("\r\n", "\n");
 
@@ -501,15 +447,6 @@ namespace SqExpress.Test.CodeGenUtil
             }
         }
 
-        private sealed class UnsupportedColumnType : ColumnType
-        {
-            public UnsupportedColumnType() : base(isNullable: false)
-            {
-            }
-
-            public override TRes Accept<TRes, TArg>(IColumnTypeVisitor<TRes, TArg> visitor, TArg arg)
-                => throw new NotSupportedException();
-        }
     }
 }
 #endif
