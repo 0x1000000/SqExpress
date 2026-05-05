@@ -1,107 +1,127 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using SqExpress.DbMetadata.Internal.Model;
 
-namespace SqExpress.DbMetadata.Internal
+namespace SqExpress.DbMetadata.Internal;
+
+internal static class DbModelMapper
 {
-    internal static class DbModelMapper
+    public static List<SqTable> ToSqDbTables(IReadOnlyList<TableModel> tableModels, bool skipUnknownColumnTypes)
     {
-        public static List<SqTable> ToSqDbTables(IReadOnlyList<TableModel> tableModels)
-            => ToSqDbTables(tableModels, skipUnknownColumnTypes: false);
+        Dictionary<ColumnRef, TableColumn> refColStorage = new();
 
-        public static List<SqTable> ToSqDbTables(IReadOnlyList<TableModel> tableModels, bool skipUnknownColumnTypes)
+        var result = tableModels
+            .Select(tableModel => new TableMapping(tableModel, new SqTable(tableModel.DbName.Schema, tableModel.DbName.Name)))
+            .ToList();
+
+        TableColumn GetTableColumn(ColumnRef columnRef) =>
+            refColStorage.TryGetValue(columnRef, out var tableColumn)
+                ? tableColumn
+                : throw new SqExpressException("Could not create consistent foreign column references");
+
+        foreach (var tableMapping in result)
         {
-            Dictionary<ColumnRef, TableColumn> refColStorage = new();
-
-            List<SqTable> result = new();
-
-            foreach (var tableModel in tableModels)
+            foreach (var columnModel in tableMapping.Model.Columns)
             {
-                result.Add(ToSqDbTable(tableModel, refColStorage, skipUnknownColumnTypes));
+                refColStorage.Add(
+                    columnModel.DbName,
+                    tableMapping.Table.CreateColumn(
+                        RemoveForeignKeys(columnModel),
+                        GetTableColumn));
             }
-
-            return result;
         }
 
-        public static SqTable ToSqDbTable(this TableModel tableModel, Dictionary<ColumnRef, TableColumn> storage)
-            => ToSqDbTable(tableModel, storage, skipUnknownColumnTypes: false);
-
-        public static SqTable ToSqDbTable(this TableModel tableModel, Dictionary<ColumnRef, TableColumn> storage, bool skipUnknownColumnTypes)
+        foreach (var tableMapping in result)
         {
-            var sqDbTable = new SqTable(tableModel.DbName.Schema, tableModel.DbName.Name);
-
-            TableColumn GetTableColumn(ColumnRef columnRef) =>
-                storage.TryGetValue(columnRef, out var tableColumn)
-                    ? tableColumn
-                    : throw new SqExpressException("Could not create consistent foreign column references");
-
-            foreach (var tableModelColumn in tableModel.Columns)
+            var columns = new List<TableColumn>();
+            foreach (var columnModel in tableMapping.Model.Columns)
             {
-                var columnToAdd = skipUnknownColumnTypes
-                    ? SanitizeForeignKeys(tableModelColumn, storage)
-                    : tableModelColumn;
-
-                TableColumn addedColumn;
-                try
-                {
-                    addedColumn = sqDbTable.AddColumn(columnToAdd, GetTableColumn);
-                }
-                catch (Exception e) when (skipUnknownColumnTypes && IsUnsupportedColumnTypeException(e))
+                if (!refColStorage.ContainsKey(columnModel.DbName))
                 {
                     continue;
                 }
 
-                storage.Add(tableModelColumn.DbName, addedColumn);
+                var columnToAdd = skipUnknownColumnTypes
+                    ? SanitizeForeignKeys(columnModel, refColStorage)
+                    : columnModel;
+
+                var addedColumn = tableMapping.Table.CreateColumn(columnToAdd, GetTableColumn);
+                columns.Add(addedColumn);
+                refColStorage[columnModel.DbName] = addedColumn;
             }
 
-            sqDbTable.AddIndexes(tableModel.Indexes
-                .Where(im => !skipUnknownColumnTypes || im.Columns.All(imc => storage.ContainsKey(imc.DbName)))
+            tableMapping.Table.AddColumns(columns);
+        }
+
+        foreach (var tableMapping in result)
+        {
+            tableMapping.Table.AddIndexes(tableMapping.Model.Indexes
+                .Where(im => !skipUnknownColumnTypes || im.Columns.All(imc => refColStorage.ContainsKey(imc.DbName)))
                 .Select(im =>
                     new IndexMeta(
                         im.Columns.Select(imc => new IndexMetaColumn(GetTableColumn(imc.DbName), imc.IsDescending))
                             .ToList(), im.Name, im.IsUnique, im.IsClustered))
                 .ToList());
-
-            return sqDbTable;
         }
 
-        private static ColumnModel SanitizeForeignKeys(ColumnModel columnModel, IReadOnlyDictionary<ColumnRef, TableColumn> storage)
+        return result.Select(i => i.Table).ToList();
+    }
+
+    private static ColumnModel SanitizeForeignKeys(ColumnModel columnModel, IReadOnlyDictionary<ColumnRef, TableColumn> storage)
+    {
+        if (columnModel.Fk == null || columnModel.Fk.Count == 0)
         {
-            if (columnModel.Fk == null || columnModel.Fk.Count == 0)
-            {
-                return columnModel;
-            }
-
-            var filteredForeignKeys = columnModel.Fk
-                .Where(storage.ContainsKey)
-                .ToList();
-
-            if (filteredForeignKeys.Count == columnModel.Fk.Count)
-            {
-                return columnModel;
-            }
-
-            return new ColumnModel(
-                name: columnModel.Name,
-                dbName: columnModel.DbName,
-                ordinalPosition: columnModel.OrdinalPosition,
-                columnType: columnModel.ColumnType,
-                pk: columnModel.Pk,
-                identity: columnModel.Identity,
-                defaultValue: columnModel.DefaultValue,
-                fk: filteredForeignKeys.Count > 0 ? filteredForeignKeys : null);
+            return columnModel;
         }
 
-        private static bool IsUnsupportedColumnTypeException(Exception exception)
+        var filteredForeignKeys = columnModel.Fk
+            .Where(storage.ContainsKey)
+            .ToList();
+
+        if (filteredForeignKeys.Count == columnModel.Fk.Count)
         {
-            if (exception is NotSupportedException)
-            {
-                return true;
-            }
-
-            return exception is SqExpressException sqExpressException &&
-                   sqExpressException.Message.StartsWith("Not supported column type ", StringComparison.Ordinal);
+            return columnModel;
         }
+
+        return new ColumnModel(
+            name: columnModel.Name,
+            dbName: columnModel.DbName,
+            ordinalPosition: columnModel.OrdinalPosition,
+            columnType: columnModel.ColumnType,
+            pk: columnModel.Pk,
+            identity: columnModel.Identity,
+            defaultValue: columnModel.DefaultValue,
+            fk: filteredForeignKeys.Count > 0 ? filteredForeignKeys : null);
+    }
+
+    private static ColumnModel RemoveForeignKeys(ColumnModel columnModel)
+    {
+        if (columnModel.Fk == null || columnModel.Fk.Count == 0)
+        {
+            return columnModel;
+        }
+
+        return new ColumnModel(
+            name: columnModel.Name,
+            dbName: columnModel.DbName,
+            ordinalPosition: columnModel.OrdinalPosition,
+            columnType: columnModel.ColumnType,
+            pk: columnModel.Pk,
+            identity: columnModel.Identity,
+            defaultValue: columnModel.DefaultValue,
+            fk: null);
+    }
+
+    private readonly struct TableMapping
+    {
+        public TableMapping(TableModel model, SqTable table)
+        {
+            this.Model = model;
+            this.Table = table;
+        }
+
+        public TableModel Model { get; }
+
+        public SqTable Table { get; }
     }
 }

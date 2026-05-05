@@ -67,6 +67,13 @@ public sealed class SqTable : TableBase
 
     internal TableColumn AddColumn(ColumnModel columnModel, Func<ColumnRef, TableColumn> contextStorage)
     {
+        var result = this.CreateColumn(columnModel, contextStorage);
+        this.AddColumns(new[] { result });
+        return result;
+    }
+
+    internal TableColumn CreateColumn(ColumnModel columnModel, Func<ColumnRef, TableColumn> contextStorage)
+    {
         return columnModel.ColumnType.Accept(new ColumnFactory(this, contextStorage), columnModel);
     }
 
@@ -81,9 +88,9 @@ public sealed class SqTable : TableBase
 
     private class ColumnFactory : IColumnTypeVisitor<TableColumn, ColumnModel>
     {
-        private readonly SqTable _table;
-
         private readonly Func<ColumnRef, TableColumn> _contextStorage;
+
+        private readonly ITableColumnFactory _columnFactory;
 
         private ColumnMeta? CreateMeta(ColumnModel columnModel)
         {
@@ -159,22 +166,22 @@ public sealed class SqTable : TableBase
 
         public ColumnFactory(SqTable table, Func<ColumnRef, TableColumn> contextStorage)
         {
-            this._table = table;
             this._contextStorage = contextStorage;
+            this._columnFactory = new TableColumnAppender(table, table.Alias);
         }
 
         public TableColumn VisitBooleanColumnType(BooleanColumnType booleanColumnType, ColumnModel arg)
         {
             return booleanColumnType.IsNullable
-                ? this._table.CreateNullableBooleanColumn(arg.DbName.Name, this.CreateMeta(arg))
-                : this._table.CreateBooleanColumn(arg.DbName.Name, this.CreateMeta(arg));
+                ? this._columnFactory.CreateNullableBooleanColumn(arg.DbName.Name, this.CreateMeta(arg))
+                : this._columnFactory.CreateBooleanColumn(arg.DbName.Name, this.CreateMeta(arg));
         }
 
         public TableColumn VisitByteColumnType(ByteColumnType byteColumnType, ColumnModel arg)
         {
             return byteColumnType.IsNullable
-                ? this._table.CreateNullableByteColumn(arg.DbName.Name, this.CreateMeta(arg))
-                : this._table.CreateByteColumn(arg.DbName.Name, this.CreateMeta(arg));
+                ? this._columnFactory.CreateNullableByteColumn(arg.DbName.Name, this.CreateMeta(arg))
+                : this._columnFactory.CreateByteColumn(arg.DbName.Name, this.CreateMeta(arg));
         }
 
         public TableColumn VisitByteArrayColumnType(ByteArrayColumnType byteArrayColumnType, ColumnModel arg)
@@ -182,64 +189,64 @@ public sealed class SqTable : TableBase
             if (!byteArrayColumnType.IsFixed)
             {
                 return byteArrayColumnType.IsNullable
-                    ? this._table.CreateNullableByteArrayColumn(arg.DbName.Name, byteArrayColumnType.Size, this.CreateMeta(arg))
-                    : this._table.CreateByteArrayColumn(arg.DbName.Name, byteArrayColumnType.Size, this.CreateMeta(arg));
+                    ? this._columnFactory.CreateNullableByteArrayColumn(arg.DbName.Name, byteArrayColumnType.Size, this.CreateMeta(arg))
+                    : this._columnFactory.CreateByteArrayColumn(arg.DbName.Name, byteArrayColumnType.Size, this.CreateMeta(arg));
             }
             return byteArrayColumnType.IsNullable
-                ? this._table.CreateNullableFixedSizeByteArrayColumn(arg.DbName.Name, byteArrayColumnType.Size ?? throw new SqExpressException("array size should be explicitly defined"), this.CreateMeta(arg))
-                : this._table.CreateFixedSizeByteArrayColumn(arg.DbName.Name, byteArrayColumnType.Size ?? throw new SqExpressException("array size should be explicitly defined"), this.CreateMeta(arg));
+                ? this._columnFactory.CreateNullableFixedSizeByteArrayColumn(arg.DbName.Name, byteArrayColumnType.Size ?? throw new SqExpressException("array size should be explicitly defined"), this.CreateMeta(arg))
+                : this._columnFactory.CreateFixedSizeByteArrayColumn(arg.DbName.Name, byteArrayColumnType.Size ?? throw new SqExpressException("array size should be explicitly defined"), this.CreateMeta(arg));
 
         }
 
         public TableColumn VisitInt16ColumnType(Int16ColumnType int16ColumnType, ColumnModel arg)
         {
             return int16ColumnType.IsNullable
-                ? this._table.CreateNullableInt16Column(arg.DbName.Name, this.CreateMeta(arg))
-                : this._table.CreateInt16Column(arg.DbName.Name, this.CreateMeta(arg));
+                ? this._columnFactory.CreateNullableInt16Column(arg.DbName.Name, this.CreateMeta(arg))
+                : this._columnFactory.CreateInt16Column(arg.DbName.Name, this.CreateMeta(arg));
         }
 
         public TableColumn VisitInt32ColumnType(Int32ColumnType int32ColumnType, ColumnModel arg)
         {
             return int32ColumnType.IsNullable
-                ? this._table.CreateNullableInt32Column(arg.DbName.Name, this.CreateMeta(arg))
-                : this._table.CreateInt32Column(arg.DbName.Name, this.CreateMeta(arg));
+                ? this._columnFactory.CreateNullableInt32Column(arg.DbName.Name, this.CreateMeta(arg))
+                : this._columnFactory.CreateInt32Column(arg.DbName.Name, this.CreateMeta(arg));
         }
 
         public TableColumn VisitInt64ColumnType(Int64ColumnType int64ColumnType, ColumnModel arg)
         {
             return int64ColumnType.IsNullable
-                ? this._table.CreateNullableInt64Column(arg.DbName.Name, this.CreateMeta(arg))
-                : this._table.CreateInt64Column(arg.DbName.Name, this.CreateMeta(arg));
+                ? this._columnFactory.CreateNullableInt64Column(arg.DbName.Name, this.CreateMeta(arg))
+                : this._columnFactory.CreateInt64Column(arg.DbName.Name, this.CreateMeta(arg));
         }
 
         public TableColumn VisitDoubleColumnType(DoubleColumnType doubleColumnType, ColumnModel arg)
         {
             return doubleColumnType.IsNullable
-                ? this._table.CreateNullableDoubleColumn(arg.DbName.Name, this.CreateMeta(arg))
-                : this._table.CreateDoubleColumn(arg.DbName.Name, this.CreateMeta(arg));
+                ? this._columnFactory.CreateNullableDoubleColumn(arg.DbName.Name, this.CreateMeta(arg))
+                : this._columnFactory.CreateDoubleColumn(arg.DbName.Name, this.CreateMeta(arg));
         }
 
         public TableColumn VisitDecimalColumnType(DecimalColumnType decimalColumnType, ColumnModel arg)
         {
             DecimalPrecisionScale scale = new(decimalColumnType.Precision, decimalColumnType.Scale);
             return decimalColumnType.IsNullable
-                ? this._table.CreateNullableDecimalColumn(arg.DbName.Name, scale, this.CreateMeta(arg))
-                : this._table.CreateDecimalColumn(arg.DbName.Name, scale, this.CreateMeta(arg));
+                ? this._columnFactory.CreateNullableDecimalColumn(arg.DbName.Name, scale, this.CreateMeta(arg))
+                : this._columnFactory.CreateDecimalColumn(arg.DbName.Name, scale, this.CreateMeta(arg));
         }
 
         public TableColumn VisitDateTimeColumnType(DateTimeColumnType dateTimeColumnType, ColumnModel arg)
         {
             return dateTimeColumnType.IsNullable
-                ? this._table.CreateNullableDateTimeColumn(arg.DbName.Name, dateTimeColumnType.IsDate,
+                ? this._columnFactory.CreateNullableDateTimeColumn(arg.DbName.Name, dateTimeColumnType.IsDate,
                     this.CreateMeta(arg))
-                : this._table.CreateDateTimeColumn(arg.DbName.Name, dateTimeColumnType.IsDate, this.CreateMeta(arg));
+                : this._columnFactory.CreateDateTimeColumn(arg.DbName.Name, dateTimeColumnType.IsDate, this.CreateMeta(arg));
         }
 
         public TableColumn VisitDateTimeOffsetColumnType(DateTimeOffsetColumnType dateTimeColumnType, ColumnModel arg)
         {
             return dateTimeColumnType.IsNullable
-                ? this._table.CreateNullableDateTimeOffsetColumn(arg.DbName.Name, this.CreateMeta(arg))
-                : this._table.CreateDateTimeOffsetColumn(arg.DbName.Name, this.CreateMeta(arg));
+                ? this._columnFactory.CreateNullableDateTimeOffsetColumn(arg.DbName.Name, this.CreateMeta(arg))
+                : this._columnFactory.CreateDateTimeOffsetColumn(arg.DbName.Name, this.CreateMeta(arg));
         }
 
         public TableColumn VisitStringColumnType(StringColumnType stringColumnType, ColumnModel arg)
@@ -247,18 +254,18 @@ public sealed class SqTable : TableBase
             if (!stringColumnType.IsFixed)
             {
                 return stringColumnType.IsNullable
-                    ? this._table.CreateNullableStringColumn(arg.DbName.Name, stringColumnType.Size,
+                    ? this._columnFactory.CreateNullableStringColumn(arg.DbName.Name, stringColumnType.Size,
                         stringColumnType.IsUnicode, stringColumnType.IsText, this.CreateMeta(arg))
-                    : this._table.CreateStringColumn(arg.DbName.Name, stringColumnType.Size, stringColumnType.IsUnicode,
+                    : this._columnFactory.CreateStringColumn(arg.DbName.Name, stringColumnType.Size, stringColumnType.IsUnicode,
                         stringColumnType.IsText, this.CreateMeta(arg));
             }
 
             return stringColumnType.IsNullable
-                ? this._table.CreateNullableFixedSizeStringColumn(arg.DbName.Name,
+                ? this._columnFactory.CreateNullableFixedSizeStringColumn(arg.DbName.Name,
                     stringColumnType.Size ??
                     throw new SqExpressException("string size should be explicitly defined"),
                     stringColumnType.IsUnicode, this.CreateMeta(arg))
-                : this._table.CreateFixedSizeStringColumn(arg.DbName.Name,
+                : this._columnFactory.CreateFixedSizeStringColumn(arg.DbName.Name,
                     stringColumnType.Size ??
                     throw new SqExpressException("string size should be explicitly defined"),
                     stringColumnType.IsUnicode, this.CreateMeta(arg));
@@ -267,15 +274,15 @@ public sealed class SqTable : TableBase
         public TableColumn VisitGuidColumnType(GuidColumnType guidColumnType, ColumnModel arg)
         {
             return guidColumnType.IsNullable
-                ? this._table.CreateNullableGuidColumn(arg.DbName.Name, this.CreateMeta(arg))
-                : this._table.CreateGuidColumn(arg.DbName.Name, this.CreateMeta(arg));
+                ? this._columnFactory.CreateNullableGuidColumn(arg.DbName.Name, this.CreateMeta(arg))
+                : this._columnFactory.CreateGuidColumn(arg.DbName.Name, this.CreateMeta(arg));
         }
 
         public TableColumn VisitXmlColumnType(XmlColumnType xmlColumnType, ColumnModel arg)
         {
             return xmlColumnType.IsNullable
-                ? this._table.CreateNullableXmlColumn(arg.DbName.Name, this.CreateMeta(arg))
-                : this._table.CreateXmlColumn(arg.DbName.Name, this.CreateMeta(arg));
+                ? this._columnFactory.CreateNullableXmlColumn(arg.DbName.Name, this.CreateMeta(arg))
+                : this._columnFactory.CreateXmlColumn(arg.DbName.Name, this.CreateMeta(arg));
         }
     }
 }

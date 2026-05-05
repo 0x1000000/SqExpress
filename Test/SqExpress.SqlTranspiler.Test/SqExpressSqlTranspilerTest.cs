@@ -815,7 +815,7 @@ namespace SqExpress.SqlTranspiler.Test
             var transpiler = new SqExpressSqlTranspiler();
             var result = transpiler.Transpile("SELECT u.UserId FROM Users u");
 
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("\"dbo\", \"Users\", alias"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("schema: \"dbo\", name: \"Users\", alias: alias"));
             AssertCompilesAndSql(result, SqlUnqualifiedUsersWithDefaultSchema);
         }
 
@@ -830,7 +830,7 @@ namespace SqExpress.SqlTranspiler.Test
 
             var result = transpiler.Transpile("SELECT u.UserId FROM Users u", options);
 
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("null, \"Users\", alias"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("schema: null, name: \"Users\", alias: alias"));
             AssertCompilesAndSql(result, SqlUnqualifiedUsersWithoutDefaultSchema, options);
         }
 
@@ -845,7 +845,7 @@ namespace SqExpress.SqlTranspiler.Test
 
             var result = transpiler.Transpile("SELECT u.UserId FROM Users u", options);
 
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("null, \"Users\", alias"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("schema: null, name: \"Users\", alias: alias"));
             AssertCompilesAndSql(result, SqlUnqualifiedUsersWithoutDefaultSchema, options);
         }
 
@@ -1158,7 +1158,7 @@ namespace SqExpress.SqlTranspiler.Test
 
             Assert.That(result.DeclarationsCSharpCode, Does.Contain("public sealed class TableUsers : TableBase"));
             Assert.That(result.DeclarationsCSharpCode, Does.Not.Contain("TableUsers1"));
-            Assert.That(result.DeclarationsCSharpCode, Does.Contain("\"dbo\", \"Users\", alias"));
+            Assert.That(result.DeclarationsCSharpCode, Does.Contain("schema: \"dbo\", name: \"Users\", alias: alias"));
 
             var assembly = AssertCompiles(result, "GeneratedTranspilerMixedSchemaSetOpsTests");
             var query = InvokeGeneratedBuildMethod(assembly, new SqExpressSqlTranspilerOptions());

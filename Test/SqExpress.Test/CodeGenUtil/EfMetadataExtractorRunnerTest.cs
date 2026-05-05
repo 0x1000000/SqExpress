@@ -108,6 +108,41 @@ public class EfMetadataExtractorRunnerTest
                 : null;
     }
 
+    [Test]
+    public void ExtractorProgramSource_KnownErrorsAreWrittenWithoutUnhandledException()
+    {
+        var extractorAssembly = Assembly.Load(CompileAssembly(
+            "SqExpress.EfExtractorProgram.KnownError",
+            EfMetadataExtractorRunner.ExtractorProgramSource,
+            OutputKind.ConsoleApplication,
+            GetReferences(
+                typeof(object),
+                typeof(Console),
+                typeof(Enumerable),
+                typeof(JsonSerializer),
+                typeof(IServiceProvider)
+            )
+        ));
+
+        var originalError = Console.Error;
+        using var error = new StringWriter();
+        try
+        {
+            Console.SetError(error);
+            var exitCode = InvokeEntryPointForExitCode(extractorAssembly, Array.Empty<string>());
+            Assert.AreEqual(1, exitCode);
+        }
+        finally
+        {
+            Console.SetError(originalError);
+        }
+
+        Assert.AreEqual(
+            "Usage: --target-assembly <name> [--db-context <type>]" + Environment.NewLine,
+            error.ToString());
+        Assert.That(error.ToString(), Does.Not.Contain("Unhandled exception"));
+    }
+
     private static byte[] CompileAssembly(
         string assemblyName,
         string source,
@@ -167,6 +202,15 @@ public class EfMetadataExtractorRunnerTest
 
     private static void InvokeEntryPoint(Assembly assembly, string[] args)
     {
+        var exitCode = InvokeEntryPointForExitCode(assembly, args);
+        if (exitCode != 0)
+        {
+            Assert.Fail("Extractor returned exit code " + exitCode + ".");
+        }
+    }
+
+    private static int InvokeEntryPointForExitCode(Assembly assembly, string[] args)
+    {
         var entryPoint = assembly.EntryPoint ??
                          throw new InvalidOperationException(
                              "Compiled extractor assembly does not have an entry point."
@@ -178,15 +222,16 @@ public class EfMetadataExtractorRunnerTest
         switch (result)
         {
             case null:
-                return;
+                return 0;
             case int exitCode when exitCode == 0:
-                return;
+                return 0;
             case int exitCode:
-                Assert.Fail("Extractor returned exit code " + exitCode + ".");
-                break;
+                return exitCode;
             case System.Threading.Tasks.Task task:
                 task.GetAwaiter().GetResult();
-                break;
+                return 0;
+            default:
+                return 0;
         }
     }
 

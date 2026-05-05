@@ -159,7 +159,7 @@ namespace SqExpress.CodeGenUtil.Ef
                 .Replace("<", "&lt;")
                 .Replace(">", "&gt;");
 
-        internal const string ExtractorProgramSource = @"using System;
+internal const string ExtractorProgramSource = @"using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
@@ -168,24 +168,33 @@ using System.Linq;
 using System.Reflection;
 using System.Text.Json;
 
-var options = Options.Parse(args);
-var targetAssembly = Assembly.Load(new AssemblyName(options.TargetAssembly));
-var context = CreateDbContext(targetAssembly, options.DbContext);
 try
 {
-    var model = GetModel(context);
-    var providerName = GetProviderName(context) ?? """";
-    var metadata = new EfRelationalMetadata(model);
-    var tables = ReadTables(metadata, model);
-    var document = new EfMetadataDocument { ProviderName = providerName, Tables = tables };
-    Console.Out.Write(JsonSerializer.Serialize(document));
-}
-finally
-{
-    if (context is IDisposable disposable)
+    var options = Options.Parse(args);
+    var targetAssembly = Assembly.Load(new AssemblyName(options.TargetAssembly));
+    var context = CreateDbContext(targetAssembly, options.DbContext);
+    try
     {
-        disposable.Dispose();
+        var model = GetModel(context);
+        var providerName = GetProviderName(context) ?? """";
+        var metadata = new EfRelationalMetadata(model);
+        var tables = ReadTables(metadata, model);
+        var document = new EfMetadataDocument { ProviderName = providerName, Tables = tables };
+        Console.Out.Write(JsonSerializer.Serialize(document));
+        return 0;
     }
+    finally
+    {
+        if (context is IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
+    }
+}
+catch (ExtractorException e)
+{
+    Console.Error.WriteLine(e.Message);
+    return 1;
 }
 
 static List<EfTableMetadata> ReadTables(EfRelationalMetadata metadata, object model)
@@ -331,18 +340,18 @@ static object CreateDbContext(Assembly assembly, string? dbContextTypeName)
 
     if (matchingFactoryTypes.Count > 1)
     {
-        throw new InvalidOperationException(""Found multiple EF design-time DbContext factories. Specify --db-context."");
+        throw new ExtractorException(""Found multiple EF design-time DbContext factories. Specify --db-context."");
     }
 
     selectedContextType ??= dbContextTypes.Count switch
     {
         1 => dbContextTypes[0],
-        0 => throw new InvalidOperationException(""Could not find any EF DbContext in the target project.""),
-        _ => throw new InvalidOperationException(""Found multiple EF DbContexts. Specify --db-context."")
+        0 => throw new ExtractorException(""Could not find any EF DbContext in the target project.""),
+        _ => throw new ExtractorException(""Found multiple EF DbContexts. Specify --db-context."")
     };
 
     return Activator.CreateInstance(selectedContextType)
-           ?? throw new InvalidOperationException(""Could not create EF DbContext \"""" + selectedContextType.FullName + ""\"". Add IDesignTimeDbContextFactory or a parameterless constructor."");
+           ?? throw new ExtractorException(""Could not create EF DbContext \"""" + selectedContextType.FullName + ""\"". Add IDesignTimeDbContextFactory or a parameterless constructor."");
 }
 
 static Type? SelectDbContextType(IReadOnlyList<Type> dbContextTypes, string? dbContextTypeName)
@@ -356,8 +365,8 @@ static Type? SelectDbContextType(IReadOnlyList<Type> dbContextTypes, string? dbC
     return matches.Count switch
     {
         1 => matches[0],
-        0 => throw new InvalidOperationException(""Could not find EF DbContext \"""" + dbContextTypeName + ""\"".""),
-        _ => throw new InvalidOperationException(""Found multiple EF DbContexts named \"""" + dbContextTypeName + ""\"". Use a fully-qualified type name."")
+        0 => throw new ExtractorException(""Could not find EF DbContext \"""" + dbContextTypeName + ""\"".""),
+        _ => throw new ExtractorException(""Found multiple EF DbContexts named \"""" + dbContextTypeName + ""\"". Use a fully-qualified type name."")
     };
 }
 
@@ -367,12 +376,12 @@ static bool IsDesignTimeFactoryInterface(Type type)
 static object CreateFromDesignTimeFactory(Type factoryType)
 {
     var factory = Activator.CreateInstance(factoryType)
-                  ?? throw new InvalidOperationException(""Could not create EF design-time factory \"""" + factoryType.FullName + ""\""."");
+                  ?? throw new ExtractorException(""Could not create EF design-time factory \"""" + factoryType.FullName + ""\""."");
     var factoryInterface = factoryType.GetInterfaces().Single(IsDesignTimeFactoryInterface);
     var method = factoryInterface.GetMethod(""CreateDbContext"")
-                 ?? throw new InvalidOperationException(""Could not find CreateDbContext on \"""" + factoryType.FullName + ""\""."");
+                 ?? throw new ExtractorException(""Could not find CreateDbContext on \"""" + factoryType.FullName + ""\""."");
     return method.Invoke(factory, new object[] { Array.Empty<string>() })
-           ?? throw new InvalidOperationException(""Factory \"""" + factoryType.FullName + ""\"" did not return a DbContext."");
+           ?? throw new ExtractorException(""Factory \"""" + factoryType.FullName + ""\"" did not return a DbContext."");
 }
 
 static bool IsDbContextType(Type type)
@@ -390,7 +399,7 @@ static bool IsDbContextType(Type type)
 
 static object GetDatabaseFacade(object dbContext)
     => dbContext.GetType().GetProperty(""Database"", BindingFlags.Public | BindingFlags.Instance)?.GetValue(dbContext)
-       ?? throw new InvalidOperationException(""Could not read Database from EF DbContext."");
+       ?? throw new ExtractorException(""Could not read Database from EF DbContext."");
 
 static string? GetProviderName(object dbContext)
     => GetDatabaseFacade(dbContext).GetType().GetProperty(""ProviderName"", BindingFlags.Public | BindingFlags.Instance)?.GetValue(GetDatabaseFacade(dbContext)) as string;
@@ -404,7 +413,7 @@ static object GetModel(object dbContext)
     }
 
     return dbContext.GetType().GetProperty(""Model"", BindingFlags.Public | BindingFlags.Instance)?.GetValue(dbContext)
-           ?? throw new InvalidOperationException(""Could not read Model from EF DbContext."");
+           ?? throw new ExtractorException(""Could not read Model from EF DbContext."");
 }
 
 static object? TryGetDesignTimeModel(object dbContext)
@@ -450,10 +459,17 @@ internal sealed class Options
 
         if (string.IsNullOrWhiteSpace(result.TargetAssembly))
         {
-            throw new InvalidOperationException(""Usage: --target-assembly <name> [--db-context <type>]"");
+            throw new ExtractorException(""Usage: --target-assembly <name> [--db-context <type>]"");
         }
 
         return result;
+    }
+}
+
+internal sealed class ExtractorException : Exception
+{
+    public ExtractorException(string message) : base(message)
+    {
     }
 }
 
@@ -524,15 +540,15 @@ internal sealed class EfRelationalMetadata
         var efAssembly = model.GetType().Assembly;
         var relationalAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.GetName().Name == ""Microsoft.EntityFrameworkCore.Relational"")
                                  ?? efAssembly.GetReferencedAssemblies().Where(a => a.Name == ""Microsoft.EntityFrameworkCore.Relational"").Select(Assembly.Load).FirstOrDefault()
-                                 ?? throw new InvalidOperationException(""Could not load Microsoft.EntityFrameworkCore.Relational from the EF project."");
+                                 ?? throw new ExtractorException(""Could not load Microsoft.EntityFrameworkCore.Relational from the EF project."");
         _relationalEntityExtensions = relationalAssembly.GetType(""Microsoft.EntityFrameworkCore.RelationalEntityTypeExtensions"")
-                                      ?? throw new InvalidOperationException(""Could not find EF relational entity extensions."");
+                                      ?? throw new ExtractorException(""Could not find EF relational entity extensions."");
         _relationalPropertyExtensions = relationalAssembly.GetType(""Microsoft.EntityFrameworkCore.RelationalPropertyExtensions"")
-                                        ?? throw new InvalidOperationException(""Could not find EF relational property extensions."");
+                                        ?? throw new ExtractorException(""Could not find EF relational property extensions."");
         _relationalIndexExtensions = relationalAssembly.GetType(""Microsoft.EntityFrameworkCore.RelationalIndexExtensions"")
-                                     ?? throw new InvalidOperationException(""Could not find EF relational index extensions."");
+                                     ?? throw new ExtractorException(""Could not find EF relational index extensions."");
         _storeObjectIdentifier = relationalAssembly.GetType(""Microsoft.EntityFrameworkCore.Metadata.StoreObjectIdentifier"")
-                                ?? throw new InvalidOperationException(""Could not find EF StoreObjectIdentifier."");
+                                ?? throw new ExtractorException(""Could not find EF StoreObjectIdentifier."");
     }
 
     public IEnumerable<object> GetEntityTypes(object model) => InvokeEnumerable(model, ""GetEntityTypes"");
@@ -542,8 +558,8 @@ internal sealed class EfRelationalMetadata
     public object? FindPrimaryKey(object entityType) => GetPublicMethod(entityType.GetType(), ""FindPrimaryKey"", Type.EmptyTypes)?.Invoke(entityType, Array.Empty<object>());
     public IEnumerable<object> GetKeyProperties(object key) => GetEnumerableProperty(key, ""Properties"");
     public IEnumerable<object> GetForeignKeyProperties(object foreignKey) => GetEnumerableProperty(foreignKey, ""Properties"");
-    public object GetPrincipalEntityType(object foreignKey) => GetPublicProperty(foreignKey.GetType(), ""PrincipalEntityType"")?.GetValue(foreignKey) ?? throw new InvalidOperationException(""Could not read EF foreign key principal entity type."");
-    public object GetPrincipalKey(object foreignKey) => GetPublicProperty(foreignKey.GetType(), ""PrincipalKey"")?.GetValue(foreignKey) ?? throw new InvalidOperationException(""Could not read EF foreign key principal key."");
+    public object GetPrincipalEntityType(object foreignKey) => GetPublicProperty(foreignKey.GetType(), ""PrincipalEntityType"")?.GetValue(foreignKey) ?? throw new ExtractorException(""Could not read EF foreign key principal entity type."");
+    public object GetPrincipalKey(object foreignKey) => GetPublicProperty(foreignKey.GetType(), ""PrincipalKey"")?.GetValue(foreignKey) ?? throw new ExtractorException(""Could not read EF foreign key principal key."");
     public IEnumerable<object> GetIndexProperties(object index) => GetEnumerableProperty(index, ""Properties"");
     public bool IsUnique(object index) => (bool?)GetPublicProperty(index.GetType(), ""IsUnique"")?.GetValue(index) ?? false;
     public bool IsClustered(object index) => GetAnnotationValue(index, ""SqlServer:Clustered"") as bool? ?? false;
@@ -557,7 +573,7 @@ internal sealed class EfRelationalMetadata
     public string? GetSchema(object entityType) => InvokeRelationalString(_relationalEntityExtensions, ""GetSchema"", entityType);
     public string? GetColumnName(object property, string schema, string table) => InvokeRelationalString(_relationalPropertyExtensions, ""GetColumnName"", property, CreateStoreObject(schema, table)) ?? InvokeRelationalString(_relationalPropertyExtensions, ""GetColumnName"", property) ?? GetPublicProperty(property.GetType(), ""Name"")?.GetValue(property) as string;
     public string? GetColumnType(object property) => InvokeRelationalString(_relationalPropertyExtensions, ""GetColumnType"", property);
-    public Type GetClrType(object property) => GetPublicProperty(property.GetType(), ""ClrType"")?.GetValue(property) as Type ?? throw new InvalidOperationException(""Could not read EF property CLR type."");
+    public Type GetClrType(object property) => GetPublicProperty(property.GetType(), ""ClrType"")?.GetValue(property) as Type ?? throw new ExtractorException(""Could not read EF property CLR type."");
     public bool IsNullable(object property) => (bool?)GetPublicProperty(property.GetType(), ""IsNullable"")?.GetValue(property) ?? false;
     public int? GetMaxLength(object property) => InvokeNullableInt(property, ""GetMaxLength"");
     public int? GetPrecision(object property) => InvokeNullableInt(property, ""GetPrecision"");
@@ -608,7 +624,7 @@ internal sealed class EfRelationalMetadata
         defaultValue = Convert.ToString(value, CultureInfo.InvariantCulture);
         return ""Raw"";
     }
-    private object CreateStoreObject(string schema, string table) => ((Type)_storeObjectIdentifier).GetMethod(""Table"", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(string), typeof(string) }, null)?.Invoke(null, new object[] { table, schema }) ?? throw new InvalidOperationException(""Could not create EF StoreObjectIdentifier."");
+    private object CreateStoreObject(string schema, string table) => ((Type)_storeObjectIdentifier).GetMethod(""Table"", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(string), typeof(string) }, null)?.Invoke(null, new object[] { table, schema }) ?? throw new ExtractorException(""Could not create EF StoreObjectIdentifier."");
     private static IEnumerable<object> InvokeEnumerable(object target, string name) => ((IEnumerable?)GetPublicMethod(target.GetType(), name, Type.EmptyTypes)?.Invoke(target, Array.Empty<object>()))?.Cast<object>() ?? Enumerable.Empty<object>();
     private static IEnumerable<object> GetEnumerableProperty(object target, string name) => ((IEnumerable?)GetPublicProperty(target.GetType(), name)?.GetValue(target))?.Cast<object>() ?? Enumerable.Empty<object>();
     private static int? InvokeNullableInt(object target, string name) => GetPublicMethod(target.GetType(), name, Type.EmptyTypes)?.Invoke(target, Array.Empty<object>()) as int?;
