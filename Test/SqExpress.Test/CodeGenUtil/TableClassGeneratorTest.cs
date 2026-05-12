@@ -208,6 +208,51 @@ namespace SqExpress.Test.CodeGenUtil
         }
 
         [Test]
+        public void GenerateTableDescriptor_WhenColumnPropertyHidesTableBaseProperty_RendersNewModifier()
+        {
+            var candidate = new CodeGenTableModel(
+                CodeGenTableKind.Table,
+                databaseName: null,
+                schemaName: "dbo",
+                tableName: "Users",
+                className: "TableUsers",
+                @namespace: "MyCompany.MyProject.Tables",
+                fullyQualifiedTypeName: "global::MyCompany.MyProject.Tables.TableUsers",
+                columns: ImmutableArray.Create(
+                    new CodeGenColumnModel(
+                        kind: CodeGenColumnKind.String,
+                        sqlName: "FullName",
+                        propertyName: null,
+                        isPrimaryKey: false,
+                        isIdentity: false,
+                        foreignKeyDatabase: null,
+                        foreignKeySchema: null,
+                        foreignKeyTable: null,
+                        foreignKeyColumn: null,
+                        defaultValueKind: CodeGenDefaultValueKind.None,
+                        defaultValue: null,
+                        isUnicode: true,
+                        maxLength: 255,
+                        isFixedLength: false,
+                        isText: false,
+                        precision: 0,
+                        scale: 0,
+                        isDate: false)),
+                indexes: ImmutableArray<CodeGenIndexModel>.Empty);
+
+            var generated = CodeGenTableDescriptorSupport.GenerateTableDescriptor(
+                    candidate,
+                    new Dictionary<string, CodeGenTableModel>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        [candidate.TableKey] = candidate
+                    },
+                    CodeGenTableDescriptorRenderOptions.PublicPartial)
+                .ToFullString();
+
+            Assert.That(NormalizeNewLines(generated), Does.Contain("public new StringTableColumn FullName { get; }"));
+        }
+
+        [Test]
         public void AttributeDeclaration_RawSqlDefault_RendersRawToken()
         {
             var candidate = new CodeGenTableModel(

@@ -72,6 +72,28 @@ namespace SqExpress.Analyzers.Test
         }
 
         [Test]
+        public void Generate_WhenColumnPropertyHidesTableBaseProperty_EmitsNewModifier()
+        {
+            var source = """
+                using SqExpress.TableDeclarationAttributes;
+
+                [TableDescriptor("dbo", "User")]
+                [StringColumn("FullName", Unicode = true, MaxLength = 255)]
+                public partial class User
+                {
+                }
+                """;
+
+            var result = RunGenerator(source);
+            var generated = GetGeneratedSource(result, "User");
+
+            Assert.That(result.Diagnostics, Is.Empty, FormatDiagnostics(result.Diagnostics));
+            Assert.That(generated, Does.Contain("public new StringTableColumn FullName { get; }"));
+            Assert.That(result.OutputCompilation.GetDiagnostics()
+                .Where(static d => d.Severity == DiagnosticSeverity.Error), Is.Empty);
+        }
+
+        [Test]
         public void Generate_WhenDerivedTableDescriptorIsSimple_EmitsDerivedTableBasePattern()
         {
             var source = """

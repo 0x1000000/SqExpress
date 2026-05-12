@@ -8,6 +8,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SqExpress;
 using SqExpress.DbMetadata.Internal.Model;
+using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Type;
 using SqExpress.TableDeclarationAttributes;
 
@@ -464,11 +465,40 @@ namespace SqExpress.CodeGen.Shared
                 .Select(column => SyntaxFactory.PropertyDeclaration(
                         RenderPropertyType(column, candidate.Kind),
                         SyntaxFactory.Identifier(propertyNamesBySqlName[column.SqlName]))
-                    .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
+                    .WithModifiers(RenderPropertyModifiers(candidate.Kind, propertyNamesBySqlName[column.SqlName]))
                     .AddAccessorListAccessors(
                         SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
                             .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken))))
                 .ToArray();
+        }
+
+        private static SyntaxTokenList RenderPropertyModifiers(CodeGenTableKind tableKind, string propertyName)
+        {
+            var tokens = new List<SyntaxToken> { SyntaxFactory.Token(SyntaxKind.PublicKeyword) };
+            if (IsInheritedTableMemberName(tableKind, propertyName))
+            {
+                tokens.Add(SyntaxFactory.Token(SyntaxKind.NewKeyword));
+            }
+
+            return SyntaxFactory.TokenList(tokens);
+        }
+
+        private static bool IsInheritedTableMemberName(CodeGenTableKind tableKind, string propertyName)
+        {
+            if (string.Equals(propertyName, nameof(ExprTable.Alias), StringComparison.Ordinal)
+                || string.Equals(propertyName, nameof(TableBase.Columns), StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            if (tableKind == CodeGenTableKind.DerivedTable)
+            {
+                return false;
+            }
+
+            return string.Equals(propertyName, nameof(ExprTable.FullName), StringComparison.Ordinal)
+                || string.Equals(propertyName, nameof(TableBase.Indexes), StringComparison.Ordinal)
+                || string.Equals(propertyName, nameof(TableBase.Script), StringComparison.Ordinal);
         }
 
         private static SyntaxTokenList GetClassModifiers(CodeGenTableDescriptorRenderOptions options, CodeGenAccessibility declaredAccessibility)
@@ -1441,7 +1471,7 @@ namespace SqExpress.CodeGen.Shared
                 var newProperty = SyntaxFactory.PropertyDeclaration(
                         RenderPropertyType(columnModel, candidate.Kind),
                         oldProperty.Identifier)
-                    .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
+                    .WithModifiers(RenderPropertyModifiers(candidate.Kind, oldProperty.Identifier.ValueText))
                     .AddAccessorListAccessors(
                         SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
                             .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)))
@@ -1461,7 +1491,7 @@ namespace SqExpress.CodeGen.Shared
                     .Select(c => SyntaxFactory.PropertyDeclaration(
                             RenderPropertyType(c, candidate.Kind),
                             SyntaxFactory.Identifier(propertyNamesBySqlName[c.SqlName]))
-                        .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
+                        .WithModifiers(RenderPropertyModifiers(candidate.Kind, propertyNamesBySqlName[c.SqlName]))
                         .AddAccessorListAccessors(
                             SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
                                 .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken))))
