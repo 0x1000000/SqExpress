@@ -204,14 +204,30 @@ namespace SqExpress
             ExprTable table1,
             ExprTable table2,
             [NotNullWhen(true)] out IExprTableSource? join)
-            => this.TryToJoinTables(table1, table2, intermediateTables: null, out join);
+            => this.TryToJoinTables(table1, table2, intermediateTables: null, out join, new TablesGraphJoinOptions());
+
+        public bool TryToJoinTables(
+            ExprTable table1,
+            ExprTable table2,
+            [NotNullWhen(true)] out IExprTableSource? join,
+            TablesGraphJoinOptions options)
+            => this.TryToJoinTables(table1, table2, intermediateTables: null, out join, options);
 
         public bool TryToJoinTables(
             ExprTable table1,
             ExprTable table2,
             IReadOnlyList<ExprTable>? intermediateTables,
             [NotNullWhen(true)] out IExprTableSource? join)
+            => this.TryToJoinTables(table1, table2, intermediateTables, out join, new TablesGraphJoinOptions());
+
+        public bool TryToJoinTables(
+            ExprTable table1,
+            ExprTable table2,
+            IReadOnlyList<ExprTable>? intermediateTables,
+            [NotNullWhen(true)] out IExprTableSource? join,
+            TablesGraphJoinOptions options)
         {
+            ValidateJoinOptions(options);
             join = null;
 
             if (!this.TryResolveTable(table1, out var canonicalTable1) || !this.TryResolveTable(table2, out var canonicalTable2))
@@ -224,7 +240,7 @@ namespace SqExpress
                 return false;
             }
 
-            var path = this.TryBuildPath(table1, canonicalTable1, table2, canonicalTable2, intermediateTables);
+            var path = this.TryBuildPath(table1, canonicalTable1, table2, canonicalTable2, intermediateTables, options);
             if (path == null || path.Count == 0)
             {
                 return false;
@@ -247,16 +263,117 @@ namespace SqExpress
             return true;
         }
 
+        public bool TryToJoinTables(
+            IReadOnlyList<ExprTable> tables,
+            [NotNullWhen(true)] out IExprTableSource? join)
+            => this.TryToJoinTables(tables, new TablesGraphJoinOptions(), out join);
+
+        public bool TryToJoinTables(
+            IReadOnlyList<ExprTable> tables,
+            TablesGraphJoinOptions options,
+            [NotNullWhen(true)] out IExprTableSource? join)
+        {
+            ValidateJoinOptions(options);
+            join = null;
+            if (tables == null || tables.Count == 0)
+            {
+                return false;
+            }
+
+            var actualByKey = new Dictionary<string, ExprTable>(StringComparer.OrdinalIgnoreCase);
+            var canonicalByKey = new Dictionary<string, TableBase>(StringComparer.OrdinalIgnoreCase);
+            var requestedKeys = new List<string>(tables.Count);
+            for (var i = 0; i < tables.Count; i++)
+            {
+                var actual = tables[i];
+                if (!this.TryResolveTable(actual, out var canonical))
+                {
+                    return false;
+                }
+
+                var key = BuildTableKey(canonical.FullName);
+                if (actualByKey.ContainsKey(key))
+                {
+                    return false;
+                }
+
+                actualByKey.Add(key, actual);
+                canonicalByKey.Add(key, canonical);
+                requestedKeys.Add(key);
+            }
+
+            if (tables.Count == 1)
+            {
+                join = tables[0];
+                return true;
+            }
+
+            var treeKeys = new List<string> { requestedKeys[0] };
+            var tree = new HashSet<string>(treeKeys, StringComparer.OrdinalIgnoreCase);
+            var pending = new HashSet<string>(requestedKeys.Skip(1), StringComparer.OrdinalIgnoreCase);
+            IExprTableSource source = tables[0];
+
+            while (pending.Count > 0)
+            {
+                var sourceTables = treeKeys.Select(key => canonicalByKey[key]).ToArray();
+                var candidates = this.FindShortestPaths(sourceTables, pending, options);
+                var selected = SelectPath(candidates, options);
+                if (selected == null)
+                {
+                    return false;
+                }
+
+                for (var i = 1; i < selected.Count; i++)
+                {
+                    var parentCanonical = selected[i - 1];
+                    var currentCanonical = selected[i];
+                    var parentKey = BuildTableKey(parentCanonical.FullName);
+                    var currentKey = BuildTableKey(currentCanonical.FullName);
+                    if (!actualByKey.TryGetValue(parentKey, out var parentActual))
+                    {
+                        return false;
+                    }
+                    if (!actualByKey.TryGetValue(currentKey, out var currentActual))
+                    {
+                        currentActual = currentCanonical.WithAlias(SqQueryBuilder.TableAlias());
+                        actualByKey.Add(currentKey, currentActual);
+                    }
+                    if (!canonicalByKey.ContainsKey(currentKey))
+                    {
+                        canonicalByKey.Add(currentKey, currentCanonical);
+                    }
+
+                    source = new ExprJoinedTable(
+                        source,
+                        ExprJoinedTable.ExprJoinType.Inner,
+                        currentActual,
+                        BuildJoinCondition(parentCanonical, currentCanonical, parentActual, currentActual));
+
+                    if (tree.Add(currentKey))
+                    {
+                        treeKeys.Add(currentKey);
+                    }
+                    pending.Remove(currentKey);
+                }
+            }
+
+            join = source;
+            return true;
+        }
+
         private List<PathItem>? TryBuildPath(
             ExprTable sourceActual,
             TableBase sourceCanonical,
             ExprTable targetActual,
             TableBase targetCanonical,
-            IReadOnlyList<ExprTable>? intermediateTables)
+            IReadOnlyList<ExprTable>? intermediateTables,
+            TablesGraphJoinOptions options)
         {
             if (intermediateTables == null || intermediateTables.Count == 0)
             {
-                var directPath = this.TryFindShortestPath(sourceCanonical, targetCanonical);
+                var directPath = SelectPath(
+                    this.FindShortestPaths(new[] { sourceCanonical }, new HashSet<string>(StringComparer.OrdinalIgnoreCase) { BuildTableKey(targetCanonical.FullName) }, options),
+                    options);
                 return directPath == null ? null : BuildActualPath(directPath, sourceActual, targetActual);
             }
 
@@ -272,7 +389,9 @@ namespace SqExpress
                     return null;
                 }
 
-                var segmentPath = this.TryFindShortestPath(segmentSourceCanonical, segmentTargetCanonical);
+                var segmentPath = SelectPath(
+                    this.FindShortestPaths(new[] { segmentSourceCanonical }, new HashSet<string>(StringComparer.OrdinalIgnoreCase) { BuildTableKey(segmentTargetCanonical.FullName) }, options),
+                    options);
                 if (segmentPath == null || segmentPath.Count == 0)
                 {
                     return null;
@@ -362,42 +481,151 @@ namespace SqExpress
             }
         }
 
-        private List<TableBase>? TryFindShortestPath(TableBase source, TableBase target)
+        private IReadOnlyList<IReadOnlyList<TableBase>> FindShortestPaths(
+            IReadOnlyList<TableBase> sources,
+            HashSet<string> targetKeys,
+            TablesGraphJoinOptions options)
         {
-            var sourceKey = BuildTableKey(source.FullName);
-            var targetKey = BuildTableKey(target.FullName);
-
             var queue = new Queue<string>();
-            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { sourceKey };
-            var previous = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            var distance = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var previous = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            for (var i = 0; i < sources.Count; i++)
             {
-                [sourceKey] = null
-            };
+                var sourceKey = BuildTableKey(sources[i].FullName);
+                if (distance.ContainsKey(sourceKey))
+                {
+                    continue;
+                }
+                distance.Add(sourceKey, 0);
+                previous.Add(sourceKey, new List<string>());
+                queue.Enqueue(sourceKey);
+            }
 
-            queue.Enqueue(sourceKey);
-
+            int? targetDistance = null;
+            var reachedTargets = new List<string>();
             while (queue.Count > 0)
             {
                 var currentKey = queue.Dequeue();
-                if (string.Equals(currentKey, targetKey, StringComparison.OrdinalIgnoreCase))
+                var currentDistance = distance[currentKey];
+                if (targetDistance.HasValue && currentDistance > targetDistance.Value)
                 {
-                    return ReconstructPath(previous, targetKey, this._tablesByKey);
+                    break;
+                }
+                if (targetKeys.Contains(currentKey))
+                {
+                    targetDistance ??= currentDistance;
+                    reachedTargets.Add(currentKey);
+                    continue;
                 }
 
                 foreach (var neighbor in this.GetAdjacentTables(this._tablesByKey[currentKey]))
                 {
                     var neighborKey = BuildTableKey(neighbor.FullName);
-                    if (!visited.Add(neighborKey))
+                    var neighborDistance = currentDistance + 1;
+                    if (!distance.TryGetValue(neighborKey, out var knownDistance))
                     {
+                        distance.Add(neighborKey, neighborDistance);
+                        previous.Add(neighborKey, new List<string> { currentKey });
+                        queue.Enqueue(neighborKey);
                         continue;
                     }
-
-                    previous[neighborKey] = currentKey;
-                    queue.Enqueue(neighborKey);
+                    if (knownDistance == neighborDistance)
+                    {
+                        previous[neighborKey].Add(currentKey);
+                    }
                 }
             }
 
-            return null;
+            if (reachedTargets.Count == 0)
+            {
+                return Array.Empty<IReadOnlyList<TableBase>>();
+            }
+
+            var maxPaths = options.AmbiguousPathBehavior switch
+            {
+                AmbiguousJoinPathBehavior.DeterministicFirst => 1,
+                AmbiguousJoinPathBehavior.Fail => 2,
+                AmbiguousJoinPathBehavior.Callback => int.MaxValue,
+                _ => throw new ArgumentOutOfRangeException(nameof(options.AmbiguousPathBehavior))
+            };
+            var result = new List<IReadOnlyList<TableBase>>();
+            foreach (var targetKey in reachedTargets)
+            {
+                ReconstructAllPaths(targetKey, previous, this._tablesByKey, new List<TableBase>(), result, maxPaths);
+                if (result.Count >= maxPaths)
+                {
+                    break;
+                }
+            }
+            return result;
+        }
+
+        private static void ReconstructAllPaths(
+            string currentKey,
+            IReadOnlyDictionary<string, List<string>> previous,
+            IReadOnlyDictionary<string, TableBase> tablesByKey,
+            List<TableBase> reversedPath,
+            List<IReadOnlyList<TableBase>> result,
+            int maxPaths)
+        {
+            reversedPath.Add(tablesByKey[currentKey]);
+            var predecessors = previous[currentKey];
+            if (predecessors.Count == 0)
+            {
+                var path = reversedPath.ToArray();
+                Array.Reverse(path);
+                result.Add(path);
+            }
+            else
+            {
+                for (var i = 0; i < predecessors.Count && result.Count < maxPaths; i++)
+                {
+                    ReconstructAllPaths(predecessors[i], previous, tablesByKey, reversedPath, result, maxPaths);
+                }
+            }
+            reversedPath.RemoveAt(reversedPath.Count - 1);
+        }
+
+        private static IReadOnlyList<TableBase>? SelectPath(
+            IReadOnlyList<IReadOnlyList<TableBase>> candidates,
+            TablesGraphJoinOptions options)
+        {
+            if (candidates.Count == 0)
+            {
+                return null;
+            }
+            if (candidates.Count == 1 || options.AmbiguousPathBehavior == AmbiguousJoinPathBehavior.DeterministicFirst)
+            {
+                return candidates[0];
+            }
+            if (options.AmbiguousPathBehavior == AmbiguousJoinPathBehavior.Fail)
+            {
+                return null;
+            }
+
+            var selectedIndex = options.AmbiguousPathResolver!(candidates);
+            if (selectedIndex < 0 || selectedIndex >= candidates.Count)
+            {
+                throw new ArgumentException("The ambiguous join path resolver returned an invalid candidate index.", nameof(options));
+            }
+            return candidates[selectedIndex];
+        }
+
+        private static void ValidateJoinOptions(TablesGraphJoinOptions options)
+        {
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+            if (options.AmbiguousPathBehavior == AmbiguousJoinPathBehavior.Callback
+                && options.AmbiguousPathResolver == null)
+            {
+                throw new ArgumentException("An ambiguous join path resolver is required for Callback behavior.", nameof(options));
+            }
+            if (!Enum.IsDefined(typeof(AmbiguousJoinPathBehavior), options.AmbiguousPathBehavior))
+            {
+                throw new ArgumentOutOfRangeException(nameof(options.AmbiguousPathBehavior));
+            }
         }
 
         private IEnumerable<TableBase> GetAdjacentTables(TableBase table)
@@ -420,23 +648,6 @@ namespace SqExpress
                     yield return referencedBy;
                 }
             }
-        }
-
-        private static List<TableBase> ReconstructPath(
-            IReadOnlyDictionary<string, string?> previous,
-            string targetKey,
-            IReadOnlyDictionary<string, TableBase> tablesByKey)
-        {
-            var path = new List<TableBase>();
-            string? currentKey = targetKey;
-            while (currentKey != null)
-            {
-                path.Add(tablesByKey[currentKey]);
-                currentKey = previous[currentKey];
-            }
-
-            path.Reverse();
-            return path;
         }
 
         private TableBase ResolveTable(ExprTable table)

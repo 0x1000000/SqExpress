@@ -6,7 +6,7 @@ It is useful when you need to:
 
 - inspect descriptor relationships
 - find direct and transitive references
-- discover a join path between two tables
+- discover join paths and construct joins for two or more tables
 - build features such as automatic security filters
 
 ## Creating a Graph
@@ -156,6 +156,47 @@ So the resulting path must be:
 - `table1 -> intermediate[0] -> intermediate[1] -> ... -> table2`
 
 If any checkpoint cannot be reached, the method returns `false`.
+
+### Ambiguous shortest paths
+
+The default behavior remains deterministic: the first shortest path discovered from the graph's table and reference order is selected. Use `TablesGraphJoinOptions` when ambiguity should be handled differently:
+
+```cs
+var options = new TablesGraphJoinOptions
+{
+    AmbiguousPathBehavior = AmbiguousJoinPathBehavior.Callback,
+    AmbiguousPathResolver = paths => ChoosePath(paths)
+};
+
+if (graph.TryToJoinTables(tOrder, tCountry, out var joinedSource, options))
+{
+    // Use joinedSource.
+}
+```
+
+`DeterministicFirst` selects candidate `0`, `Fail` makes `TryToJoinTables(...)` return `false`, and `Callback` passes every equal shortest candidate path to the resolver. The callback returns the candidate index. A missing callback or an out-of-range index is invalid configuration and throws `ArgumentException`.
+
+The same policy is applied independently to each segment when ordered intermediate tables are supplied.
+
+## Joining Multiple Tables
+
+Pass a list to build one left-deep inner-join tree:
+
+```cs
+if (graph.TryToJoinTables(
+        new ExprTable[] { tOrder, tProduct, tCountry },
+        options,
+        out var joinedSource))
+{
+    var query = Select(AllColumns())
+        .From(joinedSource)
+        .Done();
+}
+```
+
+The first requested table is the root. The graph repeatedly attaches the nearest pending requested table, including automatically aliased connector tables when required. Requested objects and their aliases are preserved. A canonical table is added at most once, and requested tables encountered along a connector path are satisfied immediately.
+
+This is a deterministic greedy tree, not a globally minimal Steiner tree. The method returns `false` for empty or invalid input, duplicate canonical table names, unknown tables, disconnected requested tables, or ambiguity under the `Fail` policy. A single known table is returned unchanged.
 
 ## When to Use It
 

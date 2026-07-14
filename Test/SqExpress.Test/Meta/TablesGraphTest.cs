@@ -370,6 +370,140 @@ namespace SqExpress.Test.Meta
         }
 
         [Test]
+        public void TryToJoinTables_WithAmbiguousPathOptions_FailsOrUsesCallbackSelection()
+        {
+            var hub1 = new Hub1Table();
+            var hub2 = new Hub2Table();
+            var source = new MultiRouteSourceTable();
+            var target = new MultiRouteTargetTable();
+            var graph = TablesGraph.Create([hub1, hub2, source, target]);
+
+            var failOptions = new TablesGraphJoinOptions
+            {
+                AmbiguousPathBehavior = AmbiguousJoinPathBehavior.Fail
+            };
+            Assert.That(graph.TryToJoinTables(source, target, out var failedJoin, failOptions), Is.False);
+            Assert.That(failedJoin, Is.Null);
+
+            IReadOnlyList<IReadOnlyList<TableBase>>? callbackPaths = null;
+            var callbackOptions = new TablesGraphJoinOptions
+            {
+                AmbiguousPathBehavior = AmbiguousJoinPathBehavior.Callback,
+                AmbiguousPathResolver = paths =>
+                {
+                    callbackPaths = paths;
+                    return 1;
+                }
+            };
+            Assert.That(graph.TryToJoinTables(source, target, out var selectedJoin, callbackOptions), Is.True);
+            Assert.That(callbackPaths, Has.Count.EqualTo(2));
+            var selectedSql = selectedJoin!.ToSql();
+            Assert.That(selectedSql, Does.Contain("[dbo].[Hub2]"));
+            Assert.That(selectedSql, Does.Not.Contain("[dbo].[Hub1]"));
+        }
+
+        [Test]
+        public void TryToJoinTables_CallbackConfiguration_IsValidated()
+        {
+            var graph = TablesGraph.Create([
+                new Hub1Table(), new Hub2Table(), new MultiRouteSourceTable(), new MultiRouteTargetTable()
+            ]);
+            var source = new MultiRouteSourceTable();
+            var target = new MultiRouteTargetTable();
+
+            Assert.That(
+                () => graph.TryToJoinTables(
+                    source,
+                    target,
+                    out _,
+                    new TablesGraphJoinOptions { AmbiguousPathBehavior = AmbiguousJoinPathBehavior.Callback }),
+                Throws.ArgumentException);
+            Assert.That(
+                () => graph.TryToJoinTables(
+                    source,
+                    target,
+                    out _,
+                    new TablesGraphJoinOptions
+                    {
+                        AmbiguousPathBehavior = AmbiguousJoinPathBehavior.Callback,
+                        AmbiguousPathResolver = _ => 2
+                    }),
+                Throws.ArgumentException);
+        }
+
+        [Test]
+        public void TryToJoinTables_WithIntermediate_AppliesAmbiguityOptionsPerSegment()
+        {
+            var source = new MultiRouteSourceTable();
+            var target = new MultiRouteTargetTable();
+            var leaf = new MultiRouteLeafTable();
+            var graph = TablesGraph.Create([new Hub1Table(), new Hub2Table(), source, target, leaf]);
+            var options = new TablesGraphJoinOptions { AmbiguousPathBehavior = AmbiguousJoinPathBehavior.Fail };
+
+            Assert.That(
+                graph.TryToJoinTables(source, leaf, new ExprTable[] { target }, out var join, options),
+                Is.False);
+            Assert.That(join, Is.Null);
+        }
+
+        [Test]
+        public void TryToJoinTables_MultipleTables_BuildsGreedyTreeAndPreservesRequestedAliases()
+        {
+            var root = new RootTable().WithAlias(SqQueryBuilder.TableAlias("r"));
+            var childB = new ChildBTable().WithAlias(SqQueryBuilder.TableAlias("b"));
+            var grandChild = new GrandChildTable().WithAlias(SqQueryBuilder.TableAlias("g"));
+            var graph = TablesGraph.Create([new RootTable(), new ChildTable(), new ChildBTable(), new GrandChildTable()]);
+
+            Assert.That(graph.TryToJoinTables(new ExprTable[] { root, childB, grandChild }, out var join), Is.True);
+            var sql = join!.ToSql();
+            Assert.That(sql, Does.StartWith("[dbo].[Root] [r]"));
+            Assert.That(sql, Does.Contain("[dbo].[ChildB] [b]"));
+            Assert.That(sql, Does.Contain("[dbo].[GrandChild] [g]"));
+            Assert.That(sql, Does.Contain("[dbo].[Child]"));
+            Assert.That(sql.Split(new[] { "[dbo].[Root]" }, StringSplitOptions.None), Has.Length.EqualTo(2));
+        }
+
+        [Test]
+        public void TryToJoinTables_MultipleTables_HandlesSingletonAndInvalidInputs()
+        {
+            var root = new RootTable();
+            var otherRoot = new OtherRootTable();
+            var graph = TablesGraph.Create([root, new ChildTable(), otherRoot]);
+
+            Assert.That(graph.TryToJoinTables(new ExprTable[] { root }, out var singleton), Is.True);
+            Assert.That(singleton, Is.SameAs(root));
+            Assert.That(graph.TryToJoinTables(null!, out _), Is.False);
+            Assert.That(graph.TryToJoinTables(Array.Empty<ExprTable>(), out _), Is.False);
+            Assert.That(graph.TryToJoinTables(new ExprTable[] { root, null! }, out _), Is.False);
+            Assert.That(graph.TryToJoinTables(new ExprTable[] { root, new RootTable() }, out _), Is.False);
+            Assert.That(graph.TryToJoinTables(new ExprTable[] { root, new UnknownTable() }, out _), Is.False);
+            Assert.That(graph.TryToJoinTables(new ExprTable[] { root, otherRoot }, out _), Is.False);
+        }
+
+        [Test]
+        public void TryToJoinTables_MultipleTables_AppliesAmbiguityPolicy()
+        {
+            var source = new MultiRouteSourceTable();
+            var target = new MultiRouteTargetTable();
+            var graph = TablesGraph.Create([new Hub1Table(), new Hub2Table(), source, target]);
+
+            Assert.That(
+                graph.TryToJoinTables(
+                    new ExprTable[] { source, target },
+                    new TablesGraphJoinOptions { AmbiguousPathBehavior = AmbiguousJoinPathBehavior.Fail },
+                    out _),
+                Is.False);
+
+            var options = new TablesGraphJoinOptions
+            {
+                AmbiguousPathBehavior = AmbiguousJoinPathBehavior.Callback,
+                AmbiguousPathResolver = _ => 1
+            };
+            Assert.That(graph.TryToJoinTables(new ExprTable[] { source, target }, options, out var join), Is.True);
+            Assert.That(join!.ToSql(), Does.Contain("[dbo].[Hub2]"));
+        }
+
+        [Test]
         public void TryToJoinTables_UsesFullNameAndReturnsFalseForUnknownOrDisconnectedTables()
         {
             var root = new RootTable();
@@ -683,6 +817,20 @@ namespace SqExpress.Test.Meta
             public Int32TableColumn Id { get; }
             public Int32TableColumn Hub1Id { get; }
             public Int32TableColumn Hub2Id { get; }
+        }
+
+        private class MultiRouteLeafTable : TableBase
+        {
+            public MultiRouteLeafTable() : base("dbo", "MultiRouteLeaf")
+            {
+                this.Id = this.CreateInt32Column("Id", ColumnMeta.PrimaryKey());
+                this.TargetId = this.CreateInt32Column(
+                    "TargetId",
+                    ColumnMeta.ForeignKey<MultiRouteTargetTable>(t => t.Id));
+            }
+
+            public Int32TableColumn Id { get; }
+            public Int32TableColumn TargetId { get; }
         }
 
         private class UnknownTable : TableBase

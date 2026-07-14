@@ -2098,6 +2098,27 @@ if (graph.TryToJoinTables(tCustomer, tUser, out var joinedSource))
 
 When several paths exist, `TablesGraph` chooses the shortest path. If multiple shortest paths exist, the first one discovered from the original table/reference order is used.
 
+Ambiguity can instead fail the operation or be resolved by a callback that receives all equal shortest candidate paths:
+
+```cs
+var options = new TablesGraphJoinOptions
+{
+    AmbiguousPathBehavior = AmbiguousJoinPathBehavior.Callback,
+    AmbiguousPathResolver = paths => SelectPreferredPath(paths)
+};
+
+graph.TryToJoinTables(tCustomer, tUser, out var joinedSource, options);
+```
+
+To construct a left-deep join tree for several requested tables, pass them as a list. The first table is the root; the graph greedily attaches the nearest remaining table and inserts automatically aliased connector tables when needed:
+
+```cs
+graph.TryToJoinTables(
+    new ExprTable[] { tCustomer, tUser, tCountry },
+    options,
+    out var joinedSource);
+```
+
 The returned value is a table source, not a complete `SELECT`, so it can be inserted into a bigger request.
 
 ## Table Descriptors Scaffolding
