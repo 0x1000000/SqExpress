@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -135,6 +136,49 @@ namespace SqExpress
 
         public static string ToSql(this IStatement expr, ISqlExporter exporter)
             => exporter.ToSql(expr);
+
+        public static T BindTables<T>(this T expression, IReadOnlyList<TableBase> tables) where T : IExpr
+            => BindTables(expression, tables, new TableBindingOptions(), out _);
+
+        public static T BindTables<T>(this T expression, IReadOnlyList<TableBase> tables, TableBindingOptions options) where T : IExpr
+            => BindTables(expression, tables, options, out _);
+
+        public static T BindTables<T>(this T expression, IReadOnlyList<TableBase> tables, out IReadOnlyList<TableBindingDiagnostic> warnings) where T : IExpr
+            => BindTables(expression, tables, new TableBindingOptions(), out warnings);
+
+        public static T BindTables<T>(
+            this T expression,
+            IReadOnlyList<TableBase> tables,
+            TableBindingOptions options,
+            out IReadOnlyList<TableBindingDiagnostic> warnings) where T : IExpr
+        {
+            var result = TableBinder.Bind(expression, tables, options, out warnings, out var errors);
+            if (errors.Count > 0)
+            {
+                throw new SqExpressException(string.Join(Environment.NewLine, errors.Select(e => e.Message)));
+            }
+            return result;
+        }
+
+        public static bool TryBindTables<T>(
+            this T expression,
+            IReadOnlyList<TableBase> tables,
+            out T boundExpression,
+            out IReadOnlyList<TableBindingDiagnostic> warnings,
+            out IReadOnlyList<TableBindingDiagnostic> errors) where T : IExpr
+            => TryBindTables(expression, tables, new TableBindingOptions(), out boundExpression, out warnings, out errors);
+
+        public static bool TryBindTables<T>(
+            this T expression,
+            IReadOnlyList<TableBase> tables,
+            TableBindingOptions options,
+            out T boundExpression,
+            out IReadOnlyList<TableBindingDiagnostic> warnings,
+            out IReadOnlyList<TableBindingDiagnostic> errors) where T : IExpr
+        {
+            boundExpression = TableBinder.Bind(expression, tables, options, out warnings, out errors);
+            return errors.Count == 0;
+        }
 
         public static T WithParams<T>(this T expr, IReadOnlyDictionary<string, ParamValue> values) where T : IExpr
         {

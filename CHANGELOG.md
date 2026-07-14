@@ -2,6 +2,11 @@
 ### New Features
 - Added SQLite support, including SQL export, DDL generation, runtime integration, and integration-test coverage.
 - Added EF Core table descriptor generation via `Gen-Tables ef`, including project-based metadata extraction.
+- Added `BindTables(...)` and `TryBindTables(...)` for reconnecting parsed or deserialized AST table/column nodes to canonical table metadata, with configurable warning/error severity and partial-result support.
+- `SqTSqlParser` now emits alias-specific `SqTable` objects and reuses their owned `TableColumn` objects directly when parsing with an existing table list, avoiding a second AST rewrite and preserving exact table/column ownership.
+
+### Breaking Changes
+- `SqTSqlParser.Parse(...)` / `TryParse(...)` with an existing table list now return canonical `SqTable` and `TableColumn` nodes for resolved physical references instead of neutral `ExprTable` and `ExprColumn` nodes. Parsing without an existing table list is unchanged.
 
 # 1.2.0
 ### New Features

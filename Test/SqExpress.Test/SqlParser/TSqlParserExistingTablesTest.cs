@@ -1,11 +1,15 @@
 using System;
+using System.Linq;
 using NUnit.Framework;
 using SqExpress.DbMetadata;
 using SqExpress.SqlParser;
 using SqExpress.Syntax;
+using SqExpress.Syntax.Names;
 
 namespace SqExpress.Test.SqlParser
 {
+#pragma warning disable SQEX011 // Tests intentionally use runtime metadata tables.
+#pragma warning disable SQEX012 // Tests intentionally exercise parser binding of raw SQL columns.
     public class TSqlParserExistingTablesTest
     {
         [Test]
@@ -362,9 +366,7 @@ namespace SqExpress.Test.SqlParser
         {
             var sql = "SELECT [u].[Id],[o].[OrderId] FROM [dbo].[Users] [u] JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[Id]";
 
-            #pragma warning disable SQEX011
             var expr = SqTSqlParser.Parse(sql);
-            #pragma warning restore SQEX011
 
             Assert.That(expr, Is.Not.Null);
         }
@@ -393,10 +395,100 @@ namespace SqExpress.Test.SqlParser
                 CreateTable("dbo", "Users", a => a.AppendInt32Column("Id"))
             };
 
-            #pragma warning disable SQEX011
             var ex = Assert.Throws<SqExpressTSqlParserException>(() => SqTSqlParser.Parse(sql, existing));
-            #pragma warning restore SQEX011
             Assert.That(ex!.Message, Does.Contain("Unexpected tables: [dbo].[Orders]"));
+        }
+
+        [Test]
+        public void Parse_WithExistingTables_EmitsOwnedSqTablesAndReusesTheirColumns()
+        {
+            const string sql = "SELECT u.Id,o.OrderId FROM dbo.Users u JOIN dbo.Orders o ON o.UserId=u.Id";
+            var existing = new TableBase[]
+            {
+                CreateTable("dbo", "Users", a => a.AppendInt32Column("Id")),
+                CreateTable("dbo", "Orders", a => a.AppendInt32Column("OrderId").AppendInt32Column("UserId"))
+            };
+
+            var expr = SqTSqlParser.Parse(sql, existing);
+            var tables = expr.SyntaxTree().DescendantsAndSelf().OfType<SqTable>().ToArray();
+            var columns = expr.SyntaxTree().DescendantsAndSelf().OfType<TableColumn>().ToArray();
+
+            Assert.That(tables, Has.Length.EqualTo(2));
+            Assert.That(columns, Has.Length.EqualTo(4));
+            Assert.That(columns.All(column => tables.Any(table => ReferenceEquals(column.Table, table))), Is.True);
+            Assert.That(columns.All(column => ((SqTable)column.Table).Columns.Any(owned => ReferenceEquals(owned, column))), Is.True);
+        }
+
+        [Test]
+        public void Parse_WithExistingTables_RepeatedAliasesOwnIndependentColumnSets()
+        {
+            const string sql = "SELECT a.Id,b.Id FROM dbo.Users a JOIN dbo.Users b ON a.Id=b.Id";
+            var existing = new TableBase[]
+            {
+                CreateTable("dbo", "Users", a => a.AppendInt32Column("Id"))
+            };
+
+            var expr = SqTSqlParser.Parse(sql, existing);
+            var tables = expr.SyntaxTree().DescendantsAndSelf().OfType<SqTable>().ToArray();
+
+            Assert.That(tables, Has.Length.EqualTo(2));
+            Assert.That(tables[0], Is.Not.SameAs(tables[1]));
+            Assert.That(tables[0].Columns[0], Is.Not.SameAs(tables[1].Columns[0]));
+            Assert.That(tables[0].Columns[0].Table, Is.SameAs(tables[0]));
+            Assert.That(tables[1].Columns[0].Table, Is.SameAs(tables[1]));
+        }
+
+        [Test]
+        public void Parse_WithExistingTables_NormalizesUnqualifiedColumnToOwnedAliasColumn()
+        {
+            const string sql = "SELECT Id FROM dbo.Users u";
+            var existing = new TableBase[]
+            {
+                CreateTable("dbo", "Users", a => a.AppendInt32Column("Id"))
+            };
+
+            var expr = SqTSqlParser.Parse(sql, existing);
+            var table = expr.SyntaxTree().DescendantsAndSelf().OfType<SqTable>().Single();
+            var column = expr.SyntaxTree().DescendantsAndSelf().OfType<TableColumn>().Single();
+
+            Assert.That(column, Is.SameAs(table.Columns[0]));
+            Assert.That(column.Source, Is.SameAs(table.Alias));
+            Assert.That(((ExprAlias)table.Alias!.Alias).Name, Is.EqualTo("u"));
+            Assert.That(expr.ToSql(), Is.EqualTo("SELECT [u].[Id] FROM [dbo].[Users] [u]"));
+        }
+
+        [Test]
+        public void Parse_WithoutExistingTables_KeepsNeutralNodes()
+        {
+            var expr = SqTSqlParser.Parse("SELECT u.Id FROM dbo.Users u");
+
+            Assert.That(expr.SyntaxTree().DescendantsAndSelf().OfType<SqTable>(), Is.Empty);
+            Assert.That(expr.SyntaxTree().DescendantsAndSelf().OfType<TableColumn>(), Is.Empty);
+            Assert.That(expr.SyntaxTree().DescendantsAndSelf().OfType<ExprTable>(), Is.Not.Empty);
+            Assert.That(expr.SyntaxTree().DescendantsAndSelf().OfType<ExprColumn>(), Is.Not.Empty);
+        }
+
+        [Test]
+        public void Parse_WithExistingTables_CrossApplyBindsPhysicalColumnsAcrossCorrelatedScopes()
+        {
+            const string sql = "SELECT u.Id,x.OrderId FROM dbo.Users u CROSS APPLY (SELECT o.OrderId FROM dbo.Orders o WHERE o.UserId=u.Id) x";
+            var existing = new TableBase[]
+            {
+                CreateTable("dbo", "Users", a => a.AppendInt32Column("Id")),
+                CreateTable("dbo", "Orders", a => a.AppendInt32Column("OrderId").AppendInt32Column("UserId"))
+            };
+
+            var expr = SqTSqlParser.Parse(sql, existing);
+            var tables = expr.SyntaxTree().DescendantsAndSelf().OfType<SqTable>().ToArray();
+            var physicalColumns = expr.SyntaxTree().DescendantsAndSelf().OfType<TableColumn>().ToArray();
+            var derivedColumns = expr.SyntaxTree().DescendantsAndSelf().OfType<ExprColumn>()
+                .Where(column => column is not TableColumn)
+                .ToArray();
+
+            Assert.That(tables, Has.Length.EqualTo(2));
+            Assert.That(physicalColumns, Has.Length.EqualTo(4));
+            Assert.That(physicalColumns.All(column => ((SqTable)column.Table).Columns.Any(owned => ReferenceEquals(owned, column))), Is.True);
+            Assert.That(derivedColumns.Any(column => column.ColumnName.Name == "OrderId"), Is.True);
         }
 
         private static SqTable CreateTable(

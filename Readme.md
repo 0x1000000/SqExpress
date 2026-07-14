@@ -1726,6 +1726,9 @@ document.LoadXml(stringBuilder.ToString());
 var restored = (ExprQuerySpecification)ExprDeserializer
     .DeserializeFormXml(document.DocumentElement!);
 
+//Deserialization restores neutral table/column nodes. Bind them to the application table metadata.
+restored = restored.BindTables(new TableBase[] { tableUser });
+
 var result = await restored
     .QueryList(database, r => (tableUser.FirstName.Read(r), tableUser.LastName.Read(r)));
 
@@ -1734,6 +1737,10 @@ foreach (var name in result)
     Console.WriteLine(name);
 }
 ```
+
+`BindTables` replaces restored physical table and column nodes with alias-correct `SqTable` and `TableColumn`
+objects derived from the supplied table descriptors. By default it throws if a reference cannot be bound;
+use `TryBindTables` when warnings, errors, and a partially bound expression are needed.
 
 This an example of the XML text:
 
@@ -1799,6 +1806,9 @@ string json = Encoding.UTF8.GetString(memoryStream.ToArray());
 //Importing
 var restored = (ExprQuerySpecification)ExprDeserializer
     .DeserializeFormJson(JsonDocument.Parse(json).RootElement);
+
+//Reconnect restored table/column nodes to their canonical table metadata.
+restored = restored.BindTables(new TableBase[] { tableUser });
 
 var result = await restored
     .QueryList(database, r => (tableUser.FirstName.Read(r), tableUser.LastName.Read(r)));

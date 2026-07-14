@@ -42,6 +42,37 @@ public sealed class SqTable : TableBase
 
     private SqTable(IExprTableFullName fullName, ExprTableAlias? tableAlias) : base(fullName, tableAlias) { }
 
+    public static SqTable Create(TableBase table)
+    {
+        if (table == null)
+        {
+            throw new ArgumentNullException(nameof(table));
+        }
+
+        return Clone(table, table.Alias);
+    }
+
+    internal static SqTable Clone(TableBase table, ExprTableAlias? alias)
+    {
+        var result = new SqTable(table.FullName, alias);
+        var columns = table.Columns
+            .Select(column => column.WithTable(result).WithSource(result.Alias))
+            .ToArray();
+        result.AddColumns(columns);
+
+        var columnsByName = columns.ToDictionary(
+            column => column.ColumnName.LowerInvariantName,
+            StringComparer.Ordinal);
+        result.AddIndexes(table.Indexes.Select(index => new IndexMeta(
+            index.Columns.Select(column => new IndexMetaColumn(
+                columnsByName[column.Column.ColumnName.LowerInvariantName],
+                column.Descending)).ToArray(),
+            index.Name,
+            index.Unique,
+            index.Clustered)));
+        return result;
+    }
+
     public SqTable With(IExprTableFullName? fullName = null, TableColumnsMapper? columnsMapper = null, TableIndexesMapper? tableIndexesMapper = null)
     {
         return this.With(this.Alias, fullName, columnsMapper, tableIndexesMapper);
