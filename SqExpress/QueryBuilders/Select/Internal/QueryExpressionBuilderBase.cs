@@ -101,7 +101,7 @@ namespace SqExpress.QueryBuilders.Select.Internal
         ExprSelectOffsetFetch ISelectOffsetFetchBuilderFinal.Done()
         {
             return new ExprSelectOffsetFetch(this.BuildQueryExpression(),
-                new ExprOrderByOffsetFetch(this._orderBy.GetOrderItems(), this._exprOffsetFetch.AssertFatalNotNull(nameof(this._exprOffsetFetch))));
+                new ExprOrderByOffsetFetch(this._orderBy.GetOrderItemsOrEmpty(), this._exprOffsetFetch.AssertFatalNotNull(nameof(this._exprOffsetFetch))));
         }
 
         public ISelectOffsetFetchBuilderFinal OffsetFetch(int offset, int fetch)
@@ -126,9 +126,9 @@ namespace SqExpress.QueryBuilders.Select.Internal
 
         private IExprSubQuery BuildSubQuery()
         {
-            if (this._exprOffsetFetch != null && this._orderBy.HasValue)
+            if (this._exprOffsetFetch != null)
             {
-                return new ExprSelectOffsetFetch(this.BuildQueryExpression(), new ExprOrderByOffsetFetch(this._orderBy.GetOrderItems(), this._exprOffsetFetch));
+                return new ExprSelectOffsetFetch(this.BuildQueryExpression(), new ExprOrderByOffsetFetch(this._orderBy.GetOrderItemsOrEmpty(), this._exprOffsetFetch));
             }
 
             if (this._orderBy.HasValue)
@@ -141,9 +141,9 @@ namespace SqExpress.QueryBuilders.Select.Internal
 
         private IExprQuery BuildQuery()
         {
-            if (this._exprOffsetFetch != null && this._orderBy.HasValue)
+            if (this._exprOffsetFetch != null)
             {
-                return new ExprSelectOffsetFetch(this.BuildQueryExpression(), new ExprOrderByOffsetFetch(this._orderBy.GetOrderItems(), this._exprOffsetFetch));
+                return new ExprSelectOffsetFetch(this.BuildQueryExpression(), new ExprOrderByOffsetFetch(this._orderBy.GetOrderItemsOrEmpty(), this._exprOffsetFetch));
             }
             if (this._orderBy.HasValue)
             {
@@ -172,6 +172,9 @@ namespace SqExpress.QueryBuilders.Select.Internal
 
             public IReadOnlyList<ExprOrderByItem> GetOrderItems()
                 =>  this._orderBy?.OrderList ?? this._orderItems.AssertFatalNotNull(nameof(this._orderItems));
+
+            public IReadOnlyList<ExprOrderByItem> GetOrderItemsOrEmpty()
+                => this._orderBy?.OrderList ?? this._orderItems ?? new ExprOrderByItem[0];
         }
     }
 }

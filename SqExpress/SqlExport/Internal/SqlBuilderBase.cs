@@ -526,6 +526,8 @@ namespace SqExpress.SqlExport.Internal
 
         protected abstract void AppendSelectLimit(ExprValue top, IExpr? parent);
 
+        protected virtual bool ShouldAppendSelectTop(IExpr? parent) => true;
+
         public bool VisitExprQuerySpecification(ExprQuerySpecification exprQuerySpecification, IExpr? parent)
         {
             this.AddCteSlot(parent);
@@ -537,7 +539,7 @@ namespace SqExpress.SqlExport.Internal
             {
                 this.Builder.Append("DISTINCT ");
             }
-            if (!ReferenceEquals(exprQuerySpecification.Top, null))
+            if (!ReferenceEquals(exprQuerySpecification.Top, null) && this.ShouldAppendSelectTop(parent))
             {
                 this.AppendSelectTop(exprQuerySpecification.Top, exprQuerySpecification);
             }
@@ -679,9 +681,26 @@ namespace SqExpress.SqlExport.Internal
             this.AddCteSlot(parent);
 
             exprSelectOffsetFetch.SelectQuery.Accept(this, exprSelectOffsetFetch);
-            this.Builder.Append(" ORDER BY ");
-            exprSelectOffsetFetch.OrderBy.Accept(this, exprSelectOffsetFetch);
+            if (exprSelectOffsetFetch.OrderBy.OrderList.Count > 0)
+            {
+                this.Builder.Append(" ORDER BY ");
+                exprSelectOffsetFetch.OrderBy.Accept(this, exprSelectOffsetFetch);
+            }
+            else
+            {
+                this.VisitExprUnorderedOffsetFetch(exprSelectOffsetFetch.OrderBy.OffsetFetch, exprSelectOffsetFetch);
+            }
             return true;
+        }
+
+        protected virtual void VisitExprUnorderedOffsetFetch(ExprOffsetFetch exprOffsetFetch, ExprSelectOffsetFetch parent)
+        {
+            if (parent.SelectQuery is ExprQuerySpecification specification && !ReferenceEquals(specification.Top, null))
+            {
+                this.AppendSelectLimit(specification.Top, parent);
+            }
+
+            exprOffsetFetch.Accept(this, parent.OrderBy);
         }
 
         public bool VisitExprOrderBy(ExprOrderBy exprOrderBy, IExpr? parent)
@@ -690,7 +709,7 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
-        public bool VisitExprOrderByOffsetFetch(ExprOrderByOffsetFetch exprOrderByOffsetFetch, IExpr? parent)
+        public virtual bool VisitExprOrderByOffsetFetch(ExprOrderByOffsetFetch exprOrderByOffsetFetch, IExpr? parent)
         {
             this.AcceptListComaSeparated(exprOrderByOffsetFetch.OrderList, exprOrderByOffsetFetch);
 

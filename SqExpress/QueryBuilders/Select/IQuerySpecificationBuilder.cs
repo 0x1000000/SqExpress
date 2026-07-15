@@ -42,6 +42,8 @@ namespace SqExpress.QueryBuilders.Select
 
     public interface IQuerySpecificationBuilderFinal : IQueryExpressionBuilder, IExprSubQueryFinal
     {
+        ISelectOffsetFetchBuilderFinal Offset(int offset);
+
         ISelectBuilder OrderBy(ExprOrderBy orderBy);
 
         ISelectBuilder OrderBy(ExprOrderByItem item, params ExprOrderByItem[] rest);
@@ -54,6 +56,8 @@ namespace SqExpress.QueryBuilders.Select
 
     public interface IQueryExpressionBuilderFinal: IQueryExpressionBuilder, IExprSubQueryFinal
     {
+        ISelectOffsetFetchBuilderFinal Offset(int offset);
+
         ISelectBuilder OrderBy(ExprOrderBy orderBy);
 
         ISelectBuilder OrderBy(ExprOrderByItem item, params ExprOrderByItem[] rest);

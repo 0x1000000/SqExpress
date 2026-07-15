@@ -100,7 +100,45 @@ namespace SqExpress.SqlExport.Internal
 
         protected override void AppendSelectLimit(ExprValue top, IExpr? parent)
         {
-            //N/A
+            if (parent is ExprSelectOffsetFetch)
+            {
+                this.Builder.Append(" FETCH NEXT ");
+                top.Accept(this, parent);
+                this.Builder.Append(" ROW ONLY");
+            }
+        }
+
+        protected override bool ShouldAppendSelectTop(IExpr? parent) => !(parent is ExprSelectOffsetFetch);
+
+        protected override void VisitExprUnorderedOffsetFetch(ExprOffsetFetch exprOffsetFetch, ExprSelectOffsetFetch parent)
+        {
+            this.Builder.Append(" ORDER BY (SELECT NULL)");
+            exprOffsetFetch.Accept(this, parent.OrderBy);
+
+            if (parent.SelectQuery is ExprQuerySpecification specification && !ReferenceEquals(specification.Top, null))
+            {
+                this.AppendSelectLimit(specification.Top, parent);
+            }
+        }
+
+        public override bool VisitExprOrderByOffsetFetch(ExprOrderByOffsetFetch exprOrderByOffsetFetch, IExpr? parent)
+        {
+            this.AcceptListComaSeparated(exprOrderByOffsetFetch.OrderList, exprOrderByOffsetFetch);
+            exprOrderByOffsetFetch.OffsetFetch.Accept(this, exprOrderByOffsetFetch);
+
+            if (parent is ExprSelectOffsetFetch selectOffsetFetch
+                && selectOffsetFetch.SelectQuery is ExprQuerySpecification specification
+                && !ReferenceEquals(specification.Top, null))
+            {
+                if (!ReferenceEquals(exprOrderByOffsetFetch.OffsetFetch.Fetch, null))
+                {
+                    throw new SqExpressException("Query with \"FETCH\" cannot be limited");
+                }
+
+                this.AppendSelectLimit(specification.Top, selectOffsetFetch);
+            }
+
+            return true;
         }
 
         public override bool VisitExprLateralCrossedTable(ExprLateralCrossedTable exprCrossedTable, IExpr? parent)

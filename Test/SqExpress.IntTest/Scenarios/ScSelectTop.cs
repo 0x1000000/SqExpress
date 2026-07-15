@@ -21,18 +21,13 @@ namespace SqExpress.IntTest.Scenarios
             Console.WriteLine(top2Users[0]);
             Console.WriteLine(top2Users[1]);
 
-            if (context.Dialect != SqlDialect.TSql)
-            {
+            top2Users = await SelectTop(2, UserEmail.GetColumns(tUser))
+                .From(tUser)
+                .Offset(5)
+                .QueryList(context.Database, r => UserEmail.Read(r, tUser));
 
-                top2Users = await SelectTop(2, UserEmail.GetColumns(tUser))
-                    .From(tUser)
-                    .OrderBy(tUser.FirstName)
-                    .Offset(5)
-                    .QueryList(context.Database, r => UserEmail.Read(r, tUser));
-
-                Console.WriteLine(top2Users[0].Email);
-                Console.WriteLine(top2Users[1].Email);
-            }
+            Console.WriteLine(top2Users[0].Email);
+            Console.WriteLine(top2Users[1].Email);
         }
     }
 }

@@ -370,11 +370,20 @@ namespace SqExpress.Test.QueryBuilder
             //OrderBy OFFSET
             expr = SelectTop(7, u.UserId).From(u).OrderBy(u.FirstName).Offset(5).Done();
             actual = expr.ToSql();
-            Assert.AreEqual("SELECT TOP 7 [A0].[UserId] FROM [dbo].[user] [A0] ORDER BY [A0].[FirstName] OFFSET 5 ROW", actual);
+            Assert.AreEqual("SELECT [A0].[UserId] FROM [dbo].[user] [A0] ORDER BY [A0].[FirstName] OFFSET 5 ROW FETCH NEXT 7 ROW ONLY", actual);
             actual = expr.ToPgSql();
             Assert.AreEqual("SELECT \"A0\".\"UserId\" FROM \"public\".\"user\" \"A0\" ORDER BY \"A0\".\"FirstName\" LIMIT 7 OFFSET 5 ROW", actual);
             actual = expr.ToMySql();
             Assert.AreEqual("SELECT `A0`.`UserId` FROM `user` `A0` ORDER BY `A0`.`FirstName` LIMIT 7 OFFSET 5", actual);
+
+            //OFFSET without explicit ordering
+            expr = SelectTop(7, u.UserId).From(u).Where(u.UserId > 0).Offset(5).Done();
+            actual = expr.ToSql();
+            Assert.AreEqual("SELECT [A0].[UserId] FROM [dbo].[user] [A0] WHERE [A0].[UserId]>0 ORDER BY (SELECT NULL) OFFSET 5 ROW FETCH NEXT 7 ROW ONLY", actual);
+            actual = expr.ToPgSql();
+            Assert.AreEqual("SELECT \"A0\".\"UserId\" FROM \"public\".\"user\" \"A0\" WHERE \"A0\".\"UserId\">0 LIMIT 7 OFFSET 5 ROW", actual);
+            actual = expr.ToMySql();
+            Assert.AreEqual("SELECT `A0`.`UserId` FROM `user` `A0` WHERE `A0`.`UserId`>0 LIMIT 7 OFFSET 5", actual);
 
             //Join
             expr = SelectTop(7, u.UserId).From(u).InnerJoin(u2, on: u2.UserId == u.UserId).Done();
