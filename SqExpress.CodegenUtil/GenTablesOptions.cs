@@ -5,7 +5,7 @@ namespace SqExpress.CodeGenUtil
     [Verb("gentables", HelpText = "Generate table descriptor classes.")]
     public class GenTablesOptions
     {
-        public GenTablesOptions(ConnectionType connectionType, string source, string tableClassPrefix, string outputDir, string @namespace, Verbosity verbosity, bool useTableDeclarationAttributes = false, bool skipUnknownColumnTypes = false, string dbContext = "", string framework = "")
+        public GenTablesOptions(ConnectionType connectionType, string source, string tableClassPrefix, string outputDir, string @namespace, Verbosity verbosity, bool useTableDeclarationAttributes = false, bool skipUnknownColumnTypes = false, string dbContext = "", string framework = "", bool splitTablesBySchema = false, bool cleanOutput = false)
         {
             this.ConnectionType = connectionType;
             this.Source = source;
@@ -17,6 +17,8 @@ namespace SqExpress.CodeGenUtil
             this.SkipUnknownColumnTypes = skipUnknownColumnTypes;
             this.DbContext = dbContext;
             this.Framework = framework;
+            this.SplitTablesBySchema = splitTablesBySchema;
+            this.CleanOutput = cleanOutput;
         }
 
         [Value(1, MetaName = "CONNECTION_TYPE", Required = true, HelpText = "Connection Type: \"mssql\" or \"mysql\" or \"pgsql\" or \"ef\".")]
@@ -48,6 +50,12 @@ namespace SqExpress.CodeGenUtil
 
         [Option("framework", Required = false, Default = "", HelpText = "Target framework for \"ef\" mode when the EF project targets multiple frameworks.")]
         public string Framework { get; }
+
+        [Option("split-tables-by-schema", Required = false, Default = false, HelpText = "Generate table files in schema-specific folders and namespaces.")]
+        public bool SplitTablesBySchema { get; }
+
+        [Option("clean-output", Required = false, Default = false, HelpText = "Remove obsolete table descriptors from the output directory.")]
+        public bool CleanOutput { get; }
     }
 
     public enum ConnectionType

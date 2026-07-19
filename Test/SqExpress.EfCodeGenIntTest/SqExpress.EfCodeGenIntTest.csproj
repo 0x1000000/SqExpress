@@ -9,6 +9,8 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <SqExpressCodeGenPath>..\..\SqExpress.CodegenUtil\bin\$(Configuration)\net8.0\SqExpress.CodeGenUtil.dll</SqExpressCodeGenPath>
     <SqEfTablesGenEnable>true</SqEfTablesGenEnable>
+    <SqEfTablesGenCleanOutput>true</SqEfTablesGenCleanOutput>
+    <SqEfTablesGenSplitTablesBySchema>true</SqEfTablesGenSplitTablesBySchema>
   </PropertyGroup>
 
   <ItemGroup>

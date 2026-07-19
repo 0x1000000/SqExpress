@@ -12,7 +12,7 @@ The Visual Studio Package Manager Console entry point is `Gen-Tables`.
 Gen-Tables mssql -ConnectionString "<connection-string>"
 Gen-Tables mysql -ConnectionString "<connection-string>"
 Gen-Tables pgsql -ConnectionString "<connection-string>"
-Gen-Tables ef [[-Project] <project-name-or-path>] [-DbContext <type-name>] [-Framework <tfm>]
+Gen-Tables ef [[-Project] <project-name-or-path>] [-DbContext <type-name>] [-Framework <tfm>] [-SplitTablesBySchema] [-CleanOutput]
 ```
 
 Common options:
@@ -81,7 +81,19 @@ Only public types and public methods/properties are used. SqExpress does not use
 
 ### EF Provider Support
 
-The first EF provider supported by `Gen-Tables ef` is SQL Server. The generated descriptors reflect EF's configured relational mapping: schemas, table names, columns, keys, indexes, defaults, and supported SQL Server column types.
+`Gen-Tables ef` currently supports only the Microsoft SQL Server EF Core provider (`Microsoft.EntityFrameworkCore.SqlServer`). EF Core itself is provider-neutral, but the finalized relational model contains provider-specific store types, identity metadata, defaults, and index annotations. The current SqExpress EF metadata mapper understands the SQL Server representation and rejects models configured with other providers such as PostgreSQL, MySQL, or SQLite.
+
+The target `DbContext` must therefore be configured with the SQL Server provider, typically through `UseSqlServer(...)`. Metadata extraction builds the EF model but does not open a database connection, so the configured connection string does not need to be reachable during generation. The generated descriptors reflect EF's configured relational mapping: schemas, table names, columns, keys, indexes, defaults, and supported SQL Server column types.
+
+## Splitting tables by schema
+
+Use `-SplitTablesBySchema` in Package Manager Console or `--split-tables-by-schema` with the direct CLI to place generated descriptors in schema-specific folders and namespaces. This option works with every table-generation source. For example, schema `sales-data` is normalized to `SalesData`, producing `Tables/SalesData/TableOrder.cs` in namespace `MyApp.Tables.SalesData`. An empty schema uses `Default`.
+
+`AllTables.cs` remains in the root output folder and base namespace. Its accessors include the normalized schema name, such as `GetSalesDataOrder()`, and use fully qualified table types. Generation fails clearly if distinct schemas normalize to the same segment or if generated paths or type names collide. Without schema splitting, equal generated filenames across schemas also fail instead of overwriting one another.
+
+## Cleaning obsolete table descriptors
+
+Use `-CleanOutput` in Package Manager Console or `--clean-output` with the direct CLI to remove table descriptors that are absent from the latest metadata or are no longer at their canonical generated path. Cleanup recognizes both direct `TableBase` descriptors and attribute-based `[TableDescriptor]` declarations. When a file contains other types, only the obsolete descriptor class is removed; the file is deleted only when no type declarations remain. Cleanup is disabled by default.
 
 Unsupported or unmapped EF metadata is reported during generation. Use `-SkipUnknownColumnTypes` only when you intentionally want generation to continue without unsupported columns.
 
@@ -132,6 +144,8 @@ When SqExpress is referenced as a NuGet package, `SqExpress.props` and `SqExpres
     <SqEfTablesGenDbContext>AppDbContext</SqEfTablesGenDbContext>
     <SqEfTablesGenFramework>net8.0</SqEfTablesGenFramework>
     <SqEfTablesGenUseTableDeclarationAttributes>true</SqEfTablesGenUseTableDeclarationAttributes>
+    <SqEfTablesGenSplitTablesBySchema>true</SqEfTablesGenSplitTablesBySchema>
+    <SqEfTablesGenCleanOutput>true</SqEfTablesGenCleanOutput>
   </PropertyGroup>
 </Project>
 ```
@@ -151,6 +165,8 @@ Source-tree integration tests or custom package layouts may import `SqExpress.pr
 | `SqEfTablesGenFramework` | empty | Optional target framework passed to EF extraction. Defaults to the current `$(TargetFramework)` during build. |
 | `SqEfTablesGenUseTableDeclarationAttributes` | `true` | Generates attribute-based partial declarations when `true`. |
 | `SqEfTablesGenSkipUnknownColumnTypes` | `true` | Skips unsupported EF column types when `true`; fails on them when `false`. |
+| `SqEfTablesGenSplitTablesBySchema` | `false` | Places table files in normalized schema subfolders and appends the schema segment to their namespaces. |
+| `SqEfTablesGenCleanOutput` | `false` | Removes obsolete recognized table descriptors after successful generation. |
 | `SqExpressCodeGenPath` | package tool path | Path to `SqExpress.CodeGenUtil.dll`. Normally set by SqExpress props. |
 
 `SqEfTablesGenProject` can point to a different project file. When it is empty, the target uses the current project file. The temporary extractor project builds the EF project with EF table generation disabled before descriptors are generated.
@@ -177,6 +193,7 @@ The Package Manager Console `Gen-Tables` function also reads the existing table 
 | `SqTablseGenOutput` | `Tables` | Default output directory for `Gen-Tables`. |
 | `SqTablseGenNamespace` | `$(MSBuildProjectName).Tables` | Default generated namespace for `Gen-Tables`. |
 | `SqTablseGenTableClassPrefix` | empty | Default generated table class prefix for `Gen-Tables`. |
+| `SqTablseGenCleanOutput` | `false` | Enables obsolete table descriptor cleanup for `Gen-Tables`. |
 
 The property names keep the existing `SqTablse...` spelling for backward compatibility.
 

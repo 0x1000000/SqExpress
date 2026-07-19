@@ -109,6 +109,74 @@ public class EfMetadataExtractorRunnerTest
     }
 
     [Test]
+    public void MetadataTableReader_SkippedColumnRemovesIncompletePrimaryKeyAndIndexes()
+    {
+        var document = new EfMetadataDocument
+        {
+            ProviderName = "Microsoft.EntityFrameworkCore.SqlServer",
+            Tables = new List<EfTableMetadata>
+            {
+                new EfTableMetadata
+                {
+                    Schema = "dbo",
+                    Name = "Items",
+                    Columns = new List<EfColumnMetadata>
+                    {
+                        new EfColumnMetadata
+                        {
+                            Name = "TenantId",
+                            StoreType = "int",
+                            ClrType = "System.Int32",
+                            PrimaryKeyIndex = 0
+                        },
+                        new EfColumnMetadata
+                        {
+                            Name = "Path",
+                            StoreType = "hierarchyid",
+                            ClrType = "Microsoft.EntityFrameworkCore.HierarchyId",
+                            PrimaryKeyIndex = 1
+                        },
+                        new EfColumnMetadata
+                        {
+                            Name = "Name",
+                            StoreType = "nvarchar(100)",
+                            ClrType = "System.String",
+                            MaxLength = 100
+                        }
+                    },
+                    Indexes = new List<EfIndexMetadata>
+                    {
+                        new EfIndexMetadata
+                        {
+                            Name = "IX_Items_TenantId_Path",
+                            Columns = new List<EfIndexColumnMetadata>
+                            {
+                                new EfIndexColumnMetadata { Name = "TenantId" },
+                                new EfIndexColumnMetadata { Name = "Path" }
+                            }
+                        },
+                        new EfIndexMetadata
+                        {
+                            Name = "IX_Items_Name",
+                            Columns = new List<EfIndexColumnMetadata>
+                            {
+                                new EfIndexColumnMetadata { Name = "Name" }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        var table = EfMetadataTableReader.SelectTables(document, "Table", skipUnknownColumnTypes: true).Single();
+
+        Assert.That(table.Columns.Select(c => c.DbName.Name), Is.EqualTo(new[] { "TenantId", "Name" }));
+        Assert.IsNull(table.Columns.Single(c => c.DbName.Name == "TenantId").Pk);
+        Assert.That(table.Indexes.Select(i => i.Name), Is.EqualTo(new[] { "IX_Items_Name" }));
+        Assert.That(table.Indexes.Single().Columns.Select(c => c.DbName.Name), Is.EqualTo(new[] { "Name" }));
+    }
+
+    [Test]
     public void ExtractorProgramSource_KnownErrorsAreWrittenWithoutUnhandledException()
     {
         var extractorAssembly = Assembly.Load(CompileAssembly(

@@ -40,12 +40,16 @@
       <SqEfTablesGenUseTableDeclarationAttributesParam Condition="'$(SqEfTablesGenUseTableDeclarationAttributes)'!='True' And '$(SqEfTablesGenUseTableDeclarationAttributes)'!='true'"></SqEfTablesGenUseTableDeclarationAttributesParam>
       <SqEfTablesGenSkipUnknownColumnTypesParam Condition="'$(SqEfTablesGenSkipUnknownColumnTypes)'=='True' Or '$(SqEfTablesGenSkipUnknownColumnTypes)'=='true'"> --skip-unknown-column-types</SqEfTablesGenSkipUnknownColumnTypesParam>
       <SqEfTablesGenSkipUnknownColumnTypesParam Condition="'$(SqEfTablesGenSkipUnknownColumnTypes)'!='True' And '$(SqEfTablesGenSkipUnknownColumnTypes)'!='true'"></SqEfTablesGenSkipUnknownColumnTypesParam>
+      <SqEfTablesGenSplitTablesBySchemaParam Condition="'$(SqEfTablesGenSplitTablesBySchema)'=='True' Or '$(SqEfTablesGenSplitTablesBySchema)'=='true'"> --split-tables-by-schema</SqEfTablesGenSplitTablesBySchemaParam>
+      <SqEfTablesGenSplitTablesBySchemaParam Condition="'$(SqEfTablesGenSplitTablesBySchema)'!='True' And '$(SqEfTablesGenSplitTablesBySchema)'!='true'"></SqEfTablesGenSplitTablesBySchemaParam>
+      <SqEfTablesGenCleanOutputParam Condition="'$(SqEfTablesGenCleanOutput)'=='True' Or '$(SqEfTablesGenCleanOutput)'=='true'"> --clean-output</SqEfTablesGenCleanOutputParam>
+      <SqEfTablesGenCleanOutputParam Condition="'$(SqEfTablesGenCleanOutput)'!='True' And '$(SqEfTablesGenCleanOutput)'!='true'"></SqEfTablesGenCleanOutputParam>
     </PropertyGroup>
     <ItemGroup>
       <Compile Remove="$(SqEfTablesGenOutput)\**\*.cs" />
     </ItemGroup>
     <Exec
-      Command="dotnet &quot;$(SqExpressCodeGenPath)&quot; gentables ef &quot;$(SqEfTablesGenSource)&quot; -o &quot;$(SqEfTablesGenOutput)&quot; -n &quot;$(SqEfTablesGenNamespace)&quot; -v quiet$(SqEfTablesGenFrameworkParam)$(SqEfTablesGenTableClassPrefixParam)$(SqEfTablesGenDbContextParam)$(SqEfTablesGenUseTableDeclarationAttributesParam)$(SqEfTablesGenSkipUnknownColumnTypesParam)"
+      Command="dotnet &quot;$(SqExpressCodeGenPath)&quot; gentables ef &quot;$(SqEfTablesGenSource)&quot; -o &quot;$(SqEfTablesGenOutput)&quot; -n &quot;$(SqEfTablesGenNamespace)&quot; -v quiet$(SqEfTablesGenFrameworkParam)$(SqEfTablesGenTableClassPrefixParam)$(SqEfTablesGenDbContextParam)$(SqEfTablesGenUseTableDeclarationAttributesParam)$(SqEfTablesGenSkipUnknownColumnTypesParam)$(SqEfTablesGenSplitTablesBySchemaParam)$(SqEfTablesGenCleanOutputParam)"
       WorkingDirectory="$(MSBuildProjectDirectory)" />
     <ItemGroup>
       <Compile Include="$(SqEfTablesGenOutput)\**\*.cs" />

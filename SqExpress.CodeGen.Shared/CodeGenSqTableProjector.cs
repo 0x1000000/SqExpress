@@ -21,7 +21,8 @@ namespace SqExpress.CodeGen.Shared
         internal static IReadOnlyDictionary<string, CodeGenTableModel> BuildCodeGenTables(
             IReadOnlyDictionary<TableRef, TableModel> allTables,
             string defaultNamespace,
-            bool skipUnknownColumnTypes)
+            bool skipUnknownColumnTypes,
+            IReadOnlyDictionary<TableRef, string>? tableNamespaces = null)
         {
             var propertyNamesByColumn = allTables.Values
                 .SelectMany(t => t.Columns)
@@ -34,7 +35,9 @@ namespace SqExpress.CodeGen.Shared
                 .Select(pair => ToCodeGenTableModel(
                         sqTables[pair.Key],
                         pair.Value.Name,
-                        defaultNamespace,
+                        tableNamespaces != null && tableNamespaces.TryGetValue(pair.Key, out var tableNamespace)
+                            ? tableNamespace
+                            : defaultNamespace,
                         propertyNamesByColumn
                     )
                 )

@@ -6,6 +6,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SqExpress.DbMetadata.Internal.Model;
+using SqExpress.TableDeclarationAttributes;
 
 namespace SqExpress.CodeGen.Shared
 {
@@ -22,6 +23,31 @@ namespace SqExpress.CodeGen.Shared
                 if (item.TableRef != null && !result.ContainsKey(item.TableRef))
                 {
                     result.Add(item.TableRef, item.ClassDeclaration);
+                }
+            }
+
+            return result;
+        }
+
+        public static IReadOnlyList<TableDescriptorLocation> FindTableDescriptorLocations(string path, IFileSystem fileSystem)
+        {
+            var result = new List<TableDescriptorLocation>();
+            foreach (var syntaxTree in EnumerateSyntaxTrees(path, fileSystem))
+            {
+                foreach (var descriptor in new[] { syntaxTree }.ExploreTableDescriptors(tolerateUnrecognized: true))
+                {
+                    if (descriptor.TableRef != null)
+                    {
+                        result.Add(new TableDescriptorLocation(syntaxTree.FilePath, descriptor.ClassDeclaration, descriptor.TableRef));
+                    }
+                }
+
+                foreach (var classDeclaration in syntaxTree.GetRoot().DescendantNodesAndSelf().OfType<ClassDeclarationSyntax>())
+                {
+                    if (TryReadTableDescriptorAttribute(classDeclaration, out var tableRef))
+                    {
+                        result.Add(new TableDescriptorLocation(syntaxTree.FilePath, classDeclaration, tableRef));
+                    }
                 }
             }
 
@@ -133,10 +159,40 @@ namespace SqExpress.CodeGen.Shared
 
             return fileSystem
                 .EnumerateFiles(path, "*.cs", SearchOption.AllDirectories)
-                .Select(f => CSharpSyntaxTree.ParseText(fileSystem.ReadAllText(f)));
+                .Select(f => CSharpSyntaxTree.ParseText(fileSystem.ReadAllText(f), path: f));
         }
 
-        private static IEnumerable<CodeDescriptorPath> ExploreTableDescriptors(this IEnumerable<SyntaxTree> syntaxTrees)
+        private static bool TryReadTableDescriptorAttribute(ClassDeclarationSyntax classDeclaration, out TableRef tableRef)
+        {
+            var shortName = nameof(TableDescriptorAttribute).Substring(0, nameof(TableDescriptorAttribute).Length - nameof(Attribute).Length);
+            var attribute = classDeclaration.AttributeLists
+                .SelectMany(static list => list.Attributes)
+                .FirstOrDefault(a =>
+                {
+                    var name = a.Name.ToString();
+                    return string.Equals(name, shortName, StringComparison.Ordinal) ||
+                           string.Equals(name, nameof(TableDescriptorAttribute), StringComparison.Ordinal) ||
+                           name.EndsWith("." + shortName, StringComparison.Ordinal) ||
+                           name.EndsWith("." + nameof(TableDescriptorAttribute), StringComparison.Ordinal);
+                });
+            var arguments = attribute?.ArgumentList?.Arguments;
+            if (arguments == null || arguments.Value.Count < 2 ||
+                !(arguments.Value[0].Expression is LiteralExpressionSyntax schemaLiteral) ||
+                schemaLiteral.Kind() != SyntaxKind.StringLiteralExpression ||
+                !(arguments.Value[1].Expression is LiteralExpressionSyntax tableLiteral) ||
+                tableLiteral.Kind() != SyntaxKind.StringLiteralExpression)
+            {
+                tableRef = null!;
+                return false;
+            }
+
+            tableRef = new TableRef(schemaLiteral.Token.ValueText, tableLiteral.Token.ValueText);
+            return true;
+        }
+
+        private static IEnumerable<CodeDescriptorPath> ExploreTableDescriptors(
+            this IEnumerable<SyntaxTree> syntaxTrees,
+            bool tolerateUnrecognized = false)
         {
             foreach (var syntaxTree in syntaxTrees)
             {
@@ -148,8 +204,9 @@ namespace SqExpress.CodeGen.Shared
 
                 foreach (var tuple in classes)
                 {
-                    var baseConstCall = tuple.Class
-                        .DescendantNodes()
+                    var baseConstCall = tuple.Class.Members
+                        .OfType<ConstructorDeclarationSyntax>()
+                        .Select(static constructor => constructor.Initializer)
                         .OfType<ConstructorInitializerSyntax>()
                         .FirstOrDefault(static c => c.Kind() == SyntaxKind.BaseConstructorInitializer);
 
@@ -162,6 +219,11 @@ namespace SqExpress.CodeGen.Shared
 
                     if (baseConstCall == null)
                     {
+                        if (tolerateUnrecognized)
+                        {
+                            continue;
+                        }
+
                         throw new InvalidOperationException($"Unexpected base type kind: '{baseTypeKindTag}' (with empty base constructor).");
                     }
 
@@ -196,6 +258,11 @@ namespace SqExpress.CodeGen.Shared
                     }
                     else
                     {
+                        if (tolerateUnrecognized)
+                        {
+                            continue;
+                        }
+
                         throw new InvalidOperationException($"Unknown base type kind: '{baseTypeKindTag}'.");
                     }
 
@@ -375,6 +442,22 @@ namespace SqExpress.CodeGen.Shared
             public BaseTypeKindTag KindTag { get; }
 
             public TableRef? TableRef { get; }
+        }
+
+        internal readonly struct TableDescriptorLocation
+        {
+            public TableDescriptorLocation(string filePath, ClassDeclarationSyntax classDeclaration, TableRef tableRef)
+            {
+                this.FilePath = filePath;
+                this.ClassDeclaration = classDeclaration;
+                this.TableRef = tableRef;
+            }
+
+            public string FilePath { get; }
+
+            public ClassDeclarationSyntax ClassDeclaration { get; }
+
+            public TableRef TableRef { get; }
         }
     }
 }

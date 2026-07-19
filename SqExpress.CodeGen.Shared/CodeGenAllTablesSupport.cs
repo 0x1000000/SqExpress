@@ -17,7 +17,9 @@ namespace SqExpress.CodeGen.Shared
             IReadOnlyList<TableModel> tables,
             string defaultNamespace,
             string tablePrefix,
-            IFileSystem fileSystem)
+            IFileSystem fileSystem,
+            IReadOnlyDictionary<TableRef, string>? tableNamespaces = null,
+            IReadOnlyDictionary<TableRef, string>? schemaSegments = null)
         {
             CompilationUnitSyntax? modifiedUnit = null;
             if (fileSystem.FileExists(existingFilePath))
@@ -34,32 +36,41 @@ namespace SqExpress.CodeGen.Shared
                     modifiedUnit = existingClassSyntax.FindParentOrDefault<CompilationUnitSyntax>()
                                    ?? throw new InvalidOperationException($"Could not find compilation unit for {existingClassSyntax.Identifier.ValueText}");
 
-                    modifiedUnit = modifiedUnit.ReplaceNode(existingClassSyntax, GenerateAllTableList(tables, tablePrefix, existingClassSyntax));
+                    modifiedUnit = modifiedUnit.ReplaceNode(existingClassSyntax, GenerateAllTableList(tables, tablePrefix, existingClassSyntax, tableNamespaces, schemaSegments));
                 }
             }
 
             return EnsureUsings(modifiedUnit ?? SyntaxFactory.CompilationUnit()
                     .AddMembers(SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(defaultNamespace))
-                        .AddMembers(GenerateAllTableList(tables, tablePrefix, null))))
+                        .AddMembers(GenerateAllTableList(tables, tablePrefix, null, tableNamespaces, schemaSegments))))
                 .NormalizeWhitespace();
         }
 
-        private static ClassDeclarationSyntax GenerateAllTableList(IReadOnlyList<TableModel> tables, string tablePrefix, ClassDeclarationSyntax? oldClass)
+        private static ClassDeclarationSyntax GenerateAllTableList(
+            IReadOnlyList<TableModel> tables,
+            string tablePrefix,
+            ClassDeclarationSyntax? oldClass,
+            IReadOnlyDictionary<TableRef, string>? tableNamespaces,
+            IReadOnlyDictionary<TableRef, string>? schemaSegments)
         {
             return SyntaxFactory.ClassDeclaration(AllTablesClassName)
                 .WithModifiers(oldClass?.Modifiers ?? CodeGenSyntaxHelpers.Modifiers(SyntaxKind.PublicKeyword, SyntaxKind.StaticKeyword))
-                .AddMembers(GenerateMethods(tables, tablePrefix))
+                .AddMembers(GenerateMethods(tables, tablePrefix, tableNamespaces, schemaSegments))
                 .NormalizeWhitespace();
         }
 
-        private static MemberDeclarationSyntax[] GenerateMethods(IReadOnlyList<TableModel> tables, string tablePrefix)
+        private static MemberDeclarationSyntax[] GenerateMethods(
+            IReadOnlyList<TableModel> tables,
+            string tablePrefix,
+            IReadOnlyDictionary<TableRef, string>? tableNamespaces,
+            IReadOnlyDictionary<TableRef, string>? schemaSegments)
         {
             var result = new List<MemberDeclarationSyntax>(tables.Count * 2 + 4);
 
             var aliasType = SyntaxFactory.IdentifierName(nameof(Alias));
             var tableBaseType = SyntaxFactory.IdentifierName(nameof(TableBase));
 
-            var arrayItems = tables.Select(t => SyntaxFactory.IdentifierName(GetMethodName(t, tablePrefix)).Invoke(aliasType.MemberAccess(nameof(Alias.Empty))));
+            var arrayItems = tables.Select(t => SyntaxFactory.IdentifierName(GetMethodName(t, tablePrefix, schemaSegments)).Invoke(aliasType.MemberAccess(nameof(Alias.Empty))));
             var arrayType = SyntaxFactory.ArrayType(
                 tableBaseType,
                 new SyntaxList<ArrayRankSpecifierSyntax>(new[]
@@ -96,7 +107,7 @@ namespace SqExpress.CodeGen.Shared
                     .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(array))
                     .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)));
 
-            var aliasedArrayItems = tables.Select(t => SyntaxFactory.IdentifierName(GetMethodName(t, tablePrefix)).Invoke());
+            var aliasedArrayItems = tables.Select(t => SyntaxFactory.IdentifierName(GetMethodName(t, tablePrefix, schemaSegments)).Invoke());
             var aliasedArray = SyntaxFactory.ArrayCreationExpression(
                 arrayType,
                 SyntaxFactory.InitializerExpression(
@@ -112,24 +123,27 @@ namespace SqExpress.CodeGen.Shared
             foreach (var table in tables)
             {
                 const string aliasParamName = "alias";
+                var typeName = GetTypeName(table, tableNamespaces);
+                var typeSyntax = SyntaxFactory.ParseTypeName(typeName);
+                var methodName = GetMethodName(table, tablePrefix, schemaSegments);
 
                 result.Add(
-                    SyntaxFactory.MethodDeclaration(SyntaxFactory.ParseTypeName(table.Name), GetMethodName(table, tablePrefix))
+                    SyntaxFactory.MethodDeclaration(typeSyntax, methodName)
                         .WithModifiers(CodeGenSyntaxHelpers.Modifiers(SyntaxKind.PublicKeyword, SyntaxKind.StaticKeyword))
                         .AddParameterListParameters(CodeGenSyntaxHelpers.FuncParameter(aliasParamName, nameof(Alias)))
                         .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(
                             SyntaxFactory.ObjectCreationExpression(
-                                SyntaxFactory.ParseTypeName(table.Name),
+                                typeSyntax,
                                 CodeGenSyntaxHelpers.ArgumentList(SyntaxFactory.IdentifierName(aliasParamName)),
                                 null)))
                         .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)));
 
                 result.Add(
-                    SyntaxFactory.MethodDeclaration(SyntaxFactory.ParseTypeName(table.Name), GetMethodName(table, tablePrefix))
+                    SyntaxFactory.MethodDeclaration(typeSyntax, methodName)
                         .WithModifiers(CodeGenSyntaxHelpers.Modifiers(SyntaxKind.PublicKeyword, SyntaxKind.StaticKeyword))
                         .WithExpressionBody(SyntaxFactory.ArrowExpressionClause(
                             SyntaxFactory.ObjectCreationExpression(
-                                SyntaxFactory.ParseTypeName(table.Name),
+                                typeSyntax,
                                 CodeGenSyntaxHelpers.ArgumentList(aliasType.MemberAccess(nameof(Alias.Auto))),
                                 null)))
                         .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)));
@@ -137,7 +151,10 @@ namespace SqExpress.CodeGen.Shared
 
             return result.ToArray();
 
-            static string GetMethodName(TableModel table, string prefix)
+            static string GetMethodName(
+                TableModel table,
+                string prefix,
+                IReadOnlyDictionary<TableRef, string>? schemaSegments)
             {
                 var name = table.Name;
                 if (!string.IsNullOrEmpty(prefix))
@@ -145,7 +162,17 @@ namespace SqExpress.CodeGen.Shared
                     name = name.Substring(prefix.Length);
                 }
 
-                return "Get" + name;
+                return "Get" + (schemaSegments != null ? schemaSegments[table.DbName] : string.Empty) + name;
+            }
+
+            static string GetTypeName(TableModel table, IReadOnlyDictionary<TableRef, string>? tableNamespaces)
+            {
+                if (tableNamespaces == null || !tableNamespaces.TryGetValue(table.DbName, out var tableNamespace) || string.IsNullOrEmpty(tableNamespace))
+                {
+                    return table.Name;
+                }
+
+                return "global::" + tableNamespace + "." + table.Name;
             }
         }
 

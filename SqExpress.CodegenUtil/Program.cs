@@ -143,10 +143,18 @@ namespace SqExpress.CodeGenUtil
 
             logger.LogNormal("Code generation...");
             IReadOnlyDictionary<TableRef, TableModel> tableMap = tables.ToDictionary(t => t.DbName);
+            var layout = TableGenerationLayout.Create(
+                tables,
+                directory,
+                options.Namespace,
+                options.SplitTablesBySchema);
+            var tableNamespaces = layout.Entries.ToDictionary(static pair => pair.Key, static pair => pair.Value.Namespace);
 
             foreach (var table in tables)
             {
-                string filePath = Path.Combine(directory, $"{table.Name}.cs");
+                var layoutEntry = layout.Entries[table.DbName];
+                string filePath = layoutEntry.FilePath;
+                Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
 
                 if(logger.IsDetailed) logger.LogDetailed($"{table.DbName} to \"{filePath}\".");
 
@@ -157,15 +165,23 @@ namespace SqExpress.CodeGenUtil
                     text = CodeGenTableDescriptorSupport.GenerateTableDeclaration(
                         table,
                         tableMap,
-                        options.Namespace,
+                        layoutEntry.Namespace,
                         options.SkipUnknownColumnTypes,
                         filePath,
                         DefaultFileSystem.Instance,
-                        out existing).ToFullString();
+                        out existing,
+                        tableNamespaces).ToFullString();
                 }
                 else
                 {
-                    text = CodeGenTableDescriptorSupport.GenerateTableDescriptor(table, tableMap, options.Namespace, existingCode, options.SkipUnknownColumnTypes, out existing).ToFullString();
+                    text = CodeGenTableDescriptorSupport.GenerateTableDescriptor(
+                        table,
+                        tableMap,
+                        layoutEntry.Namespace,
+                        existingCode,
+                        options.SkipUnknownColumnTypes,
+                        out existing,
+                        tableNamespaces).ToFullString();
                 }
                 await WriteAllTextIfChangedAsync(filePath, text);
 
@@ -176,7 +192,27 @@ namespace SqExpress.CodeGenUtil
 
             if (logger.IsDetailed) logger.LogDetailed($"AllTables to \"{allTablePath}\".");
 
-            await WriteAllTextIfChangedAsync(allTablePath, CodeGenAllTablesSupport.Generate(allTablePath, tables, options.Namespace, options.TableClassPrefix, DefaultFileSystem.Instance).ToFullString());
+            await WriteAllTextIfChangedAsync(
+                allTablePath,
+                CodeGenAllTablesSupport.Generate(
+                    allTablePath,
+                    tables,
+                    options.Namespace,
+                    options.TableClassPrefix,
+                    DefaultFileSystem.Instance,
+                    options.SplitTablesBySchema ? tableNamespaces : null,
+                    options.SplitTablesBySchema
+                        ? layout.Entries.ToDictionary(static pair => pair.Key, static pair => pair.Value.SchemaSegment!)
+                        : null).ToFullString());
+
+            if (options.CleanOutput)
+            {
+                var removedFiles = TableOutputCleaner.Clean(directory, layout.Entries);
+                foreach (var removedFile in removedFiles)
+                {
+                    logger.LogNormal($"Removed obsolete table descriptor file \"{removedFile}\".");
+                }
+            }
 
             logger.LogMinimal("Table proxy classes generation successfully completed!");
         }

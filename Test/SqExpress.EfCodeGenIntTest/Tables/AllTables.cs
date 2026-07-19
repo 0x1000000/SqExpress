@@ -9,33 +9,33 @@ namespace SqExpress.EfCodeGenIntTest.Tables
         public static readonly IReadOnlyList<TableBase> StaticList = Array.AsReadOnly(BuildAllTableList());
         public static TableBase[] BuildAllTableList() => new TableBase[]
         {
-            GetAuditLogs(Alias.Empty),
-            GetCategories(Alias.Empty),
-            GetCustomers(Alias.Empty),
-            GetProducts(Alias.Empty),
-            GetOrders(Alias.Empty),
-            GetOrderLines(Alias.Empty)
+            GetAuditAuditLogs(Alias.Empty),
+            GetCatalogCategories(Alias.Empty),
+            GetSalesCustomers(Alias.Empty),
+            GetCatalogProducts(Alias.Empty),
+            GetSalesOrders(Alias.Empty),
+            GetSalesOrderLines(Alias.Empty)
         };
         public static TableBase[] BuildAllAliasedTableList() => new TableBase[]
         {
-            GetAuditLogs(),
-            GetCategories(),
-            GetCustomers(),
-            GetProducts(),
-            GetOrders(),
-            GetOrderLines()
+            GetAuditAuditLogs(),
+            GetCatalogCategories(),
+            GetSalesCustomers(),
+            GetCatalogProducts(),
+            GetSalesOrders(),
+            GetSalesOrderLines()
         };
-        public static TableAuditLogs GetAuditLogs(Alias alias) => new TableAuditLogs(alias);
-        public static TableAuditLogs GetAuditLogs() => new TableAuditLogs(Alias.Auto);
-        public static TableCategories GetCategories(Alias alias) => new TableCategories(alias);
-        public static TableCategories GetCategories() => new TableCategories(Alias.Auto);
-        public static TableCustomers GetCustomers(Alias alias) => new TableCustomers(alias);
-        public static TableCustomers GetCustomers() => new TableCustomers(Alias.Auto);
-        public static TableProducts GetProducts(Alias alias) => new TableProducts(alias);
-        public static TableProducts GetProducts() => new TableProducts(Alias.Auto);
-        public static TableOrders GetOrders(Alias alias) => new TableOrders(alias);
-        public static TableOrders GetOrders() => new TableOrders(Alias.Auto);
-        public static TableOrderLines GetOrderLines(Alias alias) => new TableOrderLines(alias);
-        public static TableOrderLines GetOrderLines() => new TableOrderLines(Alias.Auto);
+        public static global::SqExpress.EfCodeGenIntTest.Tables.Audit.TableAuditLogs GetAuditAuditLogs(Alias alias) => new global::SqExpress.EfCodeGenIntTest.Tables.Audit.TableAuditLogs(alias);
+        public static global::SqExpress.EfCodeGenIntTest.Tables.Audit.TableAuditLogs GetAuditAuditLogs() => new global::SqExpress.EfCodeGenIntTest.Tables.Audit.TableAuditLogs(Alias.Auto);
+        public static global::SqExpress.EfCodeGenIntTest.Tables.Catalog.TableCategories GetCatalogCategories(Alias alias) => new global::SqExpress.EfCodeGenIntTest.Tables.Catalog.TableCategories(alias);
+        public static global::SqExpress.EfCodeGenIntTest.Tables.Catalog.TableCategories GetCatalogCategories() => new global::SqExpress.EfCodeGenIntTest.Tables.Catalog.TableCategories(Alias.Auto);
+        public static global::SqExpress.EfCodeGenIntTest.Tables.Sales.TableCustomers GetSalesCustomers(Alias alias) => new global::SqExpress.EfCodeGenIntTest.Tables.Sales.TableCustomers(alias);
+        public static global::SqExpress.EfCodeGenIntTest.Tables.Sales.TableCustomers GetSalesCustomers() => new global::SqExpress.EfCodeGenIntTest.Tables.Sales.TableCustomers(Alias.Auto);
+        public static global::SqExpress.EfCodeGenIntTest.Tables.Catalog.TableProducts GetCatalogProducts(Alias alias) => new global::SqExpress.EfCodeGenIntTest.Tables.Catalog.TableProducts(alias);
+        public static global::SqExpress.EfCodeGenIntTest.Tables.Catalog.TableProducts GetCatalogProducts() => new global::SqExpress.EfCodeGenIntTest.Tables.Catalog.TableProducts(Alias.Auto);
+        public static global::SqExpress.EfCodeGenIntTest.Tables.Sales.TableOrders GetSalesOrders(Alias alias) => new global::SqExpress.EfCodeGenIntTest.Tables.Sales.TableOrders(alias);
+        public static global::SqExpress.EfCodeGenIntTest.Tables.Sales.TableOrders GetSalesOrders() => new global::SqExpress.EfCodeGenIntTest.Tables.Sales.TableOrders(Alias.Auto);
+        public static global::SqExpress.EfCodeGenIntTest.Tables.Sales.TableOrderLines GetSalesOrderLines(Alias alias) => new global::SqExpress.EfCodeGenIntTest.Tables.Sales.TableOrderLines(alias);
+        public static global::SqExpress.EfCodeGenIntTest.Tables.Sales.TableOrderLines GetSalesOrderLines() => new global::SqExpress.EfCodeGenIntTest.Tables.Sales.TableOrderLines(Alias.Auto);
     }
 }

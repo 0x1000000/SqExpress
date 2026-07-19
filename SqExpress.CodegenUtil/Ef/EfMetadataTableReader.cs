@@ -23,41 +23,57 @@ namespace SqExpress.CodeGenUtil.Ef
             foreach (var table in document.Tables)
             {
                 var tableRef = new TableRef(string.IsNullOrWhiteSpace(table.Schema) ? "dbo" : table.Schema, table.Name);
-                var columns = new List<ColumnModel>();
-                foreach (var column in table.Columns)
-                {
-                    if (!TryMapColumnType(column, out var columnType))
-                    {
-                        if (skipUnknownColumnTypes)
-                        {
-                            continue;
-                        }
+                var mappedColumns = table.Columns
+                    .Select(column => (Column: column, IsSupported: TryMapColumnType(column, out var columnType), ColumnType: columnType))
+                    .ToList();
+                var unsupportedColumns = mappedColumns
+                    .Where(c => !c.IsSupported)
+                    .Select(c => c.Column.Name)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-                        throw new SqExpressCodeGenException(
-                            $"Unsupported EF column type \"{column.StoreType}\" for {tableRef.Schema}.{tableRef.Name}.{column.Name}.");
+                if (!skipUnknownColumnTypes && unsupportedColumns.Count > 0)
+                {
+                    var unsupportedColumn = mappedColumns.First(c => !c.IsSupported).Column;
+                    throw new SqExpressCodeGenException(
+                        $"Unsupported EF column type \"{unsupportedColumn.StoreType}\" for {tableRef.Schema}.{tableRef.Name}.{unsupportedColumn.Name}.");
+                }
+
+                var primaryKeyIsComplete = !table.Columns.Any(c =>
+                    c.PrimaryKeyIndex != null && unsupportedColumns.Contains(c.Name));
+                var columns = new List<ColumnModel>();
+                foreach (var mappedColumn in mappedColumns)
+                {
+                    if (!mappedColumn.IsSupported)
+                    {
+                        continue;
                     }
 
+                    var column = mappedColumn.Column;
                     columns.Add(new ColumnModel(
                         StringHelper.DeSnake(column.Name),
                         new ColumnRef(tableRef.Schema, tableRef.Name, column.Name),
                         columns.Count + 1,
-                        columnType!,
-                        column.PrimaryKeyIndex == null ? null : new PkInfo(column.PrimaryKeyIndex.Value, descending: false),
+                        mappedColumn.ColumnType!,
+                        primaryKeyIsComplete && column.PrimaryKeyIndex != null
+                            ? new PkInfo(column.PrimaryKeyIndex.Value, descending: false)
+                            : null,
                         column.Identity,
                         GetDefaultValue(column),
                         column.ForeignKeys.Select(f => new ColumnRef(f.Schema, f.Table, f.Column)).ToList()));
                 }
 
+                var includedColumnNames = columns
+                    .Select(c => c.DbName.Name)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
                 var indexes = table.Indexes
+                    .Where(i => i.Columns.Count > 0 && i.Columns.All(c => includedColumnNames.Contains(c.Name)))
                     .Select(i => new IndexModel(
                         i.Columns
-                            .Where(c => columns.Any(col => string.Equals(col.DbName.Name, c.Name, StringComparison.OrdinalIgnoreCase)))
                             .Select(c => new IndexColumnModel(c.Descending, new ColumnRef(tableRef.Schema, tableRef.Name, c.Name)))
                             .ToList(),
                         i.Name,
                         i.Unique,
                         i.Clustered))
-                    .Where(i => i.Columns.Count > 0)
                     .ToList();
 
                 tableModels.Add(

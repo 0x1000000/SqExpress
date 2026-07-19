@@ -2,7 +2,7 @@
 #nullable enable
 using SqExpress.TableDeclarationAttributes;
 
-namespace SqExpress.EfCodeGenIntTest.Tables
+namespace SqExpress.EfCodeGenIntTest.Tables.Sales
 {
     [TableDescriptor("sales", "Orders")]
     [Int64Column("OrderId", Pk = true, Identity = true)]

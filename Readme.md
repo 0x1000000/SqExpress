@@ -2130,8 +2130,8 @@ For full `Gen-Tables`, EF mode, generated table attributes, and MSBuild project 
 ```Package Manager Console```
 
 ```powershell
-Gen-Tables -DbType {mssql | mysql | pgsql} -ConnectionString <string> [-OutputDir <string>] [-TableClassPrefix <string>] [-Namespace <string>] [-Verbosity {Quiet | Minimal | Normal | Detailed}] [-UseTableDeclarationAttributes] [-SkipUnknownColumnTypes]
-Gen-Tables ef [[-Project] <project-name-or-path>] [-DbContext <type-name>] [-Framework <tfm>] [-OutputDir <string>] [-TableClassPrefix <string>] [-Namespace <string>] [-Verbosity {Quiet | Minimal | Normal | Detailed}] [-UseTableDeclarationAttributes] [-SkipUnknownColumnTypes]
+Gen-Tables -DbType {mssql | mysql | pgsql} -ConnectionString <string> [-OutputDir <string>] [-TableClassPrefix <string>] [-Namespace <string>] [-Verbosity {Quiet | Minimal | Normal | Detailed}] [-UseTableDeclarationAttributes] [-SkipUnknownColumnTypes] [-SplitTablesBySchema] [-CleanOutput]
+Gen-Tables ef [[-Project] <project-name-or-path>] [-DbContext <type-name>] [-Framework <tfm>] [-OutputDir <string>] [-TableClassPrefix <string>] [-Namespace <string>] [-Verbosity {Quiet | Minimal | Normal | Detailed}] [-UseTableDeclarationAttributes] [-SkipUnknownColumnTypes] [-SplitTablesBySchema] [-CleanOutput]
 ```
 
 Parameters:

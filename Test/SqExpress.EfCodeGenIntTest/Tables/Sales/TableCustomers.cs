@@ -2,7 +2,7 @@
 #nullable enable
 using SqExpress.TableDeclarationAttributes;
 
-namespace SqExpress.EfCodeGenIntTest.Tables
+namespace SqExpress.EfCodeGenIntTest.Tables.Sales
 {
     [TableDescriptor("sales", "Customers")]
     [Int32Column("CustomerId", Pk = true, Identity = true)]

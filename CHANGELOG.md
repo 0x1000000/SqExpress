@@ -2,6 +2,8 @@
 ### New Features
 - Added SQLite support, including SQL export, DDL generation, runtime integration, and integration-test coverage.
 - Added EF Core table descriptor generation via `Gen-Tables ef`, including project-based metadata extraction.
+- Added opt-in schema-split table generation via `gentables --split-tables-by-schema`, placing descriptors in schema-specific folders and namespaces while preserving a global `AllTables` aggregate.
+- Added opt-in table-generation cleanup via `gentables --clean-output`, `Gen-Tables -CleanOutput`, and `SqEfTablesGenCleanOutput`, removing missing or stale recognized table descriptors while preserving unrelated code.
 - Added `BindTables(...)` and `TryBindTables(...)` for reconnecting parsed or deserialized AST table/column nodes to canonical table metadata, with configurable warning/error severity and partial-result support.
 - `SqTSqlParser` now emits alias-specific `SqTable` objects and reuses their owned `TableColumn` objects directly when parsing with an existing table list, avoiding a second AST rewrite and preserving exact table/column ownership.
 - Extended `TablesGraph.TryToJoinTables(...)` with greedy multi-table join-tree construction, automatically aliased connector tables, and configurable ambiguous-path handling through deterministic selection, failure, or a callback over all equal shortest paths.

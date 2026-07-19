@@ -189,9 +189,10 @@ namespace SqExpress.CodeGen.Shared
             string defaultNamespace,
             IReadOnlyDictionary<TableRef, ClassDeclarationSyntax> existingCode,
             bool skipUnknownColumnTypes,
-            out bool existing)
+            out bool existing,
+            IReadOnlyDictionary<TableRef, string>? tableNamespaces = null)
         {
-            var allCodeGenTables = CodeGenSqTableProjector.BuildCodeGenTables(allTables, defaultNamespace, skipUnknownColumnTypes);
+            var allCodeGenTables = CodeGenSqTableProjector.BuildCodeGenTables(allTables, defaultNamespace, skipUnknownColumnTypes, tableNamespaces);
             var candidate = allCodeGenTables[BuildTableKey(CodeGenTableKind.Table, databaseName: null, schemaName: table.DbName.Schema, tableName: table.DbName.Name)];
 
             if (existingCode.TryGetValue(table.DbName, out var existingClass))
@@ -244,9 +245,10 @@ namespace SqExpress.CodeGen.Shared
             IReadOnlyDictionary<TableRef, TableModel> allTables,
             string defaultNamespace,
             bool skipUnknownColumnTypes,
-            CompilationUnitSyntax? existingCompilationUnit = null)
+            CompilationUnitSyntax? existingCompilationUnit = null,
+            IReadOnlyDictionary<TableRef, string>? tableNamespaces = null)
         {
-            var allCodeGenTables = CodeGenSqTableProjector.BuildCodeGenTables(allTables, defaultNamespace, skipUnknownColumnTypes);
+            var allCodeGenTables = CodeGenSqTableProjector.BuildCodeGenTables(allTables, defaultNamespace, skipUnknownColumnTypes, tableNamespaces);
             var candidate = allCodeGenTables[BuildTableKey(CodeGenTableKind.Table, databaseName: null, schemaName: table.DbName.Schema, tableName: table.DbName.Name)];
             return GenerateTableDeclaration(candidate, allCodeGenTables, existingCompilationUnit);
         }
@@ -258,13 +260,14 @@ namespace SqExpress.CodeGen.Shared
             bool skipUnknownColumnTypes,
             string existingFilePath,
             IFileSystem fileSystem,
-            out bool existing)
+            out bool existing,
+            IReadOnlyDictionary<TableRef, string>? tableNamespaces = null)
         {
             existing = fileSystem.FileExists(existingFilePath);
             var existingCompilationUnit = existing
                 ? CSharpSyntaxTree.ParseText(fileSystem.ReadAllText(existingFilePath)).GetCompilationUnitRoot()
                 : null;
-            return GenerateTableDeclaration(table, allTables, defaultNamespace, skipUnknownColumnTypes, existingCompilationUnit);
+            return GenerateTableDeclaration(table, allTables, defaultNamespace, skipUnknownColumnTypes, existingCompilationUnit, tableNamespaces);
         }
 
         private static CompilationUnitSyntax CreateTableDescriptorSyntax(

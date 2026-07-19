@@ -16,7 +16,9 @@ function Gen-Tables
         [string] $TableClassPrefix,
         [string] $Namespace,
         [switch] $UseTableDeclarationAttributes,
-        [switch] $SkipUnknownColumnTypes
+        [switch] $SkipUnknownColumnTypes,
+        [switch] $SplitTablesBySchema,
+        [switch] $CleanOutput
     )
 	
     CheckSqExpressReference
@@ -95,6 +97,16 @@ function Gen-Tables
     if($SkipUnknownColumnTypes.IsPresent)
     {
         $args = $args + " --skip-unknown-column-types"
+    }
+
+    if($SplitTablesBySchema.IsPresent)
+    {
+        $args = $args + " --split-tables-by-schema"
+    }
+
+    if($CleanOutput.IsPresent -or (GetCurrentProjectProperty "SqTablseGenCleanOutput") -eq "True")
+    {
+        $args = $args + " --clean-output"
     }
 
     if($DbType -eq 'ef' -and $DbContext)
