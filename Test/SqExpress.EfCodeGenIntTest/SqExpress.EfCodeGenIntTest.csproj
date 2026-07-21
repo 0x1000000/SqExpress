@@ -11,6 +11,7 @@
     <SqEfTablesGenEnable>true</SqEfTablesGenEnable>
     <SqEfTablesGenCleanOutput>true</SqEfTablesGenCleanOutput>
     <SqEfTablesGenSplitTablesBySchema>true</SqEfTablesGenSplitTablesBySchema>
+    <SqEfTablesGenSkipUnknownColumnTypes>false</SqEfTablesGenSkipUnknownColumnTypes>
   </PropertyGroup>
 
   <ItemGroup>

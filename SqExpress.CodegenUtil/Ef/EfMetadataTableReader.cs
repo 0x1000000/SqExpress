@@ -137,6 +137,9 @@ namespace SqExpress.CodeGenUtil.Ef
                 case "bigint":
                     columnType = new Int64ColumnType(metadata.Nullable);
                     return true;
+                case "time":
+                    columnType = new Int64ColumnType(metadata.Nullable);
+                    return true;
                 case "int":
                     columnType = new Int32ColumnType(metadata.Nullable);
                     return true;
@@ -165,6 +168,7 @@ namespace SqExpress.CodeGenUtil.Ef
                 case "datetime":
                 case "datetime2":
                 case "smalldatetime":
+                case "timestamp":
                     columnType = new DateTimeColumnType(metadata.Nullable, isDate: false);
                     return true;
                 case "datetimeoffset":

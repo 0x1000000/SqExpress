@@ -38,6 +38,7 @@ public sealed class EfCodeGenDbContext : DbContext
             entity.Property(e => e.IsActive).HasDefaultValueSql("1");
             entity.Property(e => e.CreatedUtc).HasDefaultValueSql("sysutcdatetime()");
             entity.Property(e => e.LastSeenAt).HasColumnType("datetimeoffset");
+            entity.Property(e => e.SessionTimeout).HasColumnType("time");
             entity.Property(e => e.BinaryCode).HasMaxLength(16);
             entity.Property(e => e.FixedBinaryCode).HasMaxLength(8).IsFixedLength();
             entity.Property(e => e.MetadataXml).HasColumnType("xml");

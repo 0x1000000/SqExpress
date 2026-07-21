@@ -37,6 +37,8 @@ public sealed class Customer
 
     public string? MetadataXml { get; set; }
 
+    public TimeSpan? SessionTimeout { get; set; }
+
     public List<Order> Orders { get; } = new List<Order>();
 }
 

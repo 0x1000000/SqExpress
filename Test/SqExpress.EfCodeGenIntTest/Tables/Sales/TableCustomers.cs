@@ -21,6 +21,7 @@ namespace SqExpress.EfCodeGenIntTest.Tables.Sales
     [GuidColumn("PublicId", DefaultValue = "$raw((newid()))")]
     [ByteColumn("RiskLevel", DefaultValue = "$raw(1)")]
     [DoubleColumn("Score", DefaultValue = "$raw(0)")]
+    [NullableInt64Column("SessionTimeout")]
     [Index("Code", Unique = true)]
     [Index("Name", "CreatedUtc", DescendingColumns = new string[] { "CreatedUtc" })]
     public partial class TableCustomers

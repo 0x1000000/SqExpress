@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using NUnit.Framework;
 using SqExpress.CodeGenUtil;
 using SqExpress.CodeGenUtil.Ef;
+using SqExpress.DbMetadata.Internal.Model;
 
 namespace SqExpress.Test.CodeGenUtil;
 
@@ -193,6 +194,81 @@ public class EfMetadataExtractorRunnerTest
             => string.Equals(assemblyName.Name, loadedTargetAssembly.GetName().Name, StringComparison.Ordinal)
                 ? loadedTargetAssembly
                 : null;
+    }
+
+    [TestCase("time", false)]
+    [TestCase("time(7)", true)]
+    public void MetadataTableReader_TimeMapsToInt64(string storeType, bool nullable)
+    {
+        var document = new EfMetadataDocument
+        {
+            ProviderName = "Microsoft.EntityFrameworkCore.SqlServer",
+            Tables = new List<EfTableMetadata>
+            {
+                new EfTableMetadata
+                {
+                    Schema = "sales",
+                    Name = "Customers",
+                    Columns = new List<EfColumnMetadata>
+                    {
+                        new EfColumnMetadata
+                        {
+                            Name = "SessionTimeout",
+                            StoreType = storeType,
+                            ClrType = "System.TimeSpan",
+                            Nullable = nullable
+                        }
+                    }
+                }
+            }
+        };
+
+        var column = EfMetadataTableReader
+            .SelectTables(document, "Table", skipUnknownColumnTypes: false)
+            .Single()
+            .Columns
+            .Single();
+
+        Assert.That(column.ColumnType, Is.TypeOf<Int64ColumnType>());
+        Assert.That(column.ColumnType.IsNullable, Is.EqualTo(nullable));
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void MetadataTableReader_TimestampMapsToDateTime(bool nullable)
+    {
+        var document = new EfMetadataDocument
+        {
+            ProviderName = "Microsoft.EntityFrameworkCore.SqlServer",
+            Tables = new List<EfTableMetadata>
+            {
+                new EfTableMetadata
+                {
+                    Schema = "dbo",
+                    Name = "Items",
+                    Columns = new List<EfColumnMetadata>
+                    {
+                        new EfColumnMetadata
+                        {
+                            Name = "Version",
+                            StoreType = "timestamp",
+                            ClrType = "System.Byte[]",
+                            Nullable = nullable
+                        }
+                    }
+                }
+            }
+        };
+
+        var column = EfMetadataTableReader
+            .SelectTables(document, "Table", skipUnknownColumnTypes: false)
+            .Single()
+            .Columns
+            .Single();
+
+        var columnType = (DateTimeColumnType)column.ColumnType;
+        Assert.That(columnType.IsNullable, Is.EqualTo(nullable));
+        Assert.That(columnType.IsDate, Is.False);
     }
 
     [Test]
