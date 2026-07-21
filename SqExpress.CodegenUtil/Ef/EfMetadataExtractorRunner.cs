@@ -10,6 +10,8 @@ namespace SqExpress.CodeGenUtil.Ef
 {
     internal static class EfMetadataExtractorRunner
     {
+        internal delegate int ProcessExecutor(string fileName, string arguments, string workingDirectory, out string output);
+
         public static async Task<EfMetadataDocument> Extract(string projectPath, string? dbContextTypeName, string? framework)
         {
             var fullProjectPath = Path.GetFullPath(projectPath, Directory.GetCurrentDirectory());
@@ -42,20 +44,17 @@ namespace SqExpress.CodeGenUtil.Ef
                 CreateExtractorProject(fullProjectPath, targetFramework));
             await WriteAllTextIfChangedAsync(extractorProgramPath, ExtractorProgramSource);
 
-            const string disableGenerationProperties = "/p:SqEfTablesGenEnable=false /p:SqEfTablesGenExcludeOutputFromCompile=true";
+            var outputExcluded = BuildExtractor(
+                extractorProjectPath,
+                targetFramework,
+                extractorDirectory,
+                ProcessRunner.Run);
+
+            var runProperties = DisableGenerationProperty + (outputExcluded ? " " + ExcludeOutputProperty : "");
             var args =
-                $"run --project {ProcessRunner.Quote(extractorProjectPath)} --framework {ProcessRunner.Quote(targetFramework)} --no-restore --no-build {disableGenerationProperties} -- " +
+                $"run --project {ProcessRunner.Quote(extractorProjectPath)} --framework {ProcessRunner.Quote(targetFramework)} --no-restore --no-build {runProperties} -- " +
                 $"--target-assembly {ProcessRunner.Quote(assemblyName)} " +
                 (string.IsNullOrWhiteSpace(dbContextTypeName) ? "" : $" --db-context {ProcessRunner.Quote(dbContextTypeName!)}");
-
-            var buildArgs =
-                $"build {ProcessRunner.Quote(extractorProjectPath)} --framework {ProcessRunner.Quote(targetFramework)} --nologo {disableGenerationProperties}";
-
-            var buildExitCode = ProcessRunner.Run("dotnet", buildArgs, extractorDirectory, out var buildOutput);
-            if (buildExitCode != 0)
-            {
-                throw new SqExpressCodeGenException($"Could not build EF metadata extractor.{Environment.NewLine}{buildOutput}");
-            }
 
             var runExitCode = ProcessRunner.Run("dotnet", args, extractorDirectory, out var metadataJson, out var runError);
             if (runExitCode != 0)
@@ -70,6 +69,34 @@ namespace SqExpress.CodeGenUtil.Ef
 
             return JsonSerializer.Deserialize<EfMetadataDocument>(metadataJson)
                    ?? throw new SqExpressCodeGenException("EF metadata extractor returned an empty metadata document.");
+        }
+
+        internal static bool BuildExtractor(
+            string extractorProjectPath,
+            string targetFramework,
+            string extractorDirectory,
+            ProcessExecutor processRunner)
+        {
+            var buildArgs =
+                $"build {ProcessRunner.Quote(extractorProjectPath)} --framework {ProcessRunner.Quote(targetFramework)} --nologo {DisableGenerationProperty}";
+
+            var buildExitCode = processRunner("dotnet", buildArgs, extractorDirectory, out var buildOutput);
+            if (buildExitCode == 0)
+            {
+                return false;
+            }
+
+            var fallbackBuildArgs = buildArgs + " " + ExcludeOutputProperty;
+            var fallbackExitCode = processRunner("dotnet", fallbackBuildArgs, extractorDirectory, out var fallbackOutput);
+            if (fallbackExitCode != 0)
+            {
+                throw new SqExpressCodeGenException(
+                    $"Could not build EF metadata extractor.{Environment.NewLine}" +
+                    $"Normal build (existing table descriptors included):{Environment.NewLine}{buildOutput}{Environment.NewLine}" +
+                    $"Fallback build (generated table output excluded):{Environment.NewLine}{fallbackOutput}");
+            }
+
+            return true;
         }
 
         private static string ResolveTargetFramework(string projectPath, string? framework)
@@ -104,7 +131,7 @@ namespace SqExpress.CodeGenUtil.Ef
         {
             var args =
                 $"msbuild {ProcessRunner.Quote(projectPath)} -nologo -getProperty:{propertyName} " +
-                "/p:SqEfTablesGenEnable=false /p:SqEfTablesGenExcludeOutputFromCompile=true" +
+                "/p:SqEfTablesGenEnable=false" +
                 (string.IsNullOrWhiteSpace(framework) ? "" : $" /p:TargetFramework={ProcessRunner.Quote(framework!)}");
 
             var exitCode = ProcessRunner.Run("dotnet", args, Path.GetDirectoryName(projectPath)!, out var output);
@@ -136,7 +163,7 @@ namespace SqExpress.CodeGenUtil.Ef
             await File.WriteAllTextAsync(path, text, Encoding.UTF8);
         }
 
-        private static string CreateExtractorProject(string targetProjectPath, string targetFramework)
+        internal static string CreateExtractorProject(string targetProjectPath, string targetFramework)
         {
             return $@"<Project Sdk=""Microsoft.NET.Sdk"">
   <PropertyGroup>
@@ -146,7 +173,7 @@ namespace SqExpress.CodeGenUtil.Ef
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include=""{EscapeXml(targetProjectPath)}"" ReferenceOutputAssembly=""true"" SetTargetFramework=""TargetFramework={EscapeXml(targetFramework)}"" Properties=""SqEfTablesGenEnable=false;SqEfTablesGenExcludeOutputFromCompile=true"" />
+    <ProjectReference Include=""{EscapeXml(targetProjectPath)}"" ReferenceOutputAssembly=""true"" SetTargetFramework=""TargetFramework={EscapeXml(targetFramework)}"" Properties=""SqEfTablesGenEnable=false"" />
   </ItemGroup>
 </Project>
 ";
@@ -158,6 +185,9 @@ namespace SqExpress.CodeGenUtil.Ef
                 .Replace("\"", "&quot;")
                 .Replace("<", "&lt;")
                 .Replace(">", "&gt;");
+
+        private const string DisableGenerationProperty = "/p:SqEfTablesGenEnable=false";
+        private const string ExcludeOutputProperty = "/p:SqEfTablesGenExcludeOutputFromCompile=true";
 
 internal const string ExtractorProgramSource = @"using System;
 using System.Collections;

@@ -177,12 +177,12 @@ Source-tree integration tests or custom package layouts may import `SqExpress.pr
 
 Same-project EF generation has an unavoidable bootstrap step:
 
-1. Create and build the temporary extractor project with EF table generation disabled on the target project reference.
+1. Create and build the temporary extractor project with EF table generation disabled on the target project reference. Existing generated table descriptors remain part of the target project compilation, so other project code may reference them normally.
 2. Run the temporary extractor app and read EF relational metadata from the target project.
 3. Generate table declaration files.
 4. Compile the final project with generated descriptors included.
 
-Generated descriptors should not be required by the `DbContext` itself. Keep database setup and context configuration independent from generated table classes.
+If the normal extractor build fails, SqExpress retries once with the generated table output excluded from compilation. This fallback allows stale or invalid generated descriptors to be repaired. The fallback still fails when other project code requires the excluded descriptor types, and both build diagnostics are reported when neither build succeeds.
 
 ## Legacy Table Generation Properties
 

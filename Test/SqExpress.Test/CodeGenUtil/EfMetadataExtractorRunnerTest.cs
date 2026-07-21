@@ -10,6 +10,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.EntityFrameworkCore;
 using NUnit.Framework;
+using SqExpress.CodeGenUtil;
 using SqExpress.CodeGenUtil.Ef;
 
 namespace SqExpress.Test.CodeGenUtil;
@@ -17,6 +18,92 @@ namespace SqExpress.Test.CodeGenUtil;
 [TestFixture]
 public class EfMetadataExtractorRunnerTest
 {
+    [Test]
+    public void ExtractorProject_DisablesGenerationWithoutExcludingExistingDescriptors()
+    {
+        var project = EfMetadataExtractorRunner.CreateExtractorProject(
+            @"C:\Project & Tests\Data.csproj",
+            "net8.0");
+
+        Assert.That(project, Does.Contain("Properties=\"SqEfTablesGenEnable=false\""));
+        Assert.That(project, Does.Not.Contain("SqEfTablesGenExcludeOutputFromCompile"));
+        Assert.That(project, Does.Contain(@"C:\Project &amp; Tests\Data.csproj"));
+    }
+
+    [Test]
+    public void BuildExtractor_NormalBuildIncludesDescriptorsAndDoesNotRetry()
+    {
+        var calls = new List<string>();
+
+        var outputExcluded = EfMetadataExtractorRunner.BuildExtractor(
+            "extractor.csproj",
+            "net8.0",
+            "work",
+            Run);
+
+        Assert.IsFalse(outputExcluded);
+        Assert.AreEqual(1, calls.Count);
+        Assert.That(calls[0], Does.Contain("SqEfTablesGenEnable=false"));
+        Assert.That(calls[0], Does.Not.Contain("SqEfTablesGenExcludeOutputFromCompile"));
+
+        int Run(string fileName, string arguments, string workingDirectory, out string output)
+        {
+            calls.Add(arguments);
+            output = "";
+            return 0;
+        }
+    }
+
+    [Test]
+    public void BuildExtractor_RetriesWithDescriptorsExcludedAfterFailure()
+    {
+        var calls = new List<string>();
+
+        var outputExcluded = EfMetadataExtractorRunner.BuildExtractor(
+            "extractor.csproj",
+            "net8.0",
+            "work",
+            Run);
+
+        Assert.IsTrue(outputExcluded);
+        Assert.AreEqual(2, calls.Count);
+        Assert.That(calls[0], Does.Not.Contain("SqEfTablesGenExcludeOutputFromCompile"));
+        Assert.That(calls[1], Does.Contain("SqEfTablesGenExcludeOutputFromCompile=true"));
+
+        int Run(string fileName, string arguments, string workingDirectory, out string output)
+        {
+            calls.Add(arguments);
+            output = calls.Count == 1 ? "normal failure" : "";
+            return calls.Count == 1 ? 1 : 0;
+        }
+    }
+
+    [Test]
+    public void BuildExtractor_WhenBothBuildsFailReportsBothDiagnostics()
+    {
+        var callCount = 0;
+
+        var exception = Assert.Throws<SqExpressCodeGenException>(() =>
+            EfMetadataExtractorRunner.BuildExtractor(
+                "extractor.csproj",
+                "net8.0",
+                "work",
+                Run));
+
+        Assert.AreEqual(2, callCount);
+        Assert.That(exception!.Message, Does.Contain("Normal build (existing table descriptors included):"));
+        Assert.That(exception.Message, Does.Contain("normal failure"));
+        Assert.That(exception.Message, Does.Contain("Fallback build (generated table output excluded):"));
+        Assert.That(exception.Message, Does.Contain("fallback failure"));
+
+        int Run(string fileName, string arguments, string workingDirectory, out string output)
+        {
+            callCount++;
+            output = callCount == 1 ? "normal failure" : "fallback failure";
+            return 1;
+        }
+    }
+
     [Test]
     public void ExtractorProgramSource_CompilesAndReadsEfMetadata()
     {

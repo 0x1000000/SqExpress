@@ -54,7 +54,7 @@ public static class Program
 
     private static IReadOnlyList<TableBase> LoadGeneratedTables()
     {
-        var allTablesType = Assembly.GetExecutingAssembly().GetType("SqExpress.EfCodeGenIntTest.Tables.AllTables")
+        var allTablesType = typeof(Tables.Sales.TableCustomers).Assembly.GetType("SqExpress.EfCodeGenIntTest.Tables.AllTables")
             ?? throw new InvalidOperationException("Could not find generated AllTables class.");
 
         var buildMethod = allTablesType.GetMethod("BuildAllTableList", BindingFlags.Public | BindingFlags.Static)
