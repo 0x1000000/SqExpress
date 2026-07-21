@@ -109,6 +109,58 @@ namespace SqExpress.Test.CodeGenUtil
             AssertCompiles(declarations.Select(static source => CSharpSyntaxTree.Create(source)));
         }
 
+        [Test]
+        public void SplitBySchema_ExistingFlatDescriptorMovesToSchemaNamespace()
+        {
+            var flat = CodeGenTable("sales", "Order", "MyApp.Tables", foreignKeySchema: null);
+            var existing = CodeGenTableDescriptorSupport.GenerateTableDescriptor(
+                flat,
+                new Dictionary<string, CodeGenTableModel>(System.StringComparer.OrdinalIgnoreCase)
+                {
+                    [flat.TableKey] = flat
+                },
+                CodeGenTableDescriptorRenderOptions.PublicPartial);
+            var split = CodeGenTable("sales", "Order", "MyApp.Tables.Sales", foreignKeySchema: null);
+
+            var updated = CodeGenTableDescriptorSupport.GenerateTableDescriptor(
+                    split,
+                    new Dictionary<string, CodeGenTableModel>(System.StringComparer.OrdinalIgnoreCase)
+                    {
+                        [split.TableKey] = split
+                    },
+                    CodeGenTableDescriptorRenderOptions.PublicPartial,
+                    existing)
+                .ToFullString();
+
+            Assert.That(updated, Does.Contain("namespace MyApp.Tables.Sales"));
+            Assert.That(updated, Does.Not.Contain("namespace MyApp.Tables\n"));
+        }
+
+        [Test]
+        public void SplitBySchema_ExistingAttributeDeclarationMovesToSchemaNamespace()
+        {
+            var flat = CodeGenTable("sales", "Order", "MyApp.Tables", foreignKeySchema: null);
+            var existing = CodeGenTableDescriptorSupport.GenerateTableDeclaration(
+                flat,
+                new Dictionary<string, CodeGenTableModel>(System.StringComparer.OrdinalIgnoreCase)
+                {
+                    [flat.TableKey] = flat
+                });
+            var split = CodeGenTable("sales", "Order", "MyApp.Tables.Sales", foreignKeySchema: null);
+
+            var updated = CodeGenTableDescriptorSupport.GenerateTableDeclaration(
+                    split,
+                    new Dictionary<string, CodeGenTableModel>(System.StringComparer.OrdinalIgnoreCase)
+                    {
+                        [split.TableKey] = split
+                    },
+                    existing)
+                .ToFullString();
+
+            Assert.That(updated, Does.Contain("namespace MyApp.Tables.Sales"));
+            Assert.That(updated, Does.Not.Contain("namespace MyApp.Tables\n"));
+        }
+
         private static Dictionary<TableRef, string> ToNamespaces(TableGenerationLayout layout)
         {
             var result = new Dictionary<TableRef, string>();

@@ -1502,7 +1502,11 @@ namespace SqExpress.CodeGen.Shared
                     .ToArray());
             }
 
-            return NormalizeTableDescriptorCompilationUnit(compilationUnit.ReplaceNode(classDeclaration, newClass));
+            var updatedCompilationUnit = compilationUnit.ReplaceNode(classDeclaration, newClass);
+            return NormalizeTableDescriptorCompilationUnit(AlignContainingNamespace(
+                updatedCompilationUnit,
+                candidate.ClassName,
+                candidate.Namespace));
         }
 
         private static CompilationUnitSyntax NormalizeTableDescriptorCompilationUnit(CompilationUnitSyntax compilationUnit)
@@ -1545,10 +1549,41 @@ namespace SqExpress.CodeGen.Shared
             var updatedClass = classDeclaration
                 .WithAttributeLists(SyntaxFactory.List(RenderTableDeclarationAttributes(candidate, propertyNamesBySqlName)));
 
-                return EnsureUsingDirective(
+            var updatedCompilationUnit = EnsureUsingDirective(
                     compilationUnit.ReplaceNode(classDeclaration, updatedClass),
-                    typeof(TableDescriptorAttribute).Namespace!)
+                    typeof(TableDescriptorAttribute).Namespace!);
+            return AlignContainingNamespace(updatedCompilationUnit, candidate.ClassName, candidate.Namespace)
                 .NormalizeWhitespace();
+        }
+
+        private static CompilationUnitSyntax AlignContainingNamespace(
+            CompilationUnitSyntax compilationUnit,
+            string className,
+            string? namespaceName)
+        {
+            if (string.IsNullOrEmpty(namespaceName))
+            {
+                return compilationUnit;
+            }
+
+            var classDeclaration = compilationUnit.DescendantNodes()
+                .OfType<ClassDeclarationSyntax>()
+                .First(c => c.Identifier.ValueText == className);
+            var containingNamespace = classDeclaration.Ancestors()
+                .OfType<BaseNamespaceDeclarationSyntax>()
+                .FirstOrDefault();
+            if (containingNamespace == null)
+            {
+                return compilationUnit;
+            }
+
+            BaseNamespaceDeclarationSyntax updatedNamespace = containingNamespace switch
+            {
+                FileScopedNamespaceDeclarationSyntax fileScoped => fileScoped.WithName(QualifiedName(namespaceName!)),
+                NamespaceDeclarationSyntax blockScoped => blockScoped.WithName(QualifiedName(namespaceName!)),
+                _ => containingNamespace
+            };
+            return compilationUnit.ReplaceNode(containingNamespace, updatedNamespace);
         }
 
         private static CodeGenTableModel MergeWithExistingTableDeclarationMetadata(

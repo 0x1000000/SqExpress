@@ -29,10 +29,7 @@
   </ItemGroup>
 
   <Target Name="BuildCodeGenUtilForEfIntTest" BeforeTargets="SqEfTablesGen" Condition="'$(SqEfTablesGenEnable)'=='True' And '$(SqEfTablesGenExcludeOutputFromCompile)'!='true' And '$(SqEfTablesGenExcludeOutputFromCompile)'!='True'">
-    <MSBuild
-      Projects="..\..\SqExpress.CodegenUtil\SqExpress.CodeGenUtil.csproj"
-      Targets="Restore;Build"
-      Properties="Configuration=$(Configuration)" />
+    <MSBuild Projects="..\..\SqExpress.CodegenUtil\SqExpress.CodeGenUtil.csproj" Targets="Restore;Build" Properties="Configuration=$(Configuration)" />
   </Target>
 
   <Import Project="..\..\SqExpress\SqExpress.targets" />

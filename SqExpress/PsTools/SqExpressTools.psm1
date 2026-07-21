@@ -21,8 +21,6 @@ function Gen-Tables
         [switch] $CleanOutput
     )
 	
-    CheckSqExpressReference
-
     if($DbType -eq 'ef')
     {
         $efProject = ResolveEfProject $ConnectionString
@@ -135,8 +133,6 @@ function Gen-Models
         [ValidateSet('ImmutableClass','Record')]
         [string] $ModelType
     )
-
-    CheckSqExpressReference
 
     $args = "genmodels"
 
@@ -256,27 +252,6 @@ function CodeGenUtil($arguments){
         }
         exit
     }
-}
-
-function CheckSqExpressReference
-{	
-	if(IsCoreProject)
-	{
-		$pReferences = (GetCurrentProjectServices).PackageReferences.GetItemsAsync().Result
-
-		$sqExpressRef = $pReferences | where {$_.EvaluatedInclude -eq "SqExpress"} | Select -First 1
-
-	}
-	else
-	{
-		$sqExpressRef = (GetMsBuildProject).Items| where {($_.ItemType -eq "PackageReference") -and ($_.EvaluatedInclude -eq "SqExpress")} | Select -First 1
-	}
-
-	if(!$sqExpressRef)
-	{
-		WriteErrorMessage "Could not find a Package References to SqExpress in the selected project"
-		exit
-	}		
 }
 
 function GetCurrentProjectProperty($propertyName)
