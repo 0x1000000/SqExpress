@@ -4,7 +4,7 @@ using SqExpress.TableDeclarationAttributes;
 
 namespace SqExpress.EfCodeGenIntTest.Tables.Catalog
 {
-    [TableDescriptor("catalog", "Categories")]
+    [TableDescriptor("catalog", "Categories", SqModel = "Categories")]
     [Int32Column("CategoryId", Pk = true, Identity = true)]
     [StringColumn("Name", Unicode = true, MaxLength = 100)]
     [Index("Name", Unique = true)]

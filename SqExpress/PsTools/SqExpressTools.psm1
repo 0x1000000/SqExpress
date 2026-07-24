@@ -84,6 +84,7 @@ function Gen-Tables
     }
     if($Namespace)
     {
+        WarnNamespaceOutputMismatch $OutputDir $Namespace
         $args = $args + " -n " + $Namespace
     }
 
@@ -247,10 +248,12 @@ function CodeGenUtil($arguments){
 
     if ($process.ExitCode)
     {
-        $standardError.Result -split "\r?\n" | Where-Object { $_ -ne "" } | ForEach-Object {
-            WriteErrorMessage $_ $true
+        $errorText = $standardError.Result.Trim()
+        if(!$errorText)
+        {
+            $errorText = "SqExpress code generation failed with exit code " + $process.ExitCode + " without error output."
         }
-        exit
+        Write-Error -Message $errorText -ErrorAction Stop
     }
 }
 
@@ -265,6 +268,29 @@ function GetCurrentProjectProperty($propertyName)
 	}
 	
 	return (GetMsBuildProject).GetProperty($propertyName).EvaluatedValue
+}
+
+function WarnNamespaceOutputMismatch($outputDir, $namespace)
+{
+    if(!$outputDir -or !$namespace -or [IO.Path]::IsPathRooted($outputDir))
+    {
+        return
+    }
+
+    $projectName = GetCurrentProjectProperty "ProjectName"
+    $folderNamespace = $outputDir.Replace('\','.').Replace('/','.').Trim('.')
+    if(!$projectName -or !$folderNamespace)
+    {
+        return
+    }
+
+    $expectedNamespace = $projectName + "." + $folderNamespace
+    if($namespace -cne $expectedNamespace)
+    {
+        Write-Warning ("Output folder '" + $outputDir + "' conventionally maps to namespace '" +
+            $expectedNamespace + "', but generated files will use the higher-priority namespace '" +
+            $namespace + "'.")
+    }
 }
 
 function IsCoreProject

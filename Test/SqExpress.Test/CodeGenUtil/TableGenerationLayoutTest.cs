@@ -83,6 +83,26 @@ namespace SqExpress.Test.CodeGenUtil
         }
 
         [Test]
+        public void AllTables_ExistingFileMovesToRequestedNamespace()
+        {
+            var fileSystem = new TestFileSystem();
+            fileSystem.AddFile(
+                "CustomOutput/AllTables.cs",
+                "namespace MyApp.CustomOutput { public static class AllTables { } }");
+
+            var source = CodeGenAllTablesSupport.Generate(
+                    "CustomOutput/AllTables.cs",
+                    new[] { Table("sales", "Order", "TableOrder") },
+                    "MyApp.Tables",
+                    "Table",
+                    fileSystem)
+                .ToFullString();
+
+            Assert.That(source, Does.Contain("namespace MyApp.Tables"));
+            Assert.That(source, Does.Not.Contain("namespace MyApp.CustomOutput"));
+        }
+
+        [Test]
         public void SplitBySchema_CrossSchemaForeignKeyDescriptorsAndDeclarationsCompile()
         {
             var archive = CodeGenTable("archive", "Order", "MyApp.Tables.Archive", foreignKeySchema: null);

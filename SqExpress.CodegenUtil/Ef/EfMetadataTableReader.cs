@@ -35,7 +35,8 @@ namespace SqExpress.CodeGenUtil.Ef
                 {
                     var unsupportedColumn = mappedColumns.First(c => !c.IsSupported).Column;
                     throw new SqExpressCodeGenException(
-                        $"Unsupported EF column type \"{unsupportedColumn.StoreType}\" for {tableRef.Schema}.{tableRef.Name}.{unsupportedColumn.Name}.");
+                        $"Unsupported EF column type \"{unsupportedColumn.StoreType}\" for {tableRef.Schema}.{tableRef.Name}.{unsupportedColumn.Name}. " +
+                        "Use --skip-unknown-column-types to omit unsupported columns, or add a supported type mapping.");
                 }
 
                 var primaryKeyIsComplete = !table.Columns.Any(c =>

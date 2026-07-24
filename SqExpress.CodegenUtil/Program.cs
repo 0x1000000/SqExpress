@@ -36,8 +36,8 @@ namespace SqExpress.CodeGenUtil
 
                 return parser.ParseArguments<GenTablesOptions, GenModelsOptions>(args)
                     .MapResult(
-                        (GenTablesOptions opts) => Run(opts, RunGenTablesOptions),
-                        (GenModelsOptions opts) => Run(opts, RunGenModelsOptions),
+                        (GenTablesOptions opts) => Run(opts, RunGenTablesOptions, GetOperationName(opts)),
+                        (GenModelsOptions opts) => Run(opts, RunGenModelsOptions, "model generation"),
                         errs => 1);
             }
             catch (Exception e)
@@ -48,7 +48,7 @@ namespace SqExpress.CodeGenUtil
             }
         }
 
-        private static int Run<TOpts>(TOpts opts, Func<TOpts,Task> task)
+        private static int Run<TOpts>(TOpts opts, Func<TOpts,Task> task, string operationName)
         {
             try
             {
@@ -57,7 +57,7 @@ namespace SqExpress.CodeGenUtil
             }
             catch (SqExpressCodeGenException e)
             {
-                Console.WriteLine(e.Message);
+                Console.Error.WriteLine($"SqExpress {operationName} failed: {e.Message}");
                 return 1;
             }
             catch (Exception e)
@@ -67,6 +67,11 @@ namespace SqExpress.CodeGenUtil
                 return 1;
             }
         }
+
+        private static string GetOperationName(GenTablesOptions options)
+            => options.ConnectionType == ConnectionType.Ef
+                ? "EF table generation"
+                : $"{options.ConnectionType} table generation";
 
         public static async Task RunGenTablesOptions(GenTablesOptions options)
         {

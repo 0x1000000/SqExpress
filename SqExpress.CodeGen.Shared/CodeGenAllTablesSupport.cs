@@ -37,6 +37,7 @@ namespace SqExpress.CodeGen.Shared
                                    ?? throw new InvalidOperationException($"Could not find compilation unit for {existingClassSyntax.Identifier.ValueText}");
 
                     modifiedUnit = modifiedUnit.ReplaceNode(existingClassSyntax, GenerateAllTableList(tables, tablePrefix, existingClassSyntax, tableNamespaces, schemaSegments));
+                    modifiedUnit = AlignNamespace(modifiedUnit, defaultNamespace);
                 }
             }
 
@@ -44,6 +45,28 @@ namespace SqExpress.CodeGen.Shared
                     .AddMembers(SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(defaultNamespace))
                         .AddMembers(GenerateAllTableList(tables, tablePrefix, null, tableNamespaces, schemaSegments))))
                 .NormalizeWhitespace();
+        }
+
+        private static CompilationUnitSyntax AlignNamespace(CompilationUnitSyntax compilationUnit, string namespaceName)
+        {
+            var allTablesClass = compilationUnit.DescendantNodes()
+                .OfType<ClassDeclarationSyntax>()
+                .First(c => c.Identifier.ValueText == AllTablesClassName);
+            var containingNamespace = allTablesClass.Ancestors()
+                .OfType<BaseNamespaceDeclarationSyntax>()
+                .FirstOrDefault();
+            if (containingNamespace == null)
+            {
+                return compilationUnit;
+            }
+
+            BaseNamespaceDeclarationSyntax updatedNamespace = containingNamespace switch
+            {
+                FileScopedNamespaceDeclarationSyntax fileScoped => fileScoped.WithName(SyntaxFactory.ParseName(namespaceName)),
+                NamespaceDeclarationSyntax blockScoped => blockScoped.WithName(SyntaxFactory.ParseName(namespaceName)),
+                _ => containingNamespace
+            };
+            return compilationUnit.ReplaceNode(containingNamespace, updatedNamespace);
         }
 
         private static ClassDeclarationSyntax GenerateAllTableList(

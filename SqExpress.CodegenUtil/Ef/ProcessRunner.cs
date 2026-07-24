@@ -7,8 +7,24 @@ namespace SqExpress.CodeGenUtil.Ef
         public static int Run(string fileName, string arguments, string workingDirectory, out string output)
         {
             var exitCode = Run(fileName, arguments, workingDirectory, out var standardOutput, out var standardError);
-            output = standardOutput + standardError;
+            output = FormatCapturedOutput(standardOutput, standardError);
             return exitCode;
+        }
+
+        internal static string FormatCapturedOutput(string standardOutput, string standardError)
+        {
+            var output = standardOutput.Trim();
+            var error = standardError.Trim();
+            if (output.Length == 0)
+            {
+                return error.Length == 0 ? string.Empty : "Standard error:" + System.Environment.NewLine + error;
+            }
+            if (error.Length == 0)
+            {
+                return "Standard output:" + System.Environment.NewLine + output;
+            }
+            return "Standard output:" + System.Environment.NewLine + output + System.Environment.NewLine +
+                   "Standard error:" + System.Environment.NewLine + error;
         }
 
         public static int Run(string fileName, string arguments, string workingDirectory, out string standardOutputText, out string standardErrorText)

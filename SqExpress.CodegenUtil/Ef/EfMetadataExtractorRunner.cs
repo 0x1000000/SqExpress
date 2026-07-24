@@ -59,7 +59,9 @@ namespace SqExpress.CodeGenUtil.Ef
             var runExitCode = ProcessRunner.Run("dotnet", args, extractorDirectory, out var metadataJson, out var runError);
             if (runExitCode != 0)
             {
-                throw new SqExpressCodeGenException($"EF metadata extractor failed.{Environment.NewLine}{metadataJson}{runError}");
+                throw new SqExpressCodeGenException(
+                    $"EF metadata extractor execution failed.{Environment.NewLine}" +
+                    ProcessRunner.FormatCapturedOutput(metadataJson, runError));
             }
 
             if (string.IsNullOrWhiteSpace(metadataJson))
@@ -137,7 +139,8 @@ namespace SqExpress.CodeGenUtil.Ef
             var exitCode = ProcessRunner.Run("dotnet", args, Path.GetDirectoryName(projectPath)!, out var output);
             if (exitCode != 0)
             {
-                throw new SqExpressCodeGenException($"Could not read MSBuild property {propertyName} from \"{projectPath}\".{Environment.NewLine}{output}");
+                throw new SqExpressCodeGenException(
+                    $"Could not read MSBuild property {propertyName} from \"{projectPath}\".{Environment.NewLine}{output}");
             }
 
             return output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).LastOrDefault()?.Trim() ?? "";

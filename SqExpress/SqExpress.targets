@@ -17,7 +17,15 @@
     </ItemGroup>
     <Exec
       Command="dotnet &quot;$(SqExpressCodeGenPath)&quot; genmodels -i &quot;$(SqModelGenInput)&quot; -o &quot;$(SqModelGenOutput)&quot; -n &quot;$(SqModelGenNamespace)&quot; -v quiet --rw-classes$(NullRefParam)$(CleanOutputParam)$(ModelTypeParam)"
-      WorkingDirectory="$(MSBuildProjectDirectory)"/>
+      WorkingDirectory="$(MSBuildProjectDirectory)"
+      ConsoleToMSBuild="true"
+      StandardOutputImportance="Low"
+      StandardErrorImportance="High"
+      IgnoreExitCode="true">
+      <Output TaskParameter="ExitCode" PropertyName="SqModelGenExitCode" />
+    </Exec>
+    <Error Condition="'$(SqModelGenExitCode)' != '0'"
+           Text="SqExpress model generation failed with exit code $(SqModelGenExitCode). See the generator diagnostics above." />
     <ItemGroup>
       <Compile Include="$(SqModelGenOutput)/*" />
     </ItemGroup>
@@ -50,7 +58,15 @@
     </ItemGroup>
     <Exec
       Command="dotnet &quot;$(SqExpressCodeGenPath)&quot; gentables ef &quot;$(SqEfTablesGenSource)&quot; -o &quot;$(SqEfTablesGenOutput)&quot; -n &quot;$(SqEfTablesGenNamespace)&quot; -v quiet$(SqEfTablesGenFrameworkParam)$(SqEfTablesGenTableClassPrefixParam)$(SqEfTablesGenDbContextParam)$(SqEfTablesGenUseTableDeclarationAttributesParam)$(SqEfTablesGenSkipUnknownColumnTypesParam)$(SqEfTablesGenSplitTablesBySchemaParam)$(SqEfTablesGenCleanOutputParam)"
-      WorkingDirectory="$(MSBuildProjectDirectory)" />
+      WorkingDirectory="$(MSBuildProjectDirectory)"
+      ConsoleToMSBuild="true"
+      StandardOutputImportance="Low"
+      StandardErrorImportance="High"
+      IgnoreExitCode="true">
+      <Output TaskParameter="ExitCode" PropertyName="SqEfTablesGenExitCode" />
+    </Exec>
+    <Error Condition="'$(SqEfTablesGenExitCode)' != '0'"
+           Text="SqExpress EF table generation failed with exit code $(SqEfTablesGenExitCode). See the generator diagnostics above." />
     <ItemGroup>
       <Compile Include="$(SqEfTablesGenOutput)\**\*.cs" />
     </ItemGroup>
