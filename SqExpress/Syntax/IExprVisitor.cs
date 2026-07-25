@@ -16,6 +16,17 @@ namespace SqExpress.Syntax
         TRes VisitExprStatement(ExprStatement statement, TArg arg);
     }
 
+    /// <summary>
+    /// Defines a value-returning expression visitor that receives a caller-provided argument for each dispatch.
+    /// </summary>
+    /// <typeparam name="TRes">The value returned from each visitor callback.</typeparam>
+    /// <typeparam name="TArg">The argument supplied to each visitor callback.</typeparam>
+    /// <remarks>
+    /// This is the generic visitor contract for algorithms that compute a result or explicitly propagate context.
+    /// Implementations must handle every expression type. For a conventional recursive, read-only traversal where
+    /// only selected node callbacks need customization, prefer
+    /// <see cref="SyntaxTreeOperations.ExprVisitorBase"/>.
+    /// </remarks>
     public interface IExprVisitor<out TRes,in TArg> : IExprSelectingVisitor<TRes, TArg>, IExprTypeVisitor<TRes, TArg>
     {
         //Boolean Expressions

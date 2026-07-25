@@ -15,23 +15,66 @@ using SqExpress.Syntax.Value;
 
 namespace SqExpress.SyntaxTreeOperations
 {
+    /// <summary>
+    /// Provides a recursive, read-only visitor for SqExpress syntax trees with overridable callbacks for every node type.
+    /// </summary>
+    /// <remarks>
+    /// Override only the node methods relevant to the analysis. The default implementation visits that node's
+    /// children; therefore an override should call its base implementation when traversal must continue below the
+    /// matched node. Omitting the base call intentionally prunes that subtree.
+    /// <para>
+    /// During a callback, <see cref="CurrentNode"/>, <see cref="CurrentPath"/>, and <see cref="Depth"/> describe
+    /// the node currently being visited. For visitors that must return a value and receive a caller-supplied
+    /// argument, implement <see cref="IExprVisitor{TRes,TArg}"/> instead.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// public sealed class ColumnCollector : ExprVisitorBase
+    /// {
+    ///     public HashSet&lt;string&gt; Names { get; } = new HashSet&lt;string&gt;();
+    ///
+    ///     public override void VisitExprColumnName(ExprColumnName expr)
+    ///     {
+    ///         this.Names.Add(expr.Name);
+    ///         base.VisitExprColumnName(expr);
+    ///     }
+    /// }
+    ///
+    /// var visitor = new ColumnCollector();
+    /// expression.Accept(visitor);
+    /// </code>
+    /// </example>
     public abstract class ExprVisitorBase : IExprVisitor, IExprVisitorNodeHandler
     {
         private readonly IExprVisitor<object?, object?> _proxy;
         private readonly List<IExpr> _currentPath = new List<IExpr>();
         private HashSet<string>? _cteChecker;
 
+        /// <summary>
+        /// Initializes a visitor with an empty traversal path.
+        /// </summary>
         protected ExprVisitorBase()
         {
             this._proxy = new ExprVisitorProxy(this);
         }
 
+        /// <summary>
+        /// Gets the path from the traversal root through <see cref="CurrentNode"/>.
+        /// </summary>
+        /// <remarks>The collection is empty when no visitor callback is active.</remarks>
         public IReadOnlyList<IExpr> CurrentPath => this._currentPath;
 
+        /// <summary>
+        /// Gets the node whose visitor callback is currently executing, or <see langword="null"/> outside a callback.
+        /// </summary>
         public IExpr? CurrentNode => this._currentPath.Count > 0
             ? this._currentPath[this._currentPath.Count - 1]
             : null;
 
+        /// <summary>
+        /// Gets the zero-based depth of <see cref="CurrentNode"/>, or <c>-1</c> outside a visitor callback.
+        /// </summary>
         public int Depth => this._currentPath.Count - 1;
 
         void IExprVisitorNodeHandler.OnEnterNode(IExpr expr)
@@ -47,6 +90,11 @@ namespace SqExpress.SyntaxTreeOperations
             }
         }
 
+        /// <summary>
+        /// Visits an optional child expression.
+        /// </summary>
+        /// <param name="expr">The child to visit, or <see langword="null"/>.</param>
+        /// <remarks>Overrides can intercept, filter, or augment traversal shared by multiple node callbacks.</remarks>
         protected virtual void Accept(IExpr? expr)
         {
             if (expr != null)
@@ -55,6 +103,11 @@ namespace SqExpress.SyntaxTreeOperations
             }
         }
 
+        /// <summary>
+        /// Visits each expression in an optional child collection in list order.
+        /// </summary>
+        /// <param name="expressions">The children to visit, or <see langword="null"/>.</param>
+        /// <remarks>Overrides can intercept, filter, or augment traversal shared by multiple node callbacks.</remarks>
         protected virtual void Accept(IReadOnlyList<IExpr>? expressions)
         {
             if (expressions == null)
@@ -68,6 +121,11 @@ namespace SqExpress.SyntaxTreeOperations
             }
         }
 
+        /// <summary>
+        /// Visits a common-table-expression reference and, once per active CTE name, its defining query.
+        /// </summary>
+        /// <param name="expr">The CTE node.</param>
+        /// <remarks>The active-name guard prevents infinite recursion for recursive CTEs.</remarks>
         public virtual void VisitExprCteQuery(ExprCteQuery expr)
         {
             this.Accept(expr.Alias);
@@ -81,6 +139,10 @@ namespace SqExpress.SyntaxTreeOperations
             }
         }
 
+        /// <summary>
+        /// Visits a derived table's query, alias, and declared output columns.
+        /// </summary>
+        /// <param name="expr">The derived-table node.</param>
         public virtual void VisitExprDerivedTableQuery(ExprDerivedTableQuery expr)
         {
             this.Accept(expr.Query);

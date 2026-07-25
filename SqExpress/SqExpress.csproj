@@ -5,6 +5,11 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Keep IntelliSense documentation beside every assembly in lib/<TFM>. -->
+    <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.xml</AllowedOutputExtensionsInPackageBuildOutputFolder>
+    <!-- Generated traversal regions are intentionally excluded from the handwritten API documentation campaign. -->
+    <NoWarn>$(NoWarn);1591</NoWarn>
     <Authors>Dmitry Tikhonov</Authors>
     <Company />
     <Version>1.3.0-beta1</Version>
@@ -50,6 +55,18 @@ Here's an article that explains the library principles: ["Syntax Tree and Altern
     <None Include="..\Readme.md">
       <Pack>True</Pack>
       <PackagePath>README.md</PackagePath>
+    </None>
+    <None Include="..\llms.txt">
+      <Pack>True</Pack>
+      <PackagePath>llms.txt</PackagePath>
+    </None>
+    <None Include="..\Documentation\**\*.md">
+      <Pack>True</Pack>
+      <PackagePath>Documentation\%(RecursiveDir)%(Filename)%(Extension)</PackagePath>
+    </None>
+    <None Include="SqlParser\TSqlParserSupportedSubset.md">
+      <Pack>True</Pack>
+      <PackagePath>Documentation\TSqlParserSupportedSubset.md</PackagePath>
     </None>
     <None Include="..\sql-to-sqexpress.gif">
       <Pack>True</Pack>

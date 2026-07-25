@@ -21,6 +21,13 @@ using SqExpress.SyntaxTreeOperations.Internal;
 
 namespace SqExpress
 {
+    /// <summary>
+    /// Provides execution, export, binding, parameterization, and syntax-tree operations for SqExpress expressions.
+    /// </summary>
+    /// <remarks>
+    /// These extensions are the normal bridge from a completed syntax tree to an <see cref="ISqDatabase"/>, an
+    /// <see cref="ISqlExporter"/>, or a syntax-tree traversal operation.
+    /// </remarks>
     public static class ExprExtension
     {
         //Sync handler
@@ -57,6 +64,9 @@ namespace SqExpress
         public static Task Query(this IExprQueryFinal query, ISqDatabase database, Func<ISqDataRecordReader, Task> handler, CancellationToken cancellationToken = default) 
             => database.Query(query.Done(), handler, cancellationToken: cancellationToken);
 
+        /// <summary>
+        /// Executes a query and maps every returned record into a list.
+        /// </summary>
         public static Task<List<T>> QueryList<T>(this IExprQuery query, ISqDatabase database, Func<ISqDataRecordReader, T> factory, CancellationToken cancellationToken = default) 
             => database.QueryList(query, factory, cancellationToken: cancellationToken);
 
@@ -110,12 +120,22 @@ namespace SqExpress
             return new DataPage<T>(res.Key, offsetLiteral?.Value ?? 0, res.Value ?? 0);
         }
 
+        /// <summary>
+        /// Executes a query and returns the provider's scalar result from the first column of the first record.
+        /// </summary>
+        /// <remarks>
+        /// The underlying provider determines how SQL <c>NULL</c> is represented; it may return
+        /// <see cref="DBNull.Value"/> rather than a C# <see langword="null"/>.
+        /// </remarks>
         public static Task<object?> QueryScalar(this IExprQuery query, ISqDatabase database, CancellationToken cancellationToken = default)
             => database.QueryScalar(query, cancellationToken);
 
         public static Task<object?> QueryScalar(this IExprQueryFinal query, ISqDatabase database, CancellationToken cancellationToken = default)
             => database.QueryScalar(query.Done(), cancellationToken);
 
+        /// <summary>
+        /// Executes a completed non-query statement.
+        /// </summary>
         public static Task Exec(this IExprExec query, ISqDatabase database, CancellationToken cancellationToken = default)
             => database.Exec(query, cancellationToken);
 
@@ -125,6 +145,14 @@ namespace SqExpress
         public static Task Exec(this IUpdateDataBuilderFinal builder, ISqDatabase database, CancellationToken cancellationToken = default)
             => database.Exec(builder.Done(), cancellationToken);
 
+        /// <summary>
+        /// Exports an expression to SQL using the selected database dialect.
+        /// </summary>
+        /// <example>
+        /// <code>
+        /// var sql = SqQueryBuilder.SelectOne().Done().ToSql(TSqlExporter.Default);
+        /// </code>
+        /// </example>
         public static string ToSql(this IExpr expr, ISqlExporter exporter) 
             => exporter.ToSql(expr);
 
@@ -137,6 +165,13 @@ namespace SqExpress
         public static string ToSql(this IStatement expr, ISqlExporter exporter)
             => exporter.ToSql(expr);
 
+        /// <summary>
+        /// Resolves table and column references in an expression against the supplied table descriptors.
+        /// </summary>
+        /// <exception cref="SqExpressException">
+        /// Binding produced one or more errors. Use <see cref="TryBindTables{T}(T, IReadOnlyList{TableBase}, out T, out IReadOnlyList{TableBindingDiagnostic}, out IReadOnlyList{TableBindingDiagnostic})"/>
+        /// to receive diagnostics instead.
+        /// </exception>
         public static T BindTables<T>(this T expression, IReadOnlyList<TableBase> tables) where T : IExpr
             => BindTables(expression, tables, new TableBindingOptions(), out _);
 
@@ -160,6 +195,9 @@ namespace SqExpress
             return result;
         }
 
+        /// <summary>
+        /// Attempts to resolve table and column references while returning warnings and errors as diagnostics.
+        /// </summary>
         public static bool TryBindTables<T>(
             this T expression,
             IReadOnlyList<TableBase> tables,

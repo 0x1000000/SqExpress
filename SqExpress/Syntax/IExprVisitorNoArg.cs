@@ -13,6 +13,14 @@ using SqExpress.Syntax.Value;
 
 namespace SqExpress.Syntax
 {
+    /// <summary>
+    /// Defines a void-returning visitor callback for every SqExpress expression type.
+    /// </summary>
+    /// <remarks>
+    /// For most custom read-only traversals, derive from
+    /// <see cref="SyntaxTreeOperations.ExprVisitorBase"/> instead of implementing this complete interface.
+    /// The base class supplies recursive traversal and lets consumers override only relevant node types.
+    /// </remarks>
     public interface IExprVisitor
     {
         //CodeGenStart

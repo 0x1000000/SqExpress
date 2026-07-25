@@ -5,14 +5,20 @@ using SqExpress.Syntax.Value;
 
 namespace SqExpress.QueryBuilders.RecordSetter
 {
+    /// <summary>Maps fields from an application item to generated source-data columns.</summary>
     public delegate IRecordSetterNext DataMapping<in TTable, in TItem>(IDataMapSetter<TTable, TItem> setter);
 
+    /// <summary>Maps the source-item index to generated source-data columns.</summary>
     public delegate IRecordSetterNext IndexDataMapping(IIndexDataMapSetter setter);
 
+    /// <summary>Defines extra assignments applied to a target row.</summary>
     public delegate IExprAssignRecordSetterNext TargetUpdateMapping<in TTable>(ITargetUpdateSetter<TTable> setter);
 
+    /// <summary>Defines target columns and expressions for an insert-from-select operation.</summary>
     public delegate IExprRecordSetterNext TargetInsertSelectMapping<in TTable>(ITargetInsertSelectSetter<TTable> selectSetter);
 
+    /// <summary>Builds a typed record by assigning CLR values to table or custom columns.</summary>
+    /// <typeparam name="TNext">The fluent stage returned after an assignment.</typeparam>
     public interface IRecordSetter<out TNext>
     {
         TNext Set(BooleanTableColumn column, bool value);
@@ -67,43 +73,59 @@ namespace SqExpress.QueryBuilders.RecordSetter
         TNext Set(NullableGuidCustomColumn column, Guid? value);
         TNext Set(NullableStringCustomColumn column, string? value);
     }
+    /// <summary>Allows additional typed values to be appended to a record mapping.</summary>
     public interface IRecordSetterNext : IRecordSetter<IRecordSetterNext> { }
 
+    /// <summary>Extends typed record mapping with arbitrary SqExpress value expressions.</summary>
     public interface IExprRecordSetter<out TNext> : IRecordSetter<TNext>
     {
+        /// <summary>Assigns a SqExpress value expression to a column.</summary>
         TNext Set(ExprColumnName column, ExprValue value);
     }
+    /// <summary>Allows additional expression values to be appended to a record mapping.</summary>
     public interface IExprRecordSetterNext : IExprRecordSetter<IExprRecordSetterNext> { }
 
+    /// <summary>Provides the target table and assignment methods for an update mapping.</summary>
     public interface ITargetUpdateSetter<out TTable> : IExprAssignRecordSetter<IExprAssignRecordSetterNext>
     {
+        /// <summary>Gets the target table descriptor used by the mapping.</summary>
         TTable Target { get; }
     }
 
+    /// <summary>Provides the target table and assignment methods for an insert-from-select mapping.</summary>
     public interface ITargetInsertSelectSetter<out TTable> : IExprRecordSetter<IExprRecordSetterNext>
     {
+        /// <summary>Gets the target table descriptor used by the mapping.</summary>
         TTable Target { get; }
     }
 
+    /// <summary>Adds SQL <c>DEFAULT</c> assignment support to expression record mapping.</summary>
     public interface IExprAssignRecordSetter<out TNext> : IExprRecordSetter<IExprAssignRecordSetterNext>
     {
+        /// <summary>Assigns the SQL <c>DEFAULT</c> expression to a column.</summary>
         TNext SetDefault(ExprColumnName column);
     }
 
+    /// <summary>Allows additional expression or default assignments to be appended to a record mapping.</summary>
     public interface IExprAssignRecordSetterNext : IExprAssignRecordSetter<IExprAssignRecordSetterNext> { }
 
 
     //Data Setters
 
+    /// <summary>Provides the zero-based item index while mapping generated source data.</summary>
     public interface IIndexDataMapSetter : IRecordSetter<IRecordSetterNext>
     {
+        /// <summary>Gets the zero-based index of the current source item.</summary>
         int Index { get; }
     }
 
+    /// <summary>Provides the current source item, target descriptor, index, and typed mapping methods.</summary>
     public interface IDataMapSetter<out TTable, out TItem> : IIndexDataMapSetter
     {
+        /// <summary>Gets the target table descriptor used by the mapping.</summary>
         TTable Target { get; }
 
+        /// <summary>Gets the current application data item.</summary>
         TItem Source { get; }
     }
 }

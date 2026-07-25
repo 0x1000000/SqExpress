@@ -12,13 +12,37 @@ using SqExpress.Syntax.Update;
 
 namespace SqExpress.SqlParser
 {
+    /// <summary>
+    /// Parses the supported, fail-closed subset of T-SQL into SqExpress syntax-tree expressions.
+    /// </summary>
+    /// <remarks>
+    /// This parser intentionally is not a full SQL Server parser. Unsupported, ambiguous, and invalid input is
+    /// rejected instead of being interpreted best-effort. The supported surface is documented in the repository's
+    /// <c>SqExpress/SqlParser/TSqlParserSupportedSubset.md</c> file. When table descriptors are supplied, parsed table
+    /// references are validated against them.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var query = SqTSqlParser.Parse("SELECT 'Hi'", []).AsQuery();
+    /// var sql = query.ToSql(TSqlExporter.Default);
+    /// </code>
+    /// </example>
     public static class SqTSqlParser
     {
         private static readonly SqTSqlParserOptions DefaultOptions = new SqTSqlParserOptions();
 
+        /// <summary>
+        /// Parses one supported T-SQL statement and throws when parsing or optional table validation fails.
+        /// </summary>
         public static IExpr Parse(string sql, IReadOnlyList<TableBase>? existingTables = null)
             => Parse(sql, existingTables, options: null);
 
+        /// <summary>
+        /// Parses one supported T-SQL statement using explicit parser options.
+        /// </summary>
+        /// <exception cref="SqExpressTSqlParserException">
+        /// The text is invalid, unsupported, or cannot be resolved against the supplied table descriptors.
+        /// </exception>
         public static IExpr Parse(string sql, IReadOnlyList<TableBase>? existingTables, SqTSqlParserOptions? options)
         {
             if (TryParse(sql, existingTables, options, out IExpr? expr, out var error))
@@ -29,6 +53,9 @@ namespace SqExpress.SqlParser
             throw new SqExpressTSqlParserException(error ?? "Could not parse SQL.");
         }
 
+        /// <summary>
+        /// Attempts to parse one supported T-SQL statement without throwing for parse or validation failures.
+        /// </summary>
         public static bool TryParse(
             string sql,
             IReadOnlyList<TableBase>? existingTables,
@@ -36,6 +63,13 @@ namespace SqExpress.SqlParser
             [NotNullWhen(false)] out string? error)
             => TryParse(sql, existingTables, options: null, out result, out error);
 
+        /// <summary>
+        /// Attempts to parse one supported T-SQL statement with explicit parser options.
+        /// </summary>
+        /// <remarks>
+        /// On failure, <paramref name="result"/> is <see langword="null"/> and <paramref name="error"/>
+        /// contains the parser or binding diagnostic.
+        /// </remarks>
         public static bool TryParse(
             string sql,
             IReadOnlyList<TableBase>? existingTables,

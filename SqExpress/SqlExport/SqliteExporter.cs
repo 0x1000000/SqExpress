@@ -6,22 +6,30 @@ using SqExpress.Syntax;
 
 namespace SqExpress.SqlExport
 {
+    /// <summary>
+    /// Renders SqExpress expression trees and statements using SQLite syntax.
+    /// </summary>
     public class SqliteExporter : ISqlExporterInternal
     {
+        /// <summary>Gets an exporter using <see cref="SqlBuilderOptions.Default"/>.</summary>
         public static readonly SqliteExporter Default = new SqliteExporter(SqlBuilderOptions.Default);
 
         private readonly SqlBuilderOptions _builderOptions;
 
+        /// <summary>Creates a SQLite exporter.</summary>
+        /// <param name="builderOptions">Options controlling schema mapping and identifier quoting.</param>
         public SqliteExporter(SqlBuilderOptions builderOptions)
         {
             this._builderOptions = builderOptions;
         }
 
+        /// <inheritdoc/>
         public string ToSql(IExpr expr)
         {
             return ((ISqlExporterInternal)this).ToSql(expr, out _);
         }
 
+        /// <inheritdoc/>
         public string ToSql(IStatement statement)
         {
             var builder = new SqliteStatementBuilder(this._builderOptions, null);

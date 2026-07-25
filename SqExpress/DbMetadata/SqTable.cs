@@ -9,8 +9,41 @@ using SqExpress.Syntax.Value;
 
 namespace SqExpress.DbMetadata;
 
+/// <summary>
+/// Represents a table whose columns and indexes are described at runtime rather than by a handwritten
+/// <see cref="TableBase"/> subclass.
+/// </summary>
+/// <remarks>
+/// Use this type for discovered database metadata, schema comparison, or other dynamic table definitions.
+/// The builder callbacks receive factories bound to the new table, ensuring the resulting columns reference
+/// the correct table instance.
+/// </remarks>
+/// <example>
+/// <code>
+/// var users = SqTable.Create(
+///     schema: "dbo",
+///     name: "Users",
+///     columnsBuilder: c => new TableColumn[]
+///     {
+///         c.CreateInt32Column("Id", ColumnMeta.PrimaryKey()),
+///         c.CreateStringColumn("Name", size: 200)
+///     });
+///
+/// TableColumn id = users.GetColumn("Id");
+/// </code>
+/// </example>
 public sealed class SqTable : TableBase
 {
+    /// <summary>
+    /// Creates a runtime table definition with a database-qualified name.
+    /// </summary>
+    /// <param name="database">The database name.</param>
+    /// <param name="schema">The schema name.</param>
+    /// <param name="name">The table name.</param>
+    /// <param name="columnsBuilder">Builds the table's columns.</param>
+    /// <param name="indexBuilder">Optionally builds indexes after the columns have been created.</param>
+    /// <param name="alias">The table alias, or its default value to let SqExpress assign one as appropriate.</param>
+    /// <returns>The constructed runtime table definition.</returns>
     public static SqTable Create(
         string database,
         string schema,
@@ -24,6 +57,15 @@ public sealed class SqTable : TableBase
         return result;
     }
 
+    /// <summary>
+    /// Creates a runtime table definition without an explicit database name.
+    /// </summary>
+    /// <param name="schema">The schema name, or <see langword="null"/> when unqualified.</param>
+    /// <param name="name">The table name.</param>
+    /// <param name="columnsBuilder">Builds the table's columns.</param>
+    /// <param name="indexBuilder">Optionally builds indexes after the columns have been created.</param>
+    /// <param name="alias">The table alias, or its default value to let SqExpress assign one as appropriate.</param>
+    /// <returns>The constructed runtime table definition.</returns>
     public static SqTable Create(
         string? schema,
         string name,
@@ -42,6 +84,12 @@ public sealed class SqTable : TableBase
 
     private SqTable(IExprTableFullName fullName, ExprTableAlias? tableAlias) : base(fullName, tableAlias) { }
 
+    /// <summary>
+    /// Creates an independent runtime representation of an existing table descriptor.
+    /// </summary>
+    /// <param name="table">The table descriptor to copy, including its columns and indexes.</param>
+    /// <returns>A dynamic table whose members are rebound to the returned instance.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="table"/> is <see langword="null"/>.</exception>
     public static SqTable Create(TableBase table)
     {
         if (table == null)
@@ -73,11 +121,26 @@ public sealed class SqTable : TableBase
         return result;
     }
 
+    /// <summary>
+    /// Returns a copy with optionally replaced name, columns, or indexes.
+    /// </summary>
+    /// <param name="fullName">A replacement fully qualified name, or <see langword="null"/> to preserve it.</param>
+    /// <param name="columnsMapper">Transforms the current columns, or <see langword="null"/> to preserve them.</param>
+    /// <param name="tableIndexesMapper">Transforms the current indexes, or <see langword="null"/> to preserve them.</param>
+    /// <returns>A new runtime table definition.</returns>
     public SqTable With(IExprTableFullName? fullName = null, TableColumnsMapper? columnsMapper = null, TableIndexesMapper? tableIndexesMapper = null)
     {
         return this.With(this.Alias, fullName, columnsMapper, tableIndexesMapper);
     }
 
+    /// <summary>
+    /// Returns a copy with optionally replaced alias, name, columns, or indexes.
+    /// </summary>
+    /// <param name="alias">The alias for the returned table; <see langword="null"/> removes the alias.</param>
+    /// <param name="fullName">A replacement fully qualified name, or <see langword="null"/> to preserve it.</param>
+    /// <param name="columnsMapper">Transforms the current columns, or <see langword="null"/> to preserve them.</param>
+    /// <param name="tableIndexesMapper">Transforms the current indexes, or <see langword="null"/> to preserve them.</param>
+    /// <returns>A new runtime table definition whose columns reference the returned table.</returns>
     public SqTable With(ExprTableAlias? alias, IExprTableFullName? fullName = null, TableColumnsMapper? columnsMapper = null, TableIndexesMapper? tableIndexesMapper = null)
     {
         var result = new SqTable(fullName ?? this.FullName, alias);
@@ -88,6 +151,12 @@ public sealed class SqTable : TableBase
         return result;
     }
 
+    /// <summary>
+    /// Finds a column by database name using a case-insensitive comparison.
+    /// </summary>
+    /// <param name="name">The column name.</param>
+    /// <returns>The matching column.</returns>
+    /// <exception cref="SqExpressException">No column with the requested name exists.</exception>
     public TableColumn GetColumn(string name)
         => this.Columns.FirstOrDefault(c => string.Equals(
                 c.ColumnName.Name,

@@ -22,62 +22,97 @@ using SqExpress.SqlExport.Internal;
 
 namespace SqExpress.DataAccess
 {
+    /// <summary>Defines execution, transaction, and metadata operations for SqExpress syntax trees.</summary>
+    /// <remarks>
+    /// Implementations export expressions with their configured SQL dialect and parameterization policy. Query
+    /// record readers are valid only during the callback or asynchronous enumeration step in which they are supplied.
+    /// </remarks>
     public interface ISqDatabase : IDisposable
 #if !NETSTANDARD
         , IAsyncDisposable
 #endif
     {
+        /// <summary>Begins a new transaction using the provider's default isolation level.</summary>
         ISqTransaction BeginTransaction();
 
+        /// <summary>Begins a transaction or returns a proxy for the current transaction.</summary>
         ISqTransaction BeginTransactionOrUseExisting(out bool isNewTransaction);
 
+        /// <summary>Begins a new transaction with the requested isolation level.</summary>
         ISqTransaction BeginTransaction(IsolationLevel isolationLevel);
 
+        /// <summary>Begins a transaction with the requested isolation level or reuses the current transaction.</summary>
         ISqTransaction BeginTransactionOrUseExisting(IsolationLevel isolationLevel, out bool isNewTransaction);
 
+        /// <summary>Executes a query and synchronously folds its records into an accumulator.</summary>
         Task<TAgg> Query<TAgg>(IExprQuery query, TAgg seed, Func<TAgg, ISqDataRecordReader, TAgg> aggregator, CancellationToken cancellationToken = default);
 
+        /// <summary>Executes a query and asynchronously folds its records into an accumulator.</summary>
         Task<TAgg> Query<TAgg>(IExprQuery query, TAgg seed, Func<TAgg, ISqDataRecordReader, Task<TAgg>> aggregator, CancellationToken cancellationToken = default);
 
 #if !NETSTANDARD
+        /// <summary>Asynchronously begins a transaction or returns a proxy for the current transaction.</summary>
         ValueTask<(ISqTransaction transaction, bool isNewTransaction)> BeginTransactionOrUseExistingAsync();
 
+        /// <summary>Asynchronously begins or reuses a transaction with the requested isolation level.</summary>
         ValueTask<(ISqTransaction transaction, bool isNewTransaction)> BeginTransactionOrUseExistingAsync(IsolationLevel isolationLevel);
 
+        /// <summary>Asynchronously begins a new transaction using the provider default isolation level.</summary>
         ValueTask<ISqTransaction> BeginTransactionAsync();
 
+        /// <summary>Asynchronously begins a new transaction with the requested isolation level.</summary>
         ValueTask<ISqTransaction> BeginTransactionAsync(IsolationLevel isolationLevel);
 
+        /// <summary>Executes a query as an asynchronous stream of record readers.</summary>
         IAsyncEnumerable<ISqDataRecordReader> Query(IExprQuery query, CancellationToken cancellationToken = default);
 #endif
 
+        /// <summary>Executes a query and returns the provider scalar result from its first row and column.</summary>
+        /// <remarks>SQL null may be represented by <see cref="DBNull.Value"/>.</remarks>
         Task<object?> QueryScalar(IExprQuery query, CancellationToken cancellationToken = default);
 
+        /// <summary>Executes a non-query expression.</summary>
         Task Exec(IExprExec statement, CancellationToken cancellationToken = default);
 
+        /// <summary>Executes a general statement that may contain multiple commands.</summary>
         Task Statement(IStatement statement, CancellationToken cancellationToken = default);
 
+        /// <summary>Retrieves database table metadata and fails on unknown provider column types.</summary>
         Task<IReadOnlyList<SqTable>> GetTables(CancellationToken cancellationToken = default);
 
+        /// <summary>Retrieves database table metadata with optional skipping of unknown column types.</summary>
         Task<IReadOnlyList<SqTable>> GetTables(bool skipUnknownColumnTypes, CancellationToken cancellationToken = default);
     }
 
+    /// <summary>Represents a database transaction owned or proxied by an <see cref="ISqDatabase"/>.</summary>
+    /// <remarks>A reused transaction proxy does not commit or roll back the owning outer transaction.</remarks>
     public interface ISqTransaction : IDisposable
 #if !NETSTANDARD
         , IAsyncDisposable
 #endif
     {
+        /// <summary>Commits an owned transaction.</summary>
         void Commit();
 
+        /// <summary>Rolls back an owned transaction.</summary>
         void Rollback();
 
 #if !NETSTANDARD
+        /// <summary>Asynchronously commits an owned transaction.</summary>
         ValueTask CommitAsync();
 
+        /// <summary>Asynchronously rolls back an owned transaction.</summary>
         ValueTask RollbackAsync();
 #endif
     }
 
+    /// <summary>Default SqExpress database implementation over an ADO.NET connection.</summary>
+    /// <typeparam name="TConnection">The concrete provider connection type.</typeparam>
+    /// <remarks>
+    /// A closed connection is opened on demand and restored to its original closed state when the database is
+    /// disposed. A connection supplied already open remains open. Set <c>disposeConnection</c> when this instance
+    /// should also dispose the supplied connection.
+    /// </remarks>
     public class SqDatabase<TConnection> : ISqDatabase where TConnection : DbConnection
     {
         private readonly TConnection _connection;
@@ -98,6 +133,7 @@ namespace SqExpress.DataAccess
 
         private int _isDisposed;
 
+        /// <summary>Initializes database execution with a provider command factory, exporter, and parameterization mode.</summary>
         public SqDatabase(
             TConnection connection,
             Func<TConnection, string, DbCommand> commandFactory,
@@ -114,6 +150,7 @@ namespace SqExpress.DataAccess
         }
 
 
+        /// <summary>Initializes database execution without parameterization.</summary>
         [Obsolete("Specify parametrization mode")]
         public SqDatabase(
             TConnection connection, 

@@ -9,6 +9,26 @@ using SqExpress.Syntax.Select;
 
 namespace SqExpress
 {
+    /// <summary>Builds and navigates a graph of foreign-key relationships between table descriptors.</summary>
+    /// <remarks>
+    /// Table identity is the case-insensitive database/schema/table full name, not object identity. An edge points
+    /// from the table containing a foreign key to the referenced table. Self-references are retained but excluded
+    /// from navigation unless explicitly requested; cycles involving different tables are rejected at creation.
+    /// Join discovery uses inner joins and preserves the caller-supplied endpoint objects and aliases. Connector
+    /// tables use canonical descriptors copied with automatic aliases.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var graph = TablesGraph.Create(AllTables.BuildAllAliasedTableList());
+    ///
+    /// if (graph.TryToJoinTables(customer, company, out var source))
+    /// {
+    ///     var query = SqQueryBuilder.Select(customer.AllColumns())
+    ///         .From(source)
+    ///         .Done();
+    /// }
+    /// </code>
+    /// </example>
     public sealed class TablesGraph
     {
         private readonly IReadOnlyDictionary<string, TableBase> _tablesByKey;
@@ -25,6 +45,10 @@ namespace SqExpress
             this._referencedByTargetKey = referencedByTargetKey;
         }
 
+        /// <summary>Creates a graph from table descriptors and their foreign-key metadata.</summary>
+        /// <param name="tables">The complete set of canonical table descriptors participating in the graph.</param>
+        /// <returns>The validated relationship graph.</returns>
+        /// <exception cref="SqExpressException">The input contains a null table, duplicate full name, missing foreign-key target, or non-self cycle.</exception>
         public static TablesGraph Create(IReadOnlyList<TableBase> tables)
         {
             if (!TryCreate(tables, out var graph, out var error) || graph == null)
@@ -35,6 +59,12 @@ namespace SqExpress
             return graph;
         }
 
+        /// <summary>Attempts to create a graph while returning structural validation failures as text.</summary>
+        /// <param name="tables">The complete set of canonical table descriptors participating in the graph.</param>
+        /// <param name="graph">The created graph on success; otherwise <see langword="null"/>.</param>
+        /// <param name="error">The validation error on failure; otherwise <see langword="null"/>.</param>
+        /// <returns><see langword="true"/> when the graph is valid and was created.</returns>
+        /// <remarks>A null element in <paramref name="tables"/> is a programming error and throws <see cref="SqExpressException"/>.</remarks>
         public static bool TryCreate(
             IReadOnlyList<TableBase> tables,
             [NotNullWhen(true)]out TablesGraph? graph,
@@ -121,6 +151,8 @@ namespace SqExpress
             return true;
         }
 
+        /// <summary>Determines whether a table with the same full name belongs to this graph.</summary>
+        /// <returns><see langword="false"/> for null or unknown tables.</returns>
         public bool Contains(ExprTable table)
         {
             if (table == null)
@@ -131,6 +163,10 @@ namespace SqExpress
             return this._tablesByKey.ContainsKey(BuildTableKey(table.FullName));
         }
 
+        /// <summary>Resolves a table expression to the canonical descriptor stored in this graph.</summary>
+        /// <param name="table">A table whose full name identifies the graph entry.</param>
+        /// <param name="canonicalTable">The graph-owned descriptor on success; otherwise <see langword="null"/>.</param>
+        /// <returns><see langword="false"/> for null or unknown tables.</returns>
         public bool TryGetTable(ExprTable table, [NotNullWhen(true)] out TableBase? canonicalTable)
         {
             canonicalTable = null;
@@ -142,6 +178,11 @@ namespace SqExpress
             return this._tablesByKey.TryGetValue(BuildTableKey(table.FullName), out canonicalTable);
         }
 
+        /// <summary>Determines whether one table directly references another through foreign-key metadata.</summary>
+        /// <param name="table">The possible foreign-key source.</param>
+        /// <param name="referencedCandidateTable">The possible foreign-key target.</param>
+        /// <param name="includeSelfRef">Whether a self-referencing foreign key counts as a reference.</param>
+        /// <returns><see langword="false"/> when either table is null, unknown, or not directly related.</returns>
         public bool References(ExprTable table, ExprTable referencedCandidateTable, bool includeSelfRef = false)
         {
             if (table == null || referencedCandidateTable == null)
@@ -158,6 +199,10 @@ namespace SqExpress
             return this.GetReferences(canonical, includeSelfRef).Any(i => string.Equals(BuildTableKey(i.FullName), candidateKey, StringComparison.OrdinalIgnoreCase));
         }
 
+        /// <summary>Gets the canonical tables directly referenced by a table's foreign keys.</summary>
+        /// <param name="table">The foreign-key source table.</param>
+        /// <param name="includeSelfRef">Whether to include the table itself when it has a self-reference.</param>
+        /// <exception cref="ArgumentException">The table does not belong to this graph.</exception>
         public IReadOnlyList<TableBase> GetReferences(ExprTable table, bool includeSelfRef = false)
         {
             var canonical = this.ResolveTable(table);
@@ -170,6 +215,9 @@ namespace SqExpress
             return includeSelfRef ? references : FilterSelfReference(canonical, references);
         }
 
+        /// <summary>Traverses all canonical tables transitively referenced by a table.</summary>
+        /// <remarks>Each full table name is yielded at most once, in deterministic depth-first discovery order.</remarks>
+        /// <exception cref="ArgumentException">The table does not belong to this graph.</exception>
         public IEnumerable<TableBase> GetAllReferences(ExprTable table, bool includeSelfRef = false)
         {
             var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -179,6 +227,10 @@ namespace SqExpress
             }
         }
 
+        /// <summary>Gets canonical tables whose foreign keys directly reference the supplied table.</summary>
+        /// <param name="table">The referenced target table.</param>
+        /// <param name="includeSelfRef">Whether to include the table itself when it has a self-reference.</param>
+        /// <exception cref="ArgumentException">The table does not belong to this graph.</exception>
         public IReadOnlyList<TableBase> GetReferencedBy(ExprTable table, bool includeSelfRef = false)
         {
             var canonical = this.ResolveTable(table);
@@ -191,6 +243,9 @@ namespace SqExpress
             return includeSelfRef ? referencedBy : FilterSelfReference(canonical, referencedBy);
         }
 
+        /// <summary>Traverses all canonical tables that transitively depend on the supplied table.</summary>
+        /// <remarks>Each full table name is yielded at most once, in deterministic depth-first discovery order.</remarks>
+        /// <exception cref="ArgumentException">The table does not belong to this graph.</exception>
         public IEnumerable<TableBase> GetAllReferencedBy(ExprTable table, bool includeSelfRef = false)
         {
             var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -200,12 +255,16 @@ namespace SqExpress
             }
         }
 
+        /// <summary>Builds an inner-join source along the default shortest path between two tables.</summary>
+        /// <returns><see langword="false"/> for unknown, identical, or disconnected tables.</returns>
         public bool TryToJoinTables(
             ExprTable table1,
             ExprTable table2,
             [NotNullWhen(true)] out IExprTableSource? join)
             => this.TryToJoinTables(table1, table2, intermediateTables: null, out join, new TablesGraphJoinOptions());
 
+        /// <summary>Builds an inner-join source between two tables using explicit ambiguity options.</summary>
+        /// <exception cref="ArgumentException">The ambiguity options are invalid.</exception>
         public bool TryToJoinTables(
             ExprTable table1,
             ExprTable table2,
@@ -213,6 +272,8 @@ namespace SqExpress
             TablesGraphJoinOptions options)
             => this.TryToJoinTables(table1, table2, intermediateTables: null, out join, options);
 
+        /// <summary>Builds an inner-join source through an ordered list of mandatory intermediate tables.</summary>
+        /// <remarks>Each intermediate table is a checkpoint; every path segment uses the default shortest-path policy.</remarks>
         public bool TryToJoinTables(
             ExprTable table1,
             ExprTable table2,
@@ -220,6 +281,14 @@ namespace SqExpress
             [NotNullWhen(true)] out IExprTableSource? join)
             => this.TryToJoinTables(table1, table2, intermediateTables, out join, new TablesGraphJoinOptions());
 
+        /// <summary>Builds an inner-join source through ordered checkpoints using explicit ambiguity options.</summary>
+        /// <param name="table1">The first endpoint; its instance and alias are preserved.</param>
+        /// <param name="table2">The second endpoint; its instance and alias are preserved.</param>
+        /// <param name="intermediateTables">Ordered mandatory checkpoints between <paramref name="table1"/> and <paramref name="table2"/>.</param>
+        /// <param name="join">The joined table source on success; otherwise <see langword="null"/>.</param>
+        /// <param name="options">The policy used independently for ambiguity in each path segment.</param>
+        /// <returns><see langword="false"/> when an input is unknown, a segment is disconnected, or ambiguity policy selects failure.</returns>
+        /// <exception cref="ArgumentException">The ambiguity options are invalid.</exception>
         public bool TryToJoinTables(
             ExprTable table1,
             ExprTable table2,
@@ -263,11 +332,25 @@ namespace SqExpress
             return true;
         }
 
+        /// <summary>Builds one left-deep inner-join tree connecting multiple requested tables.</summary>
+        /// <remarks>
+        /// The first table is the root. Remaining tables are attached greedily by the nearest available path; this is
+        /// deterministic but is not guaranteed to be a globally minimal connector tree.
+        /// </remarks>
         public bool TryToJoinTables(
             IReadOnlyList<ExprTable> tables,
             [NotNullWhen(true)] out IExprTableSource? join)
             => this.TryToJoinTables(tables, new TablesGraphJoinOptions(), out join);
 
+        /// <summary>Builds one left-deep inner-join tree using explicit ambiguity options.</summary>
+        /// <param name="tables">Requested tables in root-first order. Their instances and aliases are preserved.</param>
+        /// <param name="options">The policy used when equal shortest paths are available.</param>
+        /// <param name="join">The joined table source on success; otherwise <see langword="null"/>.</param>
+        /// <returns>
+        /// <see langword="false"/> for null or empty input, duplicate full names, unknown or disconnected tables,
+        /// or ambiguity rejected by the selected policy. A single known table succeeds unchanged.
+        /// </returns>
+        /// <exception cref="ArgumentException">The ambiguity options are invalid.</exception>
         public bool TryToJoinTables(
             IReadOnlyList<ExprTable> tables,
             TablesGraphJoinOptions options,

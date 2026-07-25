@@ -8,6 +8,19 @@ using System.Runtime.CompilerServices;
 
 namespace SqExpress
 {
+    /// <summary>Represents either one expression value or a non-empty list used to replace a named parser parameter.</summary>
+    /// <remarks>
+    /// Single values may replace ordinary parameters. Lists are expanded only when the parameter is an item of an
+    /// <c>IN (...)</c> predicate; using a list elsewhere causes <see cref="SqExpressException"/>. CLR scalar and
+    /// collection conversions create the corresponding typed literal expressions.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var query = SqTSqlParser.Parse("SELECT * FROM dbo.Users WHERE Id IN (@ids)", tables)
+    ///     .WithParams(("ids", new[] { 1, 2, 3 }))
+    ///     .AsQuery();
+    /// </code>
+    /// </example>
 #if NET8_0_OR_GREATER
     [CollectionBuilder(typeof(ParamValueBuilder), nameof(ParamValueBuilder.Create))]
 #endif
@@ -22,16 +35,24 @@ namespace SqExpress
             this._list = list;
         }
 
+        /// <summary>Gets whether this instance contains multiple values.</summary>
         public bool IsList => this._list != null;
 
+        /// <summary>Gets the contained list.</summary>
+        /// <exception cref="SqExpressException">This instance does not represent a list.</exception>
         public IReadOnlyList<ExprValue> AsList => this._list ?? throw new SqExpressException("Not List");
 
+        /// <summary>Gets whether this instance contains exactly one value.</summary>
         public bool IsSingle => !ReferenceEquals(this._singleValue, null);
 
+        /// <summary>Gets the contained single value.</summary>
+        /// <exception cref="SqExpressException">This instance does not represent a single value.</exception>
         public ExprValue AsSingle => this._singleValue ?? throw new SqExpressException("Not Single");
 
+        /// <summary>Gets the number of contained expression values.</summary>
         public int Count => this._list?.Count ?? (this.IsSingle ? 1 : 0);
 
+        /// <summary>Gets a contained expression by zero-based index.</summary>
         public ExprValue this[int index]
         {
             get
@@ -50,6 +71,7 @@ namespace SqExpress
             }
         }
 
+        /// <summary>Wraps an existing expression as a single parameter value.</summary>
         public static implicit operator ParamValue(ExprValue value) => new ParamValue(value, null);
 
         public static implicit operator ParamValue(string? value) => new ParamValue(value, null);
@@ -173,6 +195,7 @@ namespace SqExpress
         }
 #endif
 
+        /// <summary>Enumerates the single value, list values, or no values for a default instance.</summary>
         public IEnumerator<ExprValue> GetEnumerator()
         {
             if (this._list != null)

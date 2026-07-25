@@ -1,0 +1,69 @@
+# SqExpress
+
+> SqExpress is a strongly typed C# SQL syntax-tree and query-building library. It builds SQL without LINQ translation or raw SQL strings and exports Microsoft SQL Server T-SQL, PostgreSQL, MariaDB/MySQL, and SQLite dialects.
+
+SqExpress supports query construction, data modification, table descriptors, lightweight ADO.NET execution, SQL parametrization, syntax-tree traversal and modification, serialization, database metadata comparison, foreign-key graph navigation, and a deliberately limited fail-closed T-SQL parser.
+
+## Start here
+
+- [README](README.md): installation, table descriptors, SELECT/INSERT/UPDATE/DELETE/MERGE, execution, dialect setup, metadata, parsing, and syntax-tree examples.
+- [XML API documentation for .NET 8](lib/net8.0/SqExpress.xml): machine-readable public API reference included in the NuGet package.
+- [XML API documentation for .NET Standard 2.0](lib/netstandard2.0/SqExpress.xml): machine-readable public API reference included in the NuGet package.
+
+## Focused documentation
+
+- Table descriptor generation:
+  - [Database-first generation](Documentation/database_first_table_generation.md): connect to Microsoft SQL Server, MySQL/MariaDB, or PostgreSQL and generate descriptors from database metadata.
+  - [Entity Framework generation](Documentation/ef_table_generation.md): generate descriptors from an EF Core SQL Server model during `dotnet build`. Setting `<SqEfTablesGenEnable>true</SqEfTablesGenEnable>` is sufficient to start with the defaults.
+- [AST reference](Documentation/ast_reference.md): generated hierarchy and members of the SqExpress expression tree.
+- [Table descriptor attributes](Documentation/table_description.md): source-generator attributes for declaring permanent and temporary tables.
+- [TablesGraph](Documentation/tables_graph.md): foreign-key navigation, path discovery, and automatic join construction.
+- [Supported T-SQL parser subset](Documentation/TSqlParserSupportedSubset.md): accepted grammar, validation rules, and intentional limitations.
+
+## Preferred public entry points
+
+- `SqQueryBuilder`: build SELECT statements, expressions, literals, functions, aliases, CTEs, and data-modification statements.
+- `SqQueryBuilderExtensions`: fluent conversion, export, execution, parametrization, traversal, and serialization helpers.
+- `TableBase`, `TempTableBase`, `CteBase`, and `DerivedTableBase`: typed table-source foundations.
+- `TableColumn` and its typed subclasses: typed database columns and result reading.
+- `CustomColumnFactory`: typed column references for dynamic or derived result shapes.
+- `ISqlExporter`, `TSqlExporter`, `PgSqlExporter`, `MySqlExporter`, and `SqliteExporter`: dialect-specific SQL rendering.
+- `ISqDatabase` and `SqDatabase<TConnection>`: lightweight ADO.NET execution.
+- `SqTSqlParser`: parse only the documented, fail-closed T-SQL subset.
+- `TablesGraph`: navigate table references and construct joins from foreign-key paths.
+- `SqTable`: create or transform table metadata at runtime.
+
+## Typical workflow
+
+1. Define typed tables by deriving from `TableBase`, using table-declaration attributes, generating them from a database, or generating them from an EF Core model.
+2. Build an expression or statement through `SqQueryBuilder` and its staged fluent interfaces.
+3. Export with the database-specific exporter, or execute through `ISqDatabase`.
+4. Use typed columns to read returned rows.
+
+## Guidance for AI agents
+
+- Prefer the public builders and typed table/column APIs over constructing low-level syntax nodes directly.
+- Follow staged builder interfaces: the return type documents which clauses are valid next.
+- Select the exporter matching the actual database. `MySqlExporter.MariaDbDefault` and `MySqlExporter.OracleDefault` are intentionally distinct.
+- Treat parser rejection as expected validation behavior. Never infer support beyond `Documentation/TSqlParserSupportedSubset.md`.
+- Use parameter APIs for external values; do not concatenate user input into SQL.
+- Preserve expression immutability. Traversal/modification helpers return or build expression trees rather than editing arbitrary SQL text.
+- For custom read-only AST traversal, derive from `SqExpress.SyntaxTreeOperations.ExprVisitorBase`. Override only relevant `Visit...` methods. Call the corresponding base method when traversal must continue into that node's children; omit it to prune that subtree.
+- Use `SqExpress.Syntax.IExprVisitor<TResult, TArg>` only when every dispatch must return a value or receive an explicit argument. SqExpress does not provide a generic `ExprVisitorBase<TResult, TArg>`.
+- Do not assume two table descriptor instances are identical by reference; metadata and graph APIs commonly use qualified table identity.
+- Consult the XML documentation for nullability, preconditions, builder transitions, and dialect-specific behavior before disassembling the assembly.
+
+## Package layout
+
+- `lib/<TFM>/SqExpress.dll`: compiled library.
+- `lib/<TFM>/SqExpress.xml`: IntelliSense and machine-readable public API documentation.
+- `Documentation/`: focused Markdown references.
+- `README.md`: primary guide and examples.
+- `llms.txt`: this agent-oriented index.
+- `analyzers/dotnet/cs/`: SqExpress analyzer assets.
+- `build/` and `tools/`: build integration and descriptor/model generation support.
+
+## Project
+
+- Repository: https://github.com/0x1000000/SqExpress
+- License: MIT

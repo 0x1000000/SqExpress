@@ -7,36 +7,43 @@ using SqExpress.Syntax.Value;
 
 namespace SqExpress.QueryBuilders.Insert
 {
+    /// <summary>Builds a regular insert from a query, value rows, or an existing values expression.</summary>
     public readonly struct InsertBuilder
     {
         private readonly ExprTable _table;
 
         private readonly IReadOnlyList<ExprColumnName> _columns;
 
+        /// <summary>Initializes an insert builder for a target table and ordered target-column list.</summary>
         public InsertBuilder(ExprTable table, IReadOnlyList<ExprColumnName> columns)
         {
             this._table = table;
             this._columns = columns;
         }
 
+        /// <summary>Completes an insert-from-query statement from a fluent query builder.</summary>
         public ExprInsert From(IExprQueryFinal query) => this.From(query.Done());
 
+        /// <summary>Completes an insert-from-query statement from an existing query expression.</summary>
         public ExprInsert From(IExprQuery query)
         {
             return new ExprInsert(this._table.FullName, this._columns, new ExprInsertQuery(query));
         }
 
+        /// <summary>Completes an insert using an existing values expression.</summary>
         public ExprInsert Values(ExprInsertValues values)
         {
             return new ExprInsert(this._table.FullName, this._columns, values);
         }
 
+        /// <summary>Completes a multi-row insert from a sequence of equally sized value rows.</summary>
         public ExprInsert Values(IEnumerable<IReadOnlyList<ExprValue>> values)
         {
             var rows = BuildInsertValues(values: values);
             return new ExprInsert(this._table.FullName, this._columns, new ExprInsertValues(rows));
         }
 
+        /// <summary>Starts a fluent multi-row values list with its first row.</summary>
         public ValuesBuilder Values(params ExprValue[] values)
         {
             return new ValuesBuilder(this, new List<ExprValue[]>()).Values(values);
@@ -75,6 +82,7 @@ namespace SqExpress.QueryBuilders.Insert
             return rows;
         }
 
+        /// <summary>Accumulates value rows for a regular insert.</summary>
         public readonly struct ValuesBuilder
         {
             private readonly InsertBuilder _insertBuilder;
@@ -86,12 +94,14 @@ namespace SqExpress.QueryBuilders.Insert
                 this._valuesAcc = valuesAcc;
             }
 
+            /// <summary>Appends another value row.</summary>
             public ValuesBuilder Values(params ExprValue[] values)
             {
                 this._valuesAcc.Add(values);
                 return this;
             }
 
+            /// <summary>Completes the insert after validating that all rows have equal width.</summary>
             public ExprInsert DoneWithValues()
             {
                 var rows = BuildInsertValues(this._valuesAcc);
@@ -100,32 +110,38 @@ namespace SqExpress.QueryBuilders.Insert
         }
     }
 
+    /// <summary>Builds an insert that explicitly supplies identity-column values.</summary>
     public readonly struct IdentityInsertBuilder
     {
         private readonly ExprTable _table;
 
         private readonly IReadOnlyList<ExprColumnName> _columns;
 
+        /// <summary>Initializes an identity insert for a target table and ordered target-column list.</summary>
         public IdentityInsertBuilder(ExprTable table, IReadOnlyList<ExprColumnName> columns)
         {
             this._table = table;
             this._columns = columns;
         }
 
+        /// <summary>Completes an identity insert from a fluent query builder.</summary>
         public ExprIdentityInsert From(IExprQueryFinal query) => this.From(query.Done());
 
+        /// <summary>Completes an identity insert from an existing query expression.</summary>
         public ExprIdentityInsert From(IExprQuery query)
         {
             var exprInsert = new ExprInsert(this._table.FullName, this._columns, new ExprInsertQuery(query));
             return new ExprIdentityInsert(exprInsert, this.IdentityColumns());
         }
 
+        /// <summary>Completes an identity insert using an existing values expression.</summary>
         public ExprIdentityInsert Values(ExprInsertValues values)
         {
             var exprInsert = new ExprInsert(this._table.FullName, this._columns, values);
             return new ExprIdentityInsert(exprInsert, this.IdentityColumns());
         }
 
+        /// <summary>Completes a multi-row identity insert from equally sized value rows.</summary>
         public ExprIdentityInsert Values(IEnumerable<IReadOnlyList<ExprValue>> values)
         {
             var rows = InsertBuilder.BuildInsertValues(values: values);
@@ -133,6 +149,7 @@ namespace SqExpress.QueryBuilders.Insert
             return new ExprIdentityInsert(exprInsert, this.IdentityColumns());
         }
 
+        /// <summary>Starts a fluent identity-insert values list with its first row.</summary>
         public ValuesBuilder Values(params ExprValue[] values)
         {
             return new ValuesBuilder(this, new List<ExprValue[]>()).Values(values);
@@ -156,6 +173,7 @@ namespace SqExpress.QueryBuilders.Insert
             return new ExprColumnName[0];
         }
 
+        /// <summary>Accumulates value rows for an identity insert.</summary>
         public readonly struct ValuesBuilder
         {
             private readonly IdentityInsertBuilder _insertBuilder;
@@ -167,12 +185,14 @@ namespace SqExpress.QueryBuilders.Insert
                 this._valuesAcc = valuesAcc;
             }
 
+            /// <summary>Appends another value row.</summary>
             public ValuesBuilder Values(params ExprValue[] values)
             {
                 this._valuesAcc.Add(values);
                 return this;
             }
 
+            /// <summary>Completes the identity insert after validating equal row width.</summary>
             public ExprIdentityInsert DoneWithValues()
             {
                 var rows = InsertBuilder.BuildInsertValues(this._valuesAcc);
