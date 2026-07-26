@@ -10,12 +10,16 @@ namespace SqExpress.SqlExport
     /// <summary>
     /// Renders SqExpress expression trees and statements using a selected MySQL-compatible dialect.
     /// </summary>
+    /// <remarks>
+    /// Portable functions and statements are translated to native or equivalent expressions for the selected
+    /// <see cref="MySqlFlavor"/> because MariaDB and Oracle MySQL differ for some DML and function syntax.
+    /// </remarks>
     public class MySqlExporter : ISqlExporterInternal
     {
-        /// <summary>Gets an exporter configured for MariaDB.</summary>
+        /// <summary>Gets a reusable exporter configured for MariaDB syntax and default builder options.</summary>
         public static readonly MySqlExporter MariaDbDefault = new MySqlExporter(MySqlExporterOptions.MariaDbDefault);
 
-        /// <summary>Gets an exporter configured for Oracle MySQL.</summary>
+        /// <summary>Gets a reusable exporter configured for Oracle MySQL syntax and default builder options.</summary>
         public static readonly MySqlExporter OracleDefault = new MySqlExporter(MySqlExporterOptions.OracleDefault);
 
         /// <summary>Gets the legacy default exporter, which targets MariaDB.</summary>

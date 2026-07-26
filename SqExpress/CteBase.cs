@@ -20,7 +20,9 @@ namespace SqExpress
         /// <summary>Gets the result columns registered by this CTE descriptor.</summary>
         public IReadOnlyList<ExprColumn> Columns => this._columns;
 
-        /// <summary>Initializes a named CTE descriptor with an optional alias.</summary>
+        /// <summary>Initializes a reusable CTE descriptor whose query and typed result columns are supplied by the derived class.</summary>
+        /// <param name="name">The CTE name emitted in the <c>WITH</c> clause.</param>
+        /// <param name="alias">The qualifier used for references to the CTE; by default the CTE name is used.</param>
         protected CteBase(string name, Alias alias = default) : base(name, BuildAlias(alias, name))
         {
         }
@@ -38,7 +40,9 @@ namespace SqExpress
             return this._query.Accept(visitor, arg);
         }
 
-        /// <summary>Creates and registers a non-nullable Boolean result column.</summary>
+        /// <summary>Registers an alias-qualified, non-nullable Boolean reference in the CTE result shape.</summary>
+        /// <param name="name">The output name produced by the CTE query.</param>
+        /// <returns>A typed column reference for use by consumers of the CTE.</returns>
         protected BooleanCustomColumn CreateBooleanColumn(string name)
         {
             var result = new BooleanCustomColumn(name, this.Alias);
@@ -46,7 +50,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a nullable Boolean result column.</summary>
+        /// <summary>Registers an alias-qualified, nullable Boolean reference in the CTE result shape.</summary>
+        /// <param name="name">The output name produced by the CTE query.</param>
+        /// <returns>A typed column reference for use by consumers of the CTE.</returns>
         protected NullableBooleanCustomColumn CreateNullableBooleanColumn(string name)
         {
             var result = new NullableBooleanCustomColumn(name, this.Alias);
@@ -54,7 +60,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a non-nullable byte result column.</summary>
+        /// <summary>Registers an alias-qualified, non-nullable byte reference in the CTE result shape.</summary>
+        /// <param name="name">The output name produced by the CTE query.</param>
+        /// <returns>A typed column reference for use by consumers of the CTE.</returns>
         protected ByteCustomColumn CreateByteColumn(string name)
         {
             var result = new ByteCustomColumn(name, this.Alias);
@@ -62,7 +70,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a nullable byte result column.</summary>
+        /// <summary>Registers an alias-qualified, nullable byte reference in the CTE result shape.</summary>
+        /// <param name="name">The output name produced by the CTE query.</param>
+        /// <returns>A typed column reference for use by consumers of the CTE.</returns>
         protected NullableByteCustomColumn CreateNullableByteColumn(string name)
         {
             var result = new NullableByteCustomColumn(name, this.Alias);
@@ -70,7 +80,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a non-nullable binary result column.</summary>
+        /// <summary>Registers an alias-qualified, non-nullable binary reference in the CTE result shape.</summary>
+        /// <param name="name">The output name produced by the CTE query.</param>
+        /// <returns>A typed column reference for use by consumers of the CTE.</returns>
         protected ByteArrayCustomColumn CreateByteArrayColumn(string name)
         {
             var result = new ByteArrayCustomColumn(name, this.Alias);
@@ -78,7 +90,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a nullable binary result column.</summary>
+        /// <summary>Registers an alias-qualified, nullable binary reference in the CTE result shape.</summary>
+        /// <param name="name">The output name produced by the CTE query.</param>
+        /// <returns>A typed column reference for use by consumers of the CTE.</returns>
         protected NullableByteArrayCustomColumn CreateNullableByteArrayColumn(string name)
         {
             var result = new NullableByteArrayCustomColumn(name, this.Alias);
@@ -86,7 +100,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a non-nullable 16-bit integer result column.</summary>
+        /// <summary>Registers an alias-qualified, non-nullable 16-bit integer reference in the CTE result shape.</summary>
+        /// <param name="name">The output name produced by the CTE query.</param>
+        /// <returns>A typed column reference for use by consumers of the CTE.</returns>
         protected Int16CustomColumn CreateInt16Column(string name)
         {
             var result = new Int16CustomColumn(name, this.Alias);
@@ -94,7 +110,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a nullable 16-bit integer result column.</summary>
+        /// <summary>Registers an alias-qualified, nullable 16-bit integer reference in the CTE result shape.</summary>
+        /// <param name="name">The output name produced by the CTE query.</param>
+        /// <returns>A typed column reference for use by consumers of the CTE.</returns>
         protected NullableInt16CustomColumn CreateNullableInt16Column(string name)
         {
             var result = new NullableInt16CustomColumn(name, this.Alias);
@@ -102,7 +120,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a non-nullable 32-bit integer result column.</summary>
+        /// <summary>Registers an alias-qualified, non-nullable 32-bit integer reference in the CTE result shape.</summary>
+        /// <param name="name">The output name produced by the CTE query.</param>
+        /// <returns>A typed column reference for use by consumers of the CTE.</returns>
         protected Int32CustomColumn CreateInt32Column(string name)
         {
             var result = new Int32CustomColumn(name, this.Alias);
@@ -110,7 +130,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a nullable 32-bit integer result column.</summary>
+        /// <summary>Registers an alias-qualified, nullable 32-bit integer reference in the CTE result shape.</summary>
+        /// <param name="name">The output name produced by the CTE query.</param>
+        /// <returns>A typed column reference for use by consumers of the CTE.</returns>
         protected NullableInt32CustomColumn CreateNullableInt32Column(string name)
         {
             var result = new NullableInt32CustomColumn(name, this.Alias);
@@ -118,7 +140,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a non-nullable 64-bit integer result column.</summary>
+        /// <summary>Registers an alias-qualified, non-nullable 64-bit integer reference in the CTE result shape.</summary>
+        /// <param name="name">The output name produced by the CTE query.</param>
+        /// <returns>A typed column reference for use by consumers of the CTE.</returns>
         protected Int64CustomColumn CreateInt64Column(string name)
         {
             var result = new Int64CustomColumn(name, this.Alias);
@@ -126,7 +150,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a nullable 64-bit integer result column.</summary>
+        /// <summary>Registers an alias-qualified, nullable 64-bit integer reference in the CTE result shape.</summary>
+        /// <param name="name">The output name produced by the CTE query.</param>
+        /// <returns>A typed column reference for use by consumers of the CTE.</returns>
         protected NullableInt64CustomColumn CreateNullableInt64Column(string name)
         {
             var result = new NullableInt64CustomColumn(name, this.Alias);
@@ -134,7 +160,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a non-nullable decimal result column.</summary>
+        /// <summary>Registers an alias-qualified, non-nullable decimal reference in the CTE result shape.</summary>
+        /// <param name="name">The output name produced by the CTE query.</param>
+        /// <returns>A typed column reference for use by consumers of the CTE.</returns>
         protected DecimalCustomColumn CreateDecimalColumn(string name)
         {
             var result = new DecimalCustomColumn(name, this.Alias);
@@ -142,7 +170,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a nullable decimal result column.</summary>
+        /// <summary>Registers an alias-qualified, nullable decimal reference in the CTE result shape.</summary>
+        /// <param name="name">The output name produced by the CTE query.</param>
+        /// <returns>A typed column reference for use by consumers of the CTE.</returns>
         protected NullableDecimalCustomColumn CreateNullableDecimalColumn(string name)
         {
             var result = new NullableDecimalCustomColumn(name, this.Alias);
@@ -150,7 +180,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a non-nullable double-precision result column.</summary>
+        /// <summary>Registers an alias-qualified, non-nullable double-precision reference in the CTE result shape.</summary>
+        /// <param name="name">The output name produced by the CTE query.</param>
+        /// <returns>A typed column reference for use by consumers of the CTE.</returns>
         protected DoubleCustomColumn CreateDoubleColumn(string name)
         {
             var result = new DoubleCustomColumn(name, this.Alias);
@@ -158,7 +190,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a nullable double-precision result column.</summary>
+        /// <summary>Registers an alias-qualified, nullable double-precision reference in the CTE result shape.</summary>
+        /// <param name="name">The output name produced by the CTE query.</param>
+        /// <returns>A typed column reference for use by consumers of the CTE.</returns>
         protected NullableDoubleCustomColumn CreateNullableDoubleColumn(string name)
         {
             var result = new NullableDoubleCustomColumn(name, this.Alias);
@@ -166,7 +200,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a non-nullable date/time result column.</summary>
+        /// <summary>Registers an alias-qualified, non-nullable date/time reference in the CTE result shape.</summary>
+        /// <param name="name">The output name produced by the CTE query.</param>
+        /// <returns>A typed column reference for use by consumers of the CTE.</returns>
         protected DateTimeCustomColumn CreateDateTimeColumn(string name)
         {
             var result = new DateTimeCustomColumn(name, this.Alias);
@@ -174,7 +210,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a nullable date/time result column.</summary>
+        /// <summary>Registers an alias-qualified, nullable date/time reference in the CTE result shape.</summary>
+        /// <param name="name">The output name produced by the CTE query.</param>
+        /// <returns>A typed column reference for use by consumers of the CTE.</returns>
         protected NullableDateTimeCustomColumn CreateNullableDateTimeColumn(string name)
         {
             var result = new NullableDateTimeCustomColumn(name, this.Alias);
@@ -182,7 +220,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a non-nullable date-time-offset result column.</summary>
+        /// <summary>Registers an alias-qualified, non-nullable date-time-offset reference in the CTE result shape.</summary>
+        /// <param name="name">The output name produced by the CTE query.</param>
+        /// <returns>A typed column reference for use by consumers of the CTE.</returns>
         protected DateTimeOffsetCustomColumn CreateDateTimeOffsetColumn(string name)
         {
             var result = new DateTimeOffsetCustomColumn(name, this.Alias);
@@ -190,7 +230,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a nullable date-time-offset result column.</summary>
+        /// <summary>Registers an alias-qualified, nullable date-time-offset reference in the CTE result shape.</summary>
+        /// <param name="name">The output name produced by the CTE query.</param>
+        /// <returns>A typed column reference for use by consumers of the CTE.</returns>
         protected NullableDateTimeOffsetCustomColumn CreateNullableDateTimeOffsetColumn(string name)
         {
             var result = new NullableDateTimeOffsetCustomColumn(name, this.Alias);
@@ -198,7 +240,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a non-nullable GUID result column.</summary>
+        /// <summary>Registers an alias-qualified, non-nullable GUID reference in the CTE result shape.</summary>
+        /// <param name="name">The output name produced by the CTE query.</param>
+        /// <returns>A typed column reference for use by consumers of the CTE.</returns>
         protected GuidCustomColumn CreateGuidColumn(string name)
         {
             var result = new GuidCustomColumn(name, this.Alias);
@@ -206,7 +250,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a nullable GUID result column.</summary>
+        /// <summary>Registers an alias-qualified, nullable GUID reference in the CTE result shape.</summary>
+        /// <param name="name">The output name produced by the CTE query.</param>
+        /// <returns>A typed column reference for use by consumers of the CTE.</returns>
         protected NullableGuidCustomColumn CreateNullableGuidColumn(string name)
         {
             var result = new NullableGuidCustomColumn(name, this.Alias);
@@ -214,7 +260,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a non-nullable string result column.</summary>
+        /// <summary>Registers an alias-qualified, non-nullable string reference in the CTE result shape.</summary>
+        /// <param name="name">The output name produced by the CTE query.</param>
+        /// <returns>A typed column reference for use by consumers of the CTE.</returns>
         protected StringCustomColumn CreateStringColumn(string name)
         {
             var result = new StringCustomColumn(name, this.Alias);

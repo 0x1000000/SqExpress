@@ -9,14 +9,18 @@ namespace SqExpress.SqlExport
     /// <summary>
     /// Renders SqExpress expression trees and statements using PostgreSQL syntax.
     /// </summary>
+    /// <remarks>
+    /// Portable functions, types, pagination, and DML are translated to PostgreSQL-native syntax or equivalent
+    /// expressions. Exporting creates SQL text only and does not execute a command.
+    /// </remarks>
     public class PgSqlExporter : ISqlExporterInternal
     {
-        /// <summary>Gets an exporter using <see cref="SqlBuilderOptions.Default"/>.</summary>
+        /// <summary>Gets a reusable PostgreSQL exporter with default quoting and schema behavior.</summary>
         public static readonly PgSqlExporter Default = new PgSqlExporter(SqlBuilderOptions.Default);
 
         private readonly SqlBuilderOptions _builderOptions;
 
-        /// <summary>Creates a PostgreSQL exporter.</summary>
+        /// <summary>Creates a PostgreSQL renderer with caller-selected identifier and schema handling.</summary>
         /// <param name="builderOptions">Options controlling schema mapping and identifier quoting.</param>
         public PgSqlExporter(SqlBuilderOptions builderOptions)
         {

@@ -52,7 +52,8 @@ namespace SqExpress
         /// <summary>Gets the number of contained expression values.</summary>
         public int Count => this._list?.Count ?? (this.IsSingle ? 1 : 0);
 
-        /// <summary>Gets a contained expression by zero-based index.</summary>
+        /// <summary>Gets a contained expression, treating a single value as a one-element read-only list.</summary>
+        /// <param name="index">The zero-based position; only zero is valid for a single-value instance.</param>
         public ExprValue this[int index]
         {
             get
@@ -71,7 +72,9 @@ namespace SqExpress
             }
         }
 
-        /// <summary>Wraps an existing expression as a single parameter value.</summary>
+        /// <summary>Uses an existing value AST node as the replacement for one named SQL parameter.</summary>
+        /// <param name="value">The expression inserted at each matching parameter location.</param>
+        /// <returns>A single-value parameter replacement.</returns>
         public static implicit operator ParamValue(ExprValue value) => new ParamValue(value, null);
 
         public static implicit operator ParamValue(string? value) => new ParamValue(value, null);
@@ -195,7 +198,8 @@ namespace SqExpress
         }
 #endif
 
-        /// <summary>Enumerates the single value, list values, or no values for a default instance.</summary>
+        /// <summary>Enumerates the single value, list values, or no values for a default instance without flattening nested SQL expressions.</summary>
+        /// <returns>An enumerator over the replacement value nodes.</returns>
         public IEnumerator<ExprValue> GetEnumerator()
         {
             if (this._list != null)

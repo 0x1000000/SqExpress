@@ -72,15 +72,20 @@ namespace SqExpress.QueryBuilders.Update
         public UpdateBuilderSetter Set(ExprColumn col, double value) => this.Set(col, SqQueryBuilder.Literal(value));
 
 
-        /// <summary>Adds a source table expression used by assignments, joins, or the row filter.</summary>
+        /// <summary>Adds the source used by update expressions and enables update-from joins.</summary>
+        /// <param name="source">The initial table, derived table, CTE, or joined source.</param>
+        /// <returns>The stage that accepts joins and a final row filter.</returns>
         public UpdateBuilderFinal From(IExprTableSource source) =>
             new UpdateBuilderFinal(this._target, this._sets, source);
 
-        /// <summary>Completes an update without a <c>WHERE</c> predicate, affecting all target rows.</summary>
+        /// <summary>Explicitly completes an unfiltered update that affects every target row.</summary>
+        /// <returns>The completed update syntax tree.</returns>
         public ExprUpdate All() => new ExprUpdate(this._target, this._sets, null, null);
 
         /// <summary>Completes an update with the supplied row predicate.</summary>
         /// <remarks>A <see langword="null"/> condition is equivalent to an unfiltered update.</remarks>
+        /// <param name="condition">The SQL predicate selecting target rows.</param>
+        /// <returns>The completed update syntax tree.</returns>
         public ExprUpdate Where(ExprBoolean? condition) 
             => new ExprUpdate(this._target, this._sets, null, condition);
     }

@@ -152,6 +152,7 @@ namespace SqExpress
         }
 
         /// <summary>Determines whether a table with the same full name belongs to this graph.</summary>
+        /// <param name="table">A table expression whose database/schema/table identity is checked; object identity and alias are ignored.</param>
         /// <returns><see langword="false"/> for null or unknown tables.</returns>
         public bool Contains(ExprTable table)
         {
@@ -202,6 +203,7 @@ namespace SqExpress
         /// <summary>Gets the canonical tables directly referenced by a table's foreign keys.</summary>
         /// <param name="table">The foreign-key source table.</param>
         /// <param name="includeSelfRef">Whether to include the table itself when it has a self-reference.</param>
+        /// <returns>The graph-owned target descriptors in deterministic metadata-discovery order.</returns>
         /// <exception cref="ArgumentException">The table does not belong to this graph.</exception>
         public IReadOnlyList<TableBase> GetReferences(ExprTable table, bool includeSelfRef = false)
         {
@@ -217,6 +219,9 @@ namespace SqExpress
 
         /// <summary>Traverses all canonical tables transitively referenced by a table.</summary>
         /// <remarks>Each full table name is yielded at most once, in deterministic depth-first discovery order.</remarks>
+        /// <param name="table">The foreign-key source at which traversal begins.</param>
+        /// <param name="includeSelfRef">Whether a direct self-reference may be yielded; it never causes recursive looping.</param>
+        /// <returns>A lazy traversal of graph-owned referenced-table descriptors.</returns>
         /// <exception cref="ArgumentException">The table does not belong to this graph.</exception>
         public IEnumerable<TableBase> GetAllReferences(ExprTable table, bool includeSelfRef = false)
         {
@@ -230,6 +235,7 @@ namespace SqExpress
         /// <summary>Gets canonical tables whose foreign keys directly reference the supplied table.</summary>
         /// <param name="table">The referenced target table.</param>
         /// <param name="includeSelfRef">Whether to include the table itself when it has a self-reference.</param>
+        /// <returns>The graph-owned dependent descriptors in deterministic metadata-discovery order.</returns>
         /// <exception cref="ArgumentException">The table does not belong to this graph.</exception>
         public IReadOnlyList<TableBase> GetReferencedBy(ExprTable table, bool includeSelfRef = false)
         {
@@ -245,6 +251,9 @@ namespace SqExpress
 
         /// <summary>Traverses all canonical tables that transitively depend on the supplied table.</summary>
         /// <remarks>Each full table name is yielded at most once, in deterministic depth-first discovery order.</remarks>
+        /// <param name="table">The referenced target at which reverse traversal begins.</param>
+        /// <param name="includeSelfRef">Whether a direct self-reference may be yielded; it never causes recursive looping.</param>
+        /// <returns>A lazy traversal of graph-owned dependent-table descriptors.</returns>
         /// <exception cref="ArgumentException">The table does not belong to this graph.</exception>
         public IEnumerable<TableBase> GetAllReferencedBy(ExprTable table, bool includeSelfRef = false)
         {
@@ -256,6 +265,9 @@ namespace SqExpress
         }
 
         /// <summary>Builds an inner-join source along the default shortest path between two tables.</summary>
+        /// <param name="table1">The first endpoint; its instance and alias are preserved.</param>
+        /// <param name="table2">The second endpoint; its instance and alias are preserved.</param>
+        /// <param name="join">Receives the left-deep join source on success; otherwise <see langword="null"/>.</param>
         /// <returns><see langword="false"/> for unknown, identical, or disconnected tables.</returns>
         public bool TryToJoinTables(
             ExprTable table1,
@@ -264,6 +276,11 @@ namespace SqExpress
             => this.TryToJoinTables(table1, table2, intermediateTables: null, out join, new TablesGraphJoinOptions());
 
         /// <summary>Builds an inner-join source between two tables using explicit ambiguity options.</summary>
+        /// <param name="table1">The first endpoint; its instance and alias are preserved.</param>
+        /// <param name="table2">The second endpoint; its instance and alias are preserved.</param>
+        /// <param name="join">Receives the left-deep join source on success; otherwise <see langword="null"/>.</param>
+        /// <param name="options">The policy applied when multiple equally short relationship paths exist.</param>
+        /// <returns><see langword="false"/> for unknown, identical, disconnected, or policy-rejected ambiguous endpoints.</returns>
         /// <exception cref="ArgumentException">The ambiguity options are invalid.</exception>
         public bool TryToJoinTables(
             ExprTable table1,
@@ -274,6 +291,11 @@ namespace SqExpress
 
         /// <summary>Builds an inner-join source through an ordered list of mandatory intermediate tables.</summary>
         /// <remarks>Each intermediate table is a checkpoint; every path segment uses the default shortest-path policy.</remarks>
+        /// <param name="table1">The first endpoint; its instance and alias are preserved.</param>
+        /// <param name="table2">The second endpoint; its instance and alias are preserved.</param>
+        /// <param name="intermediateTables">Ordered mandatory checkpoints, or <see langword="null"/> for a direct shortest-path search.</param>
+        /// <param name="join">Receives the left-deep join source on success; otherwise <see langword="null"/>.</param>
+        /// <returns><see langword="false"/> when any checkpoint is unknown/disconnected or the endpoints are invalid.</returns>
         public bool TryToJoinTables(
             ExprTable table1,
             ExprTable table2,
@@ -337,6 +359,9 @@ namespace SqExpress
         /// The first table is the root. Remaining tables are attached greedily by the nearest available path; this is
         /// deterministic but is not guaranteed to be a globally minimal connector tree.
         /// </remarks>
+        /// <param name="tables">Requested tables in root-first order; caller instances and aliases are preserved.</param>
+        /// <param name="join">Receives the connected join tree on success; otherwise <see langword="null"/>.</param>
+        /// <returns><see langword="false"/> for empty, duplicate, unknown, disconnected, or ambiguously connected input.</returns>
         public bool TryToJoinTables(
             IReadOnlyList<ExprTable> tables,
             [NotNullWhen(true)] out IExprTableSource? join)

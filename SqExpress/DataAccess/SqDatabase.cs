@@ -32,55 +32,98 @@ namespace SqExpress.DataAccess
         , IAsyncDisposable
 #endif
     {
-        /// <summary>Begins a new transaction using the provider's default isolation level.</summary>
+        /// <summary>Begins a new transaction using the provider's default isolation level and makes it current for subsequent commands.</summary>
+        /// <returns>An owned transaction that commits or rolls back this database's current transaction.</returns>
         ISqTransaction BeginTransaction();
 
-        /// <summary>Begins a transaction or returns a proxy for the current transaction.</summary>
+        /// <summary>Begins a transaction when none exists, otherwise returns a non-owning proxy for the current transaction.</summary>
+        /// <param name="isNewTransaction">Receives whether the returned transaction owns a newly started provider transaction.</param>
+        /// <returns>The owned transaction or a proxy whose commit/rollback does not finish the outer transaction.</returns>
         ISqTransaction BeginTransactionOrUseExisting(out bool isNewTransaction);
 
-        /// <summary>Begins a new transaction with the requested isolation level.</summary>
+        /// <summary>Begins a new current transaction at the requested provider isolation level.</summary>
+        /// <param name="isolationLevel">The ADO.NET isolation level passed to the provider.</param>
+        /// <returns>An owned database transaction.</returns>
         ISqTransaction BeginTransaction(IsolationLevel isolationLevel);
 
-        /// <summary>Begins a transaction with the requested isolation level or reuses the current transaction.</summary>
+        /// <summary>Begins a transaction at the requested isolation level or returns a proxy for an existing transaction.</summary>
+        /// <param name="isolationLevel">The isolation level used only when a new provider transaction is required.</param>
+        /// <param name="isNewTransaction">Receives whether a new provider transaction was started.</param>
+        /// <returns>An owned transaction or a non-owning proxy.</returns>
         ISqTransaction BeginTransactionOrUseExisting(IsolationLevel isolationLevel, out bool isNewTransaction);
 
-        /// <summary>Executes a query and synchronously folds its records into an accumulator.</summary>
+        /// <summary>Executes a query asynchronously while synchronously folding each returned row into an accumulator.</summary>
+        /// <typeparam name="TAgg">The accumulator/result type.</typeparam>
+        /// <param name="query">The completed query syntax tree.</param>
+        /// <param name="seed">The initial accumulator value.</param>
+        /// <param name="aggregator">Called for each row before the reader advances; returns the next accumulator.</param>
+        /// <param name="cancellationToken">Requests cancellation of command execution and reading.</param>
+        /// <returns>A task containing the final accumulator.</returns>
         Task<TAgg> Query<TAgg>(IExprQuery query, TAgg seed, Func<TAgg, ISqDataRecordReader, TAgg> aggregator, CancellationToken cancellationToken = default);
 
-        /// <summary>Executes a query and asynchronously folds its records into an accumulator.</summary>
+        /// <summary>Executes a query and awaits an asynchronous accumulator callback for each returned row.</summary>
+        /// <typeparam name="TAgg">The accumulator/result type.</typeparam>
+        /// <param name="query">The completed query syntax tree.</param>
+        /// <param name="seed">The initial accumulator value.</param>
+        /// <param name="aggregator">Asynchronously processes the current row and returns the next accumulator.</param>
+        /// <param name="cancellationToken">Requests cancellation of command execution and reading.</param>
+        /// <returns>A task containing the final accumulator after every callback completes.</returns>
         Task<TAgg> Query<TAgg>(IExprQuery query, TAgg seed, Func<TAgg, ISqDataRecordReader, Task<TAgg>> aggregator, CancellationToken cancellationToken = default);
 
 #if !NETSTANDARD
-        /// <summary>Asynchronously begins a transaction or returns a proxy for the current transaction.</summary>
+        /// <summary>Asynchronously begins a default-isolation transaction or returns a proxy for the current transaction.</summary>
+        /// <returns>The transaction and a flag indicating whether it owns a newly started provider transaction.</returns>
         ValueTask<(ISqTransaction transaction, bool isNewTransaction)> BeginTransactionOrUseExistingAsync();
 
-        /// <summary>Asynchronously begins or reuses a transaction with the requested isolation level.</summary>
+        /// <summary>Asynchronously begins or reuses a transaction, applying the isolation level only when starting one.</summary>
+        /// <param name="isolationLevel">The requested provider isolation level for a new transaction.</param>
+        /// <returns>The transaction and a flag indicating whether it is newly owned.</returns>
         ValueTask<(ISqTransaction transaction, bool isNewTransaction)> BeginTransactionOrUseExistingAsync(IsolationLevel isolationLevel);
 
-        /// <summary>Asynchronously begins a new transaction using the provider default isolation level.</summary>
+        /// <summary>Asynchronously begins a new current transaction using the provider default isolation level.</summary>
+        /// <returns>The owned transaction.</returns>
         ValueTask<ISqTransaction> BeginTransactionAsync();
 
-        /// <summary>Asynchronously begins a new transaction with the requested isolation level.</summary>
+        /// <summary>Asynchronously begins a new current transaction with the requested provider isolation level.</summary>
+        /// <param name="isolationLevel">The ADO.NET isolation level passed to the provider.</param>
+        /// <returns>The owned transaction.</returns>
         ValueTask<ISqTransaction> BeginTransactionAsync(IsolationLevel isolationLevel);
 
-        /// <summary>Executes a query as an asynchronous stream of record readers.</summary>
+        /// <summary>Executes a query as a lazy asynchronous stream whose reader is valid only for the current iteration.</summary>
+        /// <param name="query">The completed query syntax tree.</param>
+        /// <param name="cancellationToken">Requests cancellation of execution and enumeration.</param>
+        /// <returns>An asynchronous sequence of provider-backed row readers.</returns>
         IAsyncEnumerable<ISqDataRecordReader> Query(IExprQuery query, CancellationToken cancellationToken = default);
 #endif
 
         /// <summary>Executes a query and returns the provider scalar result from its first row and column.</summary>
         /// <remarks>SQL null may be represented by <see cref="DBNull.Value"/>.</remarks>
+        /// <param name="query">The completed query syntax tree.</param>
+        /// <param name="cancellationToken">Requests cancellation of command execution.</param>
+        /// <returns>A task containing the provider scalar result or its no-result/null representation.</returns>
         Task<object?> QueryScalar(IExprQuery query, CancellationToken cancellationToken = default);
 
-        /// <summary>Executes a non-query expression.</summary>
+        /// <summary>Exports and executes a non-query expression, discarding the provider affected-row count.</summary>
+        /// <param name="statement">The completed insert, update, delete, merge, or DDL expression.</param>
+        /// <param name="cancellationToken">Requests cancellation of command execution.</param>
+        /// <returns>A task that completes when execution finishes.</returns>
         Task Exec(IExprExec statement, CancellationToken cancellationToken = default);
 
-        /// <summary>Executes a general statement that may contain multiple commands.</summary>
+        /// <summary>Exports and executes a general or combined statement using the configured connection and transaction.</summary>
+        /// <param name="statement">The statement tree, potentially containing multiple commands.</param>
+        /// <param name="cancellationToken">Requests cancellation of command execution.</param>
+        /// <returns>A task that completes when every statement finishes.</returns>
         Task Statement(IStatement statement, CancellationToken cancellationToken = default);
 
-        /// <summary>Retrieves database table metadata and fails on unknown provider column types.</summary>
+        /// <summary>Reads provider catalog metadata into SqExpress table models and rejects unmapped database column types.</summary>
+        /// <param name="cancellationToken">Requests cancellation of metadata queries.</param>
+        /// <returns>A task containing the discovered database tables and columns.</returns>
         Task<IReadOnlyList<SqTable>> GetTables(CancellationToken cancellationToken = default);
 
-        /// <summary>Retrieves database table metadata with optional skipping of unknown column types.</summary>
+        /// <summary>Reads provider catalog metadata with caller-selected handling of database types SqExpress cannot map.</summary>
+        /// <param name="skipUnknownColumnTypes">Whether to omit unsupported columns instead of failing metadata discovery.</param>
+        /// <param name="cancellationToken">Requests cancellation of metadata queries.</param>
+        /// <returns>A task containing the discovered tables and all retained columns.</returns>
         Task<IReadOnlyList<SqTable>> GetTables(bool skipUnknownColumnTypes, CancellationToken cancellationToken = default);
     }
 
@@ -98,10 +141,12 @@ namespace SqExpress.DataAccess
         void Rollback();
 
 #if !NETSTANDARD
-        /// <summary>Asynchronously commits an owned transaction.</summary>
+        /// <summary>Asynchronously commits the provider transaction when this instance owns it; a reused proxy leaves the outer transaction active.</summary>
+        /// <returns>A value task that completes when the provider commit finishes.</returns>
         ValueTask CommitAsync();
 
-        /// <summary>Asynchronously rolls back an owned transaction.</summary>
+        /// <summary>Asynchronously rolls back the provider transaction when this instance owns it; a reused proxy leaves the outer transaction active.</summary>
+        /// <returns>A value task that completes when the provider rollback finishes.</returns>
         ValueTask RollbackAsync();
 #endif
     }
@@ -133,7 +178,12 @@ namespace SqExpress.DataAccess
 
         private int _isDisposed;
 
-        /// <summary>Initializes database execution with a provider command factory, exporter, and parameterization mode.</summary>
+        /// <summary>Configures SqExpress execution over an existing provider connection and a matching SQL dialect exporter.</summary>
+        /// <param name="connection">The provider connection used for commands and transactions; it is opened on demand when initially closed.</param>
+        /// <param name="commandFactory">Creates a provider command for this connection and generated SQL text.</param>
+        /// <param name="sqlExporter">Renders SqExpress syntax in the dialect accepted by the connection's database.</param>
+        /// <param name="parametrizationMode">Controls which literal values are replaced with provider command parameters.</param>
+        /// <param name="disposeConnection">Whether disposing this database wrapper also disposes the supplied connection.</param>
         public SqDatabase(
             TConnection connection,
             Func<TConnection, string, DbCommand> commandFactory,
@@ -150,7 +200,11 @@ namespace SqExpress.DataAccess
         }
 
 
-        /// <summary>Initializes database execution without parameterization.</summary>
+        /// <summary>Configures legacy non-parameterized execution; prefer the overload that requires an explicit parameterization mode.</summary>
+        /// <param name="connection">The provider connection used for commands and transactions.</param>
+        /// <param name="commandFactory">Creates a provider command for this connection and generated SQL text.</param>
+        /// <param name="sqlExporter">Renders syntax in the database's SQL dialect.</param>
+        /// <param name="disposeConnection">Whether disposing this wrapper also disposes the supplied connection.</param>
         [Obsolete("Specify parametrization mode")]
         public SqDatabase(
             TConnection connection, 

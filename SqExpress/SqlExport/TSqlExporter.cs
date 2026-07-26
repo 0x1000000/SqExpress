@@ -9,15 +9,19 @@ namespace SqExpress.SqlExport
     /// <summary>
     /// Renders SqExpress expression trees and statements using Microsoft SQL Server T-SQL syntax.
     /// </summary>
+    /// <remarks>
+    /// Portable SqExpress operations—including pagination, Boolean values, string/date functions, and DML—are
+    /// translated to SQL Server-native syntax or an equivalent T-SQL expression. No database command is executed.
+    /// </remarks>
     public class TSqlExporter : ISqlExporterInternal
     {
-        /// <summary>Gets an exporter using <see cref="SqlBuilderOptions.Default"/>.</summary>
+        /// <summary>Gets a reusable T-SQL exporter with default identifier quoting and no schema remapping.</summary>
         public static readonly TSqlExporter Default = new TSqlExporter(SqlBuilderOptions.Default);
 
         private readonly SqlBuilderOptions _builderOptions;
 
-        /// <summary>Creates a T-SQL exporter.</summary>
-        /// <param name="builderOptions">Options controlling schema mapping and identifier quoting.</param>
+        /// <summary>Creates a T-SQL renderer with caller-selected identifier and schema handling.</summary>
+        /// <param name="builderOptions">Options controlling schema mapping and whether identifiers are quoted.</param>
         public TSqlExporter(SqlBuilderOptions builderOptions)
         {
             this._builderOptions = builderOptions;

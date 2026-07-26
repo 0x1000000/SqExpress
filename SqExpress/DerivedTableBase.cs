@@ -20,7 +20,8 @@ namespace SqExpress
         /// <summary>Gets the result columns registered by this derived-table descriptor.</summary>
         public IReadOnlyList<ExprColumn> Columns => this._columns;
 
-        /// <summary>Initializes a derived-table descriptor with an explicit or automatically generated alias.</summary>
+        /// <summary>Initializes a reusable descriptor for a parenthesized subquery in a <c>FROM</c> or join clause.</summary>
+        /// <param name="alias">The required qualifier for projected columns; the default requests an automatically generated alias.</param>
         protected DerivedTableBase(Alias alias = default) : base(BuildAlias(alias))
         {
         }
@@ -35,7 +36,8 @@ namespace SqExpress
             return new ExprTableAlias(a);
         }
 
-        /// <summary>Creates the subquery represented by this derived-table descriptor.</summary>
+        /// <summary>Builds the subquery whose projection must correspond to the columns registered by the descriptor.</summary>
+        /// <returns>The completed subquery placed inside the derived-table expression.</returns>
         protected abstract IExprSubQuery CreateQuery();
 
         /// <inheritdoc/>
@@ -64,7 +66,9 @@ namespace SqExpress
             return otherColumn;
         }
 
-        /// <summary>Creates and registers a non-nullable Boolean result column.</summary>
+        /// <summary>Registers an alias-qualified, non-nullable Boolean reference in the derived table's projected shape.</summary>
+        /// <param name="name">The output name produced by <see cref="CreateQuery"/>.</param>
+        /// <returns>A typed column reference for queries consuming this derived table.</returns>
         protected BooleanCustomColumn CreateBooleanColumn(string name)
         {
             var result = new BooleanCustomColumn(name, this.Alias);
@@ -72,7 +76,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a nullable Boolean result column.</summary>
+        /// <summary>Registers an alias-qualified, nullable Boolean reference in the derived table's projected shape.</summary>
+        /// <param name="name">The output name produced by <see cref="CreateQuery"/>.</param>
+        /// <returns>A typed column reference for queries consuming this derived table.</returns>
         protected NullableBooleanCustomColumn CreateNullableBooleanColumn(string name)
         {
             var result = new NullableBooleanCustomColumn(name, this.Alias);
@@ -80,7 +86,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a non-nullable byte result column.</summary>
+        /// <summary>Registers an alias-qualified, non-nullable byte reference in the derived table's projected shape.</summary>
+        /// <param name="name">The output name produced by <see cref="CreateQuery"/>.</param>
+        /// <returns>A typed column reference for queries consuming this derived table.</returns>
         protected ByteCustomColumn CreateByteColumn(string name)
         {
             var result = new ByteCustomColumn(name, this.Alias);
@@ -88,7 +96,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a nullable byte result column.</summary>
+        /// <summary>Registers an alias-qualified, nullable byte reference in the derived table's projected shape.</summary>
+        /// <param name="name">The output name produced by <see cref="CreateQuery"/>.</param>
+        /// <returns>A typed column reference for queries consuming this derived table.</returns>
         protected NullableByteCustomColumn CreateNullableByteColumn(string name)
         {
             var result = new NullableByteCustomColumn(name, this.Alias);
@@ -96,7 +106,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a non-nullable binary result column.</summary>
+        /// <summary>Registers an alias-qualified, non-nullable binary reference in the derived table's projected shape.</summary>
+        /// <param name="name">The output name produced by <see cref="CreateQuery"/>.</param>
+        /// <returns>A typed column reference for queries consuming this derived table.</returns>
         protected ByteArrayCustomColumn CreateByteArrayColumn(string name)
         {
             var result = new ByteArrayCustomColumn(name, this.Alias);
@@ -104,7 +116,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a nullable binary result column.</summary>
+        /// <summary>Registers an alias-qualified, nullable binary reference in the derived table's projected shape.</summary>
+        /// <param name="name">The output name produced by <see cref="CreateQuery"/>.</param>
+        /// <returns>A typed column reference for queries consuming this derived table.</returns>
         protected NullableByteArrayCustomColumn CreateNullableByteArrayColumn(string name)
         {
             var result = new NullableByteArrayCustomColumn(name, this.Alias);
@@ -112,7 +126,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a non-nullable 16-bit integer result column.</summary>
+        /// <summary>Registers an alias-qualified, non-nullable 16-bit integer reference in the derived table's projected shape.</summary>
+        /// <param name="name">The output name produced by <see cref="CreateQuery"/>.</param>
+        /// <returns>A typed column reference for queries consuming this derived table.</returns>
         protected Int16CustomColumn CreateInt16Column(string name)
         {
             var result = new Int16CustomColumn(name, this.Alias);
@@ -120,7 +136,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a nullable 16-bit integer result column.</summary>
+        /// <summary>Registers an alias-qualified, nullable 16-bit integer reference in the derived table's projected shape.</summary>
+        /// <param name="name">The output name produced by <see cref="CreateQuery"/>.</param>
+        /// <returns>A typed column reference for queries consuming this derived table.</returns>
         protected NullableInt16CustomColumn CreateNullableInt16Column(string name)
         {
             var result = new NullableInt16CustomColumn(name, this.Alias);
@@ -128,7 +146,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a non-nullable 32-bit integer result column.</summary>
+        /// <summary>Registers an alias-qualified, non-nullable 32-bit integer reference in the derived table's projected shape.</summary>
+        /// <param name="name">The output name produced by <see cref="CreateQuery"/>.</param>
+        /// <returns>A typed column reference for queries consuming this derived table.</returns>
         protected Int32CustomColumn CreateInt32Column(string name)
         {
             var result = new Int32CustomColumn(name, this.Alias);
@@ -136,7 +156,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a nullable 32-bit integer result column.</summary>
+        /// <summary>Registers an alias-qualified, nullable 32-bit integer reference in the derived table's projected shape.</summary>
+        /// <param name="name">The output name produced by <see cref="CreateQuery"/>.</param>
+        /// <returns>A typed column reference for queries consuming this derived table.</returns>
         protected NullableInt32CustomColumn CreateNullableInt32Column(string name)
         {
             var result = new NullableInt32CustomColumn(name, this.Alias);
@@ -144,7 +166,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a non-nullable 64-bit integer result column.</summary>
+        /// <summary>Registers an alias-qualified, non-nullable 64-bit integer reference in the derived table's projected shape.</summary>
+        /// <param name="name">The output name produced by <see cref="CreateQuery"/>.</param>
+        /// <returns>A typed column reference for queries consuming this derived table.</returns>
         protected Int64CustomColumn CreateInt64Column(string name)
         {
             var result = new Int64CustomColumn(name, this.Alias);
@@ -152,7 +176,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a nullable 64-bit integer result column.</summary>
+        /// <summary>Registers an alias-qualified, nullable 64-bit integer reference in the derived table's projected shape.</summary>
+        /// <param name="name">The output name produced by <see cref="CreateQuery"/>.</param>
+        /// <returns>A typed column reference for queries consuming this derived table.</returns>
         protected NullableInt64CustomColumn CreateNullableInt64Column(string name)
         {
             var result = new NullableInt64CustomColumn(name, this.Alias);
@@ -160,7 +186,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a non-nullable decimal result column.</summary>
+        /// <summary>Registers an alias-qualified, non-nullable decimal reference in the derived table's projected shape.</summary>
+        /// <param name="name">The output name produced by <see cref="CreateQuery"/>.</param>
+        /// <returns>A typed column reference for queries consuming this derived table.</returns>
         protected DecimalCustomColumn CreateDecimalColumn(string name)
         {
             var result = new DecimalCustomColumn(name, this.Alias);
@@ -168,7 +196,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a nullable decimal result column.</summary>
+        /// <summary>Registers an alias-qualified, nullable decimal reference in the derived table's projected shape.</summary>
+        /// <param name="name">The output name produced by <see cref="CreateQuery"/>.</param>
+        /// <returns>A typed column reference for queries consuming this derived table.</returns>
         protected NullableDecimalCustomColumn CreateNullableDecimalColumn(string name)
         {
             var result = new NullableDecimalCustomColumn(name, this.Alias);
@@ -176,7 +206,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a non-nullable double-precision result column.</summary>
+        /// <summary>Registers an alias-qualified, non-nullable double-precision reference in the derived table's projected shape.</summary>
+        /// <param name="name">The output name produced by <see cref="CreateQuery"/>.</param>
+        /// <returns>A typed column reference for queries consuming this derived table.</returns>
         protected DoubleCustomColumn CreateDoubleColumn(string name)
         {
             var result = new DoubleCustomColumn(name, this.Alias);
@@ -184,7 +216,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a nullable double-precision result column.</summary>
+        /// <summary>Registers an alias-qualified, nullable double-precision reference in the derived table's projected shape.</summary>
+        /// <param name="name">The output name produced by <see cref="CreateQuery"/>.</param>
+        /// <returns>A typed column reference for queries consuming this derived table.</returns>
         protected NullableDoubleCustomColumn CreateNullableDoubleColumn(string name)
         {
             var result = new NullableDoubleCustomColumn(name, this.Alias);
@@ -192,7 +226,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a non-nullable date/time result column.</summary>
+        /// <summary>Registers an alias-qualified, non-nullable date/time reference in the derived table's projected shape.</summary>
+        /// <param name="name">The output name produced by <see cref="CreateQuery"/>.</param>
+        /// <returns>A typed column reference for queries consuming this derived table.</returns>
         protected DateTimeCustomColumn CreateDateTimeColumn(string name)
         {
             var result = new DateTimeCustomColumn(name, this.Alias);
@@ -200,7 +236,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a nullable date/time result column.</summary>
+        /// <summary>Registers an alias-qualified, nullable date/time reference in the derived table's projected shape.</summary>
+        /// <param name="name">The output name produced by <see cref="CreateQuery"/>.</param>
+        /// <returns>A typed column reference for queries consuming this derived table.</returns>
         protected NullableDateTimeCustomColumn CreateNullableDateTimeColumn(string name)
         {
             var result = new NullableDateTimeCustomColumn(name, this.Alias);
@@ -208,7 +246,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a non-nullable date-time-offset result column.</summary>
+        /// <summary>Registers an alias-qualified, non-nullable date-time-offset reference in the derived table's projected shape.</summary>
+        /// <param name="name">The output name produced by <see cref="CreateQuery"/>.</param>
+        /// <returns>A typed column reference for queries consuming this derived table.</returns>
         protected DateTimeOffsetCustomColumn CreateDateTimeOffsetColumn(string name)
         {
             var result = new DateTimeOffsetCustomColumn(name, this.Alias);
@@ -216,7 +256,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a nullable date-time-offset result column.</summary>
+        /// <summary>Registers an alias-qualified, nullable date-time-offset reference in the derived table's projected shape.</summary>
+        /// <param name="name">The output name produced by <see cref="CreateQuery"/>.</param>
+        /// <returns>A typed column reference for queries consuming this derived table.</returns>
         protected NullableDateTimeOffsetCustomColumn CreateNullableDateTimeOffsetColumn(string name)
         {
             var result = new NullableDateTimeOffsetCustomColumn(name, this.Alias);
@@ -224,7 +266,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a non-nullable GUID result column.</summary>
+        /// <summary>Registers an alias-qualified, non-nullable GUID reference in the derived table's projected shape.</summary>
+        /// <param name="name">The output name produced by <see cref="CreateQuery"/>.</param>
+        /// <returns>A typed column reference for queries consuming this derived table.</returns>
         protected GuidCustomColumn CreateGuidColumn(string name)
         {
             var result = new GuidCustomColumn(name, this.Alias);
@@ -232,7 +276,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a nullable GUID result column.</summary>
+        /// <summary>Registers an alias-qualified, nullable GUID reference in the derived table's projected shape.</summary>
+        /// <param name="name">The output name produced by <see cref="CreateQuery"/>.</param>
+        /// <returns>A typed column reference for queries consuming this derived table.</returns>
         protected NullableGuidCustomColumn CreateNullableGuidColumn(string name)
         {
             var result = new NullableGuidCustomColumn(name, this.Alias);
@@ -240,7 +286,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a non-nullable string result column.</summary>
+        /// <summary>Registers an alias-qualified, non-nullable string reference in the derived table's projected shape.</summary>
+        /// <param name="name">The output name produced by <see cref="CreateQuery"/>.</param>
+        /// <returns>A typed column reference for queries consuming this derived table.</returns>
         protected StringCustomColumn CreateStringColumn(string name)
         {
             var result = new StringCustomColumn(name, this.Alias);
@@ -248,7 +296,9 @@ namespace SqExpress
             return result;
         }
 
-        /// <summary>Creates and registers a nullable string result column.</summary>
+        /// <summary>Registers an alias-qualified, nullable string reference in the derived table's projected shape.</summary>
+        /// <param name="name">The output name produced by <see cref="CreateQuery"/>.</param>
+        /// <returns>A typed column reference for queries consuming this derived table.</returns>
         protected NullableStringCustomColumn CreateNullableStringColumn(string name)
         {
             var result = new NullableStringCustomColumn(name, this.Alias);

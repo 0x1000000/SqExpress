@@ -3,28 +3,44 @@
     /// <summary>Combines query specifications or existing query expressions with SQL set operators.</summary>
     public interface IQueryExpressionBuilder
     {
-        /// <summary>Appends a query specification with <c>UNION ALL</c>.</summary>
+        /// <summary>Appends all rows from another query specification without duplicate elimination.</summary>
+        /// <param name="expressionBuilder">The right operand; its projection must be union-compatible with the left operand.</param>
+        /// <returns>The combined-query stage.</returns>
         IQueryExpressionBuilderFinal UnionAll(IQuerySpecificationBuilderFinal expressionBuilder);
 
-        /// <summary>Appends a query specification with duplicate-eliminating <c>UNION</c>.</summary>
+        /// <summary>Appends rows from another query specification and asks the database to eliminate duplicates.</summary>
+        /// <param name="expressionBuilder">The union-compatible right operand.</param>
+        /// <returns>The combined-query stage.</returns>
         IQueryExpressionBuilderFinal Union(IQuerySpecificationBuilderFinal expressionBuilder);
 
-        /// <summary>Subtracts a query specification with <c>EXCEPT</c>.</summary>
+        /// <summary>Returns left-side rows that do not occur in the supplied query specification.</summary>
+        /// <param name="expressionBuilder">The set-compatible right operand.</param>
+        /// <returns>The combined-query stage.</returns>
         IQueryExpressionBuilderFinal Except(IQuerySpecificationBuilderFinal expressionBuilder);
 
-        /// <summary>Intersects with a query specification.</summary>
+        /// <summary>Returns rows common to the existing expression and the supplied query specification.</summary>
+        /// <param name="expressionBuilder">The set-compatible right operand.</param>
+        /// <returns>The combined-query stage.</returns>
         IQueryExpressionBuilderFinal Intersect(IQuerySpecificationBuilderFinal expressionBuilder);
 
-        /// <summary>Appends a combined query expression with <c>UNION ALL</c>.</summary>
+        /// <summary>Appends all rows from an existing set-operation expression without duplicate elimination.</summary>
+        /// <param name="expressionBuilder">The union-compatible right expression.</param>
+        /// <returns>The combined-query stage.</returns>
         IQueryExpressionBuilderFinal UnionAll(IQueryExpressionBuilderFinal expressionBuilder);
 
-        /// <summary>Appends a combined query expression with duplicate-eliminating <c>UNION</c>.</summary>
+        /// <summary>Appends an existing set-operation expression and eliminates duplicate rows.</summary>
+        /// <param name="expressionBuilder">The union-compatible right expression.</param>
+        /// <returns>The combined-query stage.</returns>
         IQueryExpressionBuilderFinal Union(IQueryExpressionBuilderFinal expressionBuilder);
 
-        /// <summary>Subtracts a combined query expression with <c>EXCEPT</c>.</summary>
+        /// <summary>Returns left-side rows absent from the supplied set-operation expression.</summary>
+        /// <param name="expressionBuilder">The set-compatible right expression.</param>
+        /// <returns>The combined-query stage.</returns>
         IQueryExpressionBuilderFinal Except(IQueryExpressionBuilderFinal expressionBuilder);
 
-        /// <summary>Intersects with a combined query expression.</summary>
+        /// <summary>Returns rows common to both set-operation expressions.</summary>
+        /// <param name="expressionBuilder">The set-compatible right expression.</param>
+        /// <returns>The combined-query stage.</returns>
         IQueryExpressionBuilderFinal Intersect(IQueryExpressionBuilderFinal expressionBuilder);
     }
 }

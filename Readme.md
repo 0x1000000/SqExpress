@@ -7,11 +7,11 @@ The library provides a generic SQL syntax tree with export to MS T-SQL, PostgreS
 
 It does not use LINQ, and your C# code will be as close to real SQL as possible. This makes it ideal when you need full SQL flexibility to create efficient DB requests.
 
-SqExpress comes with a simple but efficient data access mechanism that wraps ADO.Net DbConnection and can be used with MS SQL Client, Npgsql, MySQL Connector, or `Microsoft.Data.Sqlite`.
+SqExpress comes with a simple but efficient data access mechanism that wraps ADO.Net DbConnection and can be used with MS SQL Client, Npgsql, MySQL Connector, or Sqlite.
 
-You can use SqExpress together with the "Code First" concept when you declare SQL tables as C# classes with the possibility to generate recreation scripts for a target platform (MS SQL or PostgreSQL or MySQL or SQLite).
+You can use SqExpress with a code-first approach by declaring SQL tables as C# classes and generating table-creation scripts for Microsoft SQL Server, PostgreSQL, MySQL, or SQLite. If your database structure is already defined by an Entity Framework Core SQL Server model, SqExpress can automatically generate the corresponding Table Descriptors during the project build.
 
-You can also use it in conjunction with the "Database First" concept using an included code modification utility. The utility can also be used to generate flexible DTO classes with all required database mappings.
+You can also use SqExpress with a database-first approach. Table Descriptors can be created or adjusted to reflect your database structure and then used to generate table-creation scripts. The included code generators can also produce flexible DTOs from these descriptors, together with all required database mappings.
 
 SqExpress is also a strong fit when SQL is produced dynamically, including by AI agents. Because SQL can be parsed into the SqExpress AST, validated against an allowed table model, traversed, rewritten with additional security predicates, and exported back to SQL, SqExpress can act as a fail-closed safety layer for AI-generated T-SQL within the supported parser surface.
 
@@ -1786,7 +1786,7 @@ This an example of the XML text:
 
 ## Serialization to JSON
 
-The similar functionality exists for JSON (.Net Core 3.1+)
+The similar functionality exists for JSON (not available under .NET Standard)
 
 ```cs
 var tableUser = new TableUser(Alias.Empty);
@@ -2123,7 +2123,7 @@ The returned value is a table source, not a complete `SELECT`, so it can be inse
 
 ## Table Descriptors Scaffolding
 
-**SqExpress** comes with the code-gen utility (it is located in the NuGet package cache). It can read metadata from a database and create table descriptor classes in your code. It requires .NET Core 3.1+
+**SqExpress** comes with the code-gen utility (it is located in the NuGet package cache). It can create table descriptor classes from a live database or an Entity Framework Core model. Code generation is not available under .NET Standard.
 
 For full `Gen-Tables`, EF mode, generated table attributes, and MSBuild project property documentation, see [Table Generation Reference](Documentation/table_generation.md).
 

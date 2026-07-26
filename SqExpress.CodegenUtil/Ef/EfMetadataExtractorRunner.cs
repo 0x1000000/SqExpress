@@ -56,7 +56,7 @@ namespace SqExpress.CodeGenUtil.Ef
                 $"--target-assembly {ProcessRunner.Quote(assemblyName)} " +
                 (string.IsNullOrWhiteSpace(dbContextTypeName) ? "" : $" --db-context {ProcessRunner.Quote(dbContextTypeName!)}");
 
-            var runExitCode = ProcessRunner.Run("dotnet", args, extractorDirectory, out var metadataJson, out var runError);
+            var runExitCode = ProcessRunner.Run("dotnet", args, projectDirectory, out var metadataJson, out var runError);
             if (runExitCode != 0)
             {
                 throw new SqExpressCodeGenException(
@@ -408,13 +408,21 @@ static bool IsDesignTimeFactoryInterface(Type type)
 
 static object CreateFromDesignTimeFactory(Type factoryType)
 {
-    var factory = Activator.CreateInstance(factoryType)
-                  ?? throw new ExtractorException(""Could not create EF design-time factory \"""" + factoryType.FullName + ""\""."");
-    var factoryInterface = factoryType.GetInterfaces().Single(IsDesignTimeFactoryInterface);
-    var method = factoryInterface.GetMethod(""CreateDbContext"")
-                 ?? throw new ExtractorException(""Could not find CreateDbContext on \"""" + factoryType.FullName + ""\""."");
-    return method.Invoke(factory, new object[] { Array.Empty<string>() })
-           ?? throw new ExtractorException(""Factory \"""" + factoryType.FullName + ""\"" did not return a DbContext."");
+    try
+    {
+        var factory = Activator.CreateInstance(factoryType)
+                      ?? throw new ExtractorException(""Could not create EF design-time factory \"""" + factoryType.FullName + ""\""."");
+        var factoryInterface = factoryType.GetInterfaces().Single(IsDesignTimeFactoryInterface);
+        var method = factoryInterface.GetMethod(""CreateDbContext"")
+                     ?? throw new ExtractorException(""Could not find CreateDbContext on \"""" + factoryType.FullName + ""\""."");
+        return method.Invoke(factory, new object[] { Array.Empty<string>() })
+               ?? throw new ExtractorException(""Factory \"""" + factoryType.FullName + ""\"" did not return a DbContext."");
+    }
+    catch (TargetInvocationException e) when (e.InnerException != null)
+    {
+        throw new ExtractorException(
+            ""EF design-time factory \"""" + factoryType.FullName + ""\"" failed: "" + e.InnerException.Message);
+    }
 }
 
 static bool IsDbContextType(Type type)

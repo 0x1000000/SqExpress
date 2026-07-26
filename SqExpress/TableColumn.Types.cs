@@ -9,7 +9,7 @@ using SqExpress.Syntax.Value;
 
 namespace SqExpress
 {
-    /// <summary>Represents a non-nullable Boolean table column.</summary>
+    /// <summary>Models a required Boolean descriptor column with typed SQL predicates and non-null CLR result reading.</summary>
     public class BooleanTableColumn : TableColumn
     {
         internal BooleanTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Boolean, false, columnMeta) { }
@@ -61,7 +61,7 @@ namespace SqExpress
         public BooleanCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new BooleanCustomColumn(this.ColumnName, derivedTable.Alias));
     }
 
-    /// <summary>Represents a nullable Boolean table column.</summary>
+    /// <summary>Models an optional Boolean descriptor column whose typed readers preserve database null.</summary>
     public class NullableBooleanTableColumn : TableColumn
     {
         internal NullableBooleanTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Boolean, true, columnMeta) { }
@@ -105,7 +105,7 @@ namespace SqExpress
         public NullableBooleanCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableBooleanCustomColumn(this.ColumnName, derivedTable.Alias));
     }
 
-    /// <summary>Represents a non-nullable byte table column.</summary>
+    /// <summary>Models a required unsigned-byte descriptor column with typed numeric expressions and CLR reading.</summary>
     public class ByteTableColumn : TableColumn
     {
         internal ByteTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Byte, false, columnMeta) { }
@@ -157,7 +157,7 @@ namespace SqExpress
         public ByteCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new ByteCustomColumn(this.ColumnName, derivedTable.Alias));
     }
 
-    /// <summary>Represents a nullable byte table column.</summary>
+    /// <summary>Models an optional unsigned-byte descriptor column whose typed readers preserve database null.</summary>
     public class NullableByteTableColumn : TableColumn
     {
         internal NullableByteTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Byte, true, columnMeta) { }
@@ -201,7 +201,7 @@ namespace SqExpress
         public NullableByteCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableByteCustomColumn(this.ColumnName, derivedTable.Alias));
     }
 
-    /// <summary>Represents a non-nullable binary table column.</summary>
+    /// <summary>Models a required binary descriptor column with byte-array and streaming result access.</summary>
     public class ByteArrayTableColumn : TableColumn
     {
         internal ByteArrayTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ExprTypeByteArrayBase typeByteArray, ColumnMeta? columnMeta) : base(source, columnName, table, typeByteArray, false, columnMeta)
@@ -227,10 +227,14 @@ namespace SqExpress
         public byte[]? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
             => !recordReader.IsDBNull(ordinal) ? (byte[])recordReader.GetValue(ordinal) : null;
 
-        /// <summary>Opens the column value as a non-null stream using this column's name.</summary>
+        /// <summary>Opens the current binary field as a provider stream without buffering it into a byte array.</summary>
+        /// <param name="recordReader">The current result row; lookup uses this column's database name.</param>
+        /// <returns>The provider-owned stream for the non-null field.</returns>
         public Stream GetStream(ISqDataRecordReader recordReader) => recordReader.GetStream(this.ColumnName.Name);
 
-        /// <summary>Opens the column value as a stream, returning null for a database null.</summary>
+        /// <summary>Opens the current binary field as a provider stream, preserving database null.</summary>
+        /// <param name="recordReader">The current result row; lookup uses this column's database name.</param>
+        /// <returns>The provider-owned stream, or <see langword="null"/> when the field is SQL <c>NULL</c>.</returns>
         public Stream? ReadNullableStream(ISqDataRecordReader recordReader) => recordReader.GetNullableStream(this.ColumnName.Name);
 
         public new ByteArrayTableColumn WithSource(IExprColumnSource? source) => new ByteArrayTableColumn(source, this.ColumnName, this.Table, this.SqlType, this.ColumnMeta);
@@ -275,7 +279,7 @@ namespace SqExpress
         public ByteArrayCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new ByteArrayCustomColumn(this.ColumnName, derivedTable.Alias, this.SqlType));
     }
 
-    /// <summary>Represents a nullable binary table column.</summary>
+    /// <summary>Models an optional binary descriptor column with null-aware byte-array and streaming access.</summary>
     public class NullableByteArrayTableColumn : TableColumn
     {
         internal NullableByteArrayTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ExprTypeByteArrayBase typeByteArray, ColumnMeta? columnMeta) : base(source, columnName, table, typeByteArray, true, columnMeta)
@@ -295,7 +299,9 @@ namespace SqExpress
         public byte[]? Read(ISqDataRecordReader recordReader, int ordinal)
             => !recordReader.IsDBNull(ordinal) ? (byte[])recordReader.GetValue(ordinal) : null;
 
-        /// <summary>Opens the column value as a stream using this column's name.</summary>
+        /// <summary>Opens the nullable binary field as a provider stream using this column's database name.</summary>
+        /// <param name="recordReader">The current result row.</param>
+        /// <returns>The provider stream for the field; provider behavior determines how SQL <c>NULL</c> is exposed by this method.</returns>
         public Stream? GetStream(ISqDataRecordReader recordReader) => recordReader.GetStream(this.ColumnName.Name);
 
         public new NullableByteArrayTableColumn WithSource(IExprColumnSource? source) => new NullableByteArrayTableColumn(source, this.ColumnName, this.Table, this.SqlType, this.ColumnMeta);
@@ -340,7 +346,7 @@ namespace SqExpress
         public NullableByteArrayCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableByteArrayCustomColumn(this.ColumnName, derivedTable.Alias, this.SqlType));
     }
 
-    /// <summary>Represents a non-nullable 16-bit integer table column.</summary>
+    /// <summary>Models a required 16-bit integer descriptor column with typed arithmetic, comparison, and CLR reads.</summary>
     public class Int16TableColumn : TableColumn
     {
         internal Int16TableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Int16, false, columnMeta) { }
@@ -392,7 +398,7 @@ namespace SqExpress
         public Int16CustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new Int16CustomColumn(this.ColumnName, derivedTable.Alias));
     }
 
-    /// <summary>Represents a nullable 16-bit integer table column.</summary>
+    /// <summary>Models an optional 16-bit integer descriptor column whose typed readers preserve database null.</summary>
     public class NullableInt16TableColumn : TableColumn
     {
         internal NullableInt16TableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Int16, true, columnMeta) { }
@@ -436,7 +442,7 @@ namespace SqExpress
         public NullableInt16CustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableInt16CustomColumn(this.ColumnName, derivedTable.Alias));
     }
 
-    /// <summary>Represents a non-nullable 32-bit integer table column.</summary>
+    /// <summary>Models a required 32-bit integer descriptor column with typed arithmetic, comparison, and CLR reads.</summary>
     public class Int32TableColumn : TableColumn
     {
         internal Int32TableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Int32, false, columnMeta) { }
@@ -488,7 +494,7 @@ namespace SqExpress
         public Int32CustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new Int32CustomColumn(this.ColumnName, derivedTable.Alias));
     }
 
-    /// <summary>Represents a nullable 32-bit integer table column.</summary>
+    /// <summary>Models an optional 32-bit integer descriptor column whose typed readers preserve database null.</summary>
     public class NullableInt32TableColumn : TableColumn
     {
         internal NullableInt32TableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Int32, true, columnMeta) { }
@@ -532,7 +538,7 @@ namespace SqExpress
         public NullableInt32CustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableInt32CustomColumn(this.ColumnName, derivedTable.Alias));
     }
 
-    /// <summary>Represents a non-nullable 64-bit integer table column.</summary>
+    /// <summary>Models a required 64-bit integer descriptor column with typed arithmetic, comparison, and CLR reads.</summary>
     public class Int64TableColumn : TableColumn
     {
         internal Int64TableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Int64, false, columnMeta) { }
@@ -584,7 +590,7 @@ namespace SqExpress
         public Int64CustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new Int64CustomColumn(this.ColumnName, derivedTable.Alias));
     }
 
-    /// <summary>Represents a nullable 64-bit integer table column.</summary>
+    /// <summary>Models an optional 64-bit integer descriptor column whose typed readers preserve database null.</summary>
     public class NullableInt64TableColumn : TableColumn
     {
         internal NullableInt64TableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Int64, true, columnMeta) { }
@@ -628,7 +634,7 @@ namespace SqExpress
         public NullableInt64CustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableInt64CustomColumn(this.ColumnName, derivedTable.Alias));
     }
 
-    /// <summary>Represents a non-nullable decimal table column.</summary>
+    /// <summary>Models a required exact-numeric descriptor column, retaining precision/scale metadata and decimal reads.</summary>
     public class DecimalTableColumn : TableColumn
     {
         internal DecimalTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, DecimalPrecisionScale? precisionScale, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Decimal(precisionScale), false, columnMeta)
@@ -685,7 +691,7 @@ namespace SqExpress
         public DecimalCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new DecimalCustomColumn(this.ColumnName, derivedTable.Alias, new ExprTypeDecimal(this.PrecisionScale)));
     }
 
-    /// <summary>Represents a nullable decimal table column.</summary>
+    /// <summary>Models an optional exact-numeric descriptor column with precision metadata and null-aware decimal reads.</summary>
     public class NullableDecimalTableColumn : TableColumn
     {
         internal NullableDecimalTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, DecimalPrecisionScale? precisionScale, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Decimal(precisionScale), true, columnMeta)
@@ -733,7 +739,7 @@ namespace SqExpress
         public NullableDecimalCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableDecimalCustomColumn(this.ColumnName, derivedTable.Alias, new ExprTypeDecimal(this.PrecisionScale)));
     }
 
-    /// <summary>Represents a non-nullable double-precision table column.</summary>
+    /// <summary>Models a required approximate-numeric descriptor column with typed expressions and double reads.</summary>
     public class DoubleTableColumn : TableColumn
     {
         internal DoubleTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Double, false, columnMeta) { }
@@ -785,7 +791,7 @@ namespace SqExpress
         public DoubleCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new DoubleCustomColumn(this.ColumnName, derivedTable.Alias));
     }
 
-    /// <summary>Represents a nullable double-precision table column.</summary>
+    /// <summary>Models an optional approximate-numeric descriptor column with null-aware double reads.</summary>
     public class NullableDoubleTableColumn : TableColumn
     {
         internal NullableDoubleTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Double, true, columnMeta) { }
@@ -830,7 +836,7 @@ namespace SqExpress
         public NullableDoubleCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableDoubleCustomColumn(this.ColumnName, derivedTable.Alias));
     }
 
-    /// <summary>Represents a non-nullable date or date-time table column.</summary>
+    /// <summary>Models a required date-only or date/time descriptor column with typed temporal comparisons and reads.</summary>
     public class DateTimeTableColumn : TableColumn
     {
         internal DateTimeTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, bool isDate, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.DateTime(isDate), false, columnMeta)
@@ -895,7 +901,7 @@ namespace SqExpress
         public DateTimeCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new DateTimeCustomColumn(this.ColumnName, derivedTable.Alias, new ExprTypeDateTime(this.IsDate)));
     }
 
-    /// <summary>Represents a nullable date or date-time table column.</summary>
+    /// <summary>Models an optional date-only or date/time descriptor column whose readers preserve database null.</summary>
     public class NullableDateTimeTableColumn : TableColumn
     {
         internal NullableDateTimeTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, bool isDate, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.DateTime(isDate), true, columnMeta)
@@ -949,7 +955,7 @@ namespace SqExpress
         public NullableDateTimeCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableDateTimeCustomColumn(this.ColumnName, derivedTable.Alias, new ExprTypeDateTime(this.IsDate)));
     }
 
-    /// <summary>Represents a non-nullable GUID table column.</summary>
+    /// <summary>Models a required GUID/UUID descriptor column with dialect-portable comparison and CLR reads.</summary>
     public class GuidTableColumn : TableColumn
     {
         internal GuidTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Guid, false, columnMeta) { }
@@ -1001,7 +1007,7 @@ namespace SqExpress
         public GuidCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new GuidCustomColumn(this.ColumnName, derivedTable.Alias));
     }
 
-    /// <summary>Represents a nullable GUID table column.</summary>
+    /// <summary>Models an optional GUID/UUID descriptor column whose readers preserve database null.</summary>
     public class NullableGuidTableColumn : TableColumn
     {
         internal NullableGuidTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Guid, true, columnMeta) { }
@@ -1045,7 +1051,7 @@ namespace SqExpress
         public NullableGuidCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableGuidCustomColumn(this.ColumnName, derivedTable.Alias));
     }
 
-    /// <summary>Represents a non-nullable string table column.</summary>
+    /// <summary>Models a required character descriptor column with typed comparison, concatenation, and CLR reads.</summary>
     public class StringTableColumn : TableColumn
     {
         internal StringTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ExprTypeStringBase stringType, ColumnMeta? columnMeta) : base(source, columnName, table, stringType, false, columnMeta)
@@ -1100,20 +1106,29 @@ namespace SqExpress
 
         public StringCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new StringCustomColumn(this.ColumnName, derivedTable.Alias, this.SqlType));
 
-        /// <summary>Appends a string column to an existing SQL string concatenation.</summary>
+        /// <summary>Appends a column to a SQL string-concatenation AST; the exporter supplies dialect-specific concatenation syntax and null semantics.</summary>
+        /// <param name="a">The existing concatenation.</param>
+        /// <param name="b">The string column appended on the right.</param>
+        /// <returns>A new concatenation expression.</returns>
         public static ExprStringConcat operator +(ExprStringConcat a, StringTableColumn b)
             => new ExprStringConcat(a, b);
 
-        /// <summary>Prepends a string column to an existing SQL string concatenation.</summary>
+        /// <summary>Prepends a column to a SQL string-concatenation AST rendered according to the selected dialect.</summary>
+        /// <param name="a">The string column placed on the left.</param>
+        /// <param name="b">The existing concatenation.</param>
+        /// <returns>A new concatenation expression.</returns>
         public static ExprStringConcat operator +(StringTableColumn a, ExprStringConcat b)
             => new ExprStringConcat(a, b);
 
-        /// <summary>Creates a SQL string concatenation from two string columns.</summary>
+        /// <summary>Combines two string columns using the selected exporter's concatenation operator or function.</summary>
+        /// <param name="a">The left string column.</param>
+        /// <param name="b">The right string column.</param>
+        /// <returns>A dialect-neutral string-concatenation expression.</returns>
         public static ExprStringConcat operator +(StringTableColumn a, StringTableColumn b)
             => new ExprStringConcat(a, b);
     }
 
-    /// <summary>Represents a nullable string table column.</summary>
+    /// <summary>Models an optional character descriptor column whose typed readers preserve database null.</summary>
     public class NullableStringTableColumn : TableColumn
     {
         internal NullableStringTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ExprTypeStringBase stringType, ColumnMeta? columnMeta) : base(source, columnName, table, stringType, true, columnMeta)
@@ -1161,7 +1176,7 @@ namespace SqExpress
         public NullableStringCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableStringCustomColumn(this.ColumnName, derivedTable.Alias, this.SqlType));
     }
 
-    /// <summary>Represents a non-nullable date-time-offset table column.</summary>
+    /// <summary>Models a required offset-aware temporal descriptor column with typed comparisons and CLR reads.</summary>
     public class DateTimeOffsetTableColumn : TableColumn
     {
         internal DateTimeOffsetTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.DateTimeOffset, false, columnMeta)
@@ -1222,7 +1237,7 @@ namespace SqExpress
         public DateTimeOffsetCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new DateTimeOffsetCustomColumn(this.ColumnName, derivedTable.Alias));
     }
 
-    /// <summary>Represents a nullable date-time-offset table column.</summary>
+    /// <summary>Models an optional offset-aware temporal descriptor column whose readers preserve database null.</summary>
     public class NullableDateTimeOffsetTableColumn : TableColumn
     {
         internal NullableDateTimeOffsetTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.DateTimeOffset, true, columnMeta)

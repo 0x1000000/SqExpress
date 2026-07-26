@@ -9,14 +9,18 @@ namespace SqExpress.SqlExport
     /// <summary>
     /// Renders SqExpress expression trees and statements using SQLite syntax.
     /// </summary>
+    /// <remarks>
+    /// Portable operations are translated to SQLite-native syntax or compatible expressions where supported,
+    /// including SQLite's storage/type conventions. Exporting does not open or execute against a database.
+    /// </remarks>
     public class SqliteExporter : ISqlExporterInternal
     {
-        /// <summary>Gets an exporter using <see cref="SqlBuilderOptions.Default"/>.</summary>
+        /// <summary>Gets a reusable SQLite exporter with default quoting and schema behavior.</summary>
         public static readonly SqliteExporter Default = new SqliteExporter(SqlBuilderOptions.Default);
 
         private readonly SqlBuilderOptions _builderOptions;
 
-        /// <summary>Creates a SQLite exporter.</summary>
+        /// <summary>Creates a SQLite renderer with caller-selected identifier and schema handling.</summary>
         /// <param name="builderOptions">Options controlling schema mapping and identifier quoting.</param>
         public SqliteExporter(SqlBuilderOptions builderOptions)
         {

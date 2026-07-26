@@ -12,33 +12,44 @@ namespace SqExpress.QueryBuilders.Delete
 
         private readonly IExprTableSource _source;
 
-        /// <summary>Initializes a joined delete from its target and initial source.</summary>
+        /// <summary>Initializes a delete whose target rows can be selected through a separate joined source.</summary>
+        /// <param name="target">The table from which rows are deleted.</param>
+        /// <param name="source">The initial source used for joins and filtering.</param>
         public DeleteFromBuilder(ExprTable target, IExprTableSource source)
         {
             this._target = target;
             this._source = source;
         }
 
-        /// <summary>Adds an inner join.</summary>
+        /// <summary>Adds an inner join, retaining only source combinations satisfying its predicate.</summary>
+        /// <param name="join">The right-side source.</param><param name="on">The join condition.</param>
+        /// <returns>A new joined-delete stage.</returns>
         public DeleteFromBuilder InnerJoin(IExprTableSource join, ExprBoolean on)
             => new DeleteFromBuilder(this._target,
                 new ExprJoinedTable(this._source, ExprJoinedTable.ExprJoinType.Inner, join, on));
 
-        /// <summary>Adds a left outer join.</summary>
+        /// <summary>Adds a left outer join that preserves unmatched rows from the existing source.</summary>
+        /// <param name="join">The right-side source.</param><param name="on">The join condition.</param>
+        /// <returns>A new joined-delete stage.</returns>
         public DeleteFromBuilder LeftJoin(IExprTableSource join, ExprBoolean on)
             => new DeleteFromBuilder(this._target,
                 new ExprJoinedTable(this._source, ExprJoinedTable.ExprJoinType.Left, join, on));
 
-        /// <summary>Adds a full outer join.</summary>
+        /// <summary>Adds a full outer join that preserves unmatched rows from both sides.</summary>
+        /// <param name="join">The right-side source.</param><param name="on">The join condition.</param>
+        /// <returns>A new joined-delete stage.</returns>
         public DeleteFromBuilder FullJoin(IExprTableSource join, ExprBoolean on)
             => new DeleteFromBuilder(this._target,
                 new ExprJoinedTable(this._source, ExprJoinedTable.ExprJoinType.Full, join, on));
 
-        /// <summary>Adds a cross join.</summary>
+        /// <summary>Adds a Cartesian cross join to the delete source.</summary>
+        /// <param name="join">The source combined with every existing source row.</param>
+        /// <returns>A new joined-delete stage.</returns>
         public DeleteFromBuilder CrossJoin(IExprTableSource join)
             => new DeleteFromBuilder(this._target, new ExprCrossedTable(this._source, join));
 
-        /// <summary>Completes the joined delete without a row filter.</summary>
+        /// <summary>Explicitly completes the joined delete without an additional row filter.</summary>
+        /// <returns>The completed delete syntax tree.</returns>
         public ExprDelete All()
         {
             return new ExprDelete(target: this._target, source: this._source, filter: null);
@@ -46,6 +57,8 @@ namespace SqExpress.QueryBuilders.Delete
 
         /// <summary>Completes the joined delete with the supplied row predicate.</summary>
         /// <remarks>A null predicate is equivalent to an unfiltered delete.</remarks>
+        /// <param name="filter">The predicate selecting joined target/source rows.</param>
+        /// <returns>The completed delete syntax tree.</returns>
         public ExprDelete Where(ExprBoolean? filter)
         {
             return new ExprDelete(target: this._target, source: this._source, filter: filter);

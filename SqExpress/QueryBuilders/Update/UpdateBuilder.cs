@@ -15,6 +15,8 @@ namespace SqExpress.QueryBuilders.Update
 
         /// <summary>Initializes an update builder for a target table and assignment collection.</summary>
         /// <remarks>Most callers should start with <see cref="SqQueryBuilder.Update(ExprTable)"/>.</remarks>
+        /// <param name="target">The table whose rows will be updated.</param>
+        /// <param name="sets">The mutable assignment collection carried between fluent stages.</param>
         public UpdateBuilder(ExprTable target, List<ExprColumnSetClause> sets)
         {
             this._target = target;

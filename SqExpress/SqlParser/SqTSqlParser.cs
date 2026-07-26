@@ -34,12 +34,20 @@ namespace SqExpress.SqlParser
         /// <summary>
         /// Parses one supported T-SQL statement and throws when parsing or optional table validation fails.
         /// </summary>
+        /// <param name="sql">The statement text. Input outside the documented supported subset is rejected.</param>
+        /// <param name="existingTables">Optional table descriptors used to resolve and validate table/column references.</param>
+        /// <returns>The parsed SqExpress statement or query syntax tree.</returns>
+        /// <exception cref="SqExpressTSqlParserException">The text is invalid, unsupported, ambiguous, or inconsistent with the supplied descriptors.</exception>
         public static IExpr Parse(string sql, IReadOnlyList<TableBase>? existingTables = null)
             => Parse(sql, existingTables, options: null);
 
         /// <summary>
         /// Parses one supported T-SQL statement using explicit parser options.
         /// </summary>
+        /// <param name="sql">The statement text. Input outside the documented supported subset is rejected.</param>
+        /// <param name="existingTables">Optional table descriptors used to resolve and validate table/column references.</param>
+        /// <param name="options">Parser and binding behavior, or <see langword="null"/> for defaults.</param>
+        /// <returns>The parsed SqExpress statement or query syntax tree.</returns>
         /// <exception cref="SqExpressTSqlParserException">
         /// The text is invalid, unsupported, or cannot be resolved against the supplied table descriptors.
         /// </exception>
@@ -56,6 +64,11 @@ namespace SqExpress.SqlParser
         /// <summary>
         /// Attempts to parse one supported T-SQL statement without throwing for parse or validation failures.
         /// </summary>
+        /// <param name="sql">The statement text to parse.</param>
+        /// <param name="existingTables">Optional descriptors used for fail-closed reference validation.</param>
+        /// <param name="result">Receives the syntax tree on success; otherwise <see langword="null"/>.</param>
+        /// <param name="error">Receives a diagnostic on failure; otherwise <see langword="null"/>.</param>
+        /// <returns><see langword="true"/> only when the complete input is supported, parsed, and validated.</returns>
         public static bool TryParse(
             string sql,
             IReadOnlyList<TableBase>? existingTables,
@@ -70,6 +83,12 @@ namespace SqExpress.SqlParser
         /// On failure, <paramref name="result"/> is <see langword="null"/> and <paramref name="error"/>
         /// contains the parser or binding diagnostic.
         /// </remarks>
+        /// <param name="sql">The statement text to parse.</param>
+        /// <param name="existingTables">Optional descriptors used for fail-closed reference validation.</param>
+        /// <param name="options">Parser and binding behavior, or <see langword="null"/> for defaults.</param>
+        /// <param name="result">Receives the syntax tree on success; otherwise <see langword="null"/>.</param>
+        /// <param name="error">Receives a diagnostic on failure; otherwise <see langword="null"/>.</param>
+        /// <returns><see langword="true"/> only when the complete input is supported, parsed, and validated.</returns>
         public static bool TryParse(
             string sql,
             IReadOnlyList<TableBase>? existingTables,

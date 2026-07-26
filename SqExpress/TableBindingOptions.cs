@@ -33,7 +33,10 @@ public enum TableBindingDiagnosticCode
 /// <summary>Describes one table-binding warning or error.</summary>
 public sealed class TableBindingDiagnostic
 {
-    /// <summary>Initializes a binding diagnostic.</summary>
+    /// <summary>Initializes one structured outcome produced while resolving table and column references.</summary>
+    /// <param name="code">The stable category callers can use for policy or filtering.</param>
+    /// <param name="severity">Whether binding may continue despite this condition.</param>
+    /// <param name="message">A human-readable explanation including the relevant reference context.</param>
     public TableBindingDiagnostic(TableBindingDiagnosticCode code, TableBindingSeverity severity, string message)
     {
         this.Code = code;
@@ -50,7 +53,8 @@ public sealed class TableBindingDiagnostic
     /// <summary>Gets the human-readable diagnostic message.</summary>
     public string Message { get; }
 
-    /// <summary>Returns <see cref="Message"/>.</summary>
+    /// <summary>Returns the human-readable diagnostic text for logging and display.</summary>
+    /// <returns>The same value exposed by <see cref="Message"/>.</returns>
     public override string ToString() => this.Message;
 }
 
