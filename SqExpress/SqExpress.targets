@@ -63,10 +63,15 @@
       StandardOutputImportance="Low"
       StandardErrorImportance="High"
       IgnoreExitCode="true">
-      <Output TaskParameter="ExitCode" PropertyName="SqEfTablesGenExitCode" />
+      <Output TaskParameter="ExitCode" PropertyName="_SqEfTablesGenExitCode" />
+      <Output TaskParameter="ConsoleOutput" ItemName="_SqEfTablesGenConsoleOutput" />
     </Exec>
-    <Error Condition="'$(SqEfTablesGenExitCode)' != '0'"
-           Text="SqExpress EF table generation failed with exit code $(SqEfTablesGenExitCode). See the generator diagnostics above." />
+    <PropertyGroup>
+      <SqEfTablesGenErrorText>@(_SqEfTablesGenConsoleOutput, ' ')</SqEfTablesGenErrorText>
+      <SqEfTablesGenErrorText Condition="'$(SqEfTablesGenErrorText)' == ''">SqExpress EF table generation failed with exit code $(_SqEfTablesGenExitCode).</SqEfTablesGenErrorText>
+    </PropertyGroup>
+    <Error Condition="'$(_SqEfTablesGenExitCode)' != '0'"
+           Text="$(SqEfTablesGenErrorText)" />
     <ItemGroup>
       <Compile Include="$(SqEfTablesGenOutput)\**\*.cs" />
     </ItemGroup>

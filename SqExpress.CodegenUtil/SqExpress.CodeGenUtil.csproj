@@ -32,4 +32,10 @@
     <ProjectReference Include="..\SqExpress\SqExpress.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="Ef\Extractor\Program.cs" />
+    <EmbeddedResource Include="Ef\Extractor\Program.cs"
+                      LogicalName="SqExpress.CodeGenUtil.Ef.Extractor.Program.cs" />
+  </ItemGroup>
+
 </Project>

@@ -68,8 +68,10 @@ namespace SqExpress.Test.CodeGenUtil
 
             Assert.That(targets, Does.Contain("PropertyName=\"SqModelGenExitCode\""));
             Assert.That(targets, Does.Contain("SqExpress model generation failed with exit code $(SqModelGenExitCode)"));
-            Assert.That(targets, Does.Contain("PropertyName=\"SqEfTablesGenExitCode\""));
-            Assert.That(targets, Does.Contain("SqExpress EF table generation failed with exit code $(SqEfTablesGenExitCode)"));
+            Assert.That(targets, Does.Contain("PropertyName=\"_SqEfTablesGenExitCode\""));
+            Assert.That(targets, Does.Contain("ItemName=\"_SqEfTablesGenConsoleOutput\""));
+            Assert.That(targets, Does.Contain("@(_SqEfTablesGenConsoleOutput, ' ')"));
+            Assert.That(targets, Does.Contain("Text=\"$(SqEfTablesGenErrorText)\""));
             Assert.That(targets, Does.Contain("IgnoreExitCode=\"true\""));
         }
 
