@@ -84,6 +84,50 @@ namespace SqExpress.Test.CodeGenUtil
             Assert.That(module, Does.Contain("without error output"));
         }
 
+        [Test]
+        public void TableGenerationProperties_UseCanonicalNamesWithLegacyFallbacks()
+        {
+            var root = GetRepositoryRoot();
+            var props = File.ReadAllText(Path.Combine(root, "SqExpress", "SqExpress.props"));
+            var targets = File.ReadAllText(Path.Combine(root, "SqExpress", "SqExpress.targets"));
+            var module = File.ReadAllText(Path.Combine(root, "SqExpress", "PsTools", "SqExpressTools.psm1"));
+
+            foreach (var suffix in new[]
+                     {
+                         "Output", "Namespace", "TableClassPrefix", "UseTableDeclarationAttributes",
+                         "SkipUnknownColumnTypes", "SplitTablesBySchema", "CleanOutput", "Include", "Exclude"
+                     })
+            {
+                Assert.That(props, Does.Contain($"<SqTablesGen{suffix}"));
+                Assert.That(props, Does.Contain($"<SqTablseGen{suffix}"));
+                Assert.That(targets.IndexOf($"$(SqTablesGen{suffix})", StringComparison.Ordinal),
+                    Is.LessThan(targets.IndexOf($"$(SqTablseGen{suffix})", StringComparison.Ordinal)));
+            }
+
+            Assert.That(module, Does.Contain("GetCurrentProjectProperty (\"SqTablesGen\" + $propertySuffix)"));
+            Assert.That(module, Does.Contain("GetCurrentProjectProperty (\"SqTablseGen\" + $propertySuffix)"));
+            Assert.That(module, Does.Contain("GetTableGenProperty \"UseTableDeclarationAttributes\""));
+            Assert.That(module, Does.Contain("GetTableGenProperty \"SkipUnknownColumnTypes\""));
+            Assert.That(module, Does.Contain("GetTableGenProperty \"SplitTablesBySchema\""));
+            Assert.That(module, Does.Contain("$PSBoundParameters.ContainsKey('UseTableDeclarationAttributes')"));
+            Assert.That(module, Does.Contain("$PSBoundParameters.ContainsKey('Include')"));
+        }
+
+        [Test]
+        public void EfProperties_ContainOnlyEfSpecificPublicSettings()
+        {
+            var props = File.ReadAllText(Path.Combine(GetRepositoryRoot(), "SqExpress", "SqExpress.props"));
+
+            Assert.That(props, Does.Contain("<SqEfTablesGenEnable>")
+                .And.Contain("<SqEfTablesGenProject>")
+                .And.Contain("<SqEfTablesGenDbContext>")
+                .And.Contain("<SqEfTablesGenFramework>"));
+            Assert.That(props, Does.Not.Contain("<SqEfTablesGenOutput>")
+                .And.Not.Contain("<SqEfTablesGenNamespace>")
+                .And.Not.Contain("<SqEfTablesGenCleanOutput>")
+                .And.Not.Contain("<SqEfTablesGenInclude>"));
+        }
+
         private static string GetRepositoryRoot()
             => Path.GetFullPath(Path.Combine(TestContext.CurrentContext.TestDirectory, "..", "..", "..", "..", ".."));
     }

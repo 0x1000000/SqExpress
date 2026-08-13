@@ -9,9 +9,9 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <SqExpressCodeGenPath>..\..\SqExpress.CodegenUtil\bin\$(Configuration)\net8.0\SqExpress.CodeGenUtil.dll</SqExpressCodeGenPath>
     <SqEfTablesGenEnable>true</SqEfTablesGenEnable>
-    <SqEfTablesGenCleanOutput>true</SqEfTablesGenCleanOutput>
-    <SqEfTablesGenSplitTablesBySchema>true</SqEfTablesGenSplitTablesBySchema>
-    <SqEfTablesGenSkipUnknownColumnTypes>false</SqEfTablesGenSkipUnknownColumnTypes>
+    <SqTablesGenCleanOutput>true</SqTablesGenCleanOutput>
+    <SqTablesGenSplitTablesBySchema>true</SqTablesGenSplitTablesBySchema>
+    <SqTablesGenSkipUnknownColumnTypes>false</SqTablesGenSkipUnknownColumnTypes>
   </PropertyGroup>
 
   <ItemGroup>

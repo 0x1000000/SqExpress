@@ -36,7 +36,7 @@ EF generation currently supports models configured with `Microsoft.EntityFramewo
 
 ## All EF Generation Project Properties
 
-These are all user-configurable EF generation properties supplied by `SqExpress.props`.
+EF-specific properties select and activate the EF metadata source. Shared `SqTablesGen*` properties control the generated output and are also used by `Gen-Tables`.
 
 The following block shows the generation properties together. It is a reference, not a recommended block to copy in full. In an application project, specify only `SqEfTablesGenEnable` and the defaults that need to be changed.
 
@@ -44,17 +44,17 @@ The following block shows the generation properties together. It is a reference,
 <PropertyGroup>
   <SqEfTablesGenEnable>true</SqEfTablesGenEnable>
   <SqEfTablesGenProject></SqEfTablesGenProject>
-  <SqEfTablesGenOutput>Tables</SqEfTablesGenOutput>
-  <SqEfTablesGenNamespace>$(MSBuildProjectName).Tables</SqEfTablesGenNamespace>
-  <SqEfTablesGenTableClassPrefix></SqEfTablesGenTableClassPrefix>
+  <SqTablesGenOutput>Tables</SqTablesGenOutput>
+  <SqTablesGenNamespace>$(MSBuildProjectName).Tables</SqTablesGenNamespace>
+  <SqTablesGenTableClassPrefix></SqTablesGenTableClassPrefix>
   <SqEfTablesGenDbContext></SqEfTablesGenDbContext>
   <SqEfTablesGenFramework></SqEfTablesGenFramework>
-  <SqEfTablesGenUseTableDeclarationAttributes>true</SqEfTablesGenUseTableDeclarationAttributes>
-  <SqEfTablesGenSkipUnknownColumnTypes>true</SqEfTablesGenSkipUnknownColumnTypes>
-  <SqEfTablesGenSplitTablesBySchema>false</SqEfTablesGenSplitTablesBySchema>
-  <SqEfTablesGenCleanOutput>false</SqEfTablesGenCleanOutput>
-  <SqEfTablesGenInclude></SqEfTablesGenInclude>
-  <SqEfTablesGenExclude></SqEfTablesGenExclude>
+  <SqTablesGenUseTableDeclarationAttributes>true</SqTablesGenUseTableDeclarationAttributes>
+  <SqTablesGenSkipUnknownColumnTypes>true</SqTablesGenSkipUnknownColumnTypes>
+  <SqTablesGenSplitTablesBySchema>false</SqTablesGenSplitTablesBySchema>
+  <SqTablesGenCleanOutput>false</SqTablesGenCleanOutput>
+  <SqTablesGenInclude></SqTablesGenInclude>
+  <SqTablesGenExclude></SqTablesGenExclude>
 </PropertyGroup>
 ```
 
@@ -62,18 +62,20 @@ The following block shows the generation properties together. It is a reference,
 |---|---|---|---|
 | `SqEfTablesGenEnable` | `false` | Whether EF table generation runs before the project build. | Set it to `true` in every project where descriptors should be generated from EF. Leave it `false` to disable generation temporarily or permanently. |
 | `SqEfTablesGenProject` | empty | The project containing the EF model. Empty means the current project (`$(MSBuildProjectFullPath)`). | Set it when generation is configured in one project but the `DbContext` and EF model live in another `.csproj`. Do not set it for the usual same-project setup. |
-| `SqEfTablesGenOutput` | `Tables` | The directory for generated `.cs` files. A relative path is resolved from the project directory. | Change it to follow the project's source layout, to keep multiple generated sets separate, or to place generated files in a dedicated subtree. |
-| `SqEfTablesGenNamespace` | `$(MSBuildProjectName).Tables` | The base namespace of generated descriptors. Using `$(MSBuildProjectName)` as the root is recommended. | Change the suffix when generated files belong in another namespace. Replace the root only when the project's established root namespace intentionally differs from its MSBuild project name. |
-| `SqEfTablesGenTableClassPrefix` | empty (effective tool default: `Table`) | The prefix added to generated descriptor class names. | Set it when the project uses a different naming convention or needs to avoid collisions with entity classes. For example, `DbTable` produces `DbTableCustomer`. Leave it empty to produce names such as `TableCustomer`. |
+| `SqTablesGenOutput` | `Tables` | The directory for generated `.cs` files. A relative path is resolved from the project directory. | Change it to follow the project's source layout, to keep multiple generated sets separate, or to place generated files in a dedicated subtree. |
+| `SqTablesGenNamespace` | `$(MSBuildProjectName).Tables` | The base namespace of generated descriptors. Using `$(MSBuildProjectName)` as the root is recommended. | Change the suffix when generated files belong in another namespace. Replace the root only when the project's established root namespace intentionally differs from its MSBuild project name. |
+| `SqTablesGenTableClassPrefix` | empty (effective tool default: `Table`) | The prefix added to generated descriptor class names. | Set it when the project uses a different naming convention or needs to avoid collisions with entity classes. For example, `DbTable` produces `DbTableCustomer`. Leave it empty to produce names such as `TableCustomer`. |
 | `SqEfTablesGenDbContext` | empty | The context type used as the metadata source. Empty enables automatic selection. | Set it when the project contains multiple `DbContext` types, multiple design-time factories, or automatic selection reports ambiguity. |
 | `SqEfTablesGenFramework` | empty | The target framework used to evaluate the EF project. Empty uses the current `$(TargetFramework)`. | Set it when invoking generation for a multi-targeted EF project outside its normal target build, or when one particular framework must always be used. |
-| `SqEfTablesGenUseTableDeclarationAttributes` | `true` | Whether output is compact attribute-based partial declarations instead of complete `TableBase` classes. | Usually leave it `true`. Set it to `false` only for an existing workflow that requires directly generated `TableBase` implementations. |
-| `SqEfTablesGenSkipUnknownColumnTypes` | `true` | Whether unsupported EF column types are reported and omitted instead of failing generation. | Set it to `false` when a partial descriptor is unsafe and every mapped column must be supported. Leave it `true` when unsupported columns may intentionally be excluded after reviewing diagnostics. |
-| `SqEfTablesGenSplitTablesBySchema` | `false` | Whether database schemas become output subdirectories and namespace segments. | Set it to `true` when the model uses multiple schemas, especially when schemas contain tables with the same name or the project is organized by schema. |
-| `SqEfTablesGenCleanOutput` | `false` | Whether obsolete recognized descriptors are removed after successful generation. | Set it to `true` when the output directory is generator-owned and should exactly follow the EF model. Leave it `false` if that directory also contains manually maintained descriptors. |
-| `SqEfTablesGenInclude` | empty | Semicolon-separated, case-insensitive table patterns to include. Empty includes every table. | Set it when only part of the EF relational model should produce descriptors. Use `*` and `?`, and qualify with `schema.` when needed. |
-| `SqEfTablesGenExclude` | empty | Semicolon-separated table patterns to exclude after includes. | Set it for archive, migration, or other tables that must never be generated. Excludes always win. |
+| `SqTablesGenUseTableDeclarationAttributes` | `true` | Whether output is compact attribute-based partial declarations instead of complete `TableBase` classes. | Usually leave it `true`. Set it to `false` only for an existing workflow that requires directly generated `TableBase` implementations. |
+| `SqTablesGenSkipUnknownColumnTypes` | `true` | Whether unsupported EF column types are reported and omitted instead of failing generation. | Set it to `false` when a partial descriptor is unsafe and every mapped column must be supported. Leave it `true` when unsupported columns may intentionally be excluded after reviewing diagnostics. |
+| `SqTablesGenSplitTablesBySchema` | `false` | Whether database schemas become output subdirectories and namespace segments. | Set it to `true` when the model uses multiple schemas, especially when schemas contain tables with the same name or the project is organized by schema. |
+| `SqTablesGenCleanOutput` | `false` | Whether obsolete recognized descriptors are removed after successful generation. | Set it to `true` when the output directory is generator-owned and should exactly follow the EF model. Leave it `false` if that directory also contains manually maintained descriptors. |
+| `SqTablesGenInclude` | empty | Semicolon-separated, case-insensitive table patterns to include. Empty includes every table. | Set it when only part of the EF relational model should produce descriptors. Use `*` and `?`, and qualify with `schema.` when needed. |
+| `SqTablesGenExclude` | empty | Semicolon-separated table patterns to exclude after includes. | Set it for archive, migration, or other tables that must never be generated. Excludes always win. |
 | `SqExpressCodeGenPath` | packaged tool path | The location of `SqExpress.CodeGenUtil.dll`. The package sets it automatically. | Change it only for source-tree development, custom package layouts, or controlled builds that intentionally use another code-generator binary. Application projects normally should not set it. |
+
+The older misspelled `SqTablseGen*` names remain supported for shared settings. `SqTablesGen*` takes precedence when both forms are set. Explicit `Gen-Tables` parameters take precedence over either project property.
 
 ## Selecting a `DbContext`
 
@@ -105,14 +107,14 @@ Set it explicitly when generation should always use one framework:
 Use `$(MSBuildProjectName)` as the namespace root so the generated namespace follows project renames and the same configuration can be reused across projects:
 
 ```xml
-<SqEfTablesGenOutput>Tables</SqEfTablesGenOutput>
-<SqEfTablesGenNamespace>$(MSBuildProjectName).Tables</SqEfTablesGenNamespace>
-<SqEfTablesGenTableClassPrefix>Table</SqEfTablesGenTableClassPrefix>
+<SqTablesGenOutput>Tables</SqTablesGenOutput>
+<SqTablesGenNamespace>$(MSBuildProjectName).Tables</SqTablesGenNamespace>
+<SqTablesGenTableClassPrefix>Table</SqTablesGenTableClassPrefix>
 ```
 
 With a project named `MyApp.Data`, this generates `TableCustomer` in namespace `MyApp.Data.Tables`.
 
-`SqEfTablesGenOutput` is relative to the project directory unless an absolute path is supplied.
+`SqTablesGenOutput` is relative to the project directory unless an absolute path is supplied.
 
 Keep generated descriptors in a dedicated directory so generated code is easy to identify and cleanup has a clear scope.
 
@@ -121,7 +123,7 @@ Keep generated descriptors in a dedicated directory so generated code is easy to
 Attribute-based declarations are enabled by default and are recommended:
 
 ```xml
-<SqEfTablesGenUseTableDeclarationAttributes>true</SqEfTablesGenUseTableDeclarationAttributes>
+<SqTablesGenUseTableDeclarationAttributes>true</SqTablesGenUseTableDeclarationAttributes>
 ```
 
 Example output:
@@ -145,7 +147,7 @@ See the [Table Description Reference](table_description.md) for all declaration 
 Set the property to `false` only when complete `TableBase` classes are required:
 
 ```xml
-<SqEfTablesGenUseTableDeclarationAttributes>false</SqEfTablesGenUseTableDeclarationAttributes>
+<SqTablesGenUseTableDeclarationAttributes>false</SqTablesGenUseTableDeclarationAttributes>
 ```
 
 ## Schema Folders
@@ -153,7 +155,7 @@ Set the property to `false` only when complete `TableBase` classes are required:
 Enable schema-specific folders and namespaces with:
 
 ```xml
-<SqEfTablesGenSplitTablesBySchema>true</SqEfTablesGenSplitTablesBySchema>
+<SqTablesGenSplitTablesBySchema>true</SqTablesGenSplitTablesBySchema>
 ```
 
 For example, schema `sales-data` becomes directory `Tables/SalesData` and namespace segment `SalesData`. Tables without a schema use `Default`.
@@ -165,7 +167,7 @@ For example, schema `sales-data` becomes directory `Tables/SalesData` and namesp
 To make the generated directory mirror the current EF model:
 
 ```xml
-<SqEfTablesGenCleanOutput>true</SqEfTablesGenCleanOutput>
+<SqTablesGenCleanOutput>true</SqTablesGenCleanOutput>
 ```
 
 Cleanup runs only after metadata is read successfully. A file is deleted only when no other type declarations remain.
@@ -177,20 +179,20 @@ Leave cleanup disabled when the directory contains descriptors maintained by han
 Generate only selected physical tables with include and exclude patterns:
 
 ```xml
-<SqEfTablesGenInclude>sales.*;Customer?</SqEfTablesGenInclude>
-<SqEfTablesGenExclude>*.OrderArchive*</SqEfTablesGenExclude>
+<SqTablesGenInclude>sales.*;Customer?</SqTablesGenInclude>
+<SqTablesGenExclude>*.OrderArchive*</SqTablesGenExclude>
 ```
 
 A pattern containing `.` matches the complete `schema.table` name; an unqualified pattern matches table names in every schema. Matching is case-insensitive. `*` matches zero or more characters and `?` matches exactly one character. A table must match an include when any includes are configured, then exclusions are applied and always win.
 
-Foreign-key metadata pointing to a filtered-out table is omitted. When `SqEfTablesGenCleanOutput` is enabled, files belonging to filtered-out tables are removed.
+Foreign-key metadata pointing to a filtered-out table is omitted. When `SqTablesGenCleanOutput` is enabled, files belonging to filtered-out tables are removed.
 
 ## Unsupported Column Types
 
 Unsupported columns are reported and omitted by default:
 
 ```xml
-<SqEfTablesGenSkipUnknownColumnTypes>true</SqEfTablesGenSkipUnknownColumnTypes>
+<SqTablesGenSkipUnknownColumnTypes>true</SqTablesGenSkipUnknownColumnTypes>
 ```
 
 Review these diagnostics because the generated descriptor will not represent the complete table.
@@ -198,7 +200,7 @@ Review these diagnostics because the generated descriptor will not represent the
 For strict generation:
 
 ```xml
-<SqEfTablesGenSkipUnknownColumnTypes>false</SqEfTablesGenSkipUnknownColumnTypes>
+<SqTablesGenSkipUnknownColumnTypes>false</SqTablesGenSkipUnknownColumnTypes>
 ```
 
 ## Optional `Gen-Tables` Command
@@ -228,17 +230,17 @@ The project argument can be a Visual Studio project name or `.csproj` path. When
 | `Project` | no | selected PMC project | EF project name or `.csproj` path. Second positional argument. |
 | `DbContext` | no | automatic | Context type name. |
 | `Framework` | no | automatic | Target framework. |
-| `OutputDir` | no | project property `SqTablseGenOutput`; otherwise `Tables` | Directory for generated files. A relative path is resolved from the selected project directory. |
-| `TableClassPrefix` | no | project property `SqTablseGenTableClassPrefix`; otherwise tool default `Table` | Generated class-name prefix. |
-| `Namespace` | no | project property `SqTablseGenNamespace`; otherwise selected project name plus output path | Generated base namespace. |
-| `UseTableDeclarationAttributes` | no | `false` | Generates attribute-based partial declarations. |
-| `SkipUnknownColumnTypes` | no | `false` | Omits unsupported columns instead of failing. |
-| `SplitTablesBySchema` | no | `false` | Creates schema-specific folders and namespaces. |
-| `CleanOutput` | no | project property `SqTablseGenCleanOutput`; otherwise `false` | Removes obsolete recognized descriptors. |
-| `Include` | no | project property `SqTablseGenInclude`; otherwise all tables | One or more wildcard include patterns. |
-| `Exclude` | no | project property `SqTablseGenExclude`; otherwise none | One or more wildcard exclude patterns; exclusions win. |
+| `OutputDir` | no | project property `SqTablesGenOutput`; otherwise `Tables` | Directory for generated files. A relative path is resolved from the selected project directory. |
+| `TableClassPrefix` | no | project property `SqTablesGenTableClassPrefix`; otherwise tool default `Table` | Generated class-name prefix. |
+| `Namespace` | no | project property `SqTablesGenNamespace`; otherwise selected project name plus output path | Generated base namespace. |
+| `UseTableDeclarationAttributes` | no | project property `SqTablesGenUseTableDeclarationAttributes`; otherwise `false` | Generates attribute-based partial declarations. |
+| `SkipUnknownColumnTypes` | no | project property `SqTablesGenSkipUnknownColumnTypes`; otherwise `false` | Omits unsupported columns instead of failing. |
+| `SplitTablesBySchema` | no | project property `SqTablesGenSplitTablesBySchema`; otherwise `false` | Creates schema-specific folders and namespaces. |
+| `CleanOutput` | no | project property `SqTablesGenCleanOutput`; otherwise `false` | Removes obsolete recognized descriptors. |
+| `Include` | no | project property `SqTablesGenInclude`; otherwise all tables | One or more wildcard include patterns. |
+| `Exclude` | no | project property `SqTablesGenExclude`; otherwise none | One or more wildcard exclude patterns; exclusions win. |
 
-The `SqTablse...` spelling is retained for backward compatibility.
+The older `SqTablseGen*` spelling is retained as a lower-priority fallback.
 
 ## Pure CLI
 

@@ -1,6 +1,32 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <_SqTablesGenOutput Condition="'$(SqTablesGenOutput)' != ''">$(SqTablesGenOutput)</_SqTablesGenOutput>
+    <_SqTablesGenOutput Condition="'$(_SqTablesGenOutput)' == '' And '$(SqTablseGenOutput)' != ''">$(SqTablseGenOutput)</_SqTablesGenOutput>
+    <_SqTablesGenOutput Condition="'$(_SqTablesGenOutput)' == ''">Tables</_SqTablesGenOutput>
+    <_SqTablesGenNamespace Condition="'$(SqTablesGenNamespace)' != ''">$(SqTablesGenNamespace)</_SqTablesGenNamespace>
+    <_SqTablesGenNamespace Condition="'$(_SqTablesGenNamespace)' == '' And '$(SqTablseGenNamespace)' != ''">$(SqTablseGenNamespace)</_SqTablesGenNamespace>
+    <_SqTablesGenNamespace Condition="'$(_SqTablesGenNamespace)' == ''">$(MSBuildProjectName).Tables</_SqTablesGenNamespace>
+    <_SqTablesGenTableClassPrefix Condition="'$(SqTablesGenTableClassPrefix)' != ''">$(SqTablesGenTableClassPrefix)</_SqTablesGenTableClassPrefix>
+    <_SqTablesGenTableClassPrefix Condition="'$(_SqTablesGenTableClassPrefix)' == '' And '$(SqTablseGenTableClassPrefix)' != ''">$(SqTablseGenTableClassPrefix)</_SqTablesGenTableClassPrefix>
+    <_SqTablesGenUseTableDeclarationAttributes Condition="'$(SqTablesGenUseTableDeclarationAttributes)' != ''">$(SqTablesGenUseTableDeclarationAttributes)</_SqTablesGenUseTableDeclarationAttributes>
+    <_SqTablesGenUseTableDeclarationAttributes Condition="'$(_SqTablesGenUseTableDeclarationAttributes)' == '' And '$(SqTablseGenUseTableDeclarationAttributes)' != ''">$(SqTablseGenUseTableDeclarationAttributes)</_SqTablesGenUseTableDeclarationAttributes>
+    <_SqTablesGenUseTableDeclarationAttributes Condition="'$(_SqTablesGenUseTableDeclarationAttributes)' == ''">true</_SqTablesGenUseTableDeclarationAttributes>
+    <_SqTablesGenSkipUnknownColumnTypes Condition="'$(SqTablesGenSkipUnknownColumnTypes)' != ''">$(SqTablesGenSkipUnknownColumnTypes)</_SqTablesGenSkipUnknownColumnTypes>
+    <_SqTablesGenSkipUnknownColumnTypes Condition="'$(_SqTablesGenSkipUnknownColumnTypes)' == '' And '$(SqTablseGenSkipUnknownColumnTypes)' != ''">$(SqTablseGenSkipUnknownColumnTypes)</_SqTablesGenSkipUnknownColumnTypes>
+    <_SqTablesGenSkipUnknownColumnTypes Condition="'$(_SqTablesGenSkipUnknownColumnTypes)' == ''">true</_SqTablesGenSkipUnknownColumnTypes>
+    <_SqTablesGenSplitTablesBySchema Condition="'$(SqTablesGenSplitTablesBySchema)' != ''">$(SqTablesGenSplitTablesBySchema)</_SqTablesGenSplitTablesBySchema>
+    <_SqTablesGenSplitTablesBySchema Condition="'$(_SqTablesGenSplitTablesBySchema)' == '' And '$(SqTablseGenSplitTablesBySchema)' != ''">$(SqTablseGenSplitTablesBySchema)</_SqTablesGenSplitTablesBySchema>
+    <_SqTablesGenSplitTablesBySchema Condition="'$(_SqTablesGenSplitTablesBySchema)' == ''">false</_SqTablesGenSplitTablesBySchema>
+    <_SqTablesGenCleanOutput Condition="'$(SqTablesGenCleanOutput)' != ''">$(SqTablesGenCleanOutput)</_SqTablesGenCleanOutput>
+    <_SqTablesGenCleanOutput Condition="'$(_SqTablesGenCleanOutput)' == '' And '$(SqTablseGenCleanOutput)' != ''">$(SqTablseGenCleanOutput)</_SqTablesGenCleanOutput>
+    <_SqTablesGenCleanOutput Condition="'$(_SqTablesGenCleanOutput)' == ''">false</_SqTablesGenCleanOutput>
+    <_SqTablesGenInclude Condition="'$(SqTablesGenInclude)' != ''">$(SqTablesGenInclude)</_SqTablesGenInclude>
+    <_SqTablesGenInclude Condition="'$(_SqTablesGenInclude)' == '' And '$(SqTablseGenInclude)' != ''">$(SqTablseGenInclude)</_SqTablesGenInclude>
+    <_SqTablesGenExclude Condition="'$(SqTablesGenExclude)' != ''">$(SqTablesGenExclude)</_SqTablesGenExclude>
+    <_SqTablesGenExclude Condition="'$(_SqTablesGenExclude)' == '' And '$(SqTablseGenExclude)' != ''">$(SqTablseGenExclude)</_SqTablesGenExclude>
+  </PropertyGroup>
   <ItemGroup Condition="'$(SqEfTablesGenExcludeOutputFromCompile)'=='true' Or '$(SqEfTablesGenExcludeOutputFromCompile)'=='True'">
-    <Compile Remove="$(SqEfTablesGenOutput)\**\*.cs" />
+    <Compile Remove="$(_SqTablesGenOutput)\**\*.cs" />
   </ItemGroup>
 
   <Target Name="SqModelGen" BeforeTargets="BeforeBuild" Condition="'$(SqModelGenEnable)'=='True'">
@@ -40,28 +66,28 @@
       <SqEfTablesGenEffectiveFramework Condition="'$(SqEfTablesGenFramework)' == ''">$(TargetFramework)</SqEfTablesGenEffectiveFramework>
       <SqEfTablesGenFrameworkParam Condition="'$(SqEfTablesGenEffectiveFramework)' != ''"> --framework &quot;$(SqEfTablesGenEffectiveFramework)&quot;</SqEfTablesGenFrameworkParam>
       <SqEfTablesGenFrameworkParam Condition="'$(SqEfTablesGenEffectiveFramework)' == ''"></SqEfTablesGenFrameworkParam>
-      <SqEfTablesGenTableClassPrefixParam Condition="'$(SqEfTablesGenTableClassPrefix)' != ''"> --table-class-prefix &quot;$(SqEfTablesGenTableClassPrefix)&quot;</SqEfTablesGenTableClassPrefixParam>
-      <SqEfTablesGenTableClassPrefixParam Condition="'$(SqEfTablesGenTableClassPrefix)' == ''"></SqEfTablesGenTableClassPrefixParam>
+      <_SqTablesGenTableClassPrefixParam Condition="'$(_SqTablesGenTableClassPrefix)' != ''"> --table-class-prefix &quot;$(_SqTablesGenTableClassPrefix)&quot;</_SqTablesGenTableClassPrefixParam>
+      <_SqTablesGenTableClassPrefixParam Condition="'$(_SqTablesGenTableClassPrefix)' == ''"></_SqTablesGenTableClassPrefixParam>
       <SqEfTablesGenDbContextParam Condition="'$(SqEfTablesGenDbContext)' != ''"> --db-context &quot;$(SqEfTablesGenDbContext)&quot;</SqEfTablesGenDbContextParam>
       <SqEfTablesGenDbContextParam Condition="'$(SqEfTablesGenDbContext)' == ''"></SqEfTablesGenDbContextParam>
-      <SqEfTablesGenUseTableDeclarationAttributesParam Condition="'$(SqEfTablesGenUseTableDeclarationAttributes)'=='True' Or '$(SqEfTablesGenUseTableDeclarationAttributes)'=='true'"> --use-table-declaration-attributes</SqEfTablesGenUseTableDeclarationAttributesParam>
-      <SqEfTablesGenUseTableDeclarationAttributesParam Condition="'$(SqEfTablesGenUseTableDeclarationAttributes)'!='True' And '$(SqEfTablesGenUseTableDeclarationAttributes)'!='true'"></SqEfTablesGenUseTableDeclarationAttributesParam>
-      <SqEfTablesGenSkipUnknownColumnTypesParam Condition="'$(SqEfTablesGenSkipUnknownColumnTypes)'=='True' Or '$(SqEfTablesGenSkipUnknownColumnTypes)'=='true'"> --skip-unknown-column-types</SqEfTablesGenSkipUnknownColumnTypesParam>
-      <SqEfTablesGenSkipUnknownColumnTypesParam Condition="'$(SqEfTablesGenSkipUnknownColumnTypes)'!='True' And '$(SqEfTablesGenSkipUnknownColumnTypes)'!='true'"></SqEfTablesGenSkipUnknownColumnTypesParam>
-      <SqEfTablesGenSplitTablesBySchemaParam Condition="'$(SqEfTablesGenSplitTablesBySchema)'=='True' Or '$(SqEfTablesGenSplitTablesBySchema)'=='true'"> --split-tables-by-schema</SqEfTablesGenSplitTablesBySchemaParam>
-      <SqEfTablesGenSplitTablesBySchemaParam Condition="'$(SqEfTablesGenSplitTablesBySchema)'!='True' And '$(SqEfTablesGenSplitTablesBySchema)'!='true'"></SqEfTablesGenSplitTablesBySchemaParam>
-      <SqEfTablesGenCleanOutputParam Condition="'$(SqEfTablesGenCleanOutput)'=='True' Or '$(SqEfTablesGenCleanOutput)'=='true'"> --clean-output</SqEfTablesGenCleanOutputParam>
-      <SqEfTablesGenCleanOutputParam Condition="'$(SqEfTablesGenCleanOutput)'!='True' And '$(SqEfTablesGenCleanOutput)'!='true'"></SqEfTablesGenCleanOutputParam>
-      <SqEfTablesGenIncludeParam Condition="'$(SqEfTablesGenInclude)' != ''"> --include &quot;$(SqEfTablesGenInclude)&quot;</SqEfTablesGenIncludeParam>
-      <SqEfTablesGenIncludeParam Condition="'$(SqEfTablesGenInclude)' == ''"></SqEfTablesGenIncludeParam>
-      <SqEfTablesGenExcludeParam Condition="'$(SqEfTablesGenExclude)' != ''"> --exclude &quot;$(SqEfTablesGenExclude)&quot;</SqEfTablesGenExcludeParam>
-      <SqEfTablesGenExcludeParam Condition="'$(SqEfTablesGenExclude)' == ''"></SqEfTablesGenExcludeParam>
+      <_SqTablesGenUseTableDeclarationAttributesParam Condition="'$(_SqTablesGenUseTableDeclarationAttributes)'=='True' Or '$(_SqTablesGenUseTableDeclarationAttributes)'=='true'"> --use-table-declaration-attributes</_SqTablesGenUseTableDeclarationAttributesParam>
+      <_SqTablesGenUseTableDeclarationAttributesParam Condition="'$(_SqTablesGenUseTableDeclarationAttributes)'!='True' And '$(_SqTablesGenUseTableDeclarationAttributes)'!='true'"></_SqTablesGenUseTableDeclarationAttributesParam>
+      <_SqTablesGenSkipUnknownColumnTypesParam Condition="'$(_SqTablesGenSkipUnknownColumnTypes)'=='True' Or '$(_SqTablesGenSkipUnknownColumnTypes)'=='true'"> --skip-unknown-column-types</_SqTablesGenSkipUnknownColumnTypesParam>
+      <_SqTablesGenSkipUnknownColumnTypesParam Condition="'$(_SqTablesGenSkipUnknownColumnTypes)'!='True' And '$(_SqTablesGenSkipUnknownColumnTypes)'!='true'"></_SqTablesGenSkipUnknownColumnTypesParam>
+      <_SqTablesGenSplitTablesBySchemaParam Condition="'$(_SqTablesGenSplitTablesBySchema)'=='True' Or '$(_SqTablesGenSplitTablesBySchema)'=='true'"> --split-tables-by-schema</_SqTablesGenSplitTablesBySchemaParam>
+      <_SqTablesGenSplitTablesBySchemaParam Condition="'$(_SqTablesGenSplitTablesBySchema)'!='True' And '$(_SqTablesGenSplitTablesBySchema)'!='true'"></_SqTablesGenSplitTablesBySchemaParam>
+      <_SqTablesGenCleanOutputParam Condition="'$(_SqTablesGenCleanOutput)'=='True' Or '$(_SqTablesGenCleanOutput)'=='true'"> --clean-output</_SqTablesGenCleanOutputParam>
+      <_SqTablesGenCleanOutputParam Condition="'$(_SqTablesGenCleanOutput)'!='True' And '$(_SqTablesGenCleanOutput)'!='true'"></_SqTablesGenCleanOutputParam>
+      <_SqTablesGenIncludeParam Condition="'$(_SqTablesGenInclude)' != ''"> --include &quot;$(_SqTablesGenInclude)&quot;</_SqTablesGenIncludeParam>
+      <_SqTablesGenIncludeParam Condition="'$(_SqTablesGenInclude)' == ''"></_SqTablesGenIncludeParam>
+      <_SqTablesGenExcludeParam Condition="'$(_SqTablesGenExclude)' != ''"> --exclude &quot;$(_SqTablesGenExclude)&quot;</_SqTablesGenExcludeParam>
+      <_SqTablesGenExcludeParam Condition="'$(_SqTablesGenExclude)' == ''"></_SqTablesGenExcludeParam>
     </PropertyGroup>
     <ItemGroup>
-      <Compile Remove="$(SqEfTablesGenOutput)\**\*.cs" />
+      <Compile Remove="$(_SqTablesGenOutput)\**\*.cs" />
     </ItemGroup>
     <Exec
-      Command="dotnet &quot;$(SqExpressCodeGenPath)&quot; gentables ef &quot;$(SqEfTablesGenSource)&quot; -o &quot;$(SqEfTablesGenOutput)&quot; -n &quot;$(SqEfTablesGenNamespace)&quot; -v quiet$(SqEfTablesGenFrameworkParam)$(SqEfTablesGenTableClassPrefixParam)$(SqEfTablesGenDbContextParam)$(SqEfTablesGenUseTableDeclarationAttributesParam)$(SqEfTablesGenSkipUnknownColumnTypesParam)$(SqEfTablesGenSplitTablesBySchemaParam)$(SqEfTablesGenCleanOutputParam)$(SqEfTablesGenIncludeParam)$(SqEfTablesGenExcludeParam)"
+      Command="dotnet &quot;$(SqExpressCodeGenPath)&quot; gentables ef &quot;$(SqEfTablesGenSource)&quot; -o &quot;$(_SqTablesGenOutput)&quot; -n &quot;$(_SqTablesGenNamespace)&quot; -v quiet$(SqEfTablesGenFrameworkParam)$(_SqTablesGenTableClassPrefixParam)$(SqEfTablesGenDbContextParam)$(_SqTablesGenUseTableDeclarationAttributesParam)$(_SqTablesGenSkipUnknownColumnTypesParam)$(_SqTablesGenSplitTablesBySchemaParam)$(_SqTablesGenCleanOutputParam)$(_SqTablesGenIncludeParam)$(_SqTablesGenExcludeParam)"
       WorkingDirectory="$(MSBuildProjectDirectory)"
       ConsoleToMSBuild="true"
       StandardOutputImportance="Low"
@@ -77,7 +103,7 @@
     <Error Condition="'$(_SqEfTablesGenExitCode)' != '0'"
            Text="$(SqEfTablesGenErrorText)" />
     <ItemGroup>
-      <Compile Include="$(SqEfTablesGenOutput)\**\*.cs" />
+      <Compile Include="$(_SqTablesGenOutput)\**\*.cs" />
     </ItemGroup>
   </Target>
 </Project>

@@ -9,22 +9,25 @@
     <SqTablseGenOutput>Tables</SqTablseGenOutput>
     <SqTablseGenNamespace>$(MSBuildProjectName).Tables</SqTablseGenNamespace>
     <SqTablseGenTableClassPrefix></SqTablseGenTableClassPrefix>
+    <SqTablseGenUseTableDeclarationAttributes Condition="'$(SqTablseGenUseTableDeclarationAttributes)' == ''"></SqTablseGenUseTableDeclarationAttributes>
+    <SqTablseGenSkipUnknownColumnTypes Condition="'$(SqTablseGenSkipUnknownColumnTypes)' == ''"></SqTablseGenSkipUnknownColumnTypes>
+    <SqTablseGenSplitTablesBySchema Condition="'$(SqTablseGenSplitTablesBySchema)' == ''"></SqTablseGenSplitTablesBySchema>
     <SqTablseGenCleanOutput>false</SqTablseGenCleanOutput>
     <SqTablseGenInclude></SqTablseGenInclude>
     <SqTablseGenExclude></SqTablseGenExclude>
+    <SqTablesGenOutput Condition="'$(SqTablesGenOutput)' == ''"></SqTablesGenOutput>
+    <SqTablesGenNamespace Condition="'$(SqTablesGenNamespace)' == ''"></SqTablesGenNamespace>
+    <SqTablesGenTableClassPrefix Condition="'$(SqTablesGenTableClassPrefix)' == ''"></SqTablesGenTableClassPrefix>
+    <SqTablesGenUseTableDeclarationAttributes Condition="'$(SqTablesGenUseTableDeclarationAttributes)' == ''"></SqTablesGenUseTableDeclarationAttributes>
+    <SqTablesGenSkipUnknownColumnTypes Condition="'$(SqTablesGenSkipUnknownColumnTypes)' == ''"></SqTablesGenSkipUnknownColumnTypes>
+    <SqTablesGenSplitTablesBySchema Condition="'$(SqTablesGenSplitTablesBySchema)' == ''"></SqTablesGenSplitTablesBySchema>
+    <SqTablesGenCleanOutput Condition="'$(SqTablesGenCleanOutput)' == ''"></SqTablesGenCleanOutput>
+    <SqTablesGenInclude Condition="'$(SqTablesGenInclude)' == ''"></SqTablesGenInclude>
+    <SqTablesGenExclude Condition="'$(SqTablesGenExclude)' == ''"></SqTablesGenExclude>
     <SqExpressCodeGenPath>$(MSBuildThisFileDirectory)../tools/codegen/SqExpress.CodeGenUtil.dll</SqExpressCodeGenPath>
     <SqEfTablesGenEnable>false</SqEfTablesGenEnable>
     <SqEfTablesGenProject></SqEfTablesGenProject>
-    <SqEfTablesGenOutput>Tables</SqEfTablesGenOutput>
-    <SqEfTablesGenNamespace>$(MSBuildProjectName).Tables</SqEfTablesGenNamespace>
-    <SqEfTablesGenTableClassPrefix></SqEfTablesGenTableClassPrefix>
     <SqEfTablesGenDbContext></SqEfTablesGenDbContext>
     <SqEfTablesGenFramework></SqEfTablesGenFramework>
-    <SqEfTablesGenUseTableDeclarationAttributes>true</SqEfTablesGenUseTableDeclarationAttributes>
-    <SqEfTablesGenSkipUnknownColumnTypes>true</SqEfTablesGenSkipUnknownColumnTypes>
-    <SqEfTablesGenSplitTablesBySchema>false</SqEfTablesGenSplitTablesBySchema>
-    <SqEfTablesGenCleanOutput>false</SqEfTablesGenCleanOutput>
-    <SqEfTablesGenInclude></SqEfTablesGenInclude>
-    <SqEfTablesGenExclude></SqEfTablesGenExclude>
   </PropertyGroup>
 </Project>

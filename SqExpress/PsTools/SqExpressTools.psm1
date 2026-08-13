@@ -39,9 +39,9 @@ function Gen-Tables
     }
 
     #OutputDir
-    if(!$OutputDir)
+    if(!$PSBoundParameters.ContainsKey('OutputDir'))
     {
-        $OutputDir = GetCurrentProjectProperty "SqTablseGenOutput"
+        $OutputDir = GetTableGenProperty "Output"
         if(!$OutputDir)
         {
             $OutputDir = "Tables"
@@ -53,9 +53,9 @@ function Gen-Tables
     }
 
     #TableClassPrefix
-    if(!$TableClassPrefix)
+    if(!$PSBoundParameters.ContainsKey('TableClassPrefix'))
     {
-        $TableClassPrefix = GetCurrentProjectProperty "SqTablseGenTableClassPrefix"
+        $TableClassPrefix = GetTableGenProperty "TableClassPrefix"
     }
     if($TableClassPrefix -and $TableClassPrefix -ne "")
     {
@@ -63,9 +63,9 @@ function Gen-Tables
     }
 
     #Namespace
-    if(!$Namespace)
+    if(!$PSBoundParameters.ContainsKey('Namespace'))
     {
-        $Namespace = GetCurrentProjectProperty "SqTablseGenNamespace"
+        $Namespace = GetTableGenProperty "Namespace"
 
         if(!$Namespace -or $Namespace -eq "")
         {
@@ -90,29 +90,33 @@ function Gen-Tables
         $args = $args + " -n " + $Namespace
     }
 
-    if($UseTableDeclarationAttributes.IsPresent)
+    if($UseTableDeclarationAttributes.IsPresent -or
+       (!$PSBoundParameters.ContainsKey('UseTableDeclarationAttributes') -and (GetTableGenProperty "UseTableDeclarationAttributes") -eq "True"))
     {
         $args = $args + " --use-table-declaration-attributes"
     }
 
-    if($SkipUnknownColumnTypes.IsPresent)
+    if($SkipUnknownColumnTypes.IsPresent -or
+       (!$PSBoundParameters.ContainsKey('SkipUnknownColumnTypes') -and (GetTableGenProperty "SkipUnknownColumnTypes") -eq "True"))
     {
         $args = $args + " --skip-unknown-column-types"
     }
 
-    if($SplitTablesBySchema.IsPresent)
+    if($SplitTablesBySchema.IsPresent -or
+       (!$PSBoundParameters.ContainsKey('SplitTablesBySchema') -and (GetTableGenProperty "SplitTablesBySchema") -eq "True"))
     {
         $args = $args + " --split-tables-by-schema"
     }
 
-    if($CleanOutput.IsPresent -or (GetCurrentProjectProperty "SqTablseGenCleanOutput") -eq "True")
+    if($CleanOutput.IsPresent -or
+       (!$PSBoundParameters.ContainsKey('CleanOutput') -and (GetTableGenProperty "CleanOutput") -eq "True"))
     {
         $args = $args + " --clean-output"
     }
 
-    if(!$Include)
+    if(!$PSBoundParameters.ContainsKey('Include'))
     {
-        $includeProperty = GetCurrentProjectProperty "SqTablseGenInclude"
+        $includeProperty = GetTableGenProperty "Include"
         if($includeProperty) { $Include = $includeProperty }
     }
     if($Include)
@@ -120,9 +124,9 @@ function Gen-Tables
         $args = $args + " --include """ + ($Include -join ';') + """"
     }
 
-    if(!$Exclude)
+    if(!$PSBoundParameters.ContainsKey('Exclude'))
     {
-        $excludeProperty = GetCurrentProjectProperty "SqTablseGenExclude"
+        $excludeProperty = GetTableGenProperty "Exclude"
         if($excludeProperty) { $Exclude = $excludeProperty }
     }
     if($Exclude)
@@ -290,6 +294,17 @@ function GetCurrentProjectProperty($propertyName)
 	}
 	
 	return (GetMsBuildProject).GetProperty($propertyName).EvaluatedValue
+}
+
+function GetTableGenProperty($propertySuffix)
+{
+    $value = GetCurrentProjectProperty ("SqTablesGen" + $propertySuffix)
+    if($value)
+    {
+        return $value
+    }
+
+    return GetCurrentProjectProperty ("SqTablseGen" + $propertySuffix)
 }
 
 function WarnNamespaceOutputMismatch($outputDir, $namespace)

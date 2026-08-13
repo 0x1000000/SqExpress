@@ -122,6 +122,44 @@ Patterns containing `.` match the complete `schema.table` name. Patterns without
 
 Foreign-key metadata pointing to a filtered-out table is omitted. With `-CleanOutput`, descriptor files for filtered-out tables are removed, so use cleanup only when the output directory is generator-owned.
 
+## Project Defaults
+
+Set reusable `Gen-Tables` defaults in the selected project:
+
+```xml
+<PropertyGroup>
+  <SqTablesGenOutput>Tables</SqTablesGenOutput>
+  <SqTablesGenNamespace>$(MSBuildProjectName).Tables</SqTablesGenNamespace>
+  <SqTablesGenTableClassPrefix>Table</SqTablesGenTableClassPrefix>
+  <SqTablesGenUseTableDeclarationAttributes>true</SqTablesGenUseTableDeclarationAttributes>
+  <SqTablesGenSkipUnknownColumnTypes>false</SqTablesGenSkipUnknownColumnTypes>
+  <SqTablesGenSplitTablesBySchema>true</SqTablesGenSplitTablesBySchema>
+  <SqTablesGenCleanOutput>false</SqTablesGenCleanOutput>
+  <SqTablesGenInclude>sales.*;Customer?</SqTablesGenInclude>
+  <SqTablesGenExclude>*.Archive*</SqTablesGenExclude>
+</PropertyGroup>
+```
+
+When `Gen-Tables` is called without a corresponding parameter, a stored project property overrides the command's built-in default. An explicitly supplied `Gen-Tables` parameter has higher priority and overrides the stored property.
+
+### All Stored Table-Generation Properties
+
+| Project property | `Gen-Tables` parameter | Default when unset | Description |
+|---|---|---|---|
+| `SqTablesGenOutput` | `OutputDir` | `Tables` | Output directory for generated `.cs` files. |
+| `SqTablesGenNamespace` | `Namespace` | selected project name plus output path | Base namespace for generated descriptors. |
+| `SqTablesGenTableClassPrefix` | `TableClassPrefix` | `Table` | Prefix for generated descriptor class names. |
+| `SqTablesGenUseTableDeclarationAttributes` | `UseTableDeclarationAttributes` | `false` | Generate attribute-based partial declarations instead of complete `TableBase` classes. |
+| `SqTablesGenSkipUnknownColumnTypes` | `SkipUnknownColumnTypes` | `false` | Omit unsupported columns instead of failing generation. |
+| `SqTablesGenSplitTablesBySchema` | `SplitTablesBySchema` | `false` | Create schema-specific output folders and namespace segments. |
+| `SqTablesGenCleanOutput` | `CleanOutput` | `false` | Remove obsolete recognized descriptors after successful generation. |
+| `SqTablesGenInclude` | `Include` | all tables | Semicolon-separated, case-insensitive include patterns supporting `*` and `?`. |
+| `SqTablesGenExclude` | `Exclude` | none | Semicolon-separated exclude patterns applied after includes. Exclusions always win. |
+
+For example, if `SqTablesGenSplitTablesBySchema` is `true`, calling `Gen-Tables` without `-SplitTablesBySchema` enables schema splitting. Passing `-SplitTablesBySchema:$false` explicitly disables it for that invocation.
+
+The released, misspelled `SqTablseGen*` equivalents remain supported as lower-priority fallbacks. The complete precedence order is: explicit `Gen-Tables` parameter, `SqTablesGen*`, `SqTablseGen*`, then the default shown above. See [Table Descriptor Generation](table_generation.md#shared-project-properties) for the shared property overview.
+
 ## Schema Folders
 
 `-SplitTablesBySchema` creates a folder and namespace segment for each schema.
@@ -149,17 +187,17 @@ Keep cleanup disabled when the output directory contains table descriptors maint
 |---|---:|---|---|
 | `DbType` | yes | none | `mssql`, `mysql`, or `pgsql`. First positional argument. |
 | `ConnectionString` | yes | none | Database connection string. Can be supplied as the second positional argument or with `-ConnectionString`. |
-| `OutputDir` | no | project property `SqTablseGenOutput`; otherwise `Tables` | Directory for generated `.cs` files. A relative path is resolved from the selected project directory. |
-| `TableClassPrefix` | no | project property `SqTablseGenTableClassPrefix`; otherwise tool default `Table` | Prefix for generated descriptor class names. |
-| `Namespace` | no | project property `SqTablseGenNamespace`; otherwise selected project name plus output path | Base namespace for generated descriptors. |
-| `UseTableDeclarationAttributes` | no | `false` | Generates attribute-based partial declarations. |
-| `SkipUnknownColumnTypes` | no | `false` | Omits unsupported columns instead of failing. |
-| `SplitTablesBySchema` | no | `false` | Creates schema-specific folders and namespace segments. |
-| `CleanOutput` | no | project property `SqTablseGenCleanOutput`; otherwise `false` | Removes obsolete recognized descriptors after successful generation. |
-| `Include` | no | project property `SqTablseGenInclude`; otherwise all tables | One or more case-insensitive table patterns. Use `*` and `?`; qualify with `schema.` to restrict a pattern to a schema. |
-| `Exclude` | no | project property `SqTablseGenExclude`; otherwise none | One or more table patterns applied after includes. Excludes always win. |
+| `OutputDir` | no | project property `SqTablesGenOutput`; otherwise `Tables` | Directory for generated `.cs` files. A relative path is resolved from the selected project directory. |
+| `TableClassPrefix` | no | project property `SqTablesGenTableClassPrefix`; otherwise tool default `Table` | Prefix for generated descriptor class names. |
+| `Namespace` | no | project property `SqTablesGenNamespace`; otherwise selected project name plus output path | Base namespace for generated descriptors. |
+| `UseTableDeclarationAttributes` | no | project property `SqTablesGenUseTableDeclarationAttributes`; otherwise `false` | Generates attribute-based partial declarations. |
+| `SkipUnknownColumnTypes` | no | project property `SqTablesGenSkipUnknownColumnTypes`; otherwise `false` | Omits unsupported columns instead of failing. |
+| `SplitTablesBySchema` | no | project property `SqTablesGenSplitTablesBySchema`; otherwise `false` | Creates schema-specific folders and namespace segments. |
+| `CleanOutput` | no | project property `SqTablesGenCleanOutput`; otherwise `false` | Removes obsolete recognized descriptors after successful generation. |
+| `Include` | no | project property `SqTablesGenInclude`; otherwise all tables | One or more case-insensitive table patterns. Use `*` and `?`; qualify with `schema.` to restrict a pattern to a schema. |
+| `Exclude` | no | project property `SqTablesGenExclude`; otherwise none | One or more table patterns applied after includes. Excludes always win. |
 
-The `SqTablse...` spelling is retained for backward compatibility.
+The older misspelled `SqTablseGen*` names remain supported. `SqTablesGen*` takes precedence when both forms are set, and an explicit `Gen-Tables` parameter takes precedence over either property.
 
 ## Pure CLI
 

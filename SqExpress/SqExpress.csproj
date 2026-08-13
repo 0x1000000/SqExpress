@@ -14,7 +14,7 @@
     <NoWarn>$(NoWarn);1591</NoWarn>
     <Authors>Dmitry Tikhonov</Authors>
     <Company />
-    <Version>1.3.0-beta2</Version>
+    <Version>1.3.0</Version>
     <Summary>SqExpress is a SQL query builder that lets you create SQL expressions directly in C# with strong typing and export them to MS T-SQL, PostgreSQL, MySQL, and SQLite.</Summary>
     <PackageReleaseNotes>https://github.com/0x1000000/SqExpress/blob/main/CHANGELOG.md</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
