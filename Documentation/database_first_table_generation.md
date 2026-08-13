@@ -108,6 +108,20 @@ Gen-Tables mssql `
 
 Review every reported omission because the generated descriptor will not represent the complete table.
 
+Filter tables by physical schema and table name:
+
+```powershell
+Gen-Tables mssql `
+  -ConnectionString "<connection-string>" `
+  -Include "sales.*", "Customer?" `
+  -Exclude "*.OrderArchive*" `
+  -UseTableDeclarationAttributes
+```
+
+Patterns containing `.` match the complete `schema.table` name. Patterns without `.` match table names in every schema. Matching is case-insensitive; `*` matches zero or more characters and `?` matches exactly one character. When includes are supplied, a table must match at least one include. Excludes are applied afterward and always win.
+
+Foreign-key metadata pointing to a filtered-out table is omitted. With `-CleanOutput`, descriptor files for filtered-out tables are removed, so use cleanup only when the output directory is generator-owned.
+
 ## Schema Folders
 
 `-SplitTablesBySchema` creates a folder and namespace segment for each schema.
@@ -142,6 +156,8 @@ Keep cleanup disabled when the output directory contains table descriptors maint
 | `SkipUnknownColumnTypes` | no | `false` | Omits unsupported columns instead of failing. |
 | `SplitTablesBySchema` | no | `false` | Creates schema-specific folders and namespace segments. |
 | `CleanOutput` | no | project property `SqTablseGenCleanOutput`; otherwise `false` | Removes obsolete recognized descriptors after successful generation. |
+| `Include` | no | project property `SqTablseGenInclude`; otherwise all tables | One or more case-insensitive table patterns. Use `*` and `?`; qualify with `schema.` to restrict a pattern to a schema. |
+| `Exclude` | no | project property `SqTablseGenExclude`; otherwise none | One or more table patterns applied after includes. Excludes always win. |
 
 The `SqTablse...` spelling is retained for backward compatibility.
 
@@ -152,6 +168,8 @@ For scripts, CI, or environments without Visual Studio Package Manager Console, 
 ```powershell
 dotnet "<package>\tools\codegen\SqExpress.CodeGenUtil.dll" `
   gentables mssql "<connection-string>" `
+  --include "sales.*;Customer?" `
+  --exclude "*.OrderArchive*" `
   --use-table-declaration-attributes
 ```
 
@@ -171,7 +189,10 @@ For the pure CLI, a relative `--output-dir` path is resolved from the process's 
 | `--skip-unknown-column-types` | no | `false` | Omits unsupported columns instead of failing. |
 | `--split-tables-by-schema` | no | `false` | Creates schema-specific folders and namespace segments. |
 | `--clean-output` | no | `false` | Removes obsolete recognized descriptors after successful generation. |
+| `--include <patterns>` | no | all tables | Semicolon-separated case-insensitive include patterns supporting `*` and `?`. |
+| `--exclude <patterns>` | no | none | Semicolon-separated exclude patterns, applied after includes. |
 
 Boolean CLI options are switches: include the option to enable it and omit the option to keep its default value.
+Quote filter lists so the shell does not expand wildcard characters. Supply multiple patterns as a semicolon-separated list.
 
 For generation from an EF Core model, see [Entity Framework Table Generation](ef_table_generation.md).

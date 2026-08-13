@@ -1,11 +1,15 @@
-﻿using CommandLine;
+﻿using System;
+using CommandLine;
+
+using System.Collections.Generic;
+using System.Linq;
 
 namespace SqExpress.CodeGenUtil
 {
     [Verb("gentables", HelpText = "Generate table descriptor classes.")]
     public class GenTablesOptions
     {
-        public GenTablesOptions(ConnectionType connectionType, string source, string tableClassPrefix, string outputDir, string @namespace, Verbosity verbosity, bool useTableDeclarationAttributes = false, bool skipUnknownColumnTypes = false, string dbContext = "", string framework = "", bool splitTablesBySchema = false, bool cleanOutput = false)
+        public GenTablesOptions(ConnectionType connectionType, string source, string tableClassPrefix, string outputDir, string @namespace, Verbosity verbosity, bool useTableDeclarationAttributes = false, bool skipUnknownColumnTypes = false, string dbContext = "", string framework = "", bool splitTablesBySchema = false, bool cleanOutput = false, IEnumerable<string>? include = null, IEnumerable<string>? exclude = null)
         {
             this.ConnectionType = connectionType;
             this.Source = source;
@@ -19,6 +23,8 @@ namespace SqExpress.CodeGenUtil
             this.Framework = framework;
             this.SplitTablesBySchema = splitTablesBySchema;
             this.CleanOutput = cleanOutput;
+            this.Include = include?.ToArray() ?? Array.Empty<string>();
+            this.Exclude = exclude?.ToArray() ?? Array.Empty<string>();
         }
 
         [Value(1, MetaName = "CONNECTION_TYPE", Required = true, HelpText = "Connection Type: \"mssql\" or \"mysql\" or \"pgsql\" or \"ef\".")]
@@ -56,6 +62,12 @@ namespace SqExpress.CodeGenUtil
 
         [Option("clean-output", Required = false, Default = false, HelpText = "Remove obsolete table descriptors from the output directory.")]
         public bool CleanOutput { get; }
+
+        [Option("include", Required = false, Separator = ';', HelpText = "Include tables matching a semicolon-separated list of wildcard patterns.")]
+        public IEnumerable<string> Include { get; }
+
+        [Option("exclude", Required = false, Separator = ';', HelpText = "Exclude tables matching a semicolon-separated list of wildcard patterns.")]
+        public IEnumerable<string> Exclude { get; }
     }
 
     public enum ConnectionType
