@@ -18,7 +18,9 @@ function Gen-Tables
         [switch] $UseTableDeclarationAttributes,
         [switch] $SkipUnknownColumnTypes,
         [switch] $SplitTablesBySchema,
-        [switch] $CleanOutput
+        [switch] $CleanOutput,
+        [string[]] $Include,
+        [string[]] $Exclude
     )
 	
     if($DbType -eq 'ef')
@@ -106,6 +108,26 @@ function Gen-Tables
     if($CleanOutput.IsPresent -or (GetCurrentProjectProperty "SqTablseGenCleanOutput") -eq "True")
     {
         $args = $args + " --clean-output"
+    }
+
+    if(!$Include)
+    {
+        $includeProperty = GetCurrentProjectProperty "SqTablseGenInclude"
+        if($includeProperty) { $Include = $includeProperty }
+    }
+    if($Include)
+    {
+        $args = $args + " --include """ + ($Include -join ';') + """"
+    }
+
+    if(!$Exclude)
+    {
+        $excludeProperty = GetCurrentProjectProperty "SqTablseGenExclude"
+        if($excludeProperty) { $Exclude = $excludeProperty }
+    }
+    if($Exclude)
+    {
+        $args = $args + " --exclude """ + ($Exclude -join ';') + """"
     }
 
     if($DbType -eq 'ef' -and $DbContext)

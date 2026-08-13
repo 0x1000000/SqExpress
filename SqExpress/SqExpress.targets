@@ -52,12 +52,16 @@
       <SqEfTablesGenSplitTablesBySchemaParam Condition="'$(SqEfTablesGenSplitTablesBySchema)'!='True' And '$(SqEfTablesGenSplitTablesBySchema)'!='true'"></SqEfTablesGenSplitTablesBySchemaParam>
       <SqEfTablesGenCleanOutputParam Condition="'$(SqEfTablesGenCleanOutput)'=='True' Or '$(SqEfTablesGenCleanOutput)'=='true'"> --clean-output</SqEfTablesGenCleanOutputParam>
       <SqEfTablesGenCleanOutputParam Condition="'$(SqEfTablesGenCleanOutput)'!='True' And '$(SqEfTablesGenCleanOutput)'!='true'"></SqEfTablesGenCleanOutputParam>
+      <SqEfTablesGenIncludeParam Condition="'$(SqEfTablesGenInclude)' != ''"> --include &quot;$(SqEfTablesGenInclude)&quot;</SqEfTablesGenIncludeParam>
+      <SqEfTablesGenIncludeParam Condition="'$(SqEfTablesGenInclude)' == ''"></SqEfTablesGenIncludeParam>
+      <SqEfTablesGenExcludeParam Condition="'$(SqEfTablesGenExclude)' != ''"> --exclude &quot;$(SqEfTablesGenExclude)&quot;</SqEfTablesGenExcludeParam>
+      <SqEfTablesGenExcludeParam Condition="'$(SqEfTablesGenExclude)' == ''"></SqEfTablesGenExcludeParam>
     </PropertyGroup>
     <ItemGroup>
       <Compile Remove="$(SqEfTablesGenOutput)\**\*.cs" />
     </ItemGroup>
     <Exec
-      Command="dotnet &quot;$(SqExpressCodeGenPath)&quot; gentables ef &quot;$(SqEfTablesGenSource)&quot; -o &quot;$(SqEfTablesGenOutput)&quot; -n &quot;$(SqEfTablesGenNamespace)&quot; -v quiet$(SqEfTablesGenFrameworkParam)$(SqEfTablesGenTableClassPrefixParam)$(SqEfTablesGenDbContextParam)$(SqEfTablesGenUseTableDeclarationAttributesParam)$(SqEfTablesGenSkipUnknownColumnTypesParam)$(SqEfTablesGenSplitTablesBySchemaParam)$(SqEfTablesGenCleanOutputParam)"
+      Command="dotnet &quot;$(SqExpressCodeGenPath)&quot; gentables ef &quot;$(SqEfTablesGenSource)&quot; -o &quot;$(SqEfTablesGenOutput)&quot; -n &quot;$(SqEfTablesGenNamespace)&quot; -v quiet$(SqEfTablesGenFrameworkParam)$(SqEfTablesGenTableClassPrefixParam)$(SqEfTablesGenDbContextParam)$(SqEfTablesGenUseTableDeclarationAttributesParam)$(SqEfTablesGenSkipUnknownColumnTypesParam)$(SqEfTablesGenSplitTablesBySchemaParam)$(SqEfTablesGenCleanOutputParam)$(SqEfTablesGenIncludeParam)$(SqEfTablesGenExcludeParam)"
       WorkingDirectory="$(MSBuildProjectDirectory)"
       ConsoleToMSBuild="true"
       StandardOutputImportance="Low"

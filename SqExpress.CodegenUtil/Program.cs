@@ -127,6 +127,8 @@ namespace SqExpress.CodeGenUtil
                 tables = await sqlManager.SelectTables(options.SkipUnknownColumnTypes);
             }
 
+            tables = TableFilter.Apply(tables, options.Include, options.Exclude);
+
             if(logger.IsNormalOrHigher)
             {
                 logger.LogNormal(tables.Count > 0

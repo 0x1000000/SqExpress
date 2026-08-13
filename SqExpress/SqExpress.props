@@ -10,6 +10,8 @@
     <SqTablseGenNamespace>$(MSBuildProjectName).Tables</SqTablseGenNamespace>
     <SqTablseGenTableClassPrefix></SqTablseGenTableClassPrefix>
     <SqTablseGenCleanOutput>false</SqTablseGenCleanOutput>
+    <SqTablseGenInclude></SqTablseGenInclude>
+    <SqTablseGenExclude></SqTablseGenExclude>
     <SqExpressCodeGenPath>$(MSBuildThisFileDirectory)../tools/codegen/SqExpress.CodeGenUtil.dll</SqExpressCodeGenPath>
     <SqEfTablesGenEnable>false</SqEfTablesGenEnable>
     <SqEfTablesGenProject></SqEfTablesGenProject>
@@ -22,5 +24,7 @@
     <SqEfTablesGenSkipUnknownColumnTypes>true</SqEfTablesGenSkipUnknownColumnTypes>
     <SqEfTablesGenSplitTablesBySchema>false</SqEfTablesGenSplitTablesBySchema>
     <SqEfTablesGenCleanOutput>false</SqEfTablesGenCleanOutput>
+    <SqEfTablesGenInclude></SqEfTablesGenInclude>
+    <SqEfTablesGenExclude></SqEfTablesGenExclude>
   </PropertyGroup>
 </Project>

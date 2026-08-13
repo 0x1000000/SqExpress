@@ -53,6 +53,8 @@ The following block shows the generation properties together. It is a reference,
   <SqEfTablesGenSkipUnknownColumnTypes>true</SqEfTablesGenSkipUnknownColumnTypes>
   <SqEfTablesGenSplitTablesBySchema>false</SqEfTablesGenSplitTablesBySchema>
   <SqEfTablesGenCleanOutput>false</SqEfTablesGenCleanOutput>
+  <SqEfTablesGenInclude></SqEfTablesGenInclude>
+  <SqEfTablesGenExclude></SqEfTablesGenExclude>
 </PropertyGroup>
 ```
 
@@ -69,6 +71,8 @@ The following block shows the generation properties together. It is a reference,
 | `SqEfTablesGenSkipUnknownColumnTypes` | `true` | Whether unsupported EF column types are reported and omitted instead of failing generation. | Set it to `false` when a partial descriptor is unsafe and every mapped column must be supported. Leave it `true` when unsupported columns may intentionally be excluded after reviewing diagnostics. |
 | `SqEfTablesGenSplitTablesBySchema` | `false` | Whether database schemas become output subdirectories and namespace segments. | Set it to `true` when the model uses multiple schemas, especially when schemas contain tables with the same name or the project is organized by schema. |
 | `SqEfTablesGenCleanOutput` | `false` | Whether obsolete recognized descriptors are removed after successful generation. | Set it to `true` when the output directory is generator-owned and should exactly follow the EF model. Leave it `false` if that directory also contains manually maintained descriptors. |
+| `SqEfTablesGenInclude` | empty | Semicolon-separated, case-insensitive table patterns to include. Empty includes every table. | Set it when only part of the EF relational model should produce descriptors. Use `*` and `?`, and qualify with `schema.` when needed. |
+| `SqEfTablesGenExclude` | empty | Semicolon-separated table patterns to exclude after includes. | Set it for archive, migration, or other tables that must never be generated. Excludes always win. |
 | `SqExpressCodeGenPath` | packaged tool path | The location of `SqExpress.CodeGenUtil.dll`. The package sets it automatically. | Change it only for source-tree development, custom package layouts, or controlled builds that intentionally use another code-generator binary. Application projects normally should not set it. |
 
 ## Selecting a `DbContext`
@@ -168,6 +172,19 @@ Cleanup runs only after metadata is read successfully. A file is deleted only wh
 
 Leave cleanup disabled when the directory contains descriptors maintained by hand.
 
+## Filtering Tables
+
+Generate only selected physical tables with include and exclude patterns:
+
+```xml
+<SqEfTablesGenInclude>sales.*;Customer?</SqEfTablesGenInclude>
+<SqEfTablesGenExclude>*.OrderArchive*</SqEfTablesGenExclude>
+```
+
+A pattern containing `.` matches the complete `schema.table` name; an unqualified pattern matches table names in every schema. Matching is case-insensitive. `*` matches zero or more characters and `?` matches exactly one character. A table must match an include when any includes are configured, then exclusions are applied and always win.
+
+Foreign-key metadata pointing to a filtered-out table is omitted. When `SqEfTablesGenCleanOutput` is enabled, files belonging to filtered-out tables are removed.
+
 ## Unsupported Column Types
 
 Unsupported columns are reported and omitted by default:
@@ -218,6 +235,8 @@ The project argument can be a Visual Studio project name or `.csproj` path. When
 | `SkipUnknownColumnTypes` | no | `false` | Omits unsupported columns instead of failing. |
 | `SplitTablesBySchema` | no | `false` | Creates schema-specific folders and namespaces. |
 | `CleanOutput` | no | project property `SqTablseGenCleanOutput`; otherwise `false` | Removes obsolete recognized descriptors. |
+| `Include` | no | project property `SqTablseGenInclude`; otherwise all tables | One or more wildcard include patterns. |
+| `Exclude` | no | project property `SqTablseGenExclude`; otherwise none | One or more wildcard exclude patterns; exclusions win. |
 
 The `SqTablse...` spelling is retained for backward compatibility.
 
@@ -228,6 +247,8 @@ For scripts or CI, invoke the utility included in the NuGet package:
 ```powershell
 dotnet "<package>\tools\codegen\SqExpress.CodeGenUtil.dll" `
   gentables ef ".\Data\MyApp.Data.csproj" `
+  --include "sales.*;Customer?" `
+  --exclude "*.OrderArchive*" `
   --use-table-declaration-attributes
 ```
 
@@ -249,7 +270,10 @@ For the pure CLI, a relative `--output-dir` path is resolved from the process's 
 | `--framework <tfm>` | no | automatic | Target framework. Required when it cannot be inferred unambiguously. |
 | `--split-tables-by-schema` | no | `false` | Creates schema-specific folders and namespaces. |
 | `--clean-output` | no | `false` | Removes obsolete recognized descriptors after successful generation. |
+| `--include <patterns>` | no | all tables | Semicolon-separated, case-insensitive include patterns supporting `*` and `?`. |
+| `--exclude <patterns>` | no | none | Semicolon-separated exclude patterns, applied after includes. |
 
 Boolean CLI options are switches: include the option to enable it and omit the option to retain its default.
+Quote filter lists so the shell does not expand wildcard characters. Supply multiple patterns as a semicolon-separated list.
 
 For generation from a live database, see [Database-First Table Generation](database_first_table_generation.md).
