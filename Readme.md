@@ -1,7 +1,8 @@
 # SqExpress
 
-![Logo](https://github.com/0x1000000/SqExpress/blob/main/SqExpress/Icon.png)
-For those who like SQL but hate raw strings.
+![Logo](Icon.png)
+
+*For those who like SQL but hate raw strings.*
 
 The library provides a generic SQL syntax tree with export to MS T-SQL, PostgreSQL, MySQL, and SQLite text. It includes polyfills to compensate for features lacking in certain databases, such as the "MERGE" command. It also provides a set of builders and operators that will help you build complex SQL expressions. It also includes a T-SQL parser (`SqTSqlParser`) for converting existing SQL text into SqExpress AST.
 
@@ -20,9 +21,8 @@ SqExpress is also a strong fit when SQL is produced dynamically, including by AI
 ### Resources
 
 1. [Video Tutorials](#video-tutorials)
-2. [Articles](#articles)
-3. [T-SQL to SqExpress Transpiler (Web Tool) **NEW!!!**](#t-sql-to-sqexpress-transpiler-web-tool)
-4. [Demo Application](#demo-application)
+2. [T-SQL to SqExpress Transpiler (Web Tool) **NEW!!!**](#t-sql-to-sqexpress-transpiler-web-tool)
+3. [Demo Application](#demo-application)
 
 ### Intro
 
@@ -81,6 +81,10 @@ SqExpress is also a strong fit when SQL is produced dynamically, including by AI
 5. [SQLite](#sqlite)
 6. [AutoMapper](#automapper)
 
+### Additional Resources
+
+1. [Articles](#articles)
+
 ---
 ---
 
@@ -89,11 +93,6 @@ SqExpress is also a strong fit when SQL is produced dynamically, including by AI
 
 1. [Basics of SqExpress](https://www.youtube.com/watch?v=Zd-fCb8NimA)
 2. [Working with Database Metadata Using SqExpress](https://youtu.be/vGVpTCt4aqc?si=AWK8GzvoiVlX7vET)
-
-# Articles
-
-1. ["Syntax Tree and Alternative to LINQ in Interaction with SQL Databases"](https://itnext.io/syntax-tree-and-alternative-to-linq-in-interaction-with-sql-databases-656b78fe00dc?source=friends_link&sk=f5f0587c08166d8824b96b48fe2cf33c) - explains the library principles;
-2. ["Filtering by Dynamic Attributes"](https://itnext.io/filtering-by-dynamic-attributes-90ada3504361?source=friends_link&sk=35e273a9f499e6b62bacbac75873a7d2) - shows how to create dynamic queries using the library.
 
 # T-SQL to SqExpress Transpiler (Web Tool)
 
@@ -2495,3 +2494,8 @@ var result = await Select(table.Columns)
 ```
 
 [(taken from "Test/SqExpress.IntTest/Scenarios/ScAllColumnTypes.cs")](https://github.com/0x1000000/SqExpress/blob/main/Test/SqExpress.IntTest/Scenarios/ScAllColumnTypes.cs#L26)
+
+# Articles
+
+1. ["Syntax Tree and Alternative to LINQ in Interaction with SQL Databases"](https://itnext.io/syntax-tree-and-alternative-to-linq-in-interaction-with-sql-databases-656b78fe00dc?source=friends_link&sk=f5f0587c08166d8824b96b48fe2cf33c) - explains the library principles;
+2. ["Filtering by Dynamic Attributes"](https://itnext.io/filtering-by-dynamic-attributes-90ada3504361?source=friends_link&sk=35e273a9f499e6b62bacbac75873a7d2) - shows how to create dynamic queries using the library.

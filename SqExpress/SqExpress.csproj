@@ -51,7 +51,7 @@ Here's an article that explains the library principles: ["Syntax Tree and Altern
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="Icon.png">
+    <None Include="..\Icon.png">
       <Pack>True</Pack>
       <PackagePath></PackagePath>
     </None>

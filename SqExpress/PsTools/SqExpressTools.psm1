@@ -25,6 +25,10 @@ function Gen-Tables
 	
     if($DbType -eq 'ef')
     {
+        if(!$PSBoundParameters.ContainsKey('ConnectionString'))
+        {
+            $ConnectionString = GetCurrentProjectProperty "SqEfTablesGenProject"
+        }
         $efProject = ResolveEfProject $ConnectionString
         $args = "gentables ef ""$efProject"""
     }
@@ -134,11 +138,19 @@ function Gen-Tables
         $args = $args + " --exclude """ + ($Exclude -join ';') + """"
     }
 
+    if($DbType -eq 'ef' -and !$PSBoundParameters.ContainsKey('DbContext'))
+    {
+        $DbContext = GetCurrentProjectProperty "SqEfTablesGenDbContext"
+    }
     if($DbType -eq 'ef' -and $DbContext)
     {
         $args = $args + " --db-context """ + $DbContext + """"
     }
 
+    if($DbType -eq 'ef' -and !$PSBoundParameters.ContainsKey('Framework'))
+    {
+        $Framework = GetCurrentProjectProperty "SqEfTablesGenFramework"
+    }
     if($DbType -eq 'ef' -and $Framework)
     {
         $args = $args + " --framework """ + $Framework + """"

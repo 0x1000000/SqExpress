@@ -128,6 +128,19 @@ namespace SqExpress.Test.CodeGenUtil
                 .And.Not.Contain("<SqEfTablesGenInclude>"));
         }
 
+        [Test]
+        public void PmcEfGeneration_UsesEfProjectDefaultsWhenArgumentsAreOmitted()
+        {
+            var module = File.ReadAllText(Path.Combine(GetRepositoryRoot(), "SqExpress", "PsTools", "SqExpressTools.psm1"));
+
+            Assert.That(module, Does.Contain("!$PSBoundParameters.ContainsKey('ConnectionString')"));
+            Assert.That(module, Does.Contain("GetCurrentProjectProperty \"SqEfTablesGenProject\""));
+            Assert.That(module, Does.Contain("!$PSBoundParameters.ContainsKey('DbContext')"));
+            Assert.That(module, Does.Contain("GetCurrentProjectProperty \"SqEfTablesGenDbContext\""));
+            Assert.That(module, Does.Contain("!$PSBoundParameters.ContainsKey('Framework')"));
+            Assert.That(module, Does.Contain("GetCurrentProjectProperty \"SqEfTablesGenFramework\""));
+        }
+
         private static string GetRepositoryRoot()
             => Path.GetFullPath(Path.Combine(TestContext.CurrentContext.TestDirectory, "..", "..", "..", "..", ".."));
     }

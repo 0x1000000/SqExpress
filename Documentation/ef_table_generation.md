@@ -4,6 +4,26 @@ Use EF table generation when an Entity Framework Core relational model is the so
 
 The recommended workflow uses MSBuild project properties. Generation then runs automatically during a normal build.
 
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [All EF Generation Project Properties](#all-ef-generation-project-properties)
+- [Selecting a `DbContext`](#selecting-a-dbcontext)
+- [Multi-Targeted Projects](#multi-targeted-projects)
+- [Output and Naming](#output-and-naming)
+- [Attribute-Based Declarations](#attribute-based-declarations)
+- [Schema Folders](#schema-folders)
+- [Cleaning Obsolete Descriptors](#cleaning-obsolete-descriptors)
+- [Filtering Tables](#filtering-tables)
+- [Unsupported Column Types](#unsupported-column-types)
+- [Command-Line Interface](#command-line-interface)
+  - [Reusable project scripts](#reusable-project-scripts)
+    - [Windows command script](#windows-command-script)
+    - [Unix shell script](#unix-shell-script)
+  - [All EF CLI arguments and options](#all-ef-cli-arguments-and-options)
+- [Package Manager Console](#package-manager-console)
+  - [All `Gen-Tables ef` parameters](#all-gen-tables-ef-parameters)
+
 ## Quick Start
 
 Add the SqExpress package to the project containing the `DbContext`, then add:
@@ -203,7 +223,78 @@ For strict generation:
 <SqTablesGenSkipUnknownColumnTypes>false</SqTablesGenSkipUnknownColumnTypes>
 ```
 
-## Optional `Gen-Tables` Command
+## Command-Line Interface
+
+For scripts, CI, or environments without Visual Studio Package Manager Console, invoke the utility included in the SqExpress NuGet package directly:
+
+```powershell
+dotnet "<package>\tools\codegen\SqExpress.CodeGenUtil.dll" `
+  gentables ef ".\Data\MyApp.Data.csproj" `
+  --include "sales.*;Customer?" `
+  --exclude "*.OrderArchive*" `
+  --use-table-declaration-attributes
+```
+
+Replace `<package>` with the path to the installed SqExpress package version. The first positional argument after `gentables` must be `ef`, followed by the path to the EF project.
+
+For the CLI, a relative `--output-dir` path is resolved from the process's current working directory.
+
+### Reusable project scripts
+
+To avoid hard-coding a package version, add a helper script to the project that discovers the latest installed SqExpress package before running the generator. Keeping the script in the project repository makes the generation command easy to reuse locally and in CI.
+
+### Windows command script
+
+`GenerateTables.cmd`:
+
+```cmd
+@echo off
+set root=%userprofile%\.nuget\packages\sqexpress
+
+for /F "tokens=*" %%a in ('dir "%root%" /b /a:d /o:n') do set "lib=%root%\%%a"
+
+set lib=%lib%\tools\codegen\SqExpress.CodeGenUtil.dll
+
+dotnet "%lib%" gentables ef ".\Data\MyApp.Data.csproj" --db-context "AppDbContext" --framework "net8.0" --use-table-declaration-attributes
+```
+
+### Unix shell script
+
+`GenerateTables.sh`:
+
+```sh
+#!/bin/bash
+
+lib=~/.nuget/packages/sqexpress/$(ls ~/.nuget/packages/sqexpress -r|head -n 1)/tools/codegen/SqExpress.CodeGenUtil.dll
+
+dotnet $lib gentables ef "./Data/MyApp.Data.csproj" --db-context "AppDbContext" --framework "net8.0" --use-table-declaration-attributes
+```
+
+Both scripts use the README's version-discovery approach to select the latest installed SqExpress package.
+
+### All EF CLI Arguments and Options
+
+| Argument or option | Required | Default | Description |
+|---|---:|---|---|
+| `CONNECTION_TYPE` | yes | none | Must be `ef`. |
+| `EF_PROJECT` | yes | none | Path to the EF `.csproj`. |
+| `--table-class-prefix <value>` | no | `Table` | Prefix for generated descriptor class names. |
+| `-o`, `--output-dir <path>` | no | current working directory | Directory for generated files. A relative path is resolved from the current working directory. |
+| `-n`, `--namespace <value>` | no | `MyCompany.MyApp.Tables` | Base namespace for generated descriptors. |
+| `-v`, `--verbosity <value>` | no | `minimal` | Logging level: `quiet`, `minimal`, `normal`, or `detailed`. |
+| `--use-table-declaration-attributes` | no | `false` | Generates attribute-based partial declarations. |
+| `--skip-unknown-column-types` | no | `false` | Omits unsupported columns instead of failing. |
+| `--db-context <type>` | no | automatic | Context type name. |
+| `--framework <tfm>` | no | automatic | Target framework. Required when it cannot be inferred unambiguously. |
+| `--split-tables-by-schema` | no | `false` | Creates schema-specific folders and namespaces. |
+| `--clean-output` | no | `false` | Removes obsolete recognized descriptors after successful generation. |
+| `--include <patterns>` | no | all tables | Semicolon-separated, case-insensitive include patterns supporting `*` and `?`. |
+| `--exclude <patterns>` | no | none | Semicolon-separated exclude patterns, applied after includes. |
+
+Boolean CLI options are switches: include the option to enable it and omit the option to retain its default.
+Quote filter lists so the shell does not expand wildcard characters. Supply multiple patterns as a semicolon-separated list.
+
+## Package Manager Console
 
 MSBuild properties are the recommended EF workflow. For one-time generation, Visual Studio Package Manager Console also supports:
 
@@ -227,9 +318,9 @@ The project argument can be a Visual Studio project name or `.csproj` path. When
 | Parameter | Required | Default | Description |
 |---|---:|---|---|
 | `DbType` | yes | none | Must be `ef`. First positional argument. |
-| `Project` | no | selected PMC project | EF project name or `.csproj` path. Second positional argument. |
-| `DbContext` | no | automatic | Context type name. |
-| `Framework` | no | automatic | Target framework. |
+| `Project` | no | project property `SqEfTablesGenProject`; otherwise selected PMC project | EF project name or `.csproj` path. Second positional argument. |
+| `DbContext` | no | project property `SqEfTablesGenDbContext`; otherwise automatic | Context type name. |
+| `Framework` | no | project property `SqEfTablesGenFramework`; otherwise automatic | Target framework. |
 | `OutputDir` | no | project property `SqTablesGenOutput`; otherwise `Tables` | Directory for generated files. A relative path is resolved from the selected project directory. |
 | `TableClassPrefix` | no | project property `SqTablesGenTableClassPrefix`; otherwise tool default `Table` | Generated class-name prefix. |
 | `Namespace` | no | project property `SqTablesGenNamespace`; otherwise selected project name plus output path | Generated base namespace. |
@@ -242,40 +333,6 @@ The project argument can be a Visual Studio project name or `.csproj` path. When
 
 The older `SqTablseGen*` spelling is retained as a lower-priority fallback.
 
-## Pure CLI
-
-For scripts or CI, invoke the utility included in the NuGet package:
-
-```powershell
-dotnet "<package>\tools\codegen\SqExpress.CodeGenUtil.dll" `
-  gentables ef ".\Data\MyApp.Data.csproj" `
-  --include "sales.*;Customer?" `
-  --exclude "*.OrderArchive*" `
-  --use-table-declaration-attributes
-```
-
-For the pure CLI, a relative `--output-dir` path is resolved from the process's current working directory.
-
-### All EF CLI Arguments and Options
-
-| Argument or option | Required | Default | Description |
-|---|---:|---|---|
-| `CONNECTION_TYPE` | yes | none | Must be `ef`. |
-| `EF_PROJECT` | yes | none | Path to the EF `.csproj`. |
-| `--table-class-prefix <value>` | no | `Table` | Prefix for generated descriptor class names. |
-| `-o`, `--output-dir <path>` | no | current working directory | Directory for generated files. A relative path is resolved from the current working directory. |
-| `-n`, `--namespace <value>` | no | `MyCompany.MyApp.Tables` | Base namespace for generated descriptors. |
-| `-v`, `--verbosity <value>` | no | `minimal` | Logging level: `quiet`, `minimal`, `normal`, or `detailed`. |
-| `--use-table-declaration-attributes` | no | `false` | Generates attribute-based partial declarations. |
-| `--skip-unknown-column-types` | no | `false` | Omits unsupported columns instead of failing. |
-| `--db-context <type>` | no | automatic | Context type name. |
-| `--framework <tfm>` | no | automatic | Target framework. Required when it cannot be inferred unambiguously. |
-| `--split-tables-by-schema` | no | `false` | Creates schema-specific folders and namespaces. |
-| `--clean-output` | no | `false` | Removes obsolete recognized descriptors after successful generation. |
-| `--include <patterns>` | no | all tables | Semicolon-separated, case-insensitive include patterns supporting `*` and `?`. |
-| `--exclude <patterns>` | no | none | Semicolon-separated exclude patterns, applied after includes. |
-
-Boolean CLI options are switches: include the option to enable it and omit the option to retain its default.
-Quote filter lists so the shell does not expand wildcard characters. Supply multiple patterns as a semicolon-separated list.
+For EF-specific settings, an explicit `Project`, `DbContext`, or `Framework` argument overrides its corresponding `SqEfTablesGen*` project property. When `Project` is omitted and `SqEfTablesGenProject` is empty, the selected Package Manager Console project is used.
 
 For generation from a live database, see [Database-First Table Generation](database_first_table_generation.md).
