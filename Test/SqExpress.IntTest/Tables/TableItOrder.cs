@@ -15,6 +15,7 @@ namespace SqExpress.IntTest.Tables
             this.CustomerId = this.CreateInt32Column("CustomerId", ColumnMeta.ForeignKey<TableItCustomer>(t => t.CustomerId));
             this.DateCreated = this.CreateDateTimeColumn("DateCreated", false, ColumnMeta.DefaultValue(SqQueryBuilder.GetUtcDate()));
             this.Notes = this.CreateNullableStringColumn(name: "Notes", size: 100, isUnicode: true, isText: false, columnMeta: null);
+            this.AddIndex(this.CustomerId);
         }
 
         [SqModel("OrderDateCreated")]

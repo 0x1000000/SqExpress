@@ -1,4 +1,4 @@
-# 1.3.0-beta2
+# 1.3.0
 ### New Features
 - Added SQLite support, including SQL export, DDL generation, runtime integration, and integration-test coverage.
 - Added EF Core table descriptor generation via `Gen-Tables ef`, including project-based metadata extraction and project defaults for the EF project, `DbContext`, and target framework.
