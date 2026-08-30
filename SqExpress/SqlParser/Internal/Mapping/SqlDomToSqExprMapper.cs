@@ -461,6 +461,27 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 }
             }
 
+            public override void VisitExprStringAgg(ExprStringAgg expr)
+            {
+                if (this._windowAggregateDepth > 0)
+                {
+                    return;
+                }
+
+                this.ContainsPlainAggregate = true;
+                this._plainAggregateDepth++;
+                try
+                {
+                    this.Accept(expr.Expression);
+                    this.Accept(expr.Separator);
+                    this.Accept(expr.OrderBy);
+                }
+                finally
+                {
+                    this._plainAggregateDepth--;
+                }
+            }
+
             public override void VisitExprAggregateOverFunction(ExprAggregateOverFunction expr)
             {
                 this._windowAggregateDepth++;
@@ -3639,6 +3660,40 @@ namespace SqExpress.SqlParser.Internal.Mapping
                         }
 
                         var args = ParseFunctionArgs(argSegments, this._context, functionName);
+
+                        if (parts.Count == 1 && upperName == "STRING_AGG")
+                        {
+                            if (args == null || args.Count != 2
+                                || (argsTokens.Count > 0 && argsTokens[0].IsKeyword("DISTINCT")))
+                            {
+                                throw new MapException("Function 'STRING_AGG' has invalid arguments.");
+                            }
+
+                            ExprOrderBy? withinGroupOrder = null;
+                            if (!this.IsEnd)
+                            {
+                                this.ExpectKeyword("WITHIN", "STRING_AGG supports only WITHIN GROUP ordering.");
+                                this.ExpectKeyword("GROUP", "WITHIN must be followed by GROUP.");
+                                this.ExpectType(SqlTokenType.OpenParen, "WITHIN GROUP should contain opening parenthesis.");
+                                var withinGroupTokens = this.ReadBalancedInner();
+                                if (withinGroupTokens.Count < 3
+                                    || !withinGroupTokens[0].IsKeyword("ORDER")
+                                    || !withinGroupTokens[1].IsKeyword("BY"))
+                                {
+                                    throw new MapException("WITHIN GROUP must contain a non-empty ORDER BY list.");
+                                }
+
+                                withinGroupOrder = ParseOrderBy(
+                                    string.Join(" ", withinGroupTokens.Select(i => i.Text)),
+                                    this._context);
+                                if (withinGroupOrder.OrderList.Count < 1)
+                                {
+                                    throw new MapException("WITHIN GROUP must contain a non-empty ORDER BY list.");
+                                }
+                            }
+
+                            return WrapSelectingAsValue(new ExprStringAgg(args[0], args[1], withinGroupOrder));
+                        }
 
                         if (!this.IsEnd && this.Current.IsKeyword("OVER"))
                         {

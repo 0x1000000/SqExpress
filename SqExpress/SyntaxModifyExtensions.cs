@@ -688,6 +688,15 @@ namespace SqExpress
         public static ExprSelectingValue WithSelecting(this ExprSelectingValue original, IExprSelecting newSelecting) 
             => new ExprSelectingValue(selecting: newSelecting);
 
+        public static ExprStringAgg WithExpression(this ExprStringAgg original, ExprValue newExpression) 
+            => new ExprStringAgg(expression: newExpression, separator: original.Separator, orderBy: original.OrderBy);
+
+        public static ExprStringAgg WithSeparator(this ExprStringAgg original, ExprValue newSeparator) 
+            => new ExprStringAgg(expression: original.Expression, separator: newSeparator, orderBy: original.OrderBy);
+
+        public static ExprStringAgg WithOrderBy(this ExprStringAgg original, ExprOrderBy? newOrderBy) 
+            => new ExprStringAgg(expression: original.Expression, separator: original.Separator, orderBy: newOrderBy);
+
         public static ExprStringConcat WithLeft(this ExprStringConcat original, ExprValue newLeft) 
             => new ExprStringConcat(left: newLeft, right: original.Right);
 

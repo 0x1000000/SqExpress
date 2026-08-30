@@ -225,6 +225,9 @@ internal sealed class ExprSelectingToColumnInfo : IExprSelectingVisitor<ExprSele
         }
     }
 
+    public ExprSelectingAsColumnInfo? VisitExprStringAgg(ExprStringAgg exprStringAgg, object? arg)
+        => (SqQueryBuilder.SqlType.String(), true);
+
     public ExprSelectingAsColumnInfo? VisitExprAggregateOverFunction(ExprAggregateOverFunction exprAggregateFunction, object? arg)
         => exprAggregateFunction.Function.Accept(this, arg);
 

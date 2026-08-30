@@ -819,6 +819,8 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        public abstract bool VisitExprStringAgg(ExprStringAgg exprStringAgg, IExpr? parent);
+
         public bool VisitExprAggregateOverFunction(ExprAggregateOverFunction exprAggregateFunction, IExpr? arg)
         {
             exprAggregateFunction.Function.Accept(this, exprAggregateFunction);

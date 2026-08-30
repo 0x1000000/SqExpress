@@ -8,6 +8,7 @@ using SqExpress.QueryBuilders.Select;
 using SqExpress.QueryBuilders.Select.Internal;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Functions;
+using SqExpress.Syntax.Functions.Known;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Select.SelectItems;
@@ -302,6 +303,11 @@ namespace SqExpress
         /// <param name="value">The aggregate function to project.</param>
         /// <returns>A proxy containing the supplied function.</returns>
         public static implicit operator SelectingProxy(ExprAggregateFunction value) => new SelectingProxy(value);
+
+        /// <summary>Allows a portable string aggregate to appear directly in a projection list.</summary>
+        /// <param name="value">The string aggregate to project.</param>
+        /// <returns>A proxy containing the supplied aggregate.</returns>
+        public static implicit operator SelectingProxy(ExprStringAgg value) => new SelectingProxy(value);
 
         /// <summary>Allows a windowed aggregate result to appear directly in a projection list.</summary>
         /// <param name="value">The windowed aggregate to project.</param>

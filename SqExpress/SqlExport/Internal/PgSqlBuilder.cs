@@ -59,6 +59,21 @@ namespace SqExpress.SqlExport.Internal
             SqlInjectionChecker.AppendStringEscapeSingleQuote(builder, literal);
         }
 
+        public override bool VisitExprStringAgg(ExprStringAgg exprStringAgg, IExpr? parent)
+        {
+            this.Builder.Append("STRING_AGG(");
+            exprStringAgg.Expression.Accept(this, exprStringAgg);
+            this.Builder.Append(',');
+            exprStringAgg.Separator.Accept(this, exprStringAgg);
+            if (exprStringAgg.OrderBy != null)
+            {
+                this.Builder.Append(" ORDER BY ");
+                exprStringAgg.OrderBy.Accept(this, exprStringAgg);
+            }
+            this.Builder.Append(')');
+            return true;
+        }
+
         public override bool VisitExprDateTimeOffsetLiteral(ExprDateTimeOffsetLiteral dateTimeLiteral, IExpr? arg)
         {
             if (!dateTimeLiteral.Value.HasValue)

@@ -32,7 +32,7 @@ namespace SqExpress.IntTest
 
             if (options.Parametrizations.Contains(ParametrizationMode.ThrowOnLimit))
             {
-                await RunTests(ParametrizationMode.ThrowOnLimit, options, new ScParametrizationLimitBoundary());
+                await RunTests(ParametrizationMode.ThrowOnLimit, options, new ScParametrizationLimitBoundary().Then(new ScStringAgg()));
             }
         }
 
@@ -104,6 +104,7 @@ namespace SqExpress.IntTest
                 .Then(new ScSelectSets())
                 .Then(new ScTempTables())
                 .Then(new ScGroupByExpression())
+                .Then(new ScStringAgg())
                 .Then(new ScSelectValue())
                 .Then(new ScCreateOrders())
                 .Then(new ScAnalyticFunctionsOrders())

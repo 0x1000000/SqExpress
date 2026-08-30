@@ -201,6 +201,37 @@ namespace SqExpress
 
         //Known agg and analytic functions
 
+        /// <summary>Concatenates non-null values from the current SQL group.</summary>
+        /// <remarks>Call <c>.OrderBy(...)</c> on the returned aggregate when deterministic aggregate-local ordering is required.</remarks>
+        /// <param name="expression">The value to concatenate.</param>
+        /// <param name="separator">The literal placed between values.</param>
+        /// <returns>A portable string aggregate without aggregate-local ordering.</returns>
+        public static ExprStringAgg StringAgg(ExprValue expression, string separator)
+            => new ExprStringAgg(expression, Literal(separator), null);
+
+        /// <summary>Concatenates non-null values from the current SQL group.</summary>
+        /// <remarks>Call <c>.OrderBy(...)</c> on the returned aggregate when deterministic aggregate-local ordering is required.</remarks>
+        /// <param name="expression">The value to concatenate.</param>
+        /// <param name="separator">The SQL expression placed between values.</param>
+        /// <returns>A portable string aggregate without aggregate-local ordering.</returns>
+        public static ExprStringAgg StringAgg(ExprValue expression, ExprValue separator)
+            => new ExprStringAgg(expression, separator, null);
+
+        /// <summary>Applies ordering inside a string aggregate.</summary>
+        /// <param name="function">The string aggregate to order.</param>
+        /// <param name="item">The first aggregate-ordering item.</param>
+        /// <param name="rest">Additional aggregate-ordering items.</param>
+        /// <returns>A new string aggregate containing the requested ordering.</returns>
+        public static ExprStringAgg OrderBy(this ExprStringAgg function, ExprOrderByItem item, params ExprOrderByItem[] rest)
+            => new ExprStringAgg(function.Expression, function.Separator, new ExprOrderBy(Helpers.Combine(item, rest)));
+
+        /// <summary>Applies an existing ordering inside a string aggregate.</summary>
+        /// <param name="function">The string aggregate to order.</param>
+        /// <param name="orderBy">The complete aggregate ordering.</param>
+        /// <returns>A new string aggregate containing the requested ordering.</returns>
+        public static ExprStringAgg OrderBy(this ExprStringAgg function, ExprOrderBy orderBy)
+            => new ExprStringAgg(function.Expression, function.Separator, orderBy);
+
         /// <summary>Counts rows in each SQL group by emitting <c>COUNT(1)</c>.</summary>
         /// <returns>An aggregate that can be selected directly or converted to a window function.</returns>
         public static ExprAggregateFunction CountOne() => AggregateFunction("COUNT", false, Literal(1));

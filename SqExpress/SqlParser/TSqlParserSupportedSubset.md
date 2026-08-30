@@ -27,6 +27,7 @@
 - `ORDER BY`
 - `OFFSET ... FETCH`
 - `GROUP BY`
+- `STRING_AGG(value, separator)` with optional `WITHIN GROUP (ORDER BY ...)`
 - Current expression/function/window subset already covered by parser tests
 
 ## Explicitly Unsupported or Rejected

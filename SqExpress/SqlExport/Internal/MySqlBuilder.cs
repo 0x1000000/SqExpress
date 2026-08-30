@@ -66,6 +66,32 @@ namespace SqExpress.SqlExport.Internal
             SqlInjectionChecker.AppendStringEscapeSingleQuoteAndBackslash(builder, literal);
         }
 
+        public override bool VisitExprStringAgg(ExprStringAgg exprStringAgg, IExpr? parent)
+        {
+            ExprStringLiteral? separator = exprStringAgg.Separator as ExprStringLiteral;
+            if (ReferenceEquals(separator, null)
+                && exprStringAgg.Separator is ExprParameter { ReplacedValue: ExprStringLiteral parameterLiteral })
+            {
+                separator = parameterLiteral;
+            }
+            if (separator?.Value == null)
+            {
+                throw new SqExpressException("MySQL STRING_AGG separator must be a non-null string literal.");
+            }
+
+            this.Builder.Append("GROUP_CONCAT(");
+            exprStringAgg.Expression.Accept(this, exprStringAgg);
+            if (exprStringAgg.OrderBy != null)
+            {
+                this.Builder.Append(" ORDER BY ");
+                exprStringAgg.OrderBy.Accept(this, exprStringAgg);
+            }
+            this.Builder.Append(" SEPARATOR ");
+            separator.Accept(this, exprStringAgg);
+            this.Builder.Append(')');
+            return true;
+        }
+
         public override bool VisitExprDateTimeOffsetLiteral(ExprDateTimeOffsetLiteral dateTimeLiteral, IExpr? arg)
         {
             throw new SqExpressException("My SQL does not support DateTimeOffset type");

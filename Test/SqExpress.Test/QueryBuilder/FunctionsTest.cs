@@ -1,6 +1,7 @@
 using System;
 using NUnit.Framework;
 using SqExpress.SqlExport;
+using SqExpress.Syntax.Value;
 using static SqExpress.SqQueryBuilder;
 
 namespace SqExpress.Test.QueryBuilder
@@ -31,6 +32,56 @@ namespace SqExpress.Test.QueryBuilder
 
             Assert.AreEqual("SELECT SUM([UserId]) FROM [dbo].[user]", Select(Sum(userTable.UserId)).From(userTable).Done().ToSql());
             Assert.AreEqual("SELECT SUM(DISTINCT [UserId]) FROM [dbo].[user]", Select(SumDistinct(userTable.UserId)).From(userTable).Done().ToSql());
+        }
+
+        [Test]
+        public void StringAgg_ExportsPortableOrderedAndUnorderedForms()
+        {
+            var user = Tables.User(Alias.Empty);
+            var unordered = Select(StringAgg(user.LastName, "'|")).From(user).Done();
+            var ordered = Select(StringAgg(user.LastName, "'|").OrderBy(Asc(user.UserId), Desc(user.Version))).From(user).Done();
+
+            Assert.That(unordered.ToSql(), Is.EqualTo("SELECT STRING_AGG([LastName],'''|') FROM [dbo].[user]"));
+            Assert.That(unordered.ToSql(PgSqlExporter.Default), Is.EqualTo("SELECT STRING_AGG(\"LastName\",'''|') FROM \"dbo\".\"user\""));
+            Assert.That(unordered.ToSql(MySqlExporter.MariaDbDefault), Is.EqualTo("SELECT GROUP_CONCAT(`LastName` SEPARATOR '''|') FROM `user`"));
+            Assert.That(unordered.ToSql(SqliteExporter.Default), Is.EqualTo("SELECT GROUP_CONCAT(\"LastName\",'''|') FROM \"user\""));
+
+            Assert.That(ordered.ToSql(), Is.EqualTo("SELECT STRING_AGG([LastName],'''|') WITHIN GROUP (ORDER BY [UserId],[Version] DESC) FROM [dbo].[user]"));
+            Assert.That(ordered.ToSql(PgSqlExporter.Default), Is.EqualTo("SELECT STRING_AGG(\"LastName\",'''|' ORDER BY \"UserId\",\"Version\" DESC) FROM \"dbo\".\"user\""));
+            Assert.That(ordered.ToSql(MySqlExporter.MariaDbDefault), Is.EqualTo("SELECT GROUP_CONCAT(`LastName` ORDER BY `UserId`,`Version` DESC SEPARATOR '''|') FROM `user`"));
+            Assert.That(ordered.ToSql(SqliteExporter.Default), Is.EqualTo("SELECT GROUP_CONCAT(\"LastName\",'''|' ORDER BY \"UserId\",\"Version\" DESC) FROM \"user\""));
+        }
+
+        [Test]
+        public void StringAgg_MySqlRejectsDynamicSeparator()
+        {
+            var user = Tables.User(Alias.Empty);
+            var query = Select(StringAgg(user.LastName, user.FirstName)).From(user).Done();
+
+            var exception = Assert.Throws<SqExpressException>(() => query.ToSql(MySqlExporter.MariaDbDefault));
+            Assert.That(exception!.Message, Does.Contain("separator must be a non-null string literal"));
+        }
+
+        [Test]
+        public void StringAgg_MySqlUnwrapsParameterizedLiteralSeparator()
+        {
+            var user = Tables.User(Alias.Empty);
+            var separator = new ExprParameter(new ExprStringLiteral("'|"), null);
+            var query = Select(StringAgg(user.LastName, separator)).From(user).Done();
+
+            Assert.That(query.ToSql(MySqlExporter.MariaDbDefault),
+                Is.EqualTo("SELECT GROUP_CONCAT(`LastName` SEPARATOR '''|') FROM `user`"));
+        }
+
+        [Test]
+        public void StringAgg_TSqlUnwrapsParameterizedLiteralSeparator()
+        {
+            var user = Tables.User(Alias.Empty);
+            var separator = new ExprParameter(new ExprStringLiteral("'|"), null);
+            var query = Select(StringAgg(user.LastName, separator)).From(user).Done();
+
+            Assert.That(query.ToSql(),
+                Is.EqualTo("SELECT STRING_AGG([LastName],'''|') FROM [dbo].[user]"));
         }
 
         [Test]

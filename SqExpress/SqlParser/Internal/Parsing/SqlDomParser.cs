@@ -2825,6 +2825,15 @@ namespace SqExpress.SqlParser.Internal.Parsing
                     {
                         if (tokens[i].IsKeyword(keywords[k]))
                         {
+                            if (tokens[i].IsKeyword("GROUP")
+                                && i > startIndex
+                                && tokens[i - 1].IsKeyword("WITHIN")
+                                && i + 1 < tokens.Count
+                                && tokens[i + 1].Type == SqlTokenType.OpenParen)
+                            {
+                                continue;
+                            }
+
                             return i;
                         }
                     }

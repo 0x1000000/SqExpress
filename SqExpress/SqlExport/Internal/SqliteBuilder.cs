@@ -61,6 +61,21 @@ namespace SqExpress.SqlExport.Internal
         protected override DbParameterValueVisitorExtractor GetDbParameterValueVisitorExtractor()
             => DbParameterValueVisitorExtractor.Instance;
 
+        public override bool VisitExprStringAgg(ExprStringAgg exprStringAgg, IExpr? parent)
+        {
+            this.Builder.Append("GROUP_CONCAT(");
+            exprStringAgg.Expression.Accept(this, exprStringAgg);
+            this.Builder.Append(',');
+            exprStringAgg.Separator.Accept(this, exprStringAgg);
+            if (exprStringAgg.OrderBy != null)
+            {
+                this.Builder.Append(" ORDER BY ");
+                exprStringAgg.OrderBy.Accept(this, exprStringAgg);
+            }
+            this.Builder.Append(')');
+            return true;
+        }
+
         protected override void AppendByteArrayLiteralPrefix()
         {
             this.Builder.Append("X'");

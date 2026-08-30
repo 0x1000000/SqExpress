@@ -11,6 +11,49 @@ namespace SqExpress.Test.SqlParser
     public class TSqlParserPortableFunctionTest
     {
         [Test]
+        public void ParseStringAgg_MapsKnownAggregate_WithAliasAndOrdering()
+        {
+            const string sql = @"SELECT [u].[Version],STRING_AGG([u].[Name],',') WITHIN GROUP (ORDER BY [u].[SortKey] DESC) [Names] FROM [dbo].[Users] [u] GROUP BY [u].[Version]";
+
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            var stringAgg = expr!.SyntaxTree().DescendantsAndSelf().OfType<ExprStringAgg>().Single();
+            Assert.That(stringAgg.OrderBy, Is.Not.Null);
+            Assert.That(stringAgg.OrderBy!.OrderList, Has.Count.EqualTo(1));
+            Assert.That(stringAgg.OrderBy.OrderList[0].Descendant, Is.True);
+            Assert.That(TSqlExporter.Default.ToSql(expr!), Is.EqualTo(sql));
+            Assert.That(PgSqlExporter.Default.ToSql(expr!), Does.Contain(@"STRING_AGG(""u"".""Name"",',' ORDER BY ""u"".""SortKey"" DESC) ""Names"""));
+        }
+
+        [Test]
+        public void ParseStringAgg_WithoutWithinGroup_PreservesSelectAlias()
+        {
+            const string sql = "SELECT STRING_AGG(Name, ',') AS Names FROM Items";
+
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.True, error);
+            Assert.That(expr!.SyntaxTree().DescendantsAndSelf().OfType<ExprStringAgg>().Single().OrderBy, Is.Null);
+            Assert.That(TSqlExporter.Default.ToSql(expr!), Is.EqualTo("SELECT STRING_AGG([Name],',') [Names] FROM [dbo].[Items]"));
+        }
+
+        [TestCase("SELECT STRING_AGG(Name) FROM Items")]
+        [TestCase("SELECT STRING_AGG(Name, ',', 'x') FROM Items")]
+        [TestCase("SELECT STRING_AGG(DISTINCT Name, ',') FROM Items")]
+        [TestCase("SELECT STRING_AGG(Name, ',') WITHIN GROUP () FROM Items")]
+        [TestCase("SELECT STRING_AGG(Name, ',') WITHIN GROUP (Name) FROM Items")]
+        [TestCase("SELECT STRING_AGG(Name, ',') WITHIN GROUP (ORDER BY) FROM Items")]
+        public void ParseStringAgg_InvalidFormsAreRejected(string sql)
+        {
+            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var error);
+
+            Assert.That(ok, Is.False);
+            Assert.That(expr, Is.Null);
+            Assert.That(error, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
         public void ParsePortableStringFunctions_MapsToPortableNodes_AndExportsToPgSql()
         {
             const string sql =

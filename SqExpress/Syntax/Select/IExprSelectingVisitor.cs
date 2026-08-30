@@ -1,4 +1,5 @@
 using SqExpress.Syntax.Functions;
+using SqExpress.Syntax.Functions.Known;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select.SelectItems;
 
@@ -17,6 +18,8 @@ public interface IExprSelectingVisitor<out TRes, in TArg> : IExprValueVisitor<TR
     TRes VisitExprAliasedSelecting(ExprAliasedSelecting exprAliasedSelecting, TArg arg);
 
     TRes VisitExprAggregateFunction(ExprAggregateFunction exprAggregateFunction, TArg arg);
+
+    TRes VisitExprStringAgg(ExprStringAgg exprStringAgg, TArg arg);
 
     TRes VisitExprAggregateOverFunction(ExprAggregateOverFunction exprAggregateFunction, TArg arg);
 

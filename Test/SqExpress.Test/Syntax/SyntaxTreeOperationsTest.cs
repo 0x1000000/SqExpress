@@ -267,6 +267,26 @@ namespace SqExpress.Test.Syntax
             Assert.AreEqual(selectExpr.ToSql(), deserialized.ToSql());
         }
 
+        [Test]
+        public void StringAgg_TraversesModifiesAndRoundTripsJson()
+        {
+            var expression = Select(StringAgg(Literal("old"), "|").OrderBy(Desc(Literal(2)))).Done();
+            Assert.That(expression.SyntaxTree().DescendantsAndSelf().Count(), Is.GreaterThan(4));
+
+            var modified = expression.SyntaxTree().Modify(node =>
+                node is ExprStringLiteral literal && string.Equals(literal.Value, "old", StringComparison.Ordinal)
+                    ? new ExprStringLiteral("new")
+                    : node)!;
+            Assert.That(modified.ToSql(), Is.EqualTo("SELECT STRING_AGG('new','|') WITHIN GROUP (ORDER BY 2 DESC)"));
+
+            using var writer = new MemoryStream();
+            modified.SyntaxTree().ExportToJson(new System.Text.Json.Utf8JsonWriter(writer));
+            var restored = ExprDeserializer.DeserializeFormJson(
+                System.Text.Json.JsonDocument.Parse(writer.ToArray()).RootElement);
+
+            Assert.That(restored.ToSql(), Is.EqualTo(modified.ToSql()));
+        }
+
 #endif
 
 #if NETCOREAPP

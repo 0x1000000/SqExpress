@@ -55,6 +55,31 @@ namespace SqExpress.SqlExport.Internal
             SqlInjectionChecker.AppendStringEscapeSingleQuote(builder, literal);
         }
 
+        public override bool VisitExprStringAgg(ExprStringAgg exprStringAgg, IExpr? parent)
+        {
+            this.Builder.Append("STRING_AGG(");
+            exprStringAgg.Expression.Accept(this, exprStringAgg);
+            this.Builder.Append(',');
+            if (exprStringAgg.Separator is ExprParameter { ReplacedValue: ExprStringLiteral parameterLiteral })
+            {
+                // SQL Server rejects an nvarchar parameter as the separator when the
+                // aggregated expression is varchar. Preserve the literal's own SQL type.
+                parameterLiteral.Accept(this, exprStringAgg);
+            }
+            else
+            {
+                exprStringAgg.Separator.Accept(this, exprStringAgg);
+            }
+            this.Builder.Append(')');
+            if (exprStringAgg.OrderBy != null)
+            {
+                this.Builder.Append(" WITHIN GROUP (ORDER BY ");
+                exprStringAgg.OrderBy.Accept(this, exprStringAgg);
+                this.Builder.Append(')');
+            }
+            return true;
+        }
+
         public override bool VisitExprDateTimeOffsetLiteral(ExprDateTimeOffsetLiteral dateTimeLiteral, IExpr? arg)
         {
             return this.VisitExprDateTimeOffsetLiteralCommon(dateTimeLiteral, arg);

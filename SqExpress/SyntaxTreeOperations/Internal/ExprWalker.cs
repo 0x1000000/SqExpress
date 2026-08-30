@@ -1254,6 +1254,17 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             this.EndVisit(expr, argOut.Context);
             return res && walkResult != WalkResult.Stop;
         }
+        public bool VisitExprStringAgg(ExprStringAgg expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "StringAgg", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("Expression",expr.Expression, argOut) && this.Accept("Separator",expr.Separator, argOut) && this.Accept("OrderBy",expr.OrderBy, argOut);
+            }
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
         public bool VisitExprStringConcat(ExprStringConcat expr, WalkerContext<TCtx> arg)
         {
             var res = true;

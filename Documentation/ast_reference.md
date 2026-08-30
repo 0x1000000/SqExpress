@@ -158,6 +158,7 @@ This document is generated from the current `IExpr` hierarchy in the SqExpress s
         - [ExprStringConcat](#exprstringconcat)
         - [ExprUnsafeValue](#exprunsafevalue)
         - [ExprValueQuery](#exprvaluequery)
+    - [ExprStringAgg](#exprstringagg)
     - [IExprNamedSelecting](#iexprnamedselecting) _(interface)_
       - [ExprAliasedColumn](#expraliasedcolumn)
       - [ExprAliasedColumnName](#expraliasedcolumnname)
@@ -1076,6 +1077,15 @@ This document is generated from the current `IExpr` hierarchy in the SqExpress s
 - Subnodes:
   - `Selecting`: [IExprSelecting](#iexprselecting)
 
+### ExprStringAgg
+
+- Kind: class
+- Base: [IExprSelecting](#iexprselecting)
+- Subnodes:
+  - `Expression`: [ExprValue](#exprvalue)
+  - `OrderBy`: [ExprOrderBy](#exprorderby)?
+  - `Separator`: [ExprValue](#exprvalue)
+
 ### ExprStringConcat
 
 - Kind: class
@@ -1409,7 +1419,7 @@ This document is generated from the current `IExpr` hierarchy in the SqExpress s
 
 - Kind: interface
 - Base: [IExpr](#iexpr)
-- Direct descendants: [ExprAggregateFunction](#expraggregatefunction), [ExprAggregateOverFunction](#expraggregateoverfunction), [ExprAllColumns](#exprallcolumns), [ExprAnalyticFunction](#expranalyticfunction), [ExprSelecting](#exprselecting), [IExprNamedSelecting](#iexprnamedselecting)
+- Direct descendants: [ExprAggregateFunction](#expraggregatefunction), [ExprAggregateOverFunction](#expraggregateoverfunction), [ExprAllColumns](#exprallcolumns), [ExprAnalyticFunction](#expranalyticfunction), [ExprSelecting](#exprselecting), [ExprStringAgg](#exprstringagg), [IExprNamedSelecting](#iexprnamedselecting)
 
 ### IExprSelectingSource
 

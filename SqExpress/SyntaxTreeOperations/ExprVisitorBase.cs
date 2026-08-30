@@ -643,6 +643,12 @@ namespace SqExpress.SyntaxTreeOperations
         {
             this.Accept(expr.Selecting);
         }
+        public virtual void VisitExprStringAgg(ExprStringAgg expr)
+        {
+            this.Accept(expr.Expression);
+            this.Accept(expr.Separator);
+            this.Accept(expr.OrderBy);
+        }
         public virtual void VisitExprStringConcat(ExprStringConcat expr)
         {
             this.Accept(expr.Left);

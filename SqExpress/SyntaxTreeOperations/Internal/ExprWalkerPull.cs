@@ -1637,6 +1637,22 @@ namespace SqExpress.SyntaxTreeOperations.Internal
                     throw new SqExpressException("Incorrect enumerator visitor state");
             }
         }
+        public bool VisitExprStringAgg(ExprStringAgg expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.Expression);
+                case 2:
+                    return this.SetCurrent(expr.Separator);
+                case 3:
+                    return this.SetCurrent(expr.OrderBy);
+                case 4:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
         public bool VisitExprStringConcat(ExprStringConcat expr, object? arg)
         {
             switch (this.Peek().State)

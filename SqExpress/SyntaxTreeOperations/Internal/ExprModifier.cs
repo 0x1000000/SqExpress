@@ -1055,6 +1055,17 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprStringAgg(ExprStringAgg exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newExpression = this.AcceptItem(exprIn.Expression, modifier);
+            var newSeparator = this.AcceptItem(exprIn.Separator, modifier);
+            var newOrderBy = this.AcceptNullableItem(exprIn.OrderBy, modifier);
+            if(!ReferenceEquals(exprIn.Expression, newExpression) || !ReferenceEquals(exprIn.Separator, newSeparator) || !ReferenceEquals(exprIn.OrderBy, newOrderBy))
+            {
+                exprIn = new ExprStringAgg(expression: newExpression, separator: newSeparator, orderBy: newOrderBy);
+            }
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprStringConcat(ExprStringConcat exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newLeft = this.AcceptItem(exprIn.Left, modifier);

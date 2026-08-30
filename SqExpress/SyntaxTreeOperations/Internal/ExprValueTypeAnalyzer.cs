@@ -116,6 +116,8 @@ namespace SqExpress.SyntaxTreeOperations.Internal
                     return value.Accept(this, ctx);
                 case ExprAggregateFunction aggregateFunction:
                     return this.VisitExprAggregateFunction(aggregateFunction, ctx);
+                case ExprStringAgg:
+                    return ctx.ValueVisitor.VisitString(ctx.Ctx, true, null, false);
                 case ExprAggregateOverFunction aggregateOverFunction:
                     return this.VisitExprAggregateOverFunction(aggregateOverFunction, ctx);
                 case ExprAnalyticFunction analyticFunction:

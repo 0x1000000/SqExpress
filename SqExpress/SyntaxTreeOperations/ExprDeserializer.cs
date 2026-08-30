@@ -188,6 +188,7 @@ namespace SqExpress.SyntaxTreeOperations
                 case "Select": return new ExprSelect(selectQuery: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "SelectQuery"), orderBy: GetSubNode<TNode, ExprOrderBy>(rootElement, reader, "OrderBy"));
                 case "SelectOffsetFetch": return new ExprSelectOffsetFetch(selectQuery: GetSubNode<TNode, IExprSubQuery>(rootElement, reader, "SelectQuery"), orderBy: GetSubNode<TNode, ExprOrderByOffsetFetch>(rootElement, reader, "OrderBy"));
                 case "SelectingValue": return new ExprSelectingValue(selecting: GetSubNode<TNode, IExprSelecting>(rootElement, reader, "Selecting"));
+                case "StringAgg": return new ExprStringAgg(expression: GetSubNode<TNode, ExprValue>(rootElement, reader, "Expression"), separator: GetSubNode<TNode, ExprValue>(rootElement, reader, "Separator"), orderBy: GetNullableSubNode<TNode, ExprOrderBy>(rootElement, reader, "OrderBy"));
                 case "StringConcat": return new ExprStringConcat(left: GetSubNode<TNode, ExprValue>(rootElement, reader, "Left"), right: GetSubNode<TNode, ExprValue>(rootElement, reader, "Right"));
                 case "StringLiteral": return new ExprStringLiteral(value: ReadNullableString(rootElement, reader, "Value"));
                 case "Sub": return new ExprSub(left: GetSubNode<TNode, ExprValue>(rootElement, reader, "Left"), right: GetSubNode<TNode, ExprValue>(rootElement, reader, "Right"));

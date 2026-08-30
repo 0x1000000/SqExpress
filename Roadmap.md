@@ -41,5 +41,6 @@
 ## After 1.0
 - [ ] "Create If Not Exists"
 - [ ] Stored Procedures Call
+- [x] Portable ordered string aggregate: add a known aggregate AST/API and dialect-specific export (`STRING_AGG ... WITHIN GROUP` for T-SQL, PostgreSQL `STRING_AGG`, and MySQL/SQLite `GROUP_CONCAT`), plus T-SQL parser support
 - [ ] gentables - table filters
 - [ ] genmodels - list of "using"s as a parameter

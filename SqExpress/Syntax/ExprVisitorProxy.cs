@@ -1370,6 +1370,19 @@ namespace SqExpress.Syntax
                 this._nodeHandler?.OnLeaveNode();
             }
         }
+        public object? VisitExprStringAgg(ExprStringAgg expr, object? arg)
+        {
+            this._nodeHandler?.OnEnterNode(expr);
+            try
+            {
+                this._visitor.VisitExprStringAgg(expr);
+                return null;
+            }
+            finally
+            {
+                this._nodeHandler?.OnLeaveNode();
+            }
+        }
         public object? VisitExprStringConcat(ExprStringConcat expr, object? arg)
         {
             this._nodeHandler?.OnEnterNode(expr);

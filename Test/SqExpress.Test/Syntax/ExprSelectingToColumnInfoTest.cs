@@ -41,4 +41,17 @@ public class ExprSelectingToColumnInfoTest
         Assert.That(info.AsColumn(), Is.TypeOf<NullableStringCustomColumn>());
         Assert.That(info.AsColumn().ColumnName.Name, Is.EqualTo("Payload"));
     }
+
+    [Test]
+    public void StringAggAsValue_ProducesNullableUnknownLengthStringColumn()
+    {
+        var info = StringAgg(Literal("value"), ",").AsValue().As("Names")
+            .Accept(ExprSelectingToColumnInfo.Instance, null);
+
+        Assert.That(info, Is.Not.Null);
+        Assert.That(info!.AsColumn(), Is.TypeOf<NullableStringCustomColumn>());
+        var type = ((TypedColumn)info.AsColumn()).SqlType;
+        Assert.That(type, Is.TypeOf<ExprTypeString>());
+        Assert.That(((ExprTypeString)type).Size, Is.Null);
+    }
 }
