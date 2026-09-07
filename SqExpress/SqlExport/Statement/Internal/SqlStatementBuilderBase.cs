@@ -1,5 +1,4 @@
 ﻿using System.Linq;
-using System.Text;
 using SqExpress.SqlExport.Internal;
 using SqExpress.StatementSyntax;
 using SqExpress.Syntax.Names;
@@ -9,16 +8,24 @@ namespace SqExpress.SqlExport.Statement.Internal
 {
     internal abstract class SqlStatementBuilderBase : IStatementVisitor
     {
-        protected readonly StringBuilder Builder;
+        protected SqlFormattingWriter FormattingWriter { get; }
 
         protected abstract SqlBuilderBase ExprBuilder { get; }
 
         protected readonly SqlBuilderOptions Options;
 
-        protected SqlStatementBuilderBase(SqlBuilderOptions? options, StringBuilder? externalBuilder)
+        protected SqlStatementBuilderBase(SqlBuilderOptions? options)
+            : this(
+                options,
+                new SqlFormattingWriter(
+                    SqlFormattingProfile.Unformatted))
+        {
+        }
+
+        protected SqlStatementBuilderBase(SqlBuilderOptions? options, SqlFormattingWriter formattingWriter)
         {
             this.Options = options ?? SqlBuilderOptions.Default;
-            this.Builder = externalBuilder ?? new StringBuilder();
+            this.FormattingWriter = formattingWriter;
         }
 
         protected void AppendName(string name) => this.ExprBuilder.AppendName(name);
@@ -26,11 +33,11 @@ namespace SqExpress.SqlExport.Statement.Internal
         protected void AppendTable(StatementCreateTable statementCreateTable)
         {
             var table = statementCreateTable.Table;
-            this.Builder.Append("CREATE ");
+            this.FormattingWriter.Append("CREATE ");
             this.AppendTempKeyword(table.FullName);
-            this.Builder.Append("TABLE ");
+            this.FormattingWriter.Append("TABLE ");
             statementCreateTable.Table.FullName.Accept(this.ExprBuilder, null);
-            this.Builder.Append('(');
+            this.FormattingWriter.Append('(');
 
             ColumnAnalysis analysis = ColumnAnalysis.Build();
 
@@ -38,7 +45,7 @@ namespace SqExpress.SqlExport.Statement.Internal
             {
                 if (i != 0)
                 {
-                    this.Builder.Append(',');
+                    this.FormattingWriter.Append(',');
                 }
                 var column = table.Columns[i];
 
@@ -51,8 +58,8 @@ namespace SqExpress.SqlExport.Statement.Internal
 
             this.AppendIndexesInside(table);
 
-            this.Builder.Append(')');
-            this.Builder.Append(';');
+            this.FormattingWriter.Append(')');
+            this.FormattingWriter.Append(';');
 
             this.AppendIndexesOutside(table);
         }
@@ -68,15 +75,15 @@ namespace SqExpress.SqlExport.Statement.Internal
                 return;
             }
 
-            this.Builder.Append(",CONSTRAINT");
+            this.FormattingWriter.Append(",CONSTRAINT");
 
             if (this.IsNamedPk())
             {
-                this.Builder.Append(' ');
+                this.FormattingWriter.Append(' ');
                 this.AppendName(this.BuildPkName(table.FullName));
             }
 
-            this.Builder.Append(" PRIMARY KEY ");
+            this.FormattingWriter.Append(" PRIMARY KEY ");
             this.ExprBuilder.AcceptListComaSeparatedPar('(', analysis.Pk, ')', null);
         }
 
@@ -86,14 +93,14 @@ namespace SqExpress.SqlExport.Statement.Internal
             {
                 var foreignTable = analysisFk.Key;
                 var pairList = analysisFk.Value;
-                this.Builder.Append(",CONSTRAINT ");
+                this.FormattingWriter.Append(",CONSTRAINT ");
 
                 this.AppendName(this.BuildFkName(table.FullName, foreignTable));
 
-                this.Builder.Append(" FOREIGN KEY ");
+                this.FormattingWriter.Append(" FOREIGN KEY ");
                 this.ExprBuilder.AcceptListComaSeparatedPar('(', pairList.SelectToReadOnlyList(i => i.Internal), ')', null);
 
-                this.Builder.Append(" REFERENCES ");
+                this.FormattingWriter.Append(" REFERENCES ");
                 foreignTable.Accept(this.ExprBuilder, null);
                 this.ExprBuilder.AcceptListComaSeparatedPar('(', pairList.SelectToReadOnlyList(i => i.External), ')', null);
             }
@@ -109,23 +116,23 @@ namespace SqExpress.SqlExport.Statement.Internal
         {
             tableIndex.Columns.AssertNotEmpty("Table index has to contain at least one column");
 
-            this.Builder.Append('(');
+            this.FormattingWriter.Append('(');
             for (var index = 0; index < tableIndex.Columns.Count; index++)
             {
                 var column = tableIndex.Columns[index];
                 if (index != 0)
                 {
-                    this.Builder.Append(',');
+                    this.FormattingWriter.Append(',');
                 }
 
                 column.Column.ColumnName.Accept(this.ExprBuilder, null);
                 if (column.Descending)
                 {
-                    this.Builder.Append(" DESC");
+                    this.FormattingWriter.Append(" DESC");
                 }
             }
 
-            this.Builder.Append(')');
+            this.FormattingWriter.Append(')');
         }
 
         protected string BuildIndexName(IExprTableFullName tableIn, IndexMeta index)
@@ -155,30 +162,18 @@ namespace SqExpress.SqlExport.Statement.Internal
 
         private string BuildFkName(IExprTableFullName tableIn, IExprTableFullName foreignTableIn)
         {
-            StringBuilder nameBuilder = new StringBuilder();
-
             ExprTableFullName table = tableIn.AsExprTableFullName();
 
             ExprTableFullName foreignTable = foreignTableIn.AsExprTableFullName();
 
             var schemaName = table.DbSchema != null ? this.Options.MapSchema(table.DbSchema.Schema.Name) + "_" : null;
 
-            nameBuilder.Append("FK_");
-            if (schemaName != null)
-            {
-                nameBuilder.Append(schemaName);
-                nameBuilder.Append('_');
-            }
-            nameBuilder.Append(table.TableName.Name);
-            nameBuilder.Append("_to_");
-            if (schemaName != null)
-            {
-                nameBuilder.Append(schemaName);
-                nameBuilder.Append('_');
-            }
-            nameBuilder.Append(foreignTable.TableName.Name);
-
-            return nameBuilder.ToString();
+            return "FK_"
+                + (schemaName == null ? null : schemaName + "_")
+                + table.TableName.Name
+                + "_to_"
+                + (schemaName == null ? null : schemaName + "_")
+                + foreignTable.TableName.Name;
         }
 
         public abstract void VisitCreateTable(StatementCreateTable statementCreateTable);

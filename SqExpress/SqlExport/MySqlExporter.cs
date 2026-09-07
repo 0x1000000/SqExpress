@@ -69,7 +69,9 @@ namespace SqExpress.SqlExport
         /// <inheritdoc/>
         public string ToSql(IStatement statement)
         {
-            var builder = new MySqlStatementBuilder(this._builderOptions, this.Flavor, null);
+            var builder = new MySqlStatementBuilder(
+                this._builderOptions.WithFormatting(null),
+                this.Flavor);
             statement.Accept(builder);
             return builder.Build();
         }

@@ -157,6 +157,16 @@
     private const string DefaultSchemaStorageKey = "sqexpress.transpiler.defaultSchema";
     private const string UseStaticSqQueryBuilderUsingStorageKey = "sqexpress.transpiler.useStaticSqQueryBuilderUsing";
     private const string SqlPreviewDialectStorageKey = "sqexpress.transpiler.sqlPreviewDialect";
+    private static readonly SqlBuilderOptions FormattedSqlBuilderOptions = SqlBuilderOptions.Default
+        .WithFormatting(SqlFormattingProfile.Spacious);
+    private static readonly TSqlExporter FormattedTSqlExporter = new TSqlExporter(FormattedSqlBuilderOptions);
+    private static readonly PgSqlExporter FormattedPgSqlExporter = new PgSqlExporter(FormattedSqlBuilderOptions);
+    private static readonly MySqlExporter FormattedMySqlOracleExporter = new MySqlExporter(
+        FormattedSqlBuilderOptions,
+        MySqlFlavor.Oracle);
+    private static readonly MySqlExporter FormattedMySqlMariaDbExporter = new MySqlExporter(
+        FormattedSqlBuilderOptions,
+        MySqlFlavor.MariaDb);
     private static readonly IReadOnlyList<DialectOption> Dialects = new[]
     {
         new DialectOption(SqlPreviewDialect.TSql, "T-SQL"),
@@ -416,11 +426,11 @@
 
         return dialect switch
         {
-            SqlPreviewDialect.TSql => expr.ToSql(TSqlExporter.Default),
-            SqlPreviewDialect.PgSql => expr.ToSql(PgSqlExporter.Default),
-            SqlPreviewDialect.MySqlOracle => expr.ToSql(MySqlExporter.OracleDefault),
-            SqlPreviewDialect.MySqlMariaDb => expr.ToSql(MySqlExporter.MariaDbDefault),
-            _ => expr.ToSql(TSqlExporter.Default)
+            SqlPreviewDialect.TSql => expr.ToSql(FormattedTSqlExporter),
+            SqlPreviewDialect.PgSql => expr.ToSql(FormattedPgSqlExporter),
+            SqlPreviewDialect.MySqlOracle => expr.ToSql(FormattedMySqlOracleExporter),
+            SqlPreviewDialect.MySqlMariaDb => expr.ToSql(FormattedMySqlMariaDbExporter),
+            _ => expr.ToSql(FormattedTSqlExporter)
         };
     }
 

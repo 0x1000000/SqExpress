@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Text;
 using SqExpress.SqlExport.Internal;
 using SqExpress.StatementSyntax;
 using SqExpress.Syntax.Names;
@@ -11,38 +10,44 @@ namespace SqExpress.SqlExport.Statement.Internal
     {
         private readonly PgSqlBuilder _exprBuilder;
 
-        public PgSqlStatementBuilder(SqlBuilderOptions? options, StringBuilder? externalBuilder) : base(options, externalBuilder)
+        public PgSqlStatementBuilder(SqlBuilderOptions? options) : base(options)
         {
-            this._exprBuilder = new PgSqlBuilder(this.Options, this.Builder);
+            this._exprBuilder = new PgSqlBuilder(this.Options, this.FormattingWriter);
         }
 
-        public string Build() => this.Builder.ToString();
+        internal PgSqlStatementBuilder(SqlBuilderOptions? options, SqlFormattingWriter formattingWriter)
+            : base(options, formattingWriter)
+        {
+            this._exprBuilder = new PgSqlBuilder(this.Options, formattingWriter);
+        }
+
+        public string Build() => this.FormattingWriter.ToString();
 
         protected override void AppendColumn(TableColumn column)
         {
             column.ColumnName.Accept(this.ExprBuilder, null);
-            this.Builder.Append(' ');
+            this.FormattingWriter.Append(' ');
 
 
             column.SqlType.Accept(this.ExprBuilder, null);
 
             if (!column.IsNullable)
             {
-                this.Builder.Append(" NOT NULL");
+                this.FormattingWriter.Append(" NOT NULL");
             }
 
             if (column.ColumnMeta != null)
             {
                 if (column.ColumnMeta.IsIdentity)
                 {
-                    this.Builder.Append("  GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 )");
+                    this.FormattingWriter.Append("  GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 )");
                 }
 
                 if (!ReferenceEquals(column.ColumnMeta.ColumnDefaultValue, null))
                 {
-                    this.Builder.Append(" DEFAULT (");
+                    this.FormattingWriter.Append(" DEFAULT (");
                     column.ColumnMeta.ColumnDefaultValue.Accept(this.ExprBuilder, null);
-                    this.Builder.Append(')');
+                    this.FormattingWriter.Append(')');
                 }
             }
         }
@@ -51,7 +56,7 @@ namespace SqExpress.SqlExport.Statement.Internal
         {
             if (tableName is ExprTempTableName)
             {
-                this.Builder.Append("TEMP ");
+                this.FormattingWriter.Append("TEMP ");
             }
         }
 
@@ -65,12 +70,12 @@ namespace SqExpress.SqlExport.Statement.Internal
             IndexMeta? clusteredIndex = null;
             foreach (var tableIndex in table.Indexes)
             {
-                this.Builder.Append("CREATE ");
+                this.FormattingWriter.Append("CREATE ");
                 if (tableIndex.Unique)
                 {
-                    this.Builder.Append("UNIQUE ");
+                    this.FormattingWriter.Append("UNIQUE ");
                 }
-                this.Builder.Append("INDEX ");
+                this.FormattingWriter.Append("INDEX ");
                 if (tableIndex.Clustered)
                 {
                     if (clusteredIndex != null)
@@ -81,20 +86,20 @@ namespace SqExpress.SqlExport.Statement.Internal
                     clusteredIndex = tableIndex;
                 }
                 this.AppendName(this.BuildIndexName(table.FullName, tableIndex));
-                this.Builder.Append(" ON ");
+                this.FormattingWriter.Append(" ON ");
                 table.FullName.Accept(this.ExprBuilder, null);
 
                 this.AppendIndexColumnList(tableIndex: tableIndex);
-                this.Builder.Append(";");
+                this.FormattingWriter.Append(";");
             }
 
             if (clusteredIndex != null)
             {
-                this.Builder.Append(";CLUSTER ");
+                this.FormattingWriter.Append(";CLUSTER ");
                 table.FullName.Accept(this.ExprBuilder, null);
-                this.Builder.Append(" USING ");
+                this.FormattingWriter.Append(" USING ");
                 this.AppendName(this.BuildIndexName(table.FullName, clusteredIndex));
-                this.Builder.Append(";");
+                this.FormattingWriter.Append(";");
             }
         }
 
@@ -107,13 +112,13 @@ namespace SqExpress.SqlExport.Statement.Internal
 
         public override void VisitDropTable(StatementDropTable statementDropTable)
         {
-            this.Builder.Append("DROP TABLE ");
+            this.FormattingWriter.Append("DROP TABLE ");
             if (statementDropTable.IfExists)
             {
-                this.Builder.Append("IF EXISTS ");
+                this.FormattingWriter.Append("IF EXISTS ");
             }
             statementDropTable.Table.Accept(this.ExprBuilder, null);
-            this.Builder.Append(';');
+            this.FormattingWriter.Append(';');
         }
 
         public override void VisitIf(StatementIf statementIf)

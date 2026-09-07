@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using SqExpress.Syntax;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Functions;
@@ -18,24 +17,57 @@ namespace SqExpress.SqlExport.Internal
 {
     internal class SqliteBuilder : PgSqlBuilder
     {
-        public SqliteBuilder(SqlBuilderOptions? options = null, StringBuilder? externalBuilder = null)
-            : base(options, externalBuilder)
+        public SqliteBuilder(SqlBuilderOptions? options = null)
+            : base(options)
+        {
+        }
+
+        internal SqliteBuilder(SqlBuilderOptions? options, SqlFormattingWriter formattingWriter)
+            : base(options, formattingWriter)
         {
         }
 
         private SqliteBuilder(
             SqlBuilderOptions? options,
-            StringBuilder? externalBuilder,
             SqlAliasGenerator aliasGenerator,
             bool dismissCteInject)
-            : base(options, externalBuilder, aliasGenerator, dismissCteInject)
+            : base(options, aliasGenerator, dismissCteInject)
         {
         }
 
+        // Dialect hooks
+
         protected override SqlBuilderBase CreateInstance(SqlAliasGenerator aliasGenerator, bool dismissCteInject)
         {
-            return new SqliteBuilder(this.Options, new StringBuilder(), aliasGenerator, dismissCteInject);
+            return new SqliteBuilder(this.Options, aliasGenerator, dismissCteInject);
         }
+
+        protected override bool VisitExprParameter(ExprParameter exprParameter, int paramNumber, IExpr? parent, out string? name)
+        {
+            name = "$" + paramNumber;
+            this.FormattingWriter.Append(name);
+            return true;
+        }
+
+        protected override DbParameterValueVisitorExtractor GetDbParameterValueVisitorExtractor()
+            => DbParameterValueVisitorExtractor.Instance;
+
+        protected override void AppendByteArrayLiteralPrefix()
+        {
+            this.FormattingWriter.Append("X'");
+        }
+
+        protected override void AppendByteArrayLiteralSuffix()
+        {
+            this.FormattingWriter.Append('\'');
+        }
+
+        protected override bool ForceParenthesesForQueryExpressionPart(IExprSubQuery subQuery)
+        {
+            return false;
+        }
+
+        // Values and functions
 
         public override bool VisitExprGuidLiteral(ExprGuidLiteral exprGuidLiteral, IExpr? parent)
         {
@@ -45,45 +77,25 @@ namespace SqExpress.SqlExport.Internal
                 return true;
             }
 
-            this.Builder.Append('\'');
-            this.Builder.Append(exprGuidLiteral.Value.Value.ToString("D"));
-            this.Builder.Append('\'');
+            this.FormattingWriter.Append('\'');
+            this.FormattingWriter.Append(exprGuidLiteral.Value.Value.ToString("D"));
+            this.FormattingWriter.Append('\'');
             return true;
         }
-
-        protected override bool VisitExprParameter(ExprParameter exprParameter, int paramNumber, IExpr? parent, out string? name)
-        {
-            name = "$" + paramNumber;
-            this.Builder.Append(name);
-            return true;
-        }
-
-        protected override DbParameterValueVisitorExtractor GetDbParameterValueVisitorExtractor()
-            => DbParameterValueVisitorExtractor.Instance;
 
         public override bool VisitExprStringAgg(ExprStringAgg exprStringAgg, IExpr? parent)
         {
-            this.Builder.Append("GROUP_CONCAT(");
+            this.FormattingWriter.Append("GROUP_CONCAT(");
             exprStringAgg.Expression.Accept(this, exprStringAgg);
-            this.Builder.Append(',');
+            this.FormattingWriter.Append(',');
             exprStringAgg.Separator.Accept(this, exprStringAgg);
             if (exprStringAgg.OrderBy != null)
             {
-                this.Builder.Append(" ORDER BY ");
+                this.FormattingWriter.AppendClause("ORDER BY", compactTrailingSpaces: 1);
                 exprStringAgg.OrderBy.Accept(this, exprStringAgg);
             }
-            this.Builder.Append(')');
+            this.FormattingWriter.Append(')');
             return true;
-        }
-
-        protected override void AppendByteArrayLiteralPrefix()
-        {
-            this.Builder.Append("X'");
-        }
-
-        protected override void AppendByteArrayLiteralSuffix()
-        {
-            this.Builder.Append('\'');
         }
 
         public override bool VisitExprDateTimeOffsetLiteral(ExprDateTimeOffsetLiteral dateTimeLiteral, IExpr? arg)
@@ -94,9 +106,9 @@ namespace SqExpress.SqlExport.Internal
             }
             else
             {
-                this.Builder.Append('\'');
-                this.Builder.Append(dateTimeLiteral.Value.Value.ToString("O"));
-                this.Builder.Append('\'');
+                this.FormattingWriter.Append('\'');
+                this.FormattingWriter.Append(dateTimeLiteral.Value.Value.ToString("O"));
+                this.FormattingWriter.Append('\'');
             }
 
             return true;
@@ -110,16 +122,16 @@ namespace SqExpress.SqlExport.Internal
             }
             else
             {
-                this.Builder.Append('\'');
+                this.FormattingWriter.Append('\'');
                 if (dateTimeLiteral.Value.Value.TimeOfDay != TimeSpan.Zero)
                 {
-                    this.Builder.Append(dateTimeLiteral.Value.Value.ToString("yyyy-MM-dd HH:mm:ss.fff"));
+                    this.FormattingWriter.Append(dateTimeLiteral.Value.Value.ToString("yyyy-MM-dd HH:mm:ss.fff"));
                 }
                 else
                 {
-                    this.Builder.Append(dateTimeLiteral.Value.Value.ToString("yyyy-MM-dd"));
+                    this.FormattingWriter.Append(dateTimeLiteral.Value.Value.ToString("yyyy-MM-dd"));
                 }
-                this.Builder.Append('\'');
+                this.FormattingWriter.Append('\'');
             }
 
             return true;
@@ -127,15 +139,17 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprGetDate(ExprGetDate exprGetDat, IExpr? parent)
         {
-            this.Builder.Append("CURRENT_DATE");
+            this.FormattingWriter.Append("CURRENT_DATE");
             return true;
         }
 
         public override bool VisitExprGetUtcDate(ExprGetUtcDate exprGetUtcDate, IExpr? parent)
         {
-            this.Builder.Append("CURRENT_TIMESTAMP");
+            this.FormattingWriter.Append("CURRENT_TIMESTAMP");
             return true;
         }
+
+        // Queries and table sources
 
         public override bool VisitExprTempTableName(ExprTempTableName tempTableName, IExpr? parent)
         {
@@ -158,51 +172,50 @@ namespace SqExpress.SqlExport.Internal
         {
             if (!ReferenceEquals(exprOffsetFetch.Fetch, null))
             {
-                this.Builder.Append(" LIMIT ");
+                this.FormattingWriter.AppendClause("LIMIT", compactTrailingSpaces: 1);
                 exprOffsetFetch.Fetch.Accept(this, exprOffsetFetch);
             }
 
-            this.Builder.Append(" OFFSET ");
+            this.FormattingWriter.AppendClause("OFFSET", compactTrailingSpaces: 1);
             exprOffsetFetch.Offset.Accept(this, exprOffsetFetch);
             return true;
-        }
-
-        protected override bool ForceParenthesesForQueryExpressionPart(IExprSubQuery subQuery)
-        {
-            return false;
         }
 
         public override bool VisitExprDerivedTableValues(ExprDerivedTableValues derivedTableValues, IExpr? parent)
         {
             derivedTableValues.Columns.AssertNotEmpty("List of columns in a derived table with values literals cannot be empty");
 
-            this.Builder.Append("(SELECT ");
-            for (var i = 0; i < derivedTableValues.Columns.Count; i++)
+            using (this.BeginParentheses(SqlRenderSite.Subquery))
             {
-                if (i > 0)
-                {
-                    this.Builder.Append(',');
-                }
+            this.FormattingWriter.Append("SELECT");
+            this.AcceptItems(derivedTableValues.Columns.Count, SqlRenderSite.Select, i =>
+            {
 
-                this.Builder.Append("column");
-                this.Builder.Append(i + 1);
-                this.Builder.Append(" AS ");
+                this.FormattingWriter.Append("column");
+                this.FormattingWriter.Append(i + 1);
+                this.FormattingWriter.Append(" AS ");
                 derivedTableValues.Columns[i].Accept(this, derivedTableValues);
-            }
+            }, 1);
 
-            this.Builder.Append(" FROM ");
+            this.FormattingWriter.AppendClause("FROM", compactTrailingSpaces: 1);
             this.AcceptPar('(', derivedTableValues.Values, ')', derivedTableValues);
-            this.Builder.Append(')');
-            this.Builder.Append(" AS ");
-            derivedTableValues.Alias.Accept(this, derivedTableValues);
+            }
+            using (this.FormattingWriter.BeginBody(SqlRenderSite.TableAlias, 1))
+            {
+                this.FormattingWriter.Append("AS ");
+                derivedTableValues.Alias.Accept(this, derivedTableValues);
+            }
             return true;
         }
 
         public override bool VisitExprDerivedTableQuery(ExprDerivedTableQuery exprDerivedTableQuery, IExpr? parent)
         {
             this.AcceptPar('(', exprDerivedTableQuery.Query, ')', exprDerivedTableQuery);
-            this.Builder.Append(" AS ");
-            exprDerivedTableQuery.Alias.Accept(this, exprDerivedTableQuery);
+            using (this.FormattingWriter.BeginBody(SqlRenderSite.TableAlias, 1))
+            {
+                this.FormattingWriter.Append("AS ");
+                exprDerivedTableQuery.Alias.Accept(this, exprDerivedTableQuery);
+            }
 
             if (exprDerivedTableQuery.Columns is { Count: > 0 })
             {
@@ -233,6 +246,8 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
+        // DML
+
         public override bool VisitExprDelete(ExprDelete exprDelete, IExpr? parent)
         {
             if (exprDelete.Source != null)
@@ -242,12 +257,12 @@ namespace SqExpress.SqlExport.Internal
 
             this.AddCteSlot(parent);
 
-            this.Builder.Append("DELETE FROM ");
+            this.FormattingWriter.Append("DELETE FROM ");
             exprDelete.Target.FullName.Accept(this, exprDelete);
 
             if (exprDelete.Filter != null)
             {
-                this.Builder.Append(" WHERE ");
+                this.FormattingWriter.AppendClause("WHERE");
                 var filter = exprDelete.Filter;
                 if (exprDelete.Target.Alias != null)
                 {
@@ -257,7 +272,7 @@ namespace SqExpress.SqlExport.Internal
                             : cn)!;
                 }
 
-                filter.Accept(this, exprDelete);
+                this.AcceptBody(filter, exprDelete, SqlRenderSite.Where, 1);
             }
 
             return true;
@@ -273,7 +288,7 @@ namespace SqExpress.SqlExport.Internal
             this.VisitExprDelete(exprDeleteOutput.Delete, exprDeleteOutput);
             this.AssertNotEmptyList(exprDeleteOutput.OutputColumns, "Output list in 'DELETE' statement cannot be empty");
 
-            this.Builder.Append(" RETURNING ");
+            this.FormattingWriter.AppendClause("RETURNING");
 
             var columns = exprDeleteOutput.OutputColumns;
             var targetAlias = exprDeleteOutput.Delete.Target.Alias;
@@ -286,7 +301,7 @@ namespace SqExpress.SqlExport.Internal
                         : column);
             }
 
-            this.AcceptListComaSeparated(columns, exprDeleteOutput);
+            this.AcceptItems(columns, exprDeleteOutput, SqlRenderSite.Output, 1);
 
             return true;
         }
@@ -301,7 +316,7 @@ namespace SqExpress.SqlExport.Internal
                 {
                     if (i > 0)
                     {
-                        this.Builder.Append("||");
+                        this.FormattingWriter.Append("||");
                     }
 
                     exprScalarFunction.Arguments[i].Accept(this, exprScalarFunction);
@@ -319,8 +334,8 @@ namespace SqExpress.SqlExport.Internal
             }
             else
             {
-                this.Builder.Append('(');
-                this.Builder.Append(')');
+                this.FormattingWriter.Append('(');
+                this.FormattingWriter.Append(')');
             }
 
             return true;
@@ -337,8 +352,8 @@ namespace SqExpress.SqlExport.Internal
             }
             else
             {
-                this.Builder.Append('(');
-                this.Builder.Append(')');
+                this.FormattingWriter.Append('(');
+                this.FormattingWriter.Append(')');
             }
 
             return true;
@@ -389,9 +404,9 @@ namespace SqExpress.SqlExport.Internal
                     return true;
                 case PortableScalarFunction.DataLen:
                     this.AssertArgumentsCount(exprPortableScalarFunction.Arguments, 1, exprPortableScalarFunction.PortableFunction);
-                    this.Builder.Append("LENGTH(CAST(");
+                    this.FormattingWriter.Append("LENGTH(CAST(");
                     exprPortableScalarFunction.Arguments![0].Accept(this, exprPortableScalarFunction);
-                    this.Builder.Append(" AS BLOB))");
+                    this.FormattingWriter.Append(" AS BLOB))");
                     return true;
                 case PortableScalarFunction.Year:
                     AppendExtract(exprPortableScalarFunction, "%Y");
@@ -413,39 +428,39 @@ namespace SqExpress.SqlExport.Internal
                     return true;
                 case PortableScalarFunction.IndexOf:
                     this.AssertArgumentsCount(exprPortableScalarFunction.Arguments, 2, exprPortableScalarFunction.PortableFunction);
-                    this.Builder.Append("INSTR(");
+                    this.FormattingWriter.Append("INSTR(");
                     exprPortableScalarFunction.Arguments![1].Accept(this, exprPortableScalarFunction);
-                    this.Builder.Append(',');
+                    this.FormattingWriter.Append(',');
                     exprPortableScalarFunction.Arguments[0].Accept(this, exprPortableScalarFunction);
-                    this.Builder.Append(')');
+                    this.FormattingWriter.Append(')');
                     return true;
                 case PortableScalarFunction.Left:
                     this.AssertArgumentsCount(exprPortableScalarFunction.Arguments, 2, exprPortableScalarFunction.PortableFunction);
-                    this.Builder.Append("SUBSTR(");
+                    this.FormattingWriter.Append("SUBSTR(");
                     exprPortableScalarFunction.Arguments![0].Accept(this, exprPortableScalarFunction);
-                    this.Builder.Append(",1,MAX(");
+                    this.FormattingWriter.Append(",1,MAX(");
                     exprPortableScalarFunction.Arguments[1].Accept(this, exprPortableScalarFunction);
-                    this.Builder.Append(",0))");
+                    this.FormattingWriter.Append(",0))");
                     return true;
                 case PortableScalarFunction.Right:
                     this.AssertArgumentsCount(exprPortableScalarFunction.Arguments, 2, exprPortableScalarFunction.PortableFunction);
-                    this.Builder.Append("CASE WHEN ");
+                    this.FormattingWriter.Append("CASE WHEN ");
                     exprPortableScalarFunction.Arguments![1].Accept(this, exprPortableScalarFunction);
-                    this.Builder.Append("<=0 THEN '' ELSE SUBSTR(");
+                    this.FormattingWriter.Append("<=0 THEN '' ELSE SUBSTR(");
                     exprPortableScalarFunction.Arguments[0].Accept(this, exprPortableScalarFunction);
-                    this.Builder.Append(",-(");
+                    this.FormattingWriter.Append(",-(");
                     exprPortableScalarFunction.Arguments[1].Accept(this, exprPortableScalarFunction);
-                    this.Builder.Append(")) END");
+                    this.FormattingWriter.Append(")) END");
                     return true;
                 case PortableScalarFunction.Repeat:
                     this.AssertArgumentsCount(exprPortableScalarFunction.Arguments, 2, exprPortableScalarFunction.PortableFunction);
-                    this.Builder.Append("CASE WHEN ");
+                    this.FormattingWriter.Append("CASE WHEN ");
                     exprPortableScalarFunction.Arguments![1].Accept(this, exprPortableScalarFunction);
-                    this.Builder.Append("<=0 THEN '' ELSE REPLACE(HEX(ZEROBLOB(");
+                    this.FormattingWriter.Append("<=0 THEN '' ELSE REPLACE(HEX(ZEROBLOB(");
                     exprPortableScalarFunction.Arguments[1].Accept(this, exprPortableScalarFunction);
-                    this.Builder.Append(")),'00',");
+                    this.FormattingWriter.Append(")),'00',");
                     exprPortableScalarFunction.Arguments[0].Accept(this, exprPortableScalarFunction);
-                    this.Builder.Append(") END");
+                    this.FormattingWriter.Append(") END");
                     return true;
                 default:
                     return base.VisitExprPortableScalarFunction(exprPortableScalarFunction, arg);
@@ -474,11 +489,11 @@ namespace SqExpress.SqlExport.Internal
 
             if (exprDateAdd.DatePart == DateAddDatePart.Millisecond)
             {
-                this.Builder.Append("STRFTIME('%Y-%m-%d %H:%M:%f',JULIANDAY(");
+                this.FormattingWriter.Append("STRFTIME('%Y-%m-%d %H:%M:%f',JULIANDAY(");
                 exprDateAdd.Date.Accept(this, exprDateAdd);
-                this.Builder.Append(")+(");
-                this.Builder.Append(exprDateAdd.Number);
-                this.Builder.Append("/86400000.0))");
+                this.FormattingWriter.Append(")+(");
+                this.FormattingWriter.Append(exprDateAdd.Number);
+                this.FormattingWriter.Append("/86400000.0))");
                 return true;
             }
 
@@ -498,16 +513,16 @@ namespace SqExpress.SqlExport.Internal
                 ? exprDateAdd.Number * 7
                 : exprDateAdd.Number;
 
-            this.Builder.Append("DATETIME(");
+            this.FormattingWriter.Append("DATETIME(");
             exprDateAdd.Date.Accept(this, exprDateAdd);
-            this.Builder.Append(",'");
+            this.FormattingWriter.Append(",'");
             if (number >= 0)
             {
-                this.Builder.Append('+');
+                this.FormattingWriter.Append('+');
             }
-            this.Builder.Append(number);
-            this.Builder.Append(interval);
-            this.Builder.Append("')");
+            this.FormattingWriter.Append(number);
+            this.FormattingWriter.Append(interval);
+            this.FormattingWriter.Append("')");
             return true;
         }
 
@@ -516,22 +531,22 @@ namespace SqExpress.SqlExport.Internal
             switch (exprDateDiff.DatePart)
             {
                 case DateDiffDatePart.Year:
-                    this.Builder.Append("CAST(STRFTIME('%Y',");
+                    this.FormattingWriter.Append("CAST(STRFTIME('%Y',");
                     exprDateDiff.EndDate.Accept(this, exprDateDiff);
-                    this.Builder.Append(") AS INTEGER)-CAST(STRFTIME('%Y',");
+                    this.FormattingWriter.Append(") AS INTEGER)-CAST(STRFTIME('%Y',");
                     exprDateDiff.StartDate.Accept(this, exprDateDiff);
-                    this.Builder.Append(") AS INTEGER)");
+                    this.FormattingWriter.Append(") AS INTEGER)");
                     return true;
                 case DateDiffDatePart.Month:
-                    this.Builder.Append("((CAST(STRFTIME('%Y',");
+                    this.FormattingWriter.Append("((CAST(STRFTIME('%Y',");
                     exprDateDiff.EndDate.Accept(this, exprDateDiff);
-                    this.Builder.Append(") AS INTEGER)-CAST(STRFTIME('%Y',");
+                    this.FormattingWriter.Append(") AS INTEGER)-CAST(STRFTIME('%Y',");
                     exprDateDiff.StartDate.Accept(this, exprDateDiff);
-                    this.Builder.Append(") AS INTEGER))*12)+(CAST(STRFTIME('%m',");
+                    this.FormattingWriter.Append(") AS INTEGER))*12)+(CAST(STRFTIME('%m',");
                     exprDateDiff.EndDate.Accept(this, exprDateDiff);
-                    this.Builder.Append(") AS INTEGER)-CAST(STRFTIME('%m',");
+                    this.FormattingWriter.Append(") AS INTEGER)-CAST(STRFTIME('%m',");
                     exprDateDiff.StartDate.Accept(this, exprDateDiff);
-                    this.Builder.Append(") AS INTEGER))");
+                    this.FormattingWriter.Append(") AS INTEGER))");
                     return true;
                 case DateDiffDatePart.Day:
                     AppendUnixDiff(exprDateDiff, "DATE(", ")", 86400);
@@ -546,11 +561,11 @@ namespace SqExpress.SqlExport.Internal
                     AppendUnixDiff(exprDateDiff, "STRFTIME('%Y-%m-%d %H:%M:%S',", ")", 1);
                     return true;
                 case DateDiffDatePart.Millisecond:
-                    this.Builder.Append("CAST(ROUND((JULIANDAY(");
+                    this.FormattingWriter.Append("CAST(ROUND((JULIANDAY(");
                     exprDateDiff.EndDate.Accept(this, exprDateDiff);
-                    this.Builder.Append(")-JULIANDAY(");
+                    this.FormattingWriter.Append(")-JULIANDAY(");
                     exprDateDiff.StartDate.Accept(this, exprDateDiff);
-                    this.Builder.Append("))*86400000.0) AS INTEGER)");
+                    this.FormattingWriter.Append("))*86400000.0) AS INTEGER)");
                     return true;
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -594,24 +609,21 @@ namespace SqExpress.SqlExport.Internal
 
             this.AssertNotEmptyList(exprUpdate.SetClause, "'UPDATE' statement should have at least one set clause");
 
-            this.Builder.Append("UPDATE ");
+            this.FormattingWriter.Append("UPDATE ");
             exprUpdate.Target.FullName.Accept(this, exprUpdate);
-            this.Builder.Append(" SET ");
+            this.FormattingWriter.AppendClause("SET");
 
             var targetAlias = exprUpdate.Target.Alias;
 
-            for (int i = 0; i < exprUpdate.SetClause.Count; i++)
+            this.AcceptItems(exprUpdate.SetClause.Count, SqlRenderSite.Set, i =>
             {
                 var setClause = exprUpdate.SetClause[i];
-                if (i != 0)
-                {
-                    this.Builder.Append(',');
-                }
 
                 setClause.Column.ColumnName.Accept(this, exprUpdate);
-                this.Builder.Append('=');
+                this.FormattingWriter.Append('=');
                 RewriteTargetAlias(setClause.Value, targetAlias, exprUpdate.Target.FullName).Accept(this, exprUpdate);
-            }
+
+            }, 1);
 
             ExprBoolean? sourceFilter = null;
             if (exprUpdate.Source != null)
@@ -632,11 +644,11 @@ namespace SqExpress.SqlExport.Internal
 
                     if (itemAppendCount == 0)
                     {
-                        this.Builder.Append(" FROM ");
+                        this.FormattingWriter.AppendClause("FROM", compactTrailingSpaces: 1);
                     }
                     else
                     {
-                        this.Builder.Append(',');
+                        this.FormattingWriter.Append(',');
                     }
 
                     source.Accept(this, exprUpdate);
@@ -648,8 +660,8 @@ namespace SqExpress.SqlExport.Internal
 
             if (filter != null)
             {
-                this.Builder.Append(" WHERE ");
-                RewriteTargetAlias(filter, targetAlias, exprUpdate.Target.FullName).Accept(this, exprUpdate);
+                this.FormattingWriter.AppendClause("WHERE");
+                this.AcceptBody(RewriteTargetAlias(filter, targetAlias, exprUpdate.Target.FullName), exprUpdate, SqlRenderSite.Where, 1);
             }
 
             return true;
@@ -657,91 +669,91 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprTypeBoolean(ExprTypeBoolean exprTypeBoolean, IExpr? parent)
         {
-            this.Builder.Append("INTEGER");
+            this.FormattingWriter.Append("INTEGER");
             return true;
         }
 
         public override bool VisitExprTypeByte(ExprTypeByte exprTypeByte, IExpr? parent)
         {
-            this.Builder.Append("INTEGER");
+            this.FormattingWriter.Append("INTEGER");
             return true;
         }
 
         public override bool VisitExprTypeByteArray(ExprTypeByteArray exprTypeByte, IExpr? arg)
         {
-            this.Builder.Append("BLOB");
+            this.FormattingWriter.Append("BLOB");
             return true;
         }
 
         public override bool VisitExprTypeFixSizeByteArray(ExprTypeFixSizeByteArray exprTypeFixSizeByteArray, IExpr? arg)
         {
-            this.Builder.Append("BLOB");
+            this.FormattingWriter.Append("BLOB");
             return true;
         }
 
         public override bool VisitExprTypeInt16(ExprTypeInt16 exprTypeInt16, IExpr? parent)
         {
-            this.Builder.Append("INTEGER");
+            this.FormattingWriter.Append("INTEGER");
             return true;
         }
 
         public override bool VisitExprTypeInt32(ExprTypeInt32 exprTypeInt32, IExpr? parent)
         {
-            this.Builder.Append("INTEGER");
+            this.FormattingWriter.Append("INTEGER");
             return true;
         }
 
         public override bool VisitExprTypeInt64(ExprTypeInt64 exprTypeInt64, IExpr? parent)
         {
-            this.Builder.Append("INTEGER");
+            this.FormattingWriter.Append("INTEGER");
             return true;
         }
 
         public override bool VisitExprTypeDecimal(ExprTypeDecimal exprTypeDecimal, IExpr? parent)
         {
-            this.Builder.Append("NUMERIC");
+            this.FormattingWriter.Append("NUMERIC");
             return true;
         }
 
         public override bool VisitExprTypeDouble(ExprTypeDouble exprTypeDouble, IExpr? parent)
         {
-            this.Builder.Append("REAL");
+            this.FormattingWriter.Append("REAL");
             return true;
         }
 
         public override bool VisitExprTypeDateTime(ExprTypeDateTime exprTypeDateTime, IExpr? parent)
         {
-            this.Builder.Append("TEXT");
+            this.FormattingWriter.Append("TEXT");
             return true;
         }
 
         public override bool VisitExprTypeDateTimeOffset(ExprTypeDateTimeOffset exprTypeDateTimeOffset, IExpr? arg)
         {
-            this.Builder.Append("TEXT");
+            this.FormattingWriter.Append("TEXT");
             return true;
         }
 
         public override bool VisitExprTypeGuid(ExprTypeGuid exprTypeGuid, IExpr? parent)
         {
-            this.Builder.Append("TEXT");
+            this.FormattingWriter.Append("TEXT");
             return true;
         }
 
         public override bool VisitExprTypeString(ExprTypeString exprTypeString, IExpr? parent)
         {
-            this.Builder.Append("TEXT");
+            this.FormattingWriter.Append("TEXT");
             return true;
         }
 
         public override bool VisitExprTypeFixSizeString(ExprTypeFixSizeString exprTypeFixSizeString, IExpr? arg)
         {
-            this.Builder.Append("TEXT");
+            this.FormattingWriter.Append("TEXT");
             return true;
         }
 
         public override bool VisitExprTypeXml(ExprTypeXml exprTypeXml, IExpr? arg)
         {
-            this.Builder.Append("TEXT");
+            this.FormattingWriter.Append("TEXT");
             return true;
         }
 
@@ -761,97 +773,97 @@ namespace SqExpress.SqlExport.Internal
 
         private void AppendUnixDiff(ExprDateDiff exprDateDiff, string wrapperPrefix, string wrapperSuffix, int divisor)
         {
-            this.Builder.Append("CAST((CAST(STRFTIME('%s',");
-            this.Builder.Append(wrapperPrefix);
+            this.FormattingWriter.Append("CAST((CAST(STRFTIME('%s',");
+            this.FormattingWriter.Append(wrapperPrefix);
             exprDateDiff.EndDate.Accept(this, exprDateDiff);
-            this.Builder.Append(wrapperSuffix);
-            this.Builder.Append(") AS INTEGER)-CAST(STRFTIME('%s',");
-            this.Builder.Append(wrapperPrefix);
+            this.FormattingWriter.Append(wrapperSuffix);
+            this.FormattingWriter.Append(") AS INTEGER)-CAST(STRFTIME('%s',");
+            this.FormattingWriter.Append(wrapperPrefix);
             exprDateDiff.StartDate.Accept(this, exprDateDiff);
-            this.Builder.Append(wrapperSuffix);
-            this.Builder.Append(") AS INTEGER))");
+            this.FormattingWriter.Append(wrapperSuffix);
+            this.FormattingWriter.Append(") AS INTEGER))");
 
             if (divisor != 1)
             {
-                this.Builder.Append('/');
-                this.Builder.Append(divisor);
+                this.FormattingWriter.Append('/');
+                this.FormattingWriter.Append(divisor);
             }
 
-            this.Builder.Append(" AS INTEGER)");
+            this.FormattingWriter.Append(" AS INTEGER)");
         }
 
         private void AppendFunction(string functionName, ExprPortableScalarFunction exprPortableScalarFunction, int expectedArguments)
         {
             this.AssertArgumentsCount(exprPortableScalarFunction.Arguments, expectedArguments, exprPortableScalarFunction.PortableFunction);
-            this.Builder.Append(functionName);
+            this.FormattingWriter.Append(functionName);
             this.AcceptListComaSeparatedPar('(', exprPortableScalarFunction.Arguments!, ')', exprPortableScalarFunction);
         }
 
         private void AppendExtract(ExprPortableScalarFunction exprPortableScalarFunction, string format)
         {
             this.AssertArgumentsCount(exprPortableScalarFunction.Arguments, 1, exprPortableScalarFunction.PortableFunction);
-            this.Builder.Append("CAST(STRFTIME('");
-            this.Builder.Append(format);
-            this.Builder.Append("',");
+            this.FormattingWriter.Append("CAST(STRFTIME('");
+            this.FormattingWriter.Append(format);
+            this.FormattingWriter.Append("',");
             exprPortableScalarFunction.Arguments![0].Accept(this, exprPortableScalarFunction);
-            this.Builder.Append(") AS INTEGER)");
+            this.FormattingWriter.Append(") AS INTEGER)");
         }
 
         private void AppendFloor(ExprValue value, ExprPortableScalarFunction exprPortableScalarFunction)
         {
-            this.Builder.Append("CASE WHEN ");
+            this.FormattingWriter.Append("CASE WHEN ");
             value.Accept(this, exprPortableScalarFunction);
-            this.Builder.Append(">=CAST(");
+            this.FormattingWriter.Append(">=CAST(");
             value.Accept(this, exprPortableScalarFunction);
-            this.Builder.Append(" AS INTEGER) THEN CAST(");
+            this.FormattingWriter.Append(" AS INTEGER) THEN CAST(");
             value.Accept(this, exprPortableScalarFunction);
-            this.Builder.Append(" AS INTEGER) ELSE CAST(");
+            this.FormattingWriter.Append(" AS INTEGER) ELSE CAST(");
             value.Accept(this, exprPortableScalarFunction);
-            this.Builder.Append(" AS INTEGER)-1 END");
+            this.FormattingWriter.Append(" AS INTEGER)-1 END");
         }
 
         private void AppendCeiling(ExprValue value, ExprPortableScalarFunction exprPortableScalarFunction)
         {
-            this.Builder.Append("CASE WHEN ");
+            this.FormattingWriter.Append("CASE WHEN ");
             value.Accept(this, exprPortableScalarFunction);
-            this.Builder.Append("<=CAST(");
+            this.FormattingWriter.Append("<=CAST(");
             value.Accept(this, exprPortableScalarFunction);
-            this.Builder.Append(" AS INTEGER) THEN CAST(");
+            this.FormattingWriter.Append(" AS INTEGER) THEN CAST(");
             value.Accept(this, exprPortableScalarFunction);
-            this.Builder.Append(" AS INTEGER) ELSE CAST(");
+            this.FormattingWriter.Append(" AS INTEGER) ELSE CAST(");
             value.Accept(this, exprPortableScalarFunction);
-            this.Builder.Append(" AS INTEGER)+1 END");
+            this.FormattingWriter.Append(" AS INTEGER)+1 END");
         }
 
         private void AppendClampedMonthAdd(ExprDateAdd exprDateAdd, int monthsToAdd)
         {
-            this.Builder.Append("DATETIME(");
-            this.Builder.Append("printf('%s-%02d',STRFTIME('%Y-%m',DATE(");
+            this.FormattingWriter.Append("DATETIME(");
+            this.FormattingWriter.Append("printf('%s-%02d',STRFTIME('%Y-%m',DATE(");
             exprDateAdd.Date.Accept(this, exprDateAdd);
-            this.Builder.Append(",'start of month',");
+            this.FormattingWriter.Append(",'start of month',");
             AppendSignedModifier(monthsToAdd, " months");
-            this.Builder.Append(")),MIN(CAST(STRFTIME('%d',");
+            this.FormattingWriter.Append(")),MIN(CAST(STRFTIME('%d',");
             exprDateAdd.Date.Accept(this, exprDateAdd);
-            this.Builder.Append(") AS INTEGER),CAST(STRFTIME('%d',DATE(");
+            this.FormattingWriter.Append(") AS INTEGER),CAST(STRFTIME('%d',DATE(");
             exprDateAdd.Date.Accept(this, exprDateAdd);
-            this.Builder.Append(",'start of month',");
+            this.FormattingWriter.Append(",'start of month',");
             AppendSignedModifier(monthsToAdd + 1, " months");
-            this.Builder.Append(",'-1 day')) AS INTEGER)))||SUBSTR(STRFTIME('%Y-%m-%d %H:%M:%f',");
+            this.FormattingWriter.Append(",'-1 day')) AS INTEGER)))||SUBSTR(STRFTIME('%Y-%m-%d %H:%M:%f',");
             exprDateAdd.Date.Accept(this, exprDateAdd);
-            this.Builder.Append("),11))");
+            this.FormattingWriter.Append("),11))");
         }
 
         private void AppendSignedModifier(int value, string unitSuffix)
         {
-            this.Builder.Append('\'');
+            this.FormattingWriter.Append('\'');
             if (value >= 0)
             {
-                this.Builder.Append('+');
+                this.FormattingWriter.Append('+');
             }
 
-            this.Builder.Append(value);
-            this.Builder.Append(unitSuffix);
-            this.Builder.Append('\'');
+            this.FormattingWriter.Append(value);
+            this.FormattingWriter.Append(unitSuffix);
+            this.FormattingWriter.Append('\'');
         }
     }
 }

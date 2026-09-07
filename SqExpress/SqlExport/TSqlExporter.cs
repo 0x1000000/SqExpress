@@ -36,7 +36,7 @@ namespace SqExpress.SqlExport
         /// <inheritdoc/>
         public string ToSql(IStatement statement)
         {
-            var builder = new TSqlStatementBuilder(this._builderOptions, null);
+            var builder = new TSqlStatementBuilder(this._builderOptions.WithFormatting(null));
             statement.Accept(builder);
             return builder.Build();
         }

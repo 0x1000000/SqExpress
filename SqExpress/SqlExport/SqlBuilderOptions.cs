@@ -31,7 +31,12 @@ namespace SqExpress.SqlExport
         /// </remarks>
         public bool AvoidNameQuoting { get; private set; }
 
-        private SqlBuilderOptions() : this(null, false) { }
+        /// <summary>
+        /// Gets the optional SQL formatting profile, or <see langword="null"/> for compact SQL.
+        /// </summary>
+        public SqlFormattingProfile? FormattingProfile { get; private set; }
+
+        private SqlBuilderOptions() : this(null, false, null) { }
 
         /// <summary>
         /// Creates exporter options with the specified schema mappings and identifier-quoting behavior.
@@ -39,9 +44,18 @@ namespace SqExpress.SqlExport
         /// <param name="schemaMap">Schema-name substitutions, or <see langword="null"/> for none.</param>
         /// <param name="avoidNameQuoting"><see langword="true"/> to omit dialect-specific identifier delimiters.</param>
         public SqlBuilderOptions(IReadOnlyList<SchemaMap>? schemaMap, bool avoidNameQuoting)
+            : this(schemaMap, avoidNameQuoting, null)
+        {
+        }
+
+        private SqlBuilderOptions(
+            IReadOnlyList<SchemaMap>? schemaMap,
+            bool avoidNameQuoting,
+            SqlFormattingProfile? formattingProfile)
         {
             this.SchemaMap = schemaMap;
             this.AvoidNameQuoting = avoidNameQuoting;
+            this.FormattingProfile = formattingProfile;
         }
 
         /// <summary>
@@ -68,8 +82,23 @@ namespace SqExpress.SqlExport
             return result;
         }
 
+        /// <summary>
+        /// Returns a copy that uses the specified SQL formatting profile.
+        /// </summary>
+        /// <param name="profile">The formatting profile, or <see langword="null"/> to produce compact SQL.</param>
+        /// <returns>A new options instance.</returns>
+        public SqlBuilderOptions WithFormatting(SqlFormattingProfile? profile)
+        {
+            var result = this.Clone();
+            result.FormattingProfile = profile;
+            return result;
+        }
+
         private SqlBuilderOptions Clone()
-            => new SqlBuilderOptions(schemaMap: this.SchemaMap, avoidNameQuoting: this.AvoidNameQuoting);
+            => new SqlBuilderOptions(
+                schemaMap: this.SchemaMap,
+                avoidNameQuoting: this.AvoidNameQuoting,
+                formattingProfile: this.FormattingProfile);
 
         internal string MapSchema(string schemaName)
         {

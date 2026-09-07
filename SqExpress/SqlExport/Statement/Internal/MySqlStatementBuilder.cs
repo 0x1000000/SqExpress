@@ -1,5 +1,4 @@
 using System;
-using System.Text;
 using SqExpress.SqlExport.Internal;
 using SqExpress.StatementSyntax;
 using SqExpress.Syntax.Names;
@@ -10,37 +9,46 @@ namespace SqExpress.SqlExport.Statement.Internal
     {
         private readonly MySqlBuilder _exprBuilder;
 
-        public MySqlStatementBuilder(SqlBuilderOptions? options, MySqlFlavor flavor, StringBuilder? externalBuilder) : base(options, externalBuilder)
+        public MySqlStatementBuilder(SqlBuilderOptions? options, MySqlFlavor flavor) : base(options)
         {
-            this._exprBuilder = new MySqlBuilder(this.Options, flavor, this.Builder);
+            this._exprBuilder = new MySqlBuilder(this.Options, flavor, this.FormattingWriter);
         }
 
-        public string Build() => this.Builder.ToString();
+        internal MySqlStatementBuilder(
+            SqlBuilderOptions? options,
+            MySqlFlavor flavor,
+            SqlFormattingWriter formattingWriter)
+            : base(options, formattingWriter)
+        {
+            this._exprBuilder = new MySqlBuilder(this.Options, flavor, formattingWriter);
+        }
+
+        public string Build() => this.FormattingWriter.ToString();
 
         protected override void AppendColumn(TableColumn column)
         {
             column.ColumnName.Accept(this.ExprBuilder, null);
-            this.Builder.Append(' ');
+            this.FormattingWriter.Append(' ');
 
             column.SqlType.Accept(this.ExprBuilder, null);
 
             if (!column.IsNullable)
             {
-                this.Builder.Append(" NOT NULL");
+                this.FormattingWriter.Append(" NOT NULL");
             }
 
             if (column.ColumnMeta != null)
             {
                 if (column.ColumnMeta.IsIdentity)
                 {
-                    this.Builder.Append(" AUTO_INCREMENT");
+                    this.FormattingWriter.Append(" AUTO_INCREMENT");
                 }
 
                 if (!ReferenceEquals(column.ColumnMeta.ColumnDefaultValue, null))
                 {
-                    this.Builder.Append(" DEFAULT (");
+                    this.FormattingWriter.Append(" DEFAULT (");
                     column.ColumnMeta.ColumnDefaultValue.Accept(this.ExprBuilder, null);
-                    this.Builder.Append(')');
+                    this.FormattingWriter.Append(')');
                 }
             }
         }
@@ -49,7 +57,7 @@ namespace SqExpress.SqlExport.Statement.Internal
         {
             if (tableName is ExprTempTableName)
             {
-                this.Builder.Append("TEMPORARY ");
+                this.FormattingWriter.Append("TEMPORARY ");
             }
         }
 
@@ -59,11 +67,11 @@ namespace SqExpress.SqlExport.Statement.Internal
             {
                 if (!tableIndex.Unique)
                 {
-                    this.Builder.Append(",INDEX ");
+                    this.FormattingWriter.Append(",INDEX ");
                 }
                 else
                 {
-                    this.Builder.Append(",UNIQUE KEY ");
+                    this.FormattingWriter.Append(",UNIQUE KEY ");
                 }
 
                 this.AppendName(this.BuildIndexName(table.FullName, tableIndex));
@@ -86,13 +94,13 @@ namespace SqExpress.SqlExport.Statement.Internal
 
         public override void VisitDropTable(StatementDropTable statementDropTable)
         {
-            this.Builder.Append("DROP TABLE ");
+            this.FormattingWriter.Append("DROP TABLE ");
             if (statementDropTable.IfExists)
             {
-                this.Builder.Append("IF EXISTS ");
+                this.FormattingWriter.Append("IF EXISTS ");
             }
             statementDropTable.Table.Accept(this.ExprBuilder, null);
-            this.Builder.Append(';');
+            this.FormattingWriter.Append(';');
         }
 
         public override void VisitIf(StatementIf statementIf)

@@ -1,9 +1,6 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices.ComTypes;
-using System.Text;
 using SqExpress.SqlExport.Statement.Internal;
 using SqExpress.StatementSyntax;
 using SqExpress.Syntax;
@@ -25,19 +22,86 @@ namespace SqExpress.SqlExport.Internal
     {
         private const string InformationSchemaLowerInvariant = "information_schema";
 
-        public PgSqlBuilder(SqlBuilderOptions? options = null, StringBuilder? externalBuilder = null) : base(options, externalBuilder, new SqlAliasGenerator(), false)
+        public PgSqlBuilder(SqlBuilderOptions? options = null) : base(options, new SqlAliasGenerator(), false)
         {
         }
 
-        protected PgSqlBuilder(SqlBuilderOptions? options, StringBuilder? externalBuilder, SqlAliasGenerator aliasGenerator, bool dismissCteInject)
-            : base(options, externalBuilder, aliasGenerator, dismissCteInject)
+        protected PgSqlBuilder(SqlBuilderOptions? options, SqlAliasGenerator aliasGenerator, bool dismissCteInject)
+            : base(options, aliasGenerator, dismissCteInject)
         {
         }
+
+        internal PgSqlBuilder(SqlBuilderOptions? options, SqlFormattingWriter formattingWriter)
+            : base(options, formattingWriter, new SqlAliasGenerator(), false)
+        {
+        }
+
+        // Dialect hooks
 
         protected override SqlBuilderBase CreateInstance(SqlAliasGenerator aliasGenerator, bool dismissCteInject)
         {
-            return new PgSqlBuilder(this.Options, new StringBuilder(), aliasGenerator, dismissCteInject);
+            return new PgSqlBuilder(this.Options, aliasGenerator, dismissCteInject);
         }
+
+        protected override void EscapeStringLiteral(string literal)
+        {
+            this.FormattingWriter.AppendEscapedSingleQuote(literal);
+        }
+
+        protected override void AppendByteArrayLiteralPrefix()
+        {
+            this.FormattingWriter.Append("E'\\\\x");
+        }
+
+        protected override void AppendByteArrayLiteralSuffix()
+        {
+            this.FormattingWriter.Append('\'');
+        }
+
+        protected override void AppendSelectTop(ExprValue top, IExpr? parent)
+        {
+            //N/A
+        }
+
+        protected override void AppendSelectLimit(ExprValue top, IExpr? parent)
+        {
+            this.FormattingWriter.AppendClause("LIMIT", compactTrailingSpaces: 1);
+            top.Accept(this, parent);
+        }
+
+        protected override bool ForceParenthesesForQueryExpressionPart(IExprSubQuery subQuery)
+        {
+            return subQuery switch
+            {
+                ExprQuerySpecification specification => !ReferenceEquals(specification.Top, null),
+                _ => true
+            };
+        }
+
+        protected override void AppendRecursiveCteKeyword()
+        {
+            this.FormattingWriter.Append("RECURSIVE ");
+        }
+
+        protected override bool SupportsInlineCte() => false;
+
+        protected override bool VisitExprParameter(ExprParameter exprParameter, int paramNumber, IExpr? parent, out string? name)
+        {
+            name = null;
+            this.FormattingWriter.Append('$');
+            this.FormattingWriter.Append(paramNumber);
+            return true;
+        }
+
+        protected override DbParameterValueVisitorExtractor GetDbParameterValueVisitorExtractor()
+            => PgDbParameterValueVisitorExtractor.Instance;
+
+        protected override void AppendUnicodePrefix(string str) { }
+
+        protected override IStatementVisitor CreateStatementSqlBuilder()
+            => new PgSqlStatementBuilder(this.Options.WithFormatting(null), this.FormattingWriter);
+
+        // Values and operators
 
         public override bool VisitExprGuidLiteral(ExprGuidLiteral exprGuidLiteral, IExpr? parent)
         {
@@ -46,31 +110,26 @@ namespace SqExpress.SqlExport.Internal
                 this.AppendNull();
                 return true;
             }
-            
-            this.Builder.Append('\'');
-            this.Builder.Append(exprGuidLiteral.Value.Value.ToString("D"));
-            this.Builder.Append("'::uuid");
+
+            this.FormattingWriter.Append('\'');
+            this.FormattingWriter.Append(exprGuidLiteral.Value.Value.ToString("D"));
+            this.FormattingWriter.Append("'::uuid");
 
             return true;
         }
 
-        protected override void EscapeStringLiteral(StringBuilder builder, string literal)
-        {
-            SqlInjectionChecker.AppendStringEscapeSingleQuote(builder, literal);
-        }
-
         public override bool VisitExprStringAgg(ExprStringAgg exprStringAgg, IExpr? parent)
         {
-            this.Builder.Append("STRING_AGG(");
+            this.FormattingWriter.Append("STRING_AGG(");
             exprStringAgg.Expression.Accept(this, exprStringAgg);
-            this.Builder.Append(',');
+            this.FormattingWriter.Append(',');
             exprStringAgg.Separator.Accept(this, exprStringAgg);
             if (exprStringAgg.OrderBy != null)
             {
-                this.Builder.Append(" ORDER BY ");
+                this.FormattingWriter.AppendClause("ORDER BY", compactTrailingSpaces: 1);
                 exprStringAgg.OrderBy.Accept(this, exprStringAgg);
             }
-            this.Builder.Append(')');
+            this.FormattingWriter.Append(')');
             return true;
         }
 
@@ -82,9 +141,9 @@ namespace SqExpress.SqlExport.Internal
             }
             else
             {
-                this.Builder.Append('\'');
-                this.Builder.Append(dateTimeLiteral.Value.Value.ToString("O"));
-                this.Builder.Append("'::timestamptz");
+                this.FormattingWriter.Append('\'');
+                this.FormattingWriter.Append(dateTimeLiteral.Value.Value.ToString("O"));
+                this.FormattingWriter.Append("'::timestamptz");
             }
 
             return true;
@@ -98,16 +157,16 @@ namespace SqExpress.SqlExport.Internal
             }
             else
             {
-                this.Builder.Append('\'');
+                this.FormattingWriter.Append('\'');
                 if (dateTimeLiteral.Value.Value.TimeOfDay != TimeSpan.Zero)
                 {
-                    this.Builder.Append(dateTimeLiteral.Value.Value.ToString("yyyy-MM-ddTHH:mm:ss.fff"));
+                    this.FormattingWriter.Append(dateTimeLiteral.Value.Value.ToString("yyyy-MM-ddTHH:mm:ss.fff"));
                 }
                 else
                 {
-                    this.Builder.Append(dateTimeLiteral.Value.Value.ToString("yyyy-MM-dd"));
+                    this.FormattingWriter.Append(dateTimeLiteral.Value.Value.ToString("yyyy-MM-dd"));
                 }
-                this.Builder.Append("'::timestamp");
+                this.FormattingWriter.Append("'::timestamp");
             }
 
             return true;
@@ -117,7 +176,7 @@ namespace SqExpress.SqlExport.Internal
         {
             if (boolLiteral.Value.HasValue)
             {
-                this.Builder.Append(boolLiteral.Value.Value ? "true" : "false");
+                this.FormattingWriter.Append(boolLiteral.Value.Value ? "true" : "false");
             }
             else
             {
@@ -127,50 +186,25 @@ namespace SqExpress.SqlExport.Internal
             return true;
         }
 
-        protected override void AppendByteArrayLiteralPrefix()
-        {
-            this.Builder.Append("E'\\\\x");
-        }
-
-        protected override void AppendByteArrayLiteralSuffix()
-        {
-            this.Builder.Append('\'');
-        }
-
         public override bool VisitExprStringConcat(ExprStringConcat exprStringConcat, IExpr? parent)
         {
             exprStringConcat.Left.Accept(this, exprStringConcat);
-            this.Builder.Append("||");
+            this.FormattingWriter.Append("||");
             exprStringConcat.Right.Accept(this, exprStringConcat);
             return true;
         }
 
-        protected override void AppendSelectTop(ExprValue top, IExpr? parent)
-        {
-            //N/A
-        }
-
-        protected override void AppendSelectLimit(ExprValue top, IExpr? parent)
-        {
-            this.Builder.Append(" LIMIT ");
-            top.Accept(this, parent);
-        }
+        // Queries and table sources
 
         public override bool VisitExprLateralCrossedTable(ExprLateralCrossedTable exprCrossedTable, IExpr? parent)
         {
             exprCrossedTable.Left.Accept(this, exprCrossedTable);
-            this.Builder.Append(exprCrossedTable.Outer ? " LEFT JOIN LATERAL" : " CROSS JOIN LATERAL ");
+            this.FormattingWriter.AppendClause(
+                exprCrossedTable.Outer ? "LEFT JOIN LATERAL" : "CROSS JOIN LATERAL",
+                SqlRenderSite.Join,
+                compactTrailingSpaces: exprCrossedTable.Outer ? 0 : 1);
             exprCrossedTable.Right.Accept(this, exprCrossedTable);
             return true;
-        }
-
-        protected override bool ForceParenthesesForQueryExpressionPart(IExprSubQuery subQuery)
-        {
-            return subQuery switch
-            {
-                ExprQuerySpecification specification => !ReferenceEquals(specification.Top, null),
-                _ => true
-            };
         }
 
         public override bool VisitExprOffsetFetch(ExprOffsetFetch exprOffsetFetch, IExpr? parent)
@@ -194,12 +228,7 @@ namespace SqExpress.SqlExport.Internal
             return this.VisitExprDerivedTableValuesCommon(derivedTableValues, parent);
         }
 
-        protected override void AppendRecursiveCteKeyword()
-        {
-            this.Builder.Append("RECURSIVE ");
-        }
-
-        protected override bool SupportsInlineCte() => false;
+        // DML
 
         public override bool VisitExprInsert(ExprInsert exprInsert, IExpr? parent)
         {
@@ -215,10 +244,9 @@ namespace SqExpress.SqlExport.Internal
                 null,
                 () =>
                 {
-                    this.Builder.Append(' ');
                     exprInsertOutput.OutputColumns.AssertNotEmpty("INSERT OUTPUT cannot be empty");
-                    this.Builder.Append(" RETURNING ");
-                    this.AcceptListComaSeparated(exprInsertOutput.OutputColumns, exprInsertOutput);
+                    this.FormattingWriter.AppendClause("RETURNING", compactLeadingSpaces: 2);
+                    this.AcceptItems(exprInsertOutput.OutputColumns, exprInsertOutput, SqlRenderSite.Output, 1);
                 });
             return true;
         }
@@ -237,56 +265,60 @@ namespace SqExpress.SqlExport.Internal
 
             const string insertCteName = "__sqexpress_identity_insert";
 
-            this.Builder.Append("WITH ");
+            this.FormattingWriter.Append("WITH ");
             this.AppendName(insertCteName);
-            this.Builder.Append(" AS (");
+            this.FormattingWriter.Append(" AS ");
+            using (this.BeginParentheses(SqlRenderSite.CteBody))
+            {
 
             this.AddCteSlot(parent);
             this.GenericInsert(
                 exprIdentityInsert.Insert,
-                () => this.Builder.Append(" OVERRIDING SYSTEM VALUE"),
+                () => this.FormattingWriter.Append(" OVERRIDING SYSTEM VALUE"),
                 () =>
                 {
-                    this.Builder.Append(" RETURNING ");
-                    this.AcceptListComaSeparated(exprIdentityInsert.IdentityColumns, exprIdentityInsert);
+                    this.FormattingWriter.AppendClause("RETURNING");
+                    this.AcceptItems(exprIdentityInsert.IdentityColumns, exprIdentityInsert, SqlRenderSite.Output, 1);
                 }
             );
 
-            this.Builder.Append(") SELECT ");
+            }
+            this.FormattingWriter.AppendClause("SELECT");
 
             var exprTableSource = new ExprTable(exprIdentityInsert.Insert.Target, null);
             var exprInsertedSource = new ExprTable(
                 new ExprTableFullName(null, new ExprTableName(insertCteName)),
                 null
             );
-            for (var i = 0; i < exprIdentityInsert.IdentityColumns.Count; i++)
+            this.AcceptItems(exprIdentityInsert.IdentityColumns.Count, SqlRenderSite.Select, i =>
             {
-                if (i != 0)
-                {
-                    this.Builder.Append(',');
-                }
-
                 var column = exprIdentityInsert.IdentityColumns[i];
-                this.Builder.Append("setval(pg_get_serial_sequence('");
+                this.FormattingWriter.Append("setval(pg_get_serial_sequence('");
                 exprIdentityInsert.Insert.Target.Accept(this, exprIdentityInsert.Insert);
-                this.Builder.Append("','");
-                this.EscapeStringLiteral(this.Builder, column.Name);
-                this.Builder.Append("'),GREATEST((");
+                this.FormattingWriter.Append("','");
+                this.EscapeStringLiteral(column.Name);
+                this.FormattingWriter.Append("'),GREATEST(");
+                using (this.BeginParentheses(SqlRenderSite.Subquery))
+                {
                 SqQueryBuilder.Select(SqQueryBuilder.Max(column.WithSource(null)))
                     .From(exprTableSource)
                     .Done()
                     .Accept(this, exprIdentityInsert);
-                this.Builder.Append("),(");
+                }
+                this.FormattingWriter.Append(',');
+                using (this.BeginParentheses(SqlRenderSite.Subquery))
+                {
                 SqQueryBuilder.Select(SqQueryBuilder.Max(column.WithSource(null)))
                     .From(exprInsertedSource)
                     .Done()
                     .Accept(this, exprIdentityInsert);
-                this.Builder.Append(")))");
-            }
+                }
+                this.FormattingWriter.Append("))");
+            }, 1);
 
-            this.Builder.Append(" FROM ");
+            this.FormattingWriter.AppendClause("FROM", compactTrailingSpaces: 1);
             this.AppendName(insertCteName);
-            this.Builder.Append(" LIMIT 1");
+            this.FormattingWriter.AppendClause("LIMIT 1");
 
             return true;
         }
@@ -297,20 +329,17 @@ namespace SqExpress.SqlExport.Internal
 
             this.AssertNotEmptyList(exprUpdate.SetClause, "'UPDATE' statement should have at least one set clause");
 
-            this.Builder.Append("UPDATE ");
+            this.FormattingWriter.Append("UPDATE ");
             exprUpdate.Target.Accept(this, exprUpdate);
-            this.Builder.Append(" SET ");
-            for (int i = 0; i < exprUpdate.SetClause.Count; i++)
+            this.FormattingWriter.AppendClause("SET");
+            this.AcceptItems(exprUpdate.SetClause.Count, SqlRenderSite.Set, i =>
             {
                 var setClause = exprUpdate.SetClause[i];
-                if (i != 0)
-                {
-                    this.Builder.Append(',');
-                }
                 setClause.Column.ColumnName.Accept(this, exprUpdate);
-                this.Builder.Append('=');
+                this.FormattingWriter.Append('=');
                 setClause.Value.Accept(this, exprUpdate);
-            }
+
+            }, 1);
 
             ExprBoolean? sourceFilter = null;
             if (exprUpdate.Source != null)
@@ -320,7 +349,7 @@ namespace SqExpress.SqlExport.Internal
                 this.AssertNotEmptyList(tables, "List of tables in 'UPDATE' statement cannot be empty");
                 if (tables.Count > 1)
                 {
-                    this.Builder.Append(" FROM ");
+                    this.FormattingWriter.AppendClause("FROM", compactTrailingSpaces: 1);
                     int itemAppendCount = 0;
                     for (int i = 0; i < tables.Count; i++)
                     {
@@ -333,7 +362,7 @@ namespace SqExpress.SqlExport.Internal
 
                         if (itemAppendCount != 0)
                         {
-                            this.Builder.Append(',');
+                            this.FormattingWriter.Append(',');
                         }
 
                         source.Accept(this, exprUpdate);
@@ -351,8 +380,8 @@ namespace SqExpress.SqlExport.Internal
 
             if (filter != null)
             {
-                this.Builder.Append(" WHERE ");
-                filter.Accept(this, exprUpdate);
+                this.FormattingWriter.AppendClause("WHERE");
+                this.AcceptBody(filter, exprUpdate, SqlRenderSite.Where, 1);
             }
             return true;
         }
@@ -361,7 +390,7 @@ namespace SqExpress.SqlExport.Internal
         {
             this.AddCteSlot(parent);
 
-            this.Builder.Append("DELETE FROM ");
+            this.FormattingWriter.Append("DELETE FROM ");
             exprDelete.Target.Accept(this, exprDelete);
 
             ExprBoolean? sourceFilter = null;
@@ -374,7 +403,7 @@ namespace SqExpress.SqlExport.Internal
 
                 if (tables.Count > 1)
                 {
-                    this.Builder.Append(" USING ");
+                    this.FormattingWriter.AppendClause("USING", compactTrailingSpaces: 1);
                     int itemAppendCount = 0;
                     for (int i = 0; i < tables.Count; i++)
                     {
@@ -387,7 +416,7 @@ namespace SqExpress.SqlExport.Internal
 
                         if (itemAppendCount != 0)
                         {
-                            this.Builder.Append(',');
+                            this.FormattingWriter.Append(',');
                         }
 
                         source.Accept(this, exprDelete);
@@ -405,8 +434,8 @@ namespace SqExpress.SqlExport.Internal
 
             if (filter != null)
             {
-                this.Builder.Append(" WHERE ");
-                filter.Accept(this, exprDelete);
+                this.FormattingWriter.AppendClause("WHERE");
+                this.AcceptBody(filter, exprDelete, SqlRenderSite.Where, 1);
             }
             return true;
         }
@@ -418,9 +447,9 @@ namespace SqExpress.SqlExport.Internal
             exprDeleteOutput.Delete.Accept(this, exprDeleteOutput);
             this.AssertNotEmptyList(exprDeleteOutput.OutputColumns, "Output list in 'DELETE' statement cannot be empty");
 
-            this.Builder.Append(" RETURNING ");
+            this.FormattingWriter.AppendClause("RETURNING");
 
-            this.AcceptListComaSeparated(exprDeleteOutput.OutputColumns, exprDeleteOutput);
+            this.AcceptItems(exprDeleteOutput.OutputColumns, exprDeleteOutput, SqlRenderSite.Output, 1);
 
             return true;
         }
@@ -432,7 +461,7 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprTypeBoolean(ExprTypeBoolean exprTypeBoolean, IExpr? parent)
         {
-            this.Builder.Append("bool");
+            this.FormattingWriter.Append("bool");
             return true;
         }
 
@@ -443,55 +472,55 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprTypeByteArray(ExprTypeByteArray exprTypeByte, IExpr? arg)
         {
-            this.Builder.Append("bytea");
+            this.FormattingWriter.Append("bytea");
             return true;
         }
 
         public override bool VisitExprTypeFixSizeByteArray(ExprTypeFixSizeByteArray exprTypeFixSizeByteArray, IExpr? arg)
         {
             //PostgreSQL does not support binary type with fixed length
-            this.Builder.Append("bytea");
+            this.FormattingWriter.Append("bytea");
             return true;
         }
 
         public override bool VisitExprTypeInt16(ExprTypeInt16 exprTypeInt16, IExpr? parent)
         {
-            this.Builder.Append("int2");
+            this.FormattingWriter.Append("int2");
             return true;
         }
 
         public override bool VisitExprTypeInt32(ExprTypeInt32 exprTypeInt32, IExpr? parent)
         {
-            this.Builder.Append("int4");
+            this.FormattingWriter.Append("int4");
             return true;
         }
 
         public override bool VisitExprTypeInt64(ExprTypeInt64 exprTypeInt64, IExpr? parent)
         {
-            this.Builder.Append("int8");
+            this.FormattingWriter.Append("int8");
             return true;
         }
 
         public override bool VisitExprTypeDecimal(ExprTypeDecimal exprTypeDecimal, IExpr? parent)
         {
-            this.Builder.Append("decimal");
+            this.FormattingWriter.Append("decimal");
             if (exprTypeDecimal.PrecisionScale.HasValue)
             {
-                this.Builder.Append('(');
-                this.Builder.Append(exprTypeDecimal.PrecisionScale.Value.Precision);
+                this.FormattingWriter.Append('(');
+                this.FormattingWriter.Append(exprTypeDecimal.PrecisionScale.Value.Precision);
                 if (exprTypeDecimal.PrecisionScale.Value.Scale.HasValue)
                 {
-                    this.Builder.Append(',');
-                    this.Builder.Append(exprTypeDecimal.PrecisionScale.Value.Scale.Value);
+                    this.FormattingWriter.Append(',');
+                    this.FormattingWriter.Append(exprTypeDecimal.PrecisionScale.Value.Scale.Value);
                 }
-                this.Builder.Append(')');
+                this.FormattingWriter.Append(')');
             }
             return true;
         }
 
         public override bool VisitExprTypeDouble(ExprTypeDouble exprTypeDouble, IExpr? parent)
         {
-            this.Builder.Append("float8");
+            this.FormattingWriter.Append("float8");
             return true;
         }
 
@@ -499,11 +528,11 @@ namespace SqExpress.SqlExport.Internal
         {
             if (exprTypeDateTime.IsDate)
             {
-                this.Builder.Append("date");
+                this.FormattingWriter.Append("date");
             }
             else
             {
-                this.Builder.Append("timestamp");
+                this.FormattingWriter.Append("timestamp");
             }
 
             return true;
@@ -511,40 +540,40 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprTypeDateTimeOffset(ExprTypeDateTimeOffset exprTypeDateTimeOffset, IExpr? arg)
         {
-            this.Builder.Append("timestamp with time zone");
+            this.FormattingWriter.Append("timestamp with time zone");
             return true;
         }
 
         public override bool VisitExprTypeGuid(ExprTypeGuid exprTypeGuid, IExpr? parent)
         {
-            this.Builder.Append("uuid");
+            this.FormattingWriter.Append("uuid");
             return true;
         }
 
         public override bool VisitExprTypeString(ExprTypeString exprTypeString, IExpr? parent)
         {
-            this.Builder.Append("character varying");
+            this.FormattingWriter.Append("character varying");
             if (exprTypeString.Size.HasValue)
             {
-                this.Builder.Append('(');
-                this.Builder.Append(exprTypeString.Size.Value);
-                this.Builder.Append(')');
+                this.FormattingWriter.Append('(');
+                this.FormattingWriter.Append(exprTypeString.Size.Value);
+                this.FormattingWriter.Append(')');
             }
             return true;
         }
 
         public override bool VisitExprTypeFixSizeString(ExprTypeFixSizeString exprTypeFixSizeString, IExpr? arg)
         {
-            this.Builder.Append("character");
-            this.Builder.Append('(');
-            this.Builder.Append(exprTypeFixSizeString.Size.ToString());
-            this.Builder.Append(')');
+            this.FormattingWriter.Append("character");
+            this.FormattingWriter.Append('(');
+            this.FormattingWriter.Append(exprTypeFixSizeString.Size.ToString());
+            this.FormattingWriter.Append(')');
             return true;
         }
 
         public override bool VisitExprTypeXml(ExprTypeXml exprTypeXml, IExpr? arg)
         {
-            this.Builder.Append("xml");
+            this.FormattingWriter.Append("xml");
             return true;
         }
 
@@ -676,11 +705,11 @@ namespace SqExpress.SqlExport.Internal
         bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseIndexOf(ExprPortableScalarFunction ctx)
         {
             this.AssertArgumentsCount(ctx.Arguments, 2, ctx.PortableFunction);
-            this.Builder.Append("STRPOS(");
+            this.FormattingWriter.Append("STRPOS(");
             ctx.Arguments![1].Accept(this, ctx);
-            this.Builder.Append(',');
+            this.FormattingWriter.Append(',');
             ctx.Arguments[0].Accept(this, ctx);
-            this.Builder.Append(')');
+            this.FormattingWriter.Append(')');
             return true;
         }
 
@@ -716,11 +745,11 @@ namespace SqExpress.SqlExport.Internal
                 value = SqQueryBuilder.Cast(value, SqQueryBuilder.SqlType.DateTimeOffset);
             }
 
-            this.Builder.Append("EXTRACT(");
-            this.Builder.Append(part);
-            this.Builder.Append(" FROM ");
+            this.FormattingWriter.Append("EXTRACT(");
+            this.FormattingWriter.Append(part);
+            this.FormattingWriter.AppendClause("FROM", compactTrailingSpaces: 1);
             value.Accept(this, expr);
-            this.Builder.Append(')');
+            this.FormattingWriter.Append(')');
         }
 
         public override bool VisitExprFuncIsNull(ExprFuncIsNull exprFuncIsNull, IExpr? parent)
@@ -731,13 +760,13 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprGetDate(ExprGetDate exprGetDate, IExpr? parent)
         {
-            this.Builder.Append("now()");
+            this.FormattingWriter.Append("now()");
             return true;
         }
 
         public override bool VisitExprGetUtcDate(ExprGetUtcDate exprGetUtcDate, IExpr? parent)
         {
-            this.Builder.Append("now() at time zone 'utc'");
+            this.FormattingWriter.Append("now() at time zone 'utc'");
             return true;
         }
 
@@ -760,11 +789,11 @@ namespace SqExpress.SqlExport.Internal
             int val = exprDateAdd.Number < 0 ? exprDateAdd.Number * -1 : exprDateAdd.Number;
 
             exprDateAdd.Date.Accept(this, exprDateAdd);
-            this.Builder.Append(sign);
-            this.Builder.Append("INTERVAL'");
-            this.Builder.Append(val);
-            this.Builder.Append(datePart);
-            this.Builder.Append('\'');
+            this.FormattingWriter.Append(sign);
+            this.FormattingWriter.Append("INTERVAL'");
+            this.FormattingWriter.Append(val);
+            this.FormattingWriter.Append(datePart);
+            this.FormattingWriter.Append('\'');
 
             return true;
         }
@@ -881,9 +910,9 @@ namespace SqExpress.SqlExport.Internal
             if (tableFullName.LowerInvariantSchemaName == InformationSchemaLowerInvariant && IsSafeName(tableFullName.TableName))
             {
                 //Preventing quoting
-                this.Builder.Append(exprTableFullName.DbSchema!.Schema.Name);
-                this.Builder.Append('.');
-                this.Builder.Append(exprTableFullName.TableName.Name);
+                this.FormattingWriter.Append(exprTableFullName.DbSchema!.Schema.Name);
+                this.FormattingWriter.Append('.');
+                this.FormattingWriter.Append(exprTableFullName.TableName.Name);
                 return true;
             }
 
@@ -910,37 +939,21 @@ namespace SqExpress.SqlExport.Internal
             }
         }
 
-        protected override bool VisitExprParameter(ExprParameter exprParameter, int paramNumber, IExpr? parent, out string? name)
-        {
-            name = null;
-            this.Builder.Append('$');
-            this.Builder.Append(paramNumber);
-            return true;
-        }
-
-        protected override DbParameterValueVisitorExtractor GetDbParameterValueVisitorExtractor()
-            => PgDbParameterValueVisitorExtractor.Instance;
-
         public override void AppendName(string name, char? prefix = null)
         {
-            this.Builder.Append('\"');
+            this.FormattingWriter.Append('\"');
             this.AppendNameNoQuotas(name, prefix);
-            this.Builder.Append('\"');
+            this.FormattingWriter.Append('\"');
         }
 
         private void AppendNameNoQuotas(string name, char? prefix)
         {
             if (prefix.HasValue)
             {
-                this.Builder.Append(prefix.Value);
+                this.FormattingWriter.Append(prefix.Value);
             }
-            SqlInjectionChecker.AppendStringEscapeDoubleQuote(this.Builder, name);
+                this.FormattingWriter.AppendEscapedDoubleQuote(name);
         }
-
-        protected override void AppendUnicodePrefix(string str) { }
-
-        protected override IStatementVisitor CreateStatementSqlBuilder()
-            => new PgSqlStatementBuilder(this.Options, this.Builder);
 
         public override bool VisitExprMerge(ExprMerge merge, IExpr? parent)
         {
@@ -978,10 +991,12 @@ namespace SqExpress.SqlExport.Internal
                 actionCtes.Add(("__sqexpress_merge_not_matched_by_source", notMatchedBySourceAction));
             }
 
-            this.Builder.Append("WITH ");
+            this.FormattingWriter.Append("WITH ");
             this.AppendName(sourceCteName);
             this.AcceptListComaSeparatedPar('(', sourceColumns, ')', merge);
-            this.Builder.Append(" AS(");
+            this.FormattingWriter.Append(" AS");
+            using (this.BeginParentheses(SqlRenderSite.CteBody))
+            {
             if (merge.Source is ExprDerivedTableValues sourceValues)
             {
                 sourceValues.Values.Accept(this, sourceValues);
@@ -990,37 +1005,41 @@ namespace SqExpress.SqlExport.Internal
             {
                 merge.Source.CreateSubQuery().Accept(this, merge.Source);
             }
-            this.Builder.Append(')');
+            }
 
             for (var i = 0; i < actionCtes.Count; i++)
             {
                 var action = actionCtes[i];
-                this.Builder.Append(',');
+                this.FormattingWriter.Append(',');
+                this.FormattingWriter.AppendBoundary(SqlRenderSite.CteSeparator, 0);
                 this.AppendName(action.CteName);
-                this.Builder.Append(" AS(");
-                action.Statement.Accept(this, merge);
-                this.Builder.Append(" RETURNING 1)");
+                this.FormattingWriter.Append(" AS");
+                using (this.BeginParentheses(SqlRenderSite.CteBody))
+                {
+                    action.Statement.Accept(this, merge);
+                    this.FormattingWriter.AppendClause("RETURNING");
+                    using (this.FormattingWriter.BeginBody(SqlRenderSite.Output, 1)) this.FormattingWriter.Append('1');
+                }
             }
 
-            this.Builder.Append(" SELECT ");
+            this.FormattingWriter.AppendClause("SELECT");
+            this.AcceptItems(Math.Max(1, actionCtes.Count), SqlRenderSite.Select, i =>
+            {
             if (actionCtes.Count < 1)
             {
-                this.Builder.Append('1');
+                this.FormattingWriter.Append('1');
             }
             else
             {
-                for (var i = 0; i < actionCtes.Count; i++)
+                using (this.BeginParentheses(SqlRenderSite.Subquery))
                 {
-                    if (i != 0)
-                    {
-                        this.Builder.Append(',');
-                    }
-
-                    this.Builder.Append("(SELECT COUNT(*) FROM ");
+                    this.FormattingWriter.Append("SELECT");
+                    using (this.FormattingWriter.BeginBody(SqlRenderSite.Select, 1)) this.FormattingWriter.Append("COUNT(*)");
+                    this.FormattingWriter.AppendClause("FROM", compactTrailingSpaces: 1);
                     this.AppendName(actionCtes[i].CteName);
-                    this.Builder.Append(')');
                 }
             }
+            }, 1);
 
             return true;
         }

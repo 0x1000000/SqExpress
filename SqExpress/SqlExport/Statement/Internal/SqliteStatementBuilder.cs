@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using SqExpress.SqlExport.Internal;
 using SqExpress.StatementSyntax;
 using SqExpress.Syntax.Names;
@@ -12,12 +11,18 @@ namespace SqExpress.SqlExport.Statement.Internal
     {
         private readonly SqliteBuilder _exprBuilder;
 
-        public SqliteStatementBuilder(SqlBuilderOptions? options, StringBuilder? externalBuilder) : base(options, externalBuilder)
+        public SqliteStatementBuilder(SqlBuilderOptions? options) : base(options)
         {
-            this._exprBuilder = new SqliteBuilder(this.Options, this.Builder);
+            this._exprBuilder = new SqliteBuilder(this.Options, this.FormattingWriter);
         }
 
-        public string Build() => this.Builder.ToString();
+        internal SqliteStatementBuilder(SqlBuilderOptions? options, SqlFormattingWriter formattingWriter)
+            : base(options, formattingWriter)
+        {
+            this._exprBuilder = new SqliteBuilder(this.Options, formattingWriter);
+        }
+
+        public string Build() => this.FormattingWriter.ToString();
 
         protected override void AppendColumn(TableColumn column)
         {
@@ -25,23 +30,23 @@ namespace SqExpress.SqlExport.Statement.Internal
 
             if (column.ColumnMeta?.IsIdentity == true && column.ColumnMeta.PrimaryKeyAutoIncrementIsAllowed())
             {
-                this.Builder.Append(" INTEGER PRIMARY KEY AUTOINCREMENT");
+                this.FormattingWriter.Append(" INTEGER PRIMARY KEY AUTOINCREMENT");
                 return;
             }
 
-            this.Builder.Append(' ');
+            this.FormattingWriter.Append(' ');
             column.SqlType.Accept(this.ExprBuilder, null);
 
             if (!column.IsNullable)
             {
-                this.Builder.Append(" NOT NULL");
+                this.FormattingWriter.Append(" NOT NULL");
             }
 
             if (column.ColumnMeta != null && !ReferenceEquals(column.ColumnMeta.ColumnDefaultValue, null))
             {
-                this.Builder.Append(" DEFAULT (");
+                this.FormattingWriter.Append(" DEFAULT (");
                 column.ColumnMeta.ColumnDefaultValue.Accept(this.ExprBuilder, null);
-                this.Builder.Append(')');
+                this.FormattingWriter.Append(')');
             }
         }
 
@@ -49,7 +54,7 @@ namespace SqExpress.SqlExport.Statement.Internal
         {
             if (tableName is ExprTempTableName)
             {
-                this.Builder.Append("TEMP ");
+                this.FormattingWriter.Append("TEMP ");
             }
         }
 
@@ -66,18 +71,18 @@ namespace SqExpress.SqlExport.Statement.Internal
                     continue;
                 }
 
-                this.Builder.Append("CREATE ");
+                this.FormattingWriter.Append("CREATE ");
                 if (tableIndex.Unique)
                 {
-                    this.Builder.Append("UNIQUE ");
+                    this.FormattingWriter.Append("UNIQUE ");
                 }
 
-                this.Builder.Append("INDEX ");
+                this.FormattingWriter.Append("INDEX ");
                 this.AppendName(this.BuildIndexName(table.FullName, tableIndex));
-                this.Builder.Append(" ON ");
+                this.FormattingWriter.Append(" ON ");
                 table.FullName.Accept(this.ExprBuilder, null);
                 this.AppendIndexColumnList(tableIndex);
-                this.Builder.Append(';');
+                this.FormattingWriter.Append(';');
             }
         }
 
@@ -87,11 +92,11 @@ namespace SqExpress.SqlExport.Statement.Internal
         {
             var table = statementCreateTable.Table;
 
-            this.Builder.Append("CREATE ");
+            this.FormattingWriter.Append("CREATE ");
             this.AppendTempKeyword(table.FullName);
-            this.Builder.Append("TABLE ");
+            this.FormattingWriter.Append("TABLE ");
             table.FullName.Accept(this.ExprBuilder, null);
-            this.Builder.Append('(');
+            this.FormattingWriter.Append('(');
 
             ColumnAnalysis analysis = ColumnAnalysis.Build();
 
@@ -99,7 +104,7 @@ namespace SqExpress.SqlExport.Statement.Internal
             {
                 if (i != 0)
                 {
-                    this.Builder.Append(',');
+                    this.FormattingWriter.Append(',');
                 }
 
                 var column = table.Columns[i];
@@ -118,7 +123,7 @@ namespace SqExpress.SqlExport.Statement.Internal
                 .ToList();
             if (remainingPk.Count > 0)
             {
-                this.Builder.Append(",PRIMARY KEY ");
+                this.FormattingWriter.Append(",PRIMARY KEY ");
                 this.ExprBuilder.AcceptListComaSeparatedPar('(', remainingPk, ')', null);
             }
 
@@ -127,29 +132,29 @@ namespace SqExpress.SqlExport.Statement.Internal
                 var foreignTable = analysisFk.Key;
                 var pairList = analysisFk.Value;
 
-                this.Builder.Append(",FOREIGN KEY ");
+                this.FormattingWriter.Append(",FOREIGN KEY ");
                 this.ExprBuilder.AcceptListComaSeparatedPar('(', pairList.Select(p => p.Internal).ToList(), ')', null);
-                this.Builder.Append(" REFERENCES ");
+                this.FormattingWriter.Append(" REFERENCES ");
                 foreignTable.Accept(this.ExprBuilder, null);
                 this.ExprBuilder.AcceptListComaSeparatedPar('(', pairList.Select(p => p.External).ToList(), ')', null);
             }
 
-            this.Builder.Append(')');
-            this.Builder.Append(';');
+            this.FormattingWriter.Append(')');
+            this.FormattingWriter.Append(';');
 
             this.AppendIndexesOutside(table);
         }
 
         public override void VisitDropTable(StatementDropTable statementDropTable)
         {
-            this.Builder.Append("DROP TABLE ");
+            this.FormattingWriter.Append("DROP TABLE ");
             if (statementDropTable.IfExists)
             {
-                this.Builder.Append("IF EXISTS ");
+                this.FormattingWriter.Append("IF EXISTS ");
             }
 
             statementDropTable.Table.Accept(this.ExprBuilder, null);
-            this.Builder.Append(';');
+            this.FormattingWriter.Append(';');
         }
 
         public override void VisitIf(StatementIf statementIf)
