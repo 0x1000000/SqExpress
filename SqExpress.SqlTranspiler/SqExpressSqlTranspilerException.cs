@@ -1,11 +1,10 @@
 using System;
 
-namespace SqExpress.SqlTranspiler
+namespace SqExpress.SqlTranspiler;
+
+public sealed class SqExpressSqlTranspilerException : Exception
 {
-    public sealed class SqExpressSqlTranspilerException : Exception
+    public SqExpressSqlTranspilerException(string message) : base(message)
     {
-        public SqExpressSqlTranspilerException(string message) : base(message)
-        {
-        }
     }
 }

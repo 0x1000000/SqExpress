@@ -3,13 +3,13 @@ using System;
 using System.Runtime.Serialization;
 #endif
 
-namespace SqExpress.CodeGenUtil
+namespace SqExpress.CodeGenUtil;
+
+public class SqExpressCodeGenException : Exception
 {
-    public class SqExpressCodeGenException : Exception
+    public SqExpressCodeGenException()
     {
-        public SqExpressCodeGenException()
-        {
-        }
+    }
 
 #if NETSTANDARD
         protected SqExpressCodeGenException(SerializationInfo info, StreamingContext context) : base(info, context)
@@ -17,12 +17,11 @@ namespace SqExpress.CodeGenUtil
         }
 #endif
 
-        public SqExpressCodeGenException(string? message) : base(message)
-        {
-        }
+    public SqExpressCodeGenException(string? message) : base(message)
+    {
+    }
 
-        public SqExpressCodeGenException(string? message, Exception? innerException) : base(message, innerException)
-        {
-        }
+    public SqExpressCodeGenException(string? message, Exception? innerException) : base(message, innerException)
+    {
     }
 }

@@ -1,67 +1,66 @@
 ﻿using SqExpress.IntTest.Context;
 using static SqExpress.SqQueryBuilder;
 
-namespace SqExpress.IntTest.Tables.Derived
+namespace SqExpress.IntTest.Tables.Derived;
+
+public class CustomerName : DerivedTableBase
 {
-    public class CustomerName : DerivedTableBase
+    private readonly TableItCustomer _tCustomer = AllTables.GetItCustomer();
+
+    private readonly SqlDialect _dialect;
+
+    public enum CustomerType : short
     {
-        private readonly TableItCustomer _tCustomer = AllTables.GetItCustomer();
+        User = 1,
+        Company = 2
+    }
 
-        private readonly SqlDialect _dialect;
+    public CustomerName(SqlDialect dialect, Alias alias = default) : base(alias)
+    {
+        this._dialect = dialect;
+        this.CustomerId = this._tCustomer.CustomerId.AddToDerivedTable(this);
+        this.CustomerTypeId = this.CreateInt16Column("CustomerTypeId");
+        this.Name = this.CreateStringColumn("Name");
+    }
 
-        public enum CustomerType : short
-        {
-            User = 1,
-            Company = 2
-        }
+    [SqModel("CustomerNameData", PropertyName = "Id")]
+    public Int32CustomColumn CustomerId { get; }
 
-        public CustomerName(SqlDialect dialect, Alias alias = default) : base(alias)
-        {
-            this._dialect = dialect;
-            this.CustomerId = this._tCustomer.CustomerId.AddToDerivedTable(this);
-            this.CustomerTypeId = this.CreateInt16Column("CustomerTypeId");
-            this.Name = this.CreateStringColumn("Name");
-        }
+    [SqModel("CustomerNameData", PropertyName = "TypeId")]
+    public Int16CustomColumn CustomerTypeId { get; }
 
-        [SqModel("CustomerNameData", PropertyName = "Id")]
-        public Int32CustomColumn CustomerId { get; }
+    [SqModel("CustomerNameData")]
+    public StringCustomColumn Name { get; }
 
-        [SqModel("CustomerNameData", PropertyName = "TypeId")]
-        public Int16CustomColumn CustomerTypeId { get; }
+    protected override IExprSubQuery CreateQuery()
+    {
+        var tUser = AllTables.GetItUser(this._dialect);
+        var tCompany = AllTables.GetItCompany(this._dialect);
 
-        [SqModel("CustomerNameData")]
-        public StringCustomColumn Name { get; }
+        return Select(
+                this._tCustomer.CustomerId,
+                Case()
+                    .When(IsNotNull(tUser.UserId))
+                    .Then((short)CustomerType.User)
 
-        protected override IExprSubQuery CreateQuery()
-        {
-            var tUser = AllTables.GetItUser(this._dialect);
-            var tCompany = AllTables.GetItCompany(this._dialect);
+                    .When(IsNotNull(tCompany.CompanyId))
+                    .Then((short)CustomerType.Company)
 
-            return Select(
-                    this._tCustomer.CustomerId,
-                    Case()
-                        .When(IsNotNull(tUser.UserId))
-                        .Then((short)CustomerType.User)
+                    .Else(Null)
+                    .As(this.CustomerTypeId),
+                Case()
+                    .When(IsNotNull(tUser.UserId))
+                    .Then(tUser.FirstName + " " + tUser.LastName)
 
-                        .When(IsNotNull(tCompany.CompanyId))
-                        .Then((short)CustomerType.Company)
+                    .When(IsNotNull(tCompany.CompanyId))
+                    .Then(tCompany.CompanyName)
 
-                        .Else(Null)
-                        .As(this.CustomerTypeId),
-                    Case()
-                        .When(IsNotNull(tUser.UserId))
-                        .Then(tUser.FirstName + " " + tUser.LastName)
-
-                        .When(IsNotNull(tCompany.CompanyId))
-                        .Then(tCompany.CompanyName)
-
-                        .Else("-")
-                        .As(this.Name)
-                    )
-                .From(this._tCustomer)
-                .LeftJoin(tUser, on: this._tCustomer.UserId == tUser.UserId)
-                .LeftJoin(tCompany, on: this._tCustomer.CompanyId == tCompany.CompanyId)
-                .Done();
-        }
+                    .Else("-")
+                    .As(this.Name)
+            )
+            .From(this._tCustomer)
+            .LeftJoin(tUser, on: this._tCustomer.UserId == tUser.UserId)
+            .LeftJoin(tCompany, on: this._tCustomer.CompanyId == tCompany.CompanyId)
+            .Done();
     }
 }

@@ -1,7 +1,6 @@
-namespace SqExpress.SqlTranspiler
+namespace SqExpress.SqlTranspiler;
+
+public interface ISqExpressSqlFormatter
 {
-    public interface ISqExpressSqlFormatter
-    {
-        string Format(string sql);
-    }
+    string Format(string sql);
 }

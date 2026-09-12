@@ -1,27 +1,26 @@
 ﻿using SqExpress.SyntaxTreeOperations.ExportImport;
 
-namespace SqExpress.Test.Syntax
+namespace SqExpress.Test.Syntax;
+
+public class PlainItem : IPlainItem
 {
-    public class PlainItem : IPlainItem
+    public static PlainItem Create(int id, int parentId, int? arrayIndex, bool isTypeTag, string tag, string encodedValue)
+        => new PlainItem(id, parentId, arrayIndex, isTypeTag, tag, encodedValue);
+
+    public PlainItem(int id, int parentId, int? arrayIndex, bool isTypeTag, string tag, string encodedValue)
     {
-        public static PlainItem Create(int id, int parentId, int? arrayIndex, bool isTypeTag, string tag, string encodedValue)
-            => new PlainItem(id, parentId, arrayIndex, isTypeTag, tag, encodedValue);
-
-        public PlainItem(int id, int parentId, int? arrayIndex, bool isTypeTag, string tag, string encodedValue)
-        {
-            this.Id = id;
-            this.ParentId = parentId;
-            this.ArrayIndex = arrayIndex;
-            this.IsTypeTag = isTypeTag;
-            this.Tag = tag;
-            this.Value = encodedValue;
-        }
-
-        public int Id { get; }
-        public int ParentId { get; }
-        public int? ArrayIndex { get; }
-        public bool IsTypeTag { get; }
-        public string Tag { get; }
-        public string Value { get; }
+        this.Id = id;
+        this.ParentId = parentId;
+        this.ArrayIndex = arrayIndex;
+        this.IsTypeTag = isTypeTag;
+        this.Tag = tag;
+        this.Value = encodedValue;
     }
+
+    public int Id { get; }
+    public int ParentId { get; }
+    public int? ArrayIndex { get; }
+    public bool IsTypeTag { get; }
+    public string Tag { get; }
+    public string Value { get; }
 }

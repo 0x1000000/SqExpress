@@ -1,17 +1,16 @@
-﻿namespace SqExpress.StatementSyntax
+﻿namespace SqExpress.StatementSyntax;
+
+public interface IStatementVisitor
 {
-    public interface IStatementVisitor
-    {
-        void VisitCreateTable(StatementCreateTable statementCreateTable);
+    void VisitCreateTable(StatementCreateTable statementCreateTable);
 
-        void VisitDropTable(StatementDropTable statementDropTable);
+    void VisitDropTable(StatementDropTable statementDropTable);
 
-        void VisitIf(StatementIf statementIf);
+    void VisitIf(StatementIf statementIf);
 
-        void VisitStatementList(StatementList statementList);
+    void VisitStatementList(StatementList statementList);
 
-        void VisitIfTableExists(StatementIfTableExists statementIfExists);
+    void VisitIfTableExists(StatementIfTableExists statementIfExists);
 
-        void VisitIfTempTableExists(StatementIfTempTableExists statementIfTempTableExists);
-    }
+    void VisitIfTempTableExists(StatementIfTempTableExists statementIfTempTableExists);
 }

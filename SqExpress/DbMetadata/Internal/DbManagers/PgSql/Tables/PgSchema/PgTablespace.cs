@@ -1,15 +1,14 @@
-﻿namespace SqExpress.DbMetadata.Internal.DbManagers.PgSql.Tables.PgSchema
+﻿namespace SqExpress.DbMetadata.Internal.DbManagers.PgSql.Tables.PgSchema;
+
+internal class PgTablespace : TableBase
 {
-    internal class PgTablespace : TableBase
+    public Int32TableColumn Oid { get; }
+
+    public StringTableColumn SpcName { get; }
+
+    public PgTablespace(Alias alias = default) : base(null, "pg_tablespace", alias)
     {
-        public Int32TableColumn Oid { get; }
-
-        public StringTableColumn SpcName { get; }
-
-        public PgTablespace(Alias alias = default) : base(null, "pg_tablespace", alias)
-        {
-            Oid = CreateInt32Column("oid");
-            SpcName = CreateStringColumn("spcname", null);
-        }
+        Oid = CreateInt32Column("oid");
+        SpcName = CreateStringColumn("spcname", null);
     }
 }

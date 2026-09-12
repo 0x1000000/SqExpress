@@ -19,395 +19,395 @@ using SqExpress.Syntax.Value;
 using SqExpress.SyntaxTreeOperations;
 using SqExpress.Utils;
 
-namespace SqExpress.SqlExport.Internal
+namespace SqExpress.SqlExport.Internal;
+
+internal partial class MySqlBuilder : SqlBuilderBase, IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>
 {
-    internal partial class MySqlBuilder : SqlBuilderBase, IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>
+    public MySqlBuilder(SqlBuilderOptions? options = null, MySqlFlavor flavor = MySqlFlavor.MariaDb) : base(options, new SqlAliasGenerator(), false)
     {
-        public MySqlBuilder(SqlBuilderOptions? options = null, MySqlFlavor flavor = MySqlFlavor.MariaDb) : base(options, new SqlAliasGenerator(), false)
+        this.Flavor = flavor;
+    }
+
+    private MySqlBuilder(SqlBuilderOptions? options, SqlAliasGenerator aliasGenerator, bool dismissCteInject, MySqlFlavor flavor)
+        : base(options, aliasGenerator, dismissCteInject)
+    {
+        this.Flavor = flavor;
+    }
+
+    internal MySqlBuilder(SqlBuilderOptions? options, MySqlFlavor flavor, SqlFormattingWriter formattingWriter)
+        : base(options, formattingWriter, new SqlAliasGenerator(), false)
+    {
+        this.Flavor = flavor;
+    }
+
+    public MySqlFlavor Flavor { get; }
+
+    // Dialect hooks
+
+    protected override SqlBuilderBase CreateInstance(SqlAliasGenerator aliasGenerator, bool dismissCteInject)
+    {
+        return new MySqlBuilder(this.Options, aliasGenerator, dismissCteInject, this.Flavor);
+    }
+
+    protected override void EscapeStringLiteral(string literal)
+    {
+        this.FormattingWriter.AppendEscapedSingleQuoteAndBackslash(literal);
+    }
+
+    protected override void AppendByteArrayLiteralPrefix()
+    {
+        this.FormattingWriter.Append('0');
+        this.FormattingWriter.Append('x');
+    }
+
+    protected override void AppendByteArrayLiteralSuffix()
+    {
+    }
+
+    protected override void AppendSelectTop(ExprValue top, IExpr? parent)
+    {
+        //N/A
+    }
+
+    protected override void AppendSelectLimit(ExprValue top, IExpr? parent)
+    {
+        this.FormattingWriter.AppendClause("LIMIT", compactTrailingSpaces: 1);
+        top.Accept(this, parent);
+    }
+
+    protected override bool ForceParenthesesForQueryExpressionPart(IExprSubQuery subQuery)
+    {
+        return subQuery switch
         {
-            this.Flavor = flavor;
+            ExprQuerySpecification specification => !ReferenceEquals(specification.Top, null),
+            _ => true
+        };
+    }
+
+    protected override void AppendRecursiveCteKeyword()
+    {
+        this.FormattingWriter.Append("RECURSIVE ");
+    }
+
+    protected override bool SupportsInlineCte() => true;
+
+    protected override bool VisitExprParameter(ExprParameter exprParameter, int paramNumber, IExpr? parent, out string? name)
+    {
+        name = null;
+        this.FormattingWriter.Append('?');
+        return true;
+    }
+
+    protected override DbParameterValueVisitorExtractor GetDbParameterValueVisitorExtractor()
+        => MySqlDbParameterValueVisitorExtractor.Instance;
+
+    protected override void AppendUnicodePrefix(string str)
+    {
+    }
+
+    protected override IStatementVisitor CreateStatementSqlBuilder()
+        => new MySqlStatementBuilder(this.Options.WithFormatting(null), this.Flavor, this.FormattingWriter);
+
+    // Values and operators
+
+    public override bool VisitExprGuidLiteral(ExprGuidLiteral exprGuidLiteral, IExpr? parent)
+    {
+        if (exprGuidLiteral.Value == null)
+        {
+            this.AppendNull();
+            return true;
         }
 
-        private MySqlBuilder(SqlBuilderOptions? options, SqlAliasGenerator aliasGenerator, bool dismissCteInject, MySqlFlavor flavor)
-            : base(options, aliasGenerator, dismissCteInject)
+        this.FormattingWriter.Append('0');
+        this.FormattingWriter.Append('x');
+
+        var array = exprGuidLiteral.Value.Value.ToByteArray();
+        foreach (var b in array)
         {
-            this.Flavor = flavor;
+            this.FormattingWriter.Append(b.ToString("X2"));
         }
 
-        internal MySqlBuilder(SqlBuilderOptions? options, MySqlFlavor flavor, SqlFormattingWriter formattingWriter)
-            : base(options, formattingWriter, new SqlAliasGenerator(), false)
+        return true;
+    }
+
+    public override bool VisitExprStringAgg(ExprStringAgg exprStringAgg, IExpr? parent)
+    {
+        ExprStringLiteral? separator = exprStringAgg.Separator as ExprStringLiteral;
+        if (ReferenceEquals(separator, null)
+            && exprStringAgg.Separator is ExprParameter { ReplacedValue: ExprStringLiteral parameterLiteral })
         {
-            this.Flavor = flavor;
+            separator = parameterLiteral;
+        }
+        if (separator?.Value == null)
+        {
+            throw new SqExpressException("MySQL STRING_AGG separator must be a non-null string literal.");
         }
 
-        public MySqlFlavor Flavor { get; }
-
-        // Dialect hooks
-
-        protected override SqlBuilderBase CreateInstance(SqlAliasGenerator aliasGenerator, bool dismissCteInject)
+        this.FormattingWriter.Append("GROUP_CONCAT(");
+        exprStringAgg.Expression.Accept(this, exprStringAgg);
+        if (exprStringAgg.OrderBy != null)
         {
-            return new MySqlBuilder(this.Options, aliasGenerator, dismissCteInject, this.Flavor);
+            this.FormattingWriter.AppendClause("ORDER BY", compactTrailingSpaces: 1);
+            exprStringAgg.OrderBy.Accept(this, exprStringAgg);
+        }
+        this.FormattingWriter.Append(" SEPARATOR ");
+        separator.Accept(this, exprStringAgg);
+        this.FormattingWriter.Append(')');
+        return true;
+    }
+
+    public override bool VisitExprDateTimeOffsetLiteral(ExprDateTimeOffsetLiteral dateTimeLiteral, IExpr? arg)
+    {
+        throw new SqExpressException("My SQL does not support DateTimeOffset type");
+    }
+
+    public override bool VisitExprDateTimeLiteral(ExprDateTimeLiteral dateTimeLiteral, IExpr? parent)
+    {
+        if (!dateTimeLiteral.Value.HasValue)
+        {
+            this.AppendNull();
+        }
+        else
+        {
+            this.FormattingWriter.Append('\'');
+            if (dateTimeLiteral.Value.Value.TimeOfDay != TimeSpan.Zero)
+            {
+                this.FormattingWriter.Append(dateTimeLiteral.Value.Value.ToString("yyyy-MM-dd HH:mm:ss.fff"));
+            }
+            else
+            {
+                this.FormattingWriter.Append(dateTimeLiteral.Value.Value.ToString("yyyy-MM-dd"));
+            }
+            this.FormattingWriter.Append('\'');
         }
 
-        protected override void EscapeStringLiteral(string literal)
+        return true;
+    }
+
+    public override bool VisitExprBoolLiteral(ExprBoolLiteral boolLiteral, IExpr? parent)
+    {
+        if (boolLiteral.Value.HasValue)
         {
-            this.FormattingWriter.AppendEscapedSingleQuoteAndBackslash(literal);
+            this.FormattingWriter.Append(boolLiteral.Value.Value ? "true" : "false");
+        }
+        else
+        {
+            this.AppendNull();
         }
 
-        protected override void AppendByteArrayLiteralPrefix()
-        {
-            this.FormattingWriter.Append('0');
-            this.FormattingWriter.Append('x');
-        }
+        return true;
+    }
 
-        protected override void AppendByteArrayLiteralSuffix()
-        {
-        }
+    public override bool VisitExprStringConcat(ExprStringConcat exprStringConcat, IExpr? parent)
+    {
+        this.FormattingWriter.Append("CONCAT(");
+        exprStringConcat.Left.Accept(this, exprStringConcat);
+        this.FormattingWriter.Append(',');
+        exprStringConcat.Right.Accept(this, exprStringConcat);
+        this.FormattingWriter.Append(")");
+        return true;
 
-        protected override void AppendSelectTop(ExprValue top, IExpr? parent)
-        {
-            //N/A
-        }
+    }
 
-        protected override void AppendSelectLimit(ExprValue top, IExpr? parent)
+    // Queries and table sources
+
+    public override bool VisitExprLateralCrossedTable(ExprLateralCrossedTable exprCrossedTable, IExpr? parent)
+    {
+        exprCrossedTable.Left.Accept(this, exprCrossedTable);
+        if (this.Flavor == MySqlFlavor.MariaDb && exprCrossedTable.Right is ExprJsonTable jsonTable)
+        {
+            this.FormattingWriter.AppendClause(
+                exprCrossedTable.Outer ? "LEFT JOIN" : "JOIN",
+                SqlRenderSite.Join,
+                compactTrailingSpaces: 0);
+            this.FormattingWriter.Append(' ');
+            this.AppendMariaDbCorrelatedJsonTable(jsonTable);
+            this.FormattingWriter.Append(" ON TRUE");
+            return true;
+        }
+        this.FormattingWriter.AppendClause(
+            exprCrossedTable.Outer ? "LEFT JOIN LATERAL" : "CROSS JOIN LATERAL",
+            SqlRenderSite.Join,
+            compactTrailingSpaces: exprCrossedTable.Outer ? 0 : 1);
+        exprCrossedTable.Right.Accept(this, exprCrossedTable);
+        if (exprCrossedTable.Outer)
+        {
+            this.FormattingWriter.Append(" ON TRUE");
+        }
+        return true;
+    }
+
+    public override bool VisitExprOffsetFetch(ExprOffsetFetch exprOffsetFetch, IExpr? parent)
+    {
+        if (!ReferenceEquals(exprOffsetFetch.Fetch,null))
         {
             this.FormattingWriter.AppendClause("LIMIT", compactTrailingSpaces: 1);
-            top.Accept(this, parent);
+            exprOffsetFetch.Fetch.Accept(this, exprOffsetFetch);
         }
 
-        protected override bool ForceParenthesesForQueryExpressionPart(IExprSubQuery subQuery)
+        this.FormattingWriter.AppendClause("OFFSET", compactTrailingSpaces: 1);
+        exprOffsetFetch.Offset.Accept(this, exprOffsetFetch);
+
+        return true;
+    }
+
+    public override bool VisitExprGetDate(ExprGetDate exprGetDat, IExpr? parent)
+    {
+        this.FormattingWriter.Append("UTC_DATE()");
+        return true;
+    }
+
+    public override bool VisitExprGetUtcDate(ExprGetUtcDate exprGetUtcDate, IExpr? parent)
+    {
+        this.FormattingWriter.Append("UTC_TIMESTAMP()");
+        return true;
+    }
+
+    public override bool VisitExprDateAdd(ExprDateAdd exprDateAdd, IExpr? arg)
+    {
+        this.FormattingWriter.Append("DATE_ADD(");
+        exprDateAdd.Date.Accept(this, exprDateAdd);
+        this.FormattingWriter.Append(",INTERVAL ");
+        if (exprDateAdd.DatePart == DateAddDatePart.Millisecond/*MICROSECOND*/)
         {
-            return subQuery switch
-            {
-                ExprQuerySpecification specification => !ReferenceEquals(specification.Top, null),
-                _ => true
-            };
+            this.FormattingWriter.Append(exprDateAdd.Number * 1000);
         }
-
-        protected override void AppendRecursiveCteKeyword()
+        else
         {
-            this.FormattingWriter.Append("RECURSIVE ");
+            this.FormattingWriter.Append(exprDateAdd.Number);
         }
+        this.FormattingWriter.Append(' ');
 
-        protected override bool SupportsInlineCte() => true;
-
-        protected override bool VisitExprParameter(ExprParameter exprParameter, int paramNumber, IExpr? parent, out string? name)
+        var datePart = exprDateAdd.DatePart switch
         {
-            name = null;
-            this.FormattingWriter.Append('?');
-            return true;
+            DateAddDatePart.Year => "YEAR",
+            DateAddDatePart.Month => "MONTH",
+            DateAddDatePart.Day => "DAY",
+            DateAddDatePart.Week => "WEEK",
+            DateAddDatePart.Hour => "HOUR",
+            DateAddDatePart.Minute => "MINUTE",
+            DateAddDatePart.Second => "SECOND",
+            DateAddDatePart.Millisecond => "MICROSECOND",
+            _ => throw new ArgumentOutOfRangeException()
+        };
+
+        this.FormattingWriter.Append(datePart);
+        this.FormattingWriter.Append(')');
+
+        return true;
+    }
+
+    public override bool VisitExprDateDiff(ExprDateDiff exprDateDiff, IExpr? arg)
+    {
+        ExprValue result;
+
+        if (exprDateDiff.DatePart == DateDiffDatePart.Year)
+        {
+            result = SqQueryBuilder.ScalarFunctionSys("YEAR", exprDateDiff.EndDate) -
+                     SqQueryBuilder.ScalarFunctionSys("YEAR", exprDateDiff.StartDate);
+        } 
+        else if (exprDateDiff.DatePart == DateDiffDatePart.Month)
+        {
+            var y = SqQueryBuilder.ScalarFunctionSys("YEAR", exprDateDiff.EndDate) -
+                    SqQueryBuilder.ScalarFunctionSys("YEAR", exprDateDiff.StartDate);
+
+            var m = SqQueryBuilder.ScalarFunctionSys("MONTH", exprDateDiff.EndDate) -
+                    SqQueryBuilder.ScalarFunctionSys("MONTH", exprDateDiff.StartDate);
+
+            result = y * 12 + m;
+        } else if (exprDateDiff.DatePart == DateDiffDatePart.Day)
+        {
+            result = SqQueryBuilder.ScalarFunctionSys("DATEDIFF", exprDateDiff.EndDate, exprDateDiff.StartDate);
         }
-
-        protected override DbParameterValueVisitorExtractor GetDbParameterValueVisitorExtractor()
-            => MySqlDbParameterValueVisitorExtractor.Instance;
-
-        protected override void AppendUnicodePrefix(string str)
+        else
         {
-        }
-
-        protected override IStatementVisitor CreateStatementSqlBuilder()
-            => new MySqlStatementBuilder(this.Options.WithFormatting(null), this.Flavor, this.FormattingWriter);
-
-        // Values and operators
-
-        public override bool VisitExprGuidLiteral(ExprGuidLiteral exprGuidLiteral, IExpr? parent)
-        {
-            if (exprGuidLiteral.Value == null)
+            var interval = exprDateDiff.DatePart switch
             {
-                this.AppendNull();
-                return true;
-            }
-
-            this.FormattingWriter.Append('0');
-            this.FormattingWriter.Append('x');
-
-            var array = exprGuidLiteral.Value.Value.ToByteArray();
-            foreach (var b in array)
-            {
-                this.FormattingWriter.Append(b.ToString("X2"));
-            }
-
-            return true;
-        }
-
-        public override bool VisitExprStringAgg(ExprStringAgg exprStringAgg, IExpr? parent)
-        {
-            ExprStringLiteral? separator = exprStringAgg.Separator as ExprStringLiteral;
-            if (ReferenceEquals(separator, null)
-                && exprStringAgg.Separator is ExprParameter { ReplacedValue: ExprStringLiteral parameterLiteral })
-            {
-                separator = parameterLiteral;
-            }
-            if (separator?.Value == null)
-            {
-                throw new SqExpressException("MySQL STRING_AGG separator must be a non-null string literal.");
-            }
-
-            this.FormattingWriter.Append("GROUP_CONCAT(");
-            exprStringAgg.Expression.Accept(this, exprStringAgg);
-            if (exprStringAgg.OrderBy != null)
-            {
-                this.FormattingWriter.AppendClause("ORDER BY", compactTrailingSpaces: 1);
-                exprStringAgg.OrderBy.Accept(this, exprStringAgg);
-            }
-            this.FormattingWriter.Append(" SEPARATOR ");
-            separator.Accept(this, exprStringAgg);
-            this.FormattingWriter.Append(')');
-            return true;
-        }
-
-        public override bool VisitExprDateTimeOffsetLiteral(ExprDateTimeOffsetLiteral dateTimeLiteral, IExpr? arg)
-        {
-            throw new SqExpressException("My SQL does not support DateTimeOffset type");
-        }
-
-        public override bool VisitExprDateTimeLiteral(ExprDateTimeLiteral dateTimeLiteral, IExpr? parent)
-        {
-            if (!dateTimeLiteral.Value.HasValue)
-            {
-                this.AppendNull();
-            }
-            else
-            {
-                this.FormattingWriter.Append('\'');
-                if (dateTimeLiteral.Value.Value.TimeOfDay != TimeSpan.Zero)
-                {
-                    this.FormattingWriter.Append(dateTimeLiteral.Value.Value.ToString("yyyy-MM-dd HH:mm:ss.fff"));
-                }
-                else
-                {
-                    this.FormattingWriter.Append(dateTimeLiteral.Value.Value.ToString("yyyy-MM-dd"));
-                }
-                this.FormattingWriter.Append('\'');
-            }
-
-            return true;
-        }
-
-        public override bool VisitExprBoolLiteral(ExprBoolLiteral boolLiteral, IExpr? parent)
-        {
-            if (boolLiteral.Value.HasValue)
-            {
-                this.FormattingWriter.Append(boolLiteral.Value.Value ? "true" : "false");
-            }
-            else
-            {
-                this.AppendNull();
-            }
-
-            return true;
-        }
-
-        public override bool VisitExprStringConcat(ExprStringConcat exprStringConcat, IExpr? parent)
-        {
-            this.FormattingWriter.Append("CONCAT(");
-            exprStringConcat.Left.Accept(this, exprStringConcat);
-            this.FormattingWriter.Append(',');
-            exprStringConcat.Right.Accept(this, exprStringConcat);
-            this.FormattingWriter.Append(")");
-            return true;
-
-        }
-
-        // Queries and table sources
-
-        public override bool VisitExprLateralCrossedTable(ExprLateralCrossedTable exprCrossedTable, IExpr? parent)
-        {
-            exprCrossedTable.Left.Accept(this, exprCrossedTable);
-            if (this.Flavor == MySqlFlavor.MariaDb && exprCrossedTable.Right is ExprJsonTable jsonTable)
-            {
-                this.FormattingWriter.AppendClause(
-                    exprCrossedTable.Outer ? "LEFT JOIN" : "JOIN",
-                    SqlRenderSite.Join,
-                    compactTrailingSpaces: 0);
-                this.FormattingWriter.Append(' ');
-                this.AppendMariaDbCorrelatedJsonTable(jsonTable);
-                this.FormattingWriter.Append(" ON TRUE");
-                return true;
-            }
-            this.FormattingWriter.AppendClause(
-                exprCrossedTable.Outer ? "LEFT JOIN LATERAL" : "CROSS JOIN LATERAL",
-                SqlRenderSite.Join,
-                compactTrailingSpaces: exprCrossedTable.Outer ? 0 : 1);
-            exprCrossedTable.Right.Accept(this, exprCrossedTable);
-            if (exprCrossedTable.Outer)
-            {
-                this.FormattingWriter.Append(" ON TRUE");
-            }
-            return true;
-        }
-
-        public override bool VisitExprOffsetFetch(ExprOffsetFetch exprOffsetFetch, IExpr? parent)
-        {
-            if (!ReferenceEquals(exprOffsetFetch.Fetch,null))
-            {
-                this.FormattingWriter.AppendClause("LIMIT", compactTrailingSpaces: 1);
-                exprOffsetFetch.Fetch.Accept(this, exprOffsetFetch);
-            }
-
-            this.FormattingWriter.AppendClause("OFFSET", compactTrailingSpaces: 1);
-            exprOffsetFetch.Offset.Accept(this, exprOffsetFetch);
-
-            return true;
-        }
-
-        public override bool VisitExprGetDate(ExprGetDate exprGetDat, IExpr? parent)
-        {
-            this.FormattingWriter.Append("UTC_DATE()");
-            return true;
-        }
-
-        public override bool VisitExprGetUtcDate(ExprGetUtcDate exprGetUtcDate, IExpr? parent)
-        {
-            this.FormattingWriter.Append("UTC_TIMESTAMP()");
-            return true;
-        }
-
-        public override bool VisitExprDateAdd(ExprDateAdd exprDateAdd, IExpr? arg)
-        {
-            this.FormattingWriter.Append("DATE_ADD(");
-            exprDateAdd.Date.Accept(this, exprDateAdd);
-            this.FormattingWriter.Append(",INTERVAL ");
-            if (exprDateAdd.DatePart == DateAddDatePart.Millisecond/*MICROSECOND*/)
-            {
-                this.FormattingWriter.Append(exprDateAdd.Number * 1000);
-            }
-            else
-            {
-                this.FormattingWriter.Append(exprDateAdd.Number);
-            }
-            this.FormattingWriter.Append(' ');
-
-            var datePart = exprDateAdd.DatePart switch
-            {
-                DateAddDatePart.Year => "YEAR",
-                DateAddDatePart.Month => "MONTH",
-                DateAddDatePart.Day => "DAY",
-                DateAddDatePart.Week => "WEEK",
-                DateAddDatePart.Hour => "HOUR",
-                DateAddDatePart.Minute => "MINUTE",
-                DateAddDatePart.Second => "SECOND",
-                DateAddDatePart.Millisecond => "MICROSECOND",
+                DateDiffDatePart.Hour => "HOUR",
+                DateDiffDatePart.Minute => "MINUTE",
+                DateDiffDatePart.Second => "SECOND",
+                DateDiffDatePart.Millisecond => "MILLISECOND",
                 _ => throw new ArgumentOutOfRangeException()
             };
 
-            this.FormattingWriter.Append(datePart);
-            this.FormattingWriter.Append(')');
-
-            return true;
+            result = TimeStampDiff(
+                interval,
+                Tran(exprDateDiff.DatePart, exprDateDiff.StartDate),
+                Tran(exprDateDiff.DatePart, exprDateDiff.EndDate)
+            );
         }
 
-        public override bool VisitExprDateDiff(ExprDateDiff exprDateDiff, IExpr? arg)
+        result.Accept(this, exprDateDiff);
+
+        return true;
+
+        static ExprValue TimeStampDiff(string interval, ExprValue start, ExprValue end) 
+            => SqQueryBuilder.ScalarFunctionSys("TIMESTAMPDIFF", SqQueryBuilder.UnsafeValue(interval), start, end);
+
+        static ExprValue Tran(DateDiffDatePart diff, ExprValue value)
         {
-            ExprValue result;
-
-            if (exprDateDiff.DatePart == DateDiffDatePart.Year)
+            if (diff == DateDiffDatePart.Millisecond)
             {
-                result = SqQueryBuilder.ScalarFunctionSys("YEAR", exprDateDiff.EndDate) -
-                         SqQueryBuilder.ScalarFunctionSys("YEAR", exprDateDiff.StartDate);
-            } 
-            else if (exprDateDiff.DatePart == DateDiffDatePart.Month)
-            {
-                var y = SqQueryBuilder.ScalarFunctionSys("YEAR", exprDateDiff.EndDate) -
-                        SqQueryBuilder.ScalarFunctionSys("YEAR", exprDateDiff.StartDate);
-
-                var m = SqQueryBuilder.ScalarFunctionSys("MONTH", exprDateDiff.EndDate) -
-                        SqQueryBuilder.ScalarFunctionSys("MONTH", exprDateDiff.StartDate);
-
-                result = y * 12 + m;
-            } else if (exprDateDiff.DatePart == DateDiffDatePart.Day)
-            {
-                result = SqQueryBuilder.ScalarFunctionSys("DATEDIFF", exprDateDiff.EndDate, exprDateDiff.StartDate);
-            }
-            else
-            {
-                var interval = exprDateDiff.DatePart switch
-                {
-                    DateDiffDatePart.Hour => "HOUR",
-                    DateDiffDatePart.Minute => "MINUTE",
-                    DateDiffDatePart.Second => "SECOND",
-                    DateDiffDatePart.Millisecond => "MILLISECOND",
-                    _ => throw new ArgumentOutOfRangeException()
-                };
-
-                result = TimeStampDiff(
-                    interval,
-                    Tran(exprDateDiff.DatePart, exprDateDiff.StartDate),
-                    Tran(exprDateDiff.DatePart, exprDateDiff.EndDate)
-                );
+                return value;
             }
 
-            result.Accept(this, exprDateDiff);
-
-            return true;
-
-            static ExprValue TimeStampDiff(string interval, ExprValue start, ExprValue end) 
-                => SqQueryBuilder.ScalarFunctionSys("TIMESTAMPDIFF", SqQueryBuilder.UnsafeValue(interval), start, end);
-
-            static ExprValue Tran(DateDiffDatePart diff, ExprValue value)
+            if (diff == DateDiffDatePart.Second)
             {
-                if (diff == DateDiffDatePart.Millisecond)
-                {
-                    return value;
-                }
-
-                if (diff == DateDiffDatePart.Second)
-                {
-                    return SqQueryBuilder.ScalarFunctionSys("DATE_FORMAT", value, "%Y-%m-%d %H:%i:%s");
-                }
-
-                if (diff == DateDiffDatePart.Minute)
-                {
-                    return SqQueryBuilder.ScalarFunctionSys("DATE_FORMAT", value, "%Y-%m-%d %H:%i:00");
-                }
-
-                if (diff == DateDiffDatePart.Hour)
-                {
-                    return SqQueryBuilder.ScalarFunctionSys("DATE_FORMAT", value, "%Y-%m-%d %H:00:00");
-                }
-
-                return SqQueryBuilder.ScalarFunctionSys("DATE", value);
-
+                return SqQueryBuilder.ScalarFunctionSys("DATE_FORMAT", value, "%Y-%m-%d %H:%i:%s");
             }
+
+            if (diff == DateDiffDatePart.Minute)
+            {
+                return SqQueryBuilder.ScalarFunctionSys("DATE_FORMAT", value, "%Y-%m-%d %H:%i:00");
+            }
+
+            if (diff == DateDiffDatePart.Hour)
+            {
+                return SqQueryBuilder.ScalarFunctionSys("DATE_FORMAT", value, "%Y-%m-%d %H:00:00");
+            }
+
+            return SqQueryBuilder.ScalarFunctionSys("DATE", value);
+
         }
+    }
 
-        public override bool VisitExprColumnName(ExprColumnName columnName, IExpr? parent)
-            => this.VisitExprColumnNameCommon(columnName);
+    public override bool VisitExprColumnName(ExprColumnName columnName, IExpr? parent)
+        => this.VisitExprColumnNameCommon(columnName);
 
-        public override bool VisitExprTableFullName(ExprTableFullName exprTableFullName, IExpr? parent)
+    public override bool VisitExprTableFullName(ExprTableFullName exprTableFullName, IExpr? parent)
+    {
+        if (exprTableFullName.DbSchema?.Database != null)
         {
-            if (exprTableFullName.DbSchema?.Database != null)
+            if (exprTableFullName.DbSchema.Database.Accept(this, exprTableFullName.DbSchema))
             {
-                if (exprTableFullName.DbSchema.Database.Accept(this, exprTableFullName.DbSchema))
-                {
-                    this.FormattingWriter.Append('.');
-                }
-            }
-            exprTableFullName.TableName.Accept(this, exprTableFullName);
-            return true;
-        }
-
-        public override bool VisitExprTempTableName(ExprTempTableName tempTableName, IExpr? parent)
-        {
-            this.AppendName(tempTableName.Name);
-            return true;
-        }
-
-        public override bool VisitExprDbSchema(ExprDbSchema exprDbSchema, IExpr? parent)
-        {
-            if (exprDbSchema.Database != null)
-            {
-                exprDbSchema.Database.Accept(this, exprDbSchema);
                 this.FormattingWriter.Append('.');
-                return true;
             }
-            return false;
         }
+        exprTableFullName.TableName.Accept(this, exprTableFullName);
+        return true;
+    }
 
-        public override bool VisitExprDerivedTableValues(ExprDerivedTableValues derivedTableValues, IExpr? parent)
+    public override bool VisitExprTempTableName(ExprTempTableName tempTableName, IExpr? parent)
+    {
+        this.AppendName(tempTableName.Name);
+        return true;
+    }
+
+    public override bool VisitExprDbSchema(ExprDbSchema exprDbSchema, IExpr? parent)
+    {
+        if (exprDbSchema.Database != null)
         {
-            using (this.BeginParentheses(SqlRenderSite.Subquery))
-            {
+            exprDbSchema.Database.Accept(this, exprDbSchema);
+            this.FormattingWriter.Append('.');
+            return true;
+        }
+        return false;
+    }
+
+    public override bool VisitExprDerivedTableValues(ExprDerivedTableValues derivedTableValues, IExpr? parent)
+    {
+        using (this.BeginParentheses(SqlRenderSite.Subquery))
+        {
             int firstRowColCount = 0;
             for (var rowIndex = 0; rowIndex < derivedTableValues.Values.Items.Count; rowIndex++)
             {
@@ -447,176 +447,171 @@ namespace SqExpress.SqlExport.Internal
                     }
                 }, 1);
             }
-            }
-            this.AcceptBody(derivedTableValues.Alias, derivedTableValues, SqlRenderSite.TableAlias);
-
-            return true;
         }
+        this.AcceptBody(derivedTableValues.Alias, derivedTableValues, SqlRenderSite.TableAlias);
 
-        // DML
+        return true;
+    }
 
-        private static bool VisitMergeNotSupported() =>
-            throw new SqExpressException("My SQL does not support MERGE expression");
+    // DML
 
-        public override bool VisitExprMerge(ExprMerge merge, IExpr? parent)
+    private static bool VisitMergeNotSupported() =>
+        throw new SqExpressException("My SQL does not support MERGE expression");
+
+    public override bool VisitExprMerge(ExprMerge merge, IExpr? parent)
+    {
+        var useJoinBasedInsertAntiMatch = this.Flavor == MySqlFlavor.Oracle;
+        MergeSimulation.ConvertMerge(merge, "tmpMergeDataSource", useJoinBasedInsertAntiMatch).Accept(this, parent);
+        return true;
+    }
+
+    public override bool VisitExprMergeOutput(ExprMergeOutput mergeOutput, IExpr? parent)
+        => VisitMergeNotSupported();
+
+    public override bool VisitExprMergeMatchedUpdate(ExprMergeMatchedUpdate mergeMatchedUpdate, IExpr? parent)
+        => VisitMergeNotSupported();
+
+    public override bool VisitExprMergeMatchedDelete(ExprMergeMatchedDelete mergeMatchedDelete, IExpr? parent)
+        => VisitMergeNotSupported();
+
+    public override bool VisitExprExprMergeNotMatchedInsert(ExprExprMergeNotMatchedInsert exprMergeNotMatchedInsert, IExpr? parent)
+        => VisitMergeNotSupported();
+
+    public override bool VisitExprExprMergeNotMatchedInsertDefault(
+        ExprExprMergeNotMatchedInsertDefault exprExprMergeNotMatchedInsertDefault, IExpr? parent)
+        => VisitMergeNotSupported();
+
+    public override bool VisitExprInsert(ExprInsert exprInsert, IExpr? parent)
+    {
+        exprInsert = PrepareGenericInsert(exprInsert, out var middleHandler);
+
+        this.GenericInsert(exprInsert, ()=>
         {
-            var useJoinBasedInsertAntiMatch = this.Flavor == MySqlFlavor.Oracle;
-            MergeSimulation.ConvertMerge(merge, "tmpMergeDataSource", useJoinBasedInsertAntiMatch).Accept(this, parent);
-            return true;
-        }
-
-        public override bool VisitExprMergeOutput(ExprMergeOutput mergeOutput, IExpr? parent)
-            => VisitMergeNotSupported();
-
-        public override bool VisitExprMergeMatchedUpdate(ExprMergeMatchedUpdate mergeMatchedUpdate, IExpr? parent)
-            => VisitMergeNotSupported();
-
-        public override bool VisitExprMergeMatchedDelete(ExprMergeMatchedDelete mergeMatchedDelete, IExpr? parent)
-            => VisitMergeNotSupported();
-
-        public override bool VisitExprExprMergeNotMatchedInsert(ExprExprMergeNotMatchedInsert exprMergeNotMatchedInsert, IExpr? parent)
-            => VisitMergeNotSupported();
-
-        public override bool VisitExprExprMergeNotMatchedInsertDefault(
-            ExprExprMergeNotMatchedInsertDefault exprExprMergeNotMatchedInsertDefault, IExpr? parent)
-            => VisitMergeNotSupported();
-
-        public override bool VisitExprInsert(ExprInsert exprInsert, IExpr? parent)
-        {
-            exprInsert = PrepareGenericInsert(exprInsert, out var middleHandler);
-
-            this.GenericInsert(exprInsert, ()=>
+            if (middleHandler != null)
             {
-                if (middleHandler != null)
+                this.FormattingWriter.Append(' ');
+                middleHandler();
+            }
+        }, null);
+
+        return true;
+    }
+
+    protected ExprInsert PrepareGenericInsert(ExprInsert exprInsert, out Action? prefixBuilder)
+    {
+        //My SQL does not properly support "Derived Table Values"
+        //Also take a look at VisitExprInsertQuery.
+        List<ExprDerivedTableValues>? derivedTables = null;
+
+        var result = exprInsert.Source.SyntaxTree()
+            .Modify<ExprQuerySpecification>(query =>
+            {
+                if (query.Where != null && query.From is ExprDerivedTableValues values)
+                {
+                    derivedTables ??= new List<ExprDerivedTableValues>();
+                    derivedTables.Add(values);
+
+                    return query.WithFrom(
+                        new ExprTable(
+                            new ExprTableFullName(
+                                null,
+                                new ExprTableName(
+                                    BuildNameByIndex(derivedTables.Count-1))),
+                            values.Alias));
+                }
+
+                return query;
+            });
+
+        if (derivedTables != null)
+        {
+            prefixBuilder = () => PreInsert(this, this.FormattingWriter, derivedTables);
+        }
+        else
+        {
+            prefixBuilder = null;
+        }
+
+        var newSource = result as IExprInsertSource ?? throw new SqExpressException($"{nameof(IExprInsertSource)} was expected");
+
+        return newSource != exprInsert.Source ? exprInsert.WithSource(newSource) : exprInsert;
+
+        //Functions
+        static string BuildNameByIndex(int index) => $"CTE_Derived_Table_{index}";
+
+        static void PreInsert(
+            SqlBuilderBase sqlBuilder,
+            SqlFormattingWriter formattingWriter,
+            IReadOnlyList<ExprDerivedTableValues> derivedTables)
+        {
+            formattingWriter.Append("WITH ");
+            for (int i = 0; i < derivedTables.Count; i++)
+            {
+                var derivedTable = derivedTables[i];
+                if (i != 0)
+                {
+                    formattingWriter.Append(',');
+                }
+
+                formattingWriter.Append(BuildNameByIndex(i));
+
+                sqlBuilder.AcceptListComaSeparatedPar('(', derivedTable.Columns, ')', derivedTable);
+
+                formattingWriter.Append(" AS(");
+                derivedTable.Values.Accept(sqlBuilder, derivedTable);
+                formattingWriter.Append(")");
+            }
+        }
+    }
+
+    public override bool VisitExprInsertOutput(ExprInsertOutput exprInsertOutput, IExpr? parent)
+    {
+        if (this.Flavor == MySqlFlavor.Oracle)
+        {
+            throw new SqExpressException("Oracle MySQL does not support generic INSERT OUTPUT/RETURNING");
+        }
+
+        var insertExpr = PrepareGenericInsert(exprInsertOutput.Insert, out var middleBuilder);
+
+        this.GenericInsert(insertExpr,
+            () =>
+            {
+                if (middleBuilder != null)
                 {
                     this.FormattingWriter.Append(' ');
-                    middleHandler();
+                    middleBuilder();
                 }
-            }, null);
-
-            return true;
-        }
-
-        protected ExprInsert PrepareGenericInsert(ExprInsert exprInsert, out Action? prefixBuilder)
-        {
-            //My SQL does not properly support "Derived Table Values"
-            //Also take a look at VisitExprInsertQuery.
-            List<ExprDerivedTableValues>? derivedTables = null;
-
-            var result = exprInsert.Source.SyntaxTree()
-                .Modify<ExprQuerySpecification>(query =>
-                {
-                    if (query.Where != null && query.From is ExprDerivedTableValues values)
-                    {
-                        derivedTables ??= new List<ExprDerivedTableValues>();
-                        derivedTables.Add(values);
-
-                        return query.WithFrom(
-                            new ExprTable(
-                                new ExprTableFullName(
-                                    null,
-                                    new ExprTableName(
-                                        BuildNameByIndex(derivedTables.Count-1))),
-                                values.Alias));
-                    }
-
-                    return query;
-                });
-
-            if (derivedTables != null)
+            },
+            () =>
             {
-                prefixBuilder = () => PreInsert(this, this.FormattingWriter, derivedTables);
-            }
-            else
+                exprInsertOutput.OutputColumns.AssertNotEmpty("INSERT OUTPUT cannot be empty");
+                this.FormattingWriter.AppendClause("RETURNING");
+                this.AcceptItems(exprInsertOutput.OutputColumns, exprInsertOutput, SqlRenderSite.Output, 1);
+            });
+        return true;
+    }
+
+    public override bool VisitExprInsertQuery(ExprInsertQuery exprInsertQuery, IExpr? parent)
+    {
+        //My SQL does not properly support "Derived Table Values"
+        //Also take a look at PrepareGenericInsert where Derived Tables are replaced with CTE if select has "Where" expression
+        var newQuery = exprInsertQuery.Query.SyntaxTree()
+            .Modify<ExprQuerySpecification>(es =>
             {
-                prefixBuilder = null;
-            }
-
-            var newSource = result as IExprInsertSource ?? throw new SqExpressException($"{nameof(IExprInsertSource)} was expected");
-
-            return newSource != exprInsert.Source ? exprInsert.WithSource(newSource) : exprInsert;
-
-            //Functions
-            static string BuildNameByIndex(int index) => $"CTE_Derived_Table_{index}";
-
-            static void PreInsert(
-                SqlBuilderBase sqlBuilder,
-                SqlFormattingWriter formattingWriter,
-                IReadOnlyList<ExprDerivedTableValues> derivedTables)
-            {
-                formattingWriter.Append("WITH ");
-                for (int i = 0; i < derivedTables.Count; i++)
+                if (es.From is ExprDerivedTableValues values)
                 {
-                    var derivedTable = derivedTables[i];
-                    if (i != 0)
+                    var newSelecting = new List<IExprSelecting>(es.SelectList.Count);
+                    bool star = false;
+                    foreach (var exprSelecting in es.SelectList)
                     {
-                        formattingWriter.Append(',');
-                    }
-
-                    formattingWriter.Append(BuildNameByIndex(i));
-
-                    sqlBuilder.AcceptListComaSeparatedPar('(', derivedTable.Columns, ')', derivedTable);
-
-                    formattingWriter.Append(" AS(");
-                    derivedTable.Values.Accept(sqlBuilder, derivedTable);
-                    formattingWriter.Append(")");
-                }
-            }
-        }
-
-        public override bool VisitExprInsertOutput(ExprInsertOutput exprInsertOutput, IExpr? parent)
-        {
-            if (this.Flavor == MySqlFlavor.Oracle)
-            {
-                throw new SqExpressException("Oracle MySQL does not support generic INSERT OUTPUT/RETURNING");
-            }
-
-            var insertExpr = PrepareGenericInsert(exprInsertOutput.Insert, out var middleBuilder);
-
-            this.GenericInsert(insertExpr,
-                () =>
-                {
-                    if (middleBuilder != null)
-                    {
-                        this.FormattingWriter.Append(' ');
-                        middleBuilder();
-                    }
-                },
-                () =>
-                {
-                    exprInsertOutput.OutputColumns.AssertNotEmpty("INSERT OUTPUT cannot be empty");
-                    this.FormattingWriter.AppendClause("RETURNING");
-                    this.AcceptItems(exprInsertOutput.OutputColumns, exprInsertOutput, SqlRenderSite.Output, 1);
-                });
-            return true;
-        }
-
-        public override bool VisitExprInsertQuery(ExprInsertQuery exprInsertQuery, IExpr? parent)
-        {
-            //My SQL does not properly support "Derived Table Values"
-            //Also take a look at PrepareGenericInsert where Derived Tables are replaced with CTE if select has "Where" expression
-            var newQuery = exprInsertQuery.Query.SyntaxTree()
-                .Modify<ExprQuerySpecification>(es =>
-                {
-                    if (es.From is ExprDerivedTableValues values)
-                    {
-                        var newSelecting = new List<IExprSelecting>(es.SelectList.Count);
-                        bool star = false;
-                        foreach (var exprSelecting in es.SelectList)
+                        if (exprSelecting is ExprColumnName column)
                         {
-                            if (exprSelecting is ExprColumnName column)
+                            if (values.Columns.Contains(column))
                             {
-                                if (values.Columns.Contains(column))
+                                if (!star)
                                 {
-                                    if (!star)
-                                    {
-                                        star = true;
-                                        newSelecting.Add(new ExprAllColumns(values.Alias));
-                                    }
-                                }
-                                else
-                                {
-                                    newSelecting.Add(exprSelecting);
+                                    star = true;
+                                    newSelecting.Add(new ExprAllColumns(values.Alias));
                                 }
                             }
                             else
@@ -624,561 +619,566 @@ namespace SqExpress.SqlExport.Internal
                                 newSelecting.Add(exprSelecting);
                             }
                         }
-                        return es.WithSelectList(newSelecting);
+                        else
+                        {
+                            newSelecting.Add(exprSelecting);
+                        }
                     }
+                    return es.WithSelectList(newSelecting);
+                }
 
-                    return es;
-                });
+                return es;
+            });
 
-            newQuery?.Accept(this, exprInsertQuery);
-            return true;
+        newQuery?.Accept(this, exprInsertQuery);
+        return true;
+    }
+
+    public override bool VisitExprIdentityInsert(ExprIdentityInsert exprIdentityInsert, IExpr? arg)
+    {
+        return exprIdentityInsert.Insert.Accept(this, exprIdentityInsert);
+    }
+
+    public override bool VisitExprUpdate(ExprUpdate exprUpdate, IExpr? parent)
+    {
+        this.AssertNotEmptyList(exprUpdate.SetClause, "'UPDATE' statement should have at least one set clause");
+
+        var derivedTableReplacements = new Dictionary<ExprDerivedTableValues, TempTableBase>();
+
+        if (exprUpdate.Source != null)
+        {
+            exprUpdate = ModifySourceJoins(exprUpdate: exprUpdate, exprUpdate.Source);
+
+            //Injecting derived tables 
+
+            var derivedTables = new HashSet<ExprDerivedTableValues>(exprUpdate.SyntaxTree().Descendants().OfType<ExprDerivedTableValues>());
+
+            foreach (var derivedTable in derivedTables)
+            {
+                var keys = exprUpdate.Source!.SyntaxTree()
+                    .Descendants()
+                    .OfType<ExprBooleanEq>()
+                    .Select(eq => GetKeyColumn(eq.Left, derivedTable) ?? GetKeyColumn(eq.Right, derivedTable))
+                    .Where(i => !ReferenceEquals(i, null))
+                    .ToList();
+
+                var insertExpr = TempTableData.FromDerivedTableValuesInsert(derivedTable, keys!, out var tTable, Alias.From(derivedTable.Alias.Alias));
+                insertExpr.Accept(this, null);
+                this.FormattingWriter.Append(";");
+                derivedTableReplacements.Add(derivedTable, tTable);
+            }
+
+            exprUpdate = (ExprUpdate)exprUpdate.SyntaxTree().Modify<ExprDerivedTableValues>(dt => derivedTableReplacements.TryGetValue(dt, out var r) ? r : dt)!;
         }
 
-        public override bool VisitExprIdentityInsert(ExprIdentityInsert exprIdentityInsert, IExpr? arg)
+        this.FormattingWriter.Append("UPDATE ");
+        if (exprUpdate.Source != null)
         {
-            return exprIdentityInsert.Insert.Accept(this, exprIdentityInsert);
+            exprUpdate.Source.Accept(this, exprUpdate);
+        }
+        else
+        {
+            exprUpdate.Target.Accept(this, exprUpdate);
         }
 
-        public override bool VisitExprUpdate(ExprUpdate exprUpdate, IExpr? parent)
+        this.FormattingWriter.AppendClause("SET");
+        this.AcceptItems(exprUpdate.SetClause.Count, SqlRenderSite.Set, i =>
         {
-            this.AssertNotEmptyList(exprUpdate.SetClause, "'UPDATE' statement should have at least one set clause");
+            var setClause = exprUpdate.SetClause[i];
+            setClause.Column.Accept(this, exprUpdate);
+            this.FormattingWriter.Append('=');
+            setClause.Value.Accept(this, exprUpdate);
 
-            var derivedTableReplacements = new Dictionary<ExprDerivedTableValues, TempTableBase>();
+        }, 1);
 
-            if (exprUpdate.Source != null)
+        if (exprUpdate.Filter != null)
+        {
+            this.FormattingWriter.AppendClause("WHERE");
+            this.AcceptBody(exprUpdate.Filter, exprUpdate, SqlRenderSite.Where, 1);
+        }
+
+        if (derivedTableReplacements.Count > 0)
+        {
+            this.FormattingWriter.Append(';');
+            foreach (var tempTable in derivedTableReplacements.Values)
             {
-                exprUpdate = ModifySourceJoins(exprUpdate: exprUpdate, exprUpdate.Source);
-
-                //Injecting derived tables 
-
-                var derivedTables = new HashSet<ExprDerivedTableValues>(exprUpdate.SyntaxTree().Descendants().OfType<ExprDerivedTableValues>());
-
-                foreach (var derivedTable in derivedTables)
-                {
-                    var keys = exprUpdate.Source!.SyntaxTree()
-                        .Descendants()
-                        .OfType<ExprBooleanEq>()
-                        .Select(eq => GetKeyColumn(eq.Left, derivedTable) ?? GetKeyColumn(eq.Right, derivedTable))
-                        .Where(i => !ReferenceEquals(i, null))
-                        .ToList();
-
-                    var insertExpr = TempTableData.FromDerivedTableValuesInsert(derivedTable, keys!, out var tTable, Alias.From(derivedTable.Alias.Alias));
-                    insertExpr.Accept(this, null);
-                    this.FormattingWriter.Append(";");
-                    derivedTableReplacements.Add(derivedTable, tTable);
-                }
-
-                exprUpdate = (ExprUpdate)exprUpdate.SyntaxTree().Modify<ExprDerivedTableValues>(dt => derivedTableReplacements.TryGetValue(dt, out var r) ? r : dt)!;
-            }
-
-            this.FormattingWriter.Append("UPDATE ");
-            if (exprUpdate.Source != null)
-            {
-                exprUpdate.Source.Accept(this, exprUpdate);
-            }
-            else
-            {
-                exprUpdate.Target.Accept(this, exprUpdate);
-            }
-
-            this.FormattingWriter.AppendClause("SET");
-            this.AcceptItems(exprUpdate.SetClause.Count, SqlRenderSite.Set, i =>
-            {
-                var setClause = exprUpdate.SetClause[i];
-                setClause.Column.Accept(this, exprUpdate);
-                this.FormattingWriter.Append('=');
-                setClause.Value.Accept(this, exprUpdate);
-
-            }, 1);
-
-            if (exprUpdate.Filter != null)
-            {
-                this.FormattingWriter.AppendClause("WHERE");
-                this.AcceptBody(exprUpdate.Filter, exprUpdate, SqlRenderSite.Where, 1);
-            }
-
-            if (derivedTableReplacements.Count > 0)
-            {
-                this.FormattingWriter.Append(';');
-                foreach (var tempTable in derivedTableReplacements.Values)
-                {
-                    tempTable.Script.Drop().Accept(this.GetStatementSqlBuilder());
-                }
-            }
-
-            return true;
-
-            static ExprColumnName? GetKeyColumn(ExprValue? exprValue, ExprDerivedTableValues derivedTable)
-            {
-                if (exprValue is ExprColumn column)
-                {
-                    if (column.Source != null && column.Source.Equals(derivedTable.Alias))
-                    {
-                        return column.ColumnName;
-                    }
-                }
-
-                return null;
+                tempTable.Script.Drop().Accept(this.GetStatementSqlBuilder());
             }
         }
 
-        public override bool VisitExprDelete(ExprDelete exprDelete, IExpr? parent)
+        return true;
+
+        static ExprColumnName? GetKeyColumn(ExprValue? exprValue, ExprDerivedTableValues derivedTable)
         {
-            if (exprDelete.Source == null)
+            if (exprValue is ExprColumn column)
             {
-                this.FormattingWriter.Append("DELETE FROM ");
-                exprDelete.Target.FullName.Accept(this, exprDelete);
-            }
-            else
-            {
-                exprDelete = ModifySourceJoins(exprDelete, exprDelete.Source);
-                var target = exprDelete.Target.Alias != null 
-                    ? (IExprColumnSource)exprDelete.Target.Alias 
-                    : exprDelete.Target.FullName;
-                this.FormattingWriter.Append("DELETE ");
-                target.Accept(this, exprDelete);
-                this.FormattingWriter.AppendClause("FROM", compactTrailingSpaces: 1);
-                exprDelete.Source!.Accept(this, exprDelete);
-            }
-
-            if (exprDelete.Filter != null)
-            {
-                this.FormattingWriter.AppendClause("WHERE");
-                var filter = exprDelete.Filter;
-                if (exprDelete.Source == null && exprDelete.Target.Alias != null)
+                if (column.Source != null && column.Source.Equals(derivedTable.Alias))
                 {
-                    //Damn MY SQL Does not support Alias for single removal
-                    filter = (ExprBoolean) filter.SyntaxTree()
-                        .Modify<ExprColumn>(cn => cn.Source != null && cn.Source.Equals(exprDelete.Target.Alias)
-                            ? new ExprColumn(null, cn.ColumnName)
-                            : cn)!;
+                    return column.ColumnName;
                 }
-
-                this.AcceptBody(filter, exprDelete, SqlRenderSite.Where, 1);
             }
 
-            return true;
+            return null;
+        }
+    }
+
+    public override bool VisitExprDelete(ExprDelete exprDelete, IExpr? parent)
+    {
+        if (exprDelete.Source == null)
+        {
+            this.FormattingWriter.Append("DELETE FROM ");
+            exprDelete.Target.FullName.Accept(this, exprDelete);
+        }
+        else
+        {
+            exprDelete = ModifySourceJoins(exprDelete, exprDelete.Source);
+            var target = exprDelete.Target.Alias != null 
+                ? (IExprColumnSource)exprDelete.Target.Alias 
+                : exprDelete.Target.FullName;
+            this.FormattingWriter.Append("DELETE ");
+            target.Accept(this, exprDelete);
+            this.FormattingWriter.AppendClause("FROM", compactTrailingSpaces: 1);
+            exprDelete.Source!.Accept(this, exprDelete);
         }
 
-        public override bool VisitExprDeleteOutput(ExprDeleteOutput exprDeleteOutput, IExpr? parent)
+        if (exprDelete.Filter != null)
         {
-            if (this.Flavor == MySqlFlavor.Oracle)
-            {
-                throw new SqExpressException("Oracle MySQL does not support generic DELETE OUTPUT/RETURNING");
-            }
-
-            exprDeleteOutput.Delete.Accept(this, exprDeleteOutput);
-            var columns = exprDeleteOutput.OutputColumns;
-            this.AssertNotEmptyList(columns, "Output list in 'DELETE' statement cannot be empty");
-
-            this.FormattingWriter.AppendClause("RETURNING");
-
-            var targetAlias = exprDeleteOutput.Delete.Target.Alias;
-
-            if (exprDeleteOutput.Delete.Source == null && targetAlias != null)
+            this.FormattingWriter.AppendClause("WHERE");
+            var filter = exprDelete.Filter;
+            if (exprDelete.Source == null && exprDelete.Target.Alias != null)
             {
                 //Damn MY SQL Does not support Alias for single removal
-                columns = columns.SelectToReadOnlyList(column => 
-                    column.Column.Source != null && column.Column.Source.Equals(targetAlias)
-                        ? new ExprAliasedColumn(new ExprColumn(null, column.Column.ColumnName), column.Alias)
-                        : column);
+                filter = (ExprBoolean) filter.SyntaxTree()
+                    .Modify<ExprColumn>(cn => cn.Source != null && cn.Source.Equals(exprDelete.Target.Alias)
+                        ? new ExprColumn(null, cn.ColumnName)
+                        : cn)!;
             }
 
-            this.AcceptItems(columns, exprDeleteOutput, SqlRenderSite.Output, 1);
-
-            return true;
+            this.AcceptBody(filter, exprDelete, SqlRenderSite.Where, 1);
         }
 
-        public override bool VisitExprCast(ExprCast exprCast, IExpr? parent)
-        {
-            switch (exprCast.SqlType)
-            {
-                case ExprTypeInt64 _:
-                    this.FormattingWriter.Append("CAST(");
-                    exprCast.Expression.Accept(this, exprCast);
-                    this.FormattingWriter.Append(" AS SIGNED)");
-                    break;
-                case ExprTypeDouble _:
-                    this.FormattingWriter.Append("CAST(");
-                    exprCast.Expression.Accept(this, exprCast);
-                    this.FormattingWriter.Append(" AS DOUBLE)");
-                    break;
-                case ExprTypeInt16 _:
-                case ExprTypeInt32 _:
-                case ExprTypeByte _:
-                    exprCast.Expression.Accept(this, exprCast);
-                    break;
-                case ExprTypeDateTime _:
-                    return this.VisitExprCastCommon(exprCast, parent);
-                case ExprTypeString exprTypeString:
-                    if (this.Flavor == MySqlFlavor.Oracle)
-                    {
-                        this.FormattingWriter.Append("CAST(");
-                        exprCast.Expression.Accept(this, exprCast);
-                        this.FormattingWriter.Append(" AS CHAR");
-                        if (exprTypeString.Size.HasValue)
-                        {
-                            this.FormattingWriter.Append('(');
-                            this.FormattingWriter.Append(exprTypeString.Size.Value);
-                            this.FormattingWriter.Append(')');
-                        }
-                        this.FormattingWriter.Append(')');
-                        return true;
-                    }
-                    return this.VisitExprCastCommon(exprCast, parent);
-                default:
-                    throw new SqExpressException("MySQL does not support casting to " + MySqlExporter.MariaDbDefault.ToSql(exprCast.SqlType));
-            }
+        return true;
+    }
 
-            return true;
+    public override bool VisitExprDeleteOutput(ExprDeleteOutput exprDeleteOutput, IExpr? parent)
+    {
+        if (this.Flavor == MySqlFlavor.Oracle)
+        {
+            throw new SqExpressException("Oracle MySQL does not support generic DELETE OUTPUT/RETURNING");
         }
 
-        public override bool VisitExprTypeBoolean(ExprTypeBoolean exprTypeBoolean, IExpr? parent)
+        exprDeleteOutput.Delete.Accept(this, exprDeleteOutput);
+        var columns = exprDeleteOutput.OutputColumns;
+        this.AssertNotEmptyList(columns, "Output list in 'DELETE' statement cannot be empty");
+
+        this.FormattingWriter.AppendClause("RETURNING");
+
+        var targetAlias = exprDeleteOutput.Delete.Target.Alias;
+
+        if (exprDeleteOutput.Delete.Source == null && targetAlias != null)
         {
-            this.FormattingWriter.Append("bit");
-            return true;
+            //Damn MY SQL Does not support Alias for single removal
+            columns = columns.SelectToReadOnlyList(column => 
+                column.Column.Source != null && column.Column.Source.Equals(targetAlias)
+                    ? new ExprAliasedColumn(new ExprColumn(null, column.Column.ColumnName), column.Alias)
+                    : column);
         }
 
-        public override bool VisitExprTypeByte(ExprTypeByte exprTypeByte, IExpr? parent)
+        this.AcceptItems(columns, exprDeleteOutput, SqlRenderSite.Output, 1);
+
+        return true;
+    }
+
+    public override bool VisitExprCast(ExprCast exprCast, IExpr? parent)
+    {
+        switch (exprCast.SqlType)
         {
-            this.FormattingWriter.Append("tinyint unsigned");
-            return true;
-        }
-
-        public override bool VisitExprTypeByteArray(ExprTypeByteArray exprTypeByte, IExpr? arg)
-        {
-            if (!exprTypeByte.Size.HasValue || exprTypeByte.Size.Value > 65535)
-            {
-                this.FormattingWriter.Append("longblob");
-            }
-            else
-            {
-                this.FormattingWriter.Append("varbinary(");
-                this.FormattingWriter.Append(exprTypeByte.Size.Value.ToString());
-                this.FormattingWriter.Append(')');
-            }
-
-            return true;
-        }
-
-        public override bool VisitExprTypeFixSizeByteArray(ExprTypeFixSizeByteArray exprTypeFixSizeByteArray, IExpr? arg)
-        {
-            this.FormattingWriter.Append("binary(");
-            this.FormattingWriter.Append(exprTypeFixSizeByteArray.Size.ToString());
-            this.FormattingWriter.Append(')');
-
-            return true;
-        }
-
-        public override bool VisitExprTypeInt16(ExprTypeInt16 exprTypeInt16, IExpr? parent)
-        {
-            this.FormattingWriter.Append("smallint");
-            return true;
-        }
-
-        public override bool VisitExprTypeInt32(ExprTypeInt32 exprTypeInt32, IExpr? parent)
-        {
-            this.FormattingWriter.Append("int");
-            return true;
-        }
-
-        public override bool VisitExprTypeInt64(ExprTypeInt64 exprTypeInt64, IExpr? parent)
-        {
-            this.FormattingWriter.Append("bigint");
-            return true;
-        }
-
-        public override bool VisitExprTypeDecimal(ExprTypeDecimal exprTypeDecimal, IExpr? parent)
-        {
-            this.FormattingWriter.Append("decimal");
-            if (exprTypeDecimal.PrecisionScale.HasValue)
-            {
-                this.FormattingWriter.Append('(');
-                this.FormattingWriter.Append(exprTypeDecimal.PrecisionScale.Value.Precision);
-                if (exprTypeDecimal.PrecisionScale.Value.Scale.HasValue)
+            case ExprTypeInt64 _:
+                this.FormattingWriter.Append("CAST(");
+                exprCast.Expression.Accept(this, exprCast);
+                this.FormattingWriter.Append(" AS SIGNED)");
+                break;
+            case ExprTypeDouble _:
+                this.FormattingWriter.Append("CAST(");
+                exprCast.Expression.Accept(this, exprCast);
+                this.FormattingWriter.Append(" AS DOUBLE)");
+                break;
+            case ExprTypeInt16 _:
+            case ExprTypeInt32 _:
+            case ExprTypeByte _:
+                exprCast.Expression.Accept(this, exprCast);
+                break;
+            case ExprTypeDateTime _:
+                return this.VisitExprCastCommon(exprCast, parent);
+            case ExprTypeString exprTypeString:
+                if (this.Flavor == MySqlFlavor.Oracle)
                 {
-                    this.FormattingWriter.Append(',');
-                    this.FormattingWriter.Append(exprTypeDecimal.PrecisionScale.Value.Scale.Value);
+                    this.FormattingWriter.Append("CAST(");
+                    exprCast.Expression.Accept(this, exprCast);
+                    this.FormattingWriter.Append(" AS CHAR");
+                    if (exprTypeString.Size.HasValue)
+                    {
+                        this.FormattingWriter.Append('(');
+                        this.FormattingWriter.Append(exprTypeString.Size.Value);
+                        this.FormattingWriter.Append(')');
+                    }
+                    this.FormattingWriter.Append(')');
+                    return true;
                 }
-                this.FormattingWriter.Append(')');
-            }
-            return true;
+                return this.VisitExprCastCommon(exprCast, parent);
+            default:
+                throw new SqExpressException("MySQL does not support casting to " + MySqlExporter.MariaDbDefault.ToSql(exprCast.SqlType));
         }
 
-        public override bool VisitExprTypeDouble(ExprTypeDouble exprTypeDouble, IExpr? parent)
+        return true;
+    }
+
+    public override bool VisitExprTypeBoolean(ExprTypeBoolean exprTypeBoolean, IExpr? parent)
+    {
+        this.FormattingWriter.Append("bit");
+        return true;
+    }
+
+    public override bool VisitExprTypeByte(ExprTypeByte exprTypeByte, IExpr? parent)
+    {
+        this.FormattingWriter.Append("tinyint unsigned");
+        return true;
+    }
+
+    public override bool VisitExprTypeByteArray(ExprTypeByteArray exprTypeByte, IExpr? arg)
+    {
+        if (!exprTypeByte.Size.HasValue || exprTypeByte.Size.Value > 65535)
         {
-            this.FormattingWriter.Append("double");
-            return true;
+            this.FormattingWriter.Append("longblob");
         }
-
-        public override bool VisitExprTypeDateTime(ExprTypeDateTime exprTypeDateTime, IExpr? parent)
+        else
         {
-            if (exprTypeDateTime.IsDate)
-            {
-                this.FormattingWriter.Append("date");
-            }
-            else
-            {
-                this.FormattingWriter.Append("datetime");
-            }
-
-            return true;
+            this.FormattingWriter.Append("varbinary(");
+            this.FormattingWriter.Append(exprTypeByte.Size.Value.ToString());
+            this.FormattingWriter.Append(')');
         }
 
-        public override bool VisitExprTypeDateTimeOffset(ExprTypeDateTimeOffset exprTypeDateTimeOffset, IExpr? arg)
+        return true;
+    }
+
+    public override bool VisitExprTypeFixSizeByteArray(ExprTypeFixSizeByteArray exprTypeFixSizeByteArray, IExpr? arg)
+    {
+        this.FormattingWriter.Append("binary(");
+        this.FormattingWriter.Append(exprTypeFixSizeByteArray.Size.ToString());
+        this.FormattingWriter.Append(')');
+
+        return true;
+    }
+
+    public override bool VisitExprTypeInt16(ExprTypeInt16 exprTypeInt16, IExpr? parent)
+    {
+        this.FormattingWriter.Append("smallint");
+        return true;
+    }
+
+    public override bool VisitExprTypeInt32(ExprTypeInt32 exprTypeInt32, IExpr? parent)
+    {
+        this.FormattingWriter.Append("int");
+        return true;
+    }
+
+    public override bool VisitExprTypeInt64(ExprTypeInt64 exprTypeInt64, IExpr? parent)
+    {
+        this.FormattingWriter.Append("bigint");
+        return true;
+    }
+
+    public override bool VisitExprTypeDecimal(ExprTypeDecimal exprTypeDecimal, IExpr? parent)
+    {
+        this.FormattingWriter.Append("decimal");
+        if (exprTypeDecimal.PrecisionScale.HasValue)
+        {
+            this.FormattingWriter.Append('(');
+            this.FormattingWriter.Append(exprTypeDecimal.PrecisionScale.Value.Precision);
+            if (exprTypeDecimal.PrecisionScale.Value.Scale.HasValue)
+            {
+                this.FormattingWriter.Append(',');
+                this.FormattingWriter.Append(exprTypeDecimal.PrecisionScale.Value.Scale.Value);
+            }
+            this.FormattingWriter.Append(')');
+        }
+        return true;
+    }
+
+    public override bool VisitExprTypeDouble(ExprTypeDouble exprTypeDouble, IExpr? parent)
+    {
+        this.FormattingWriter.Append("double");
+        return true;
+    }
+
+    public override bool VisitExprTypeDateTime(ExprTypeDateTime exprTypeDateTime, IExpr? parent)
+    {
+        if (exprTypeDateTime.IsDate)
+        {
+            this.FormattingWriter.Append("date");
+        }
+        else
         {
             this.FormattingWriter.Append("datetime");
-            return true;
         }
 
-        public override bool VisitExprTypeGuid(ExprTypeGuid exprTypeGuid, IExpr? parent)
-        {
-            this.FormattingWriter.Append("binary(16)");
-            return true;
-        }
+        return true;
+    }
 
-        public override bool VisitExprTypeString(ExprTypeString exprTypeString, IExpr? parent)
+    public override bool VisitExprTypeDateTimeOffset(ExprTypeDateTimeOffset exprTypeDateTimeOffset, IExpr? arg)
+    {
+        this.FormattingWriter.Append("datetime");
+        return true;
+    }
+
+    public override bool VisitExprTypeGuid(ExprTypeGuid exprTypeGuid, IExpr? parent)
+    {
+        this.FormattingWriter.Append("binary(16)");
+        return true;
+    }
+
+    public override bool VisitExprTypeString(ExprTypeString exprTypeString, IExpr? parent)
+    {
+        if (exprTypeString.IsText)
         {
-            if (exprTypeString.IsText)
+            if (exprTypeString.Size.HasValue)
             {
-                if (exprTypeString.Size.HasValue)
+                if (exprTypeString.Size <= 255)
                 {
-                    if (exprTypeString.Size <= 255)
-                    {
-                        this.FormattingWriter.Append("tinytext");
-                    } 
-                    else if (exprTypeString.Size <= 65535)
-                    {
-                        this.FormattingWriter.Append("text");
-                    }
-                    else if (exprTypeString.Size <= 16777215)
-                    {
-                        this.FormattingWriter.Append("mediumtext");
-                    }
-                    else
-                    {
-                        this.FormattingWriter.Append("longtext");
-                    }
-                }
-                else
+                    this.FormattingWriter.Append("tinytext");
+                } 
+                else if (exprTypeString.Size <= 65535)
                 {
                     this.FormattingWriter.Append("text");
                 }
+                else if (exprTypeString.Size <= 16777215)
+                {
+                    this.FormattingWriter.Append("mediumtext");
+                }
+                else
+                {
+                    this.FormattingWriter.Append("longtext");
+                }
             }
             else
             {
-                int max = exprTypeString.IsUnicode ? 16383 : 65535;
-                this.FormattingWriter.Append("varchar");
-                this.FormattingWriter.Append('(');
-                this.FormattingWriter.Append(exprTypeString.Size ?? max);
-                this.FormattingWriter.Append(')');
-
+                this.FormattingWriter.Append("text");
             }
-
-            if (exprTypeString.IsUnicode)
-            {
-                this.FormattingWriter.Append(" character set utf8mb4");
-            }
-
-            return true;
         }
-
-        public override bool VisitExprTypeFixSizeString(ExprTypeFixSizeString exprTypeFixSizeString, IExpr? arg)
+        else
         {
-            this.FormattingWriter.Append("char");
-
+            int max = exprTypeString.IsUnicode ? 16383 : 65535;
+            this.FormattingWriter.Append("varchar");
             this.FormattingWriter.Append('(');
-            this.FormattingWriter.Append(exprTypeFixSizeString.Size.ToString());
+            this.FormattingWriter.Append(exprTypeString.Size ?? max);
             this.FormattingWriter.Append(')');
 
-            if (exprTypeFixSizeString.IsUnicode)
-            {
-                this.FormattingWriter.Append(" character set utf8mb4");
-            }
-
-            return true;
         }
 
-        public override bool VisitExprTypeXml(ExprTypeXml exprTypeXml, IExpr? arg)
+        if (exprTypeString.IsUnicode)
         {
-            this.FormattingWriter.Append("text character set utf8mb4");
-            return true;
+            this.FormattingWriter.Append(" character set utf8mb4");
         }
 
-        public override bool VisitExprPortableScalarFunction(ExprPortableScalarFunction exprPortableScalarFunction, IExpr? arg)
+        return true;
+    }
+
+    public override bool VisitExprTypeFixSizeString(ExprTypeFixSizeString exprTypeFixSizeString, IExpr? arg)
+    {
+        this.FormattingWriter.Append("char");
+
+        this.FormattingWriter.Append('(');
+        this.FormattingWriter.Append(exprTypeFixSizeString.Size.ToString());
+        this.FormattingWriter.Append(')');
+
+        if (exprTypeFixSizeString.IsUnicode)
         {
-            return exprPortableScalarFunction.PortableFunction.Accept(this, exprPortableScalarFunction);
+            this.FormattingWriter.Append(" character set utf8mb4");
         }
 
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseLen(ExprPortableScalarFunction ctx)
+        return true;
+    }
+
+    public override bool VisitExprTypeXml(ExprTypeXml exprTypeXml, IExpr? arg)
+    {
+        this.FormattingWriter.Append("text character set utf8mb4");
+        return true;
+    }
+
+    public override bool VisitExprPortableScalarFunction(ExprPortableScalarFunction exprPortableScalarFunction, IExpr? arg)
+    {
+        return exprPortableScalarFunction.PortableFunction.Accept(this, exprPortableScalarFunction);
+    }
+
+    bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseLen(ExprPortableScalarFunction ctx)
+    {
+        this.AppendFunctionSingleArg("CHAR_LENGTH", ctx.Arguments, ctx);
+        return true;
+    }
+
+    bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseNullIf(ExprPortableScalarFunction ctx)
+    {
+        this.AppendFunctionTwoArgs("NULLIF", ctx.Arguments, ctx);
+        return true;
+    }
+
+    bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseAbs(ExprPortableScalarFunction ctx)
+    {
+        this.AppendFunctionSingleArg("ABS", ctx.Arguments, ctx);
+        return true;
+    }
+
+    bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseLower(ExprPortableScalarFunction ctx)
+    {
+        this.AppendFunctionSingleArg("LOWER", ctx.Arguments, ctx);
+        return true;
+    }
+
+    bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseUpper(ExprPortableScalarFunction ctx)
+    {
+        this.AppendFunctionSingleArg("UPPER", ctx.Arguments, ctx);
+        return true;
+    }
+
+    bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseTrim(ExprPortableScalarFunction ctx)
+    {
+        this.AppendFunctionSingleArg("TRIM", ctx.Arguments, ctx);
+        return true;
+    }
+
+    bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseLTrim(ExprPortableScalarFunction ctx)
+    {
+        this.AppendFunctionSingleArg("LTRIM", ctx.Arguments, ctx);
+        return true;
+    }
+
+    bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseRTrim(ExprPortableScalarFunction ctx)
+    {
+        this.AppendFunctionSingleArg("RTRIM", ctx.Arguments, ctx);
+        return true;
+    }
+
+    bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseReplace(ExprPortableScalarFunction ctx)
+    {
+        this.AppendFunctionThreeArgs("REPLACE", ctx.Arguments, ctx);
+        return true;
+    }
+
+    bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseSubstring(ExprPortableScalarFunction ctx)
+    {
+        this.AppendFunctionThreeArgs("SUBSTRING", ctx.Arguments, ctx);
+        return true;
+    }
+
+    bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseRound(ExprPortableScalarFunction ctx)
+    {
+        this.AppendFunctionTwoArgs("ROUND", ctx.Arguments, ctx);
+        return true;
+    }
+
+    bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseFloor(ExprPortableScalarFunction ctx)
+    {
+        this.AppendFunctionSingleArg("FLOOR", ctx.Arguments, ctx);
+        return true;
+    }
+
+    bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseCeiling(ExprPortableScalarFunction ctx)
+    {
+        this.AppendFunctionSingleArg("CEILING", ctx.Arguments, ctx);
+        return true;
+    }
+
+    bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseDataLen(ExprPortableScalarFunction ctx)
+    {
+        this.AppendFunctionSingleArg("OCTET_LENGTH", ctx.Arguments, ctx);
+        return true;
+    }
+
+    bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseYear(ExprPortableScalarFunction ctx)
+    {
+        this.AppendFunctionSingleArg("YEAR", ctx.Arguments, ctx);
+        return true;
+    }
+
+    bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseMonth(ExprPortableScalarFunction ctx)
+    {
+        this.AppendFunctionSingleArg("MONTH", ctx.Arguments, ctx);
+        return true;
+    }
+
+    bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseDay(ExprPortableScalarFunction ctx)
+    {
+        this.AppendFunctionSingleArg("DAY", ctx.Arguments, ctx);
+        return true;
+    }
+
+    bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseHour(ExprPortableScalarFunction ctx)
+    {
+        this.AppendFunctionSingleArg("HOUR", ctx.Arguments, ctx);
+        return true;
+    }
+
+    bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseMinute(ExprPortableScalarFunction ctx)
+    {
+        this.AppendFunctionSingleArg("MINUTE", ctx.Arguments, ctx);
+        return true;
+    }
+
+    bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseSecond(ExprPortableScalarFunction ctx)
+    {
+        this.AppendFunctionSingleArg("SECOND", ctx.Arguments, ctx);
+        return true;
+    }
+
+    bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseIndexOf(ExprPortableScalarFunction ctx)
+    {
+        this.AppendFunctionTwoArgs("LOCATE", ctx.Arguments, ctx);
+        return true;
+    }
+
+    bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseLeft(ExprPortableScalarFunction ctx)
+    {
+        this.AppendFunctionTwoArgs("LEFT", ctx.Arguments, ctx);
+        return true;
+    }
+
+    bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseRight(ExprPortableScalarFunction ctx)
+    {
+        this.AppendFunctionTwoArgs("RIGHT", ctx.Arguments, ctx);
+        return true;
+    }
+
+    bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseRepeat(ExprPortableScalarFunction ctx)
+    {
+        this.AppendFunctionTwoArgs("REPEAT", ctx.Arguments, ctx);
+        return true;
+    }
+
+    public override bool VisitExprFuncIsNull(ExprFuncIsNull exprFuncIsNull, IExpr? parent)
+    {
+        SqQueryBuilder.Coalesce(exprFuncIsNull.Test, exprFuncIsNull.Alt).Accept(this, exprFuncIsNull);
+        return true;
+    }
+
+    public override void AppendName(string name, char? prefix = null)
+    {
+        this.FormattingWriter.Append('`');
+        if (prefix.HasValue)
         {
-            this.AppendFunctionSingleArg("CHAR_LENGTH", ctx.Arguments, ctx);
-            return true;
+            this.FormattingWriter.Append(prefix.Value);
         }
+        this.FormattingWriter.AppendEscapedBacktick(name);
+        this.FormattingWriter.Append('`');
+    }
 
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseNullIf(ExprPortableScalarFunction ctx)
-        {
-            this.AppendFunctionTwoArgs("NULLIF", ctx.Arguments, ctx);
-            return true;
-        }
+    private static TExpr ModifySourceJoins<TExpr>(TExpr exprUpdate, IExprTableSource tableSource) where TExpr : IExpr
+    {
 
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseAbs(ExprPortableScalarFunction ctx)
-        {
-            this.AppendFunctionSingleArg("ABS", ctx.Arguments, ctx);
-            return true;
-        }
+        var cteToModify = new HashSet<ExprCte>();
+        var crossedToModify = new HashSet<ExprCrossedTable>();
 
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseLower(ExprPortableScalarFunction ctx)
-        {
-            this.AppendFunctionSingleArg("LOWER", ctx.Arguments, ctx);
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseUpper(ExprPortableScalarFunction ctx)
-        {
-            this.AppendFunctionSingleArg("UPPER", ctx.Arguments, ctx);
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseTrim(ExprPortableScalarFunction ctx)
-        {
-            this.AppendFunctionSingleArg("TRIM", ctx.Arguments, ctx);
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseLTrim(ExprPortableScalarFunction ctx)
-        {
-            this.AppendFunctionSingleArg("LTRIM", ctx.Arguments, ctx);
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseRTrim(ExprPortableScalarFunction ctx)
-        {
-            this.AppendFunctionSingleArg("RTRIM", ctx.Arguments, ctx);
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseReplace(ExprPortableScalarFunction ctx)
-        {
-            this.AppendFunctionThreeArgs("REPLACE", ctx.Arguments, ctx);
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseSubstring(ExprPortableScalarFunction ctx)
-        {
-            this.AppendFunctionThreeArgs("SUBSTRING", ctx.Arguments, ctx);
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseRound(ExprPortableScalarFunction ctx)
-        {
-            this.AppendFunctionTwoArgs("ROUND", ctx.Arguments, ctx);
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseFloor(ExprPortableScalarFunction ctx)
-        {
-            this.AppendFunctionSingleArg("FLOOR", ctx.Arguments, ctx);
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseCeiling(ExprPortableScalarFunction ctx)
-        {
-            this.AppendFunctionSingleArg("CEILING", ctx.Arguments, ctx);
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseDataLen(ExprPortableScalarFunction ctx)
-        {
-            this.AppendFunctionSingleArg("OCTET_LENGTH", ctx.Arguments, ctx);
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseYear(ExprPortableScalarFunction ctx)
-        {
-            this.AppendFunctionSingleArg("YEAR", ctx.Arguments, ctx);
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseMonth(ExprPortableScalarFunction ctx)
-        {
-            this.AppendFunctionSingleArg("MONTH", ctx.Arguments, ctx);
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseDay(ExprPortableScalarFunction ctx)
-        {
-            this.AppendFunctionSingleArg("DAY", ctx.Arguments, ctx);
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseHour(ExprPortableScalarFunction ctx)
-        {
-            this.AppendFunctionSingleArg("HOUR", ctx.Arguments, ctx);
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseMinute(ExprPortableScalarFunction ctx)
-        {
-            this.AppendFunctionSingleArg("MINUTE", ctx.Arguments, ctx);
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseSecond(ExprPortableScalarFunction ctx)
-        {
-            this.AppendFunctionSingleArg("SECOND", ctx.Arguments, ctx);
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseIndexOf(ExprPortableScalarFunction ctx)
-        {
-            this.AppendFunctionTwoArgs("LOCATE", ctx.Arguments, ctx);
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseLeft(ExprPortableScalarFunction ctx)
-        {
-            this.AppendFunctionTwoArgs("LEFT", ctx.Arguments, ctx);
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseRight(ExprPortableScalarFunction ctx)
-        {
-            this.AppendFunctionTwoArgs("RIGHT", ctx.Arguments, ctx);
-            return true;
-        }
-
-        bool IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>.CaseRepeat(ExprPortableScalarFunction ctx)
-        {
-            this.AppendFunctionTwoArgs("REPEAT", ctx.Arguments, ctx);
-            return true;
-        }
-
-        public override bool VisitExprFuncIsNull(ExprFuncIsNull exprFuncIsNull, IExpr? parent)
-        {
-            SqQueryBuilder.Coalesce(exprFuncIsNull.Test, exprFuncIsNull.Alt).Accept(this, exprFuncIsNull);
-            return true;
-        }
-
-        public override void AppendName(string name, char? prefix = null)
-        {
-            this.FormattingWriter.Append('`');
-            if (prefix.HasValue)
-            {
-                this.FormattingWriter.Append(prefix.Value);
-            }
-                this.FormattingWriter.AppendEscapedBacktick(name);
-            this.FormattingWriter.Append('`');
-        }
-
-        private static TExpr ModifySourceJoins<TExpr>(TExpr exprUpdate, IExprTableSource tableSource) where TExpr : IExpr
-        {
-
-            var cteToModify = new HashSet<ExprCte>();
-            var crossedToModify = new HashSet<ExprCrossedTable>();
-
-            tableSource.SyntaxTree()
-                .WalkThroughWithParent((e, parentNode, list) =>
+        tableSource.SyntaxTree()
+            .WalkThroughWithParent((e, parentNode, list) =>
                 {
                     if (e is ExprCte cte && parentNode is IExprTableSource)
                     {
@@ -1193,42 +1193,39 @@ namespace SqExpress.SqlExport.Internal
 
                     return VisitorResult.Continue(list);
                 },
-                    (object?)null);
+                (object?)null);
 
-            if (cteToModify.Count > 0 || crossedToModify.Count > 0)
-            {
-                exprUpdate = (TExpr)exprUpdate.SyntaxTree()
-                    .Modify(e =>
+        if (cteToModify.Count > 0 || crossedToModify.Count > 0)
+        {
+            exprUpdate = (TExpr)exprUpdate.SyntaxTree()
+                .Modify(e =>
+                {
+                    if (cteToModify.Contains(e))
                     {
-                        if (cteToModify.Contains(e))
-                        {
-                            var cte = (ExprCte)e;
+                        var cte = (ExprCte)e;
 
-                            var subQueryAlias = cte.Alias ?? new ExprTableAlias(new ExprAlias(cte.Name));
+                        var subQueryAlias = cte.Alias ?? new ExprTableAlias(new ExprAlias(cte.Name));
 
-                            return SqQueryBuilder
-                                .Select(SqQueryBuilder.AllColumns())
-                                .From(cte)
-                                .Done()
-                                .As(subQueryAlias);
-                        }
+                        return SqQueryBuilder
+                            .Select(SqQueryBuilder.AllColumns())
+                            .From(cte)
+                            .Done()
+                            .As(subQueryAlias);
+                    }
 
-                        if (crossedToModify.Contains(e))
-                        {
-                            var crossed = (ExprCrossedTable)e;
-                            return new ExprJoinedTable(crossed.Left,
-                                ExprJoinedTable.ExprJoinType.Inner,
-                                crossed.Right,
-                                SqQueryBuilder.Literal(1) == 1);
-                        }
+                    if (crossedToModify.Contains(e))
+                    {
+                        var crossed = (ExprCrossedTable)e;
+                        return new ExprJoinedTable(crossed.Left,
+                            ExprJoinedTable.ExprJoinType.Inner,
+                            crossed.Right,
+                            SqQueryBuilder.Literal(1) == 1);
+                    }
 
-                        return e;
-                    })!;
-            }
-
-            return exprUpdate;
+                    return e;
+                })!;
         }
+
+        return exprUpdate;
     }
 }
-
-

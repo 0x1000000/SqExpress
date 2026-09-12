@@ -6,281 +6,280 @@ using SqExpress.DataAccess;
 using SqExpress.Syntax.Value;
 using static SqExpress.SqQueryBuilder;
 
-namespace SqExpress.Test.QueryBuilder
+namespace SqExpress.Test.QueryBuilder;
+
+[TestFixture]
+public class DerivedTableTest
 {
-    [TestFixture]
-    public class DerivedTableTest
+    [Test]
+    public void Test()
     {
-        [Test]
-        public void Test()
-        {
-            var user = Tables.User();
-            var subQuery = new SubQuery(user);
+        var user = Tables.User();
+        var subQuery = new SubQuery(user);
 
-            var actual = Select(user.UserId, subQuery.Count)
-                .From(user)
-                .InnerJoin(subQuery, @on: subQuery.UserId == user.UserId).Done()
-                .ToSql();
+        var actual = Select(user.UserId, subQuery.Count)
+            .From(user)
+            .InnerJoin(subQuery, @on: subQuery.UserId == user.UserId).Done()
+            .ToSql();
 
-            var expected = "SELECT [A0].[UserId],[A1].[Count] " +
-                           "FROM [dbo].[user] [A0] " +
-                           "JOIN (SELECT [A2].[UserId],17 FROM [dbo].[user] [A2])" +
-                           "[A1]([UserId],[Count]) " +
-                           "ON [A1].[UserId]=[A0].[UserId]";
+        var expected = "SELECT [A0].[UserId],[A1].[Count] " +
+                       "FROM [dbo].[user] [A0] " +
+                       "JOIN (SELECT [A2].[UserId],17 FROM [dbo].[user] [A2])" +
+                       "[A1]([UserId],[Count]) " +
+                       "ON [A1].[UserId]=[A0].[UserId]";
 
-            Assert.AreEqual(expected, actual);
-        }          
+        Assert.AreEqual(expected, actual);
+    }          
         
-        [Test]
-        public void Test_AllNamed()
-        {
-            var user = Tables.User();
-            var subQuery = new SubQueryAllNamed(user);
+    [Test]
+    public void Test_AllNamed()
+    {
+        var user = Tables.User();
+        var subQuery = new SubQueryAllNamed(user);
 
-            var actual = Select(user.UserId, subQuery.Count)
-                .From(user)
-                .InnerJoin(subQuery, @on: subQuery.UserId == user.UserId).Done()
-                .ToSql();
+        var actual = Select(user.UserId, subQuery.Count)
+            .From(user)
+            .InnerJoin(subQuery, @on: subQuery.UserId == user.UserId).Done()
+            .ToSql();
 
-            var expected = "SELECT [A0].[UserId],[A1].[Count] " +
-                           "FROM [dbo].[user] [A0] " +
-                           "JOIN (SELECT [A2].[UserId],17 [Count] FROM [dbo].[user] [A2])" +
-                           "[A1] " +
-                           "ON [A1].[UserId]=[A0].[UserId]";
+        var expected = "SELECT [A0].[UserId],[A1].[Count] " +
+                       "FROM [dbo].[user] [A0] " +
+                       "JOIN (SELECT [A2].[UserId],17 [Count] FROM [dbo].[user] [A2])" +
+                       "[A1] " +
+                       "ON [A1].[UserId]=[A0].[UserId]";
 
-            Assert.AreEqual(expected, actual);
-        }
+        Assert.AreEqual(expected, actual);
+    }
         
-        [Test]
-        public void Test_ReNamed()
+    [Test]
+    public void Test_ReNamed()
+    {
+        var user = Tables.User();
+        var subQuery = new SubQueryReNamed();
+
+        var actual = Select(user.UserId, subQuery.Count)
+            .From(user)
+            .InnerJoin(subQuery, @on: subQuery.UserId == user.UserId).Done()
+            .ToSql();
+
+        var expected = "SELECT [A0].[UserId],[A1].[Count] " +
+                       "FROM [dbo].[user] [A0] " +
+                       "JOIN (SELECT [A2].[UserId],17 [Count] FROM [dbo].[user] [A2])" +
+                       "[A1]([OtherUserId],[Count]) " +
+                       "ON [A1].[OtherUserId]=[A0].[UserId]";
+
+        Assert.AreEqual(expected, actual);
+    }
+
+    [Test]
+    public void Test_ErrorNotMatched()
+    {
+        Assert.Throws<SqExpressException>(() =>
+            {
+                var user = Tables.User();
+                var subQuery = new SubQueryError();
+
+                Select(user.UserId)
+                    .From(user)
+                    .InnerJoin(subQuery, @on: subQuery.UserId == user.UserId)
+                    .Done()
+                    .ToSql();
+            },
+            "Number of declared columns does not match to number of selected columns in the derived table sub query");
+    }
+
+
+    [Test]
+    public void DerivedValues_NullColl()
+    {
+        var values = Values(new[]
+        {
+            Row(1, (string?)null, (DateTime?) null, (int?)null),
+            Row(2, (string?)null, (DateTime?) null, (int?)0),
+            Row(3, (string?)null, (DateTime?) null, (int?)null)
+        });
+
+        Console.WriteLine(values.ToSql());
+
+        static IReadOnlyList<ExprValue> Row(params ExprValue[] values) => values;
+    }
+
+    [Test]
+    public void EmptyModifyTest()
+    {
+        var original = new SubQuery(new User());
+
+        var modified = original.SyntaxTree().Modify(e => e);
+
+        Assert.AreSame(original, modified);
+    }
+
+    [Test]
+    public void TestWrongOrder()
+    {
+        var subQuery = new WrongOrderDerivedTable();
+
+        var actual = subQuery.ToSql();
+
+        Console.WriteLine(actual);
+
+        var expected = "(SELECT [A0].[LastName],[A0].[FirstName] FROM [dbo].[user] [A1])[A0]";
+
+        Assert.AreEqual(expected, actual);
+    }
+
+    [Test]
+    public void Test_AutoNamesAnonymousDerivedTableColumns_ForTSql()
+    {
+        var user = Tables.User();
+        var source = Select(
+                Literal(1),
+                Literal("AA").As("BB"),
+                user.UserId,
+                GetUtcDate())
+            .From(user)
+            .Done()
+            .As(TableAlias("S"), "Col_1", "BB", "UserId", "Col_4");
+
+        var actual = Select(source.Column("BB"), source.Column(user.UserId.ColumnName))
+            .From(source)
+            .Done()
+            .ToSql();
+
+        var expected = "SELECT [S].[BB],[S].[UserId] " +
+                       "FROM (SELECT 1,'AA' [BB],[A0].[UserId],GETUTCDATE() FROM [dbo].[user] [A0])" +
+                       "[S]([Col_1],[BB],[UserId],[Col_4])";
+
+        Assert.AreEqual(expected, actual);
+    }
+
+    private class SubQuery : DerivedTableBase
+    {
+        public Int32CustomColumn UserId { get; }
+
+        public Int32CustomColumn Count { get; }
+
+        public SubQuery(User userTable)
+        {
+            this.UserId = userTable.UserId.AddToDerivedTable(this);
+            this.Count = this.CreateInt32Column("Count");
+        }
+
+        protected override IExprSubQuery CreateQuery()
         {
             var user = Tables.User();
-            var subQuery = new SubQueryReNamed();
 
-            var actual = Select(user.UserId, subQuery.Count)
-                .From(user)
-                .InnerJoin(subQuery, @on: subQuery.UserId == user.UserId).Done()
-                .ToSql();
-
-            var expected = "SELECT [A0].[UserId],[A1].[Count] " +
-                           "FROM [dbo].[user] [A0] " +
-                           "JOIN (SELECT [A2].[UserId],17 [Count] FROM [dbo].[user] [A2])" +
-                           "[A1]([OtherUserId],[Count]) " +
-                           "ON [A1].[OtherUserId]=[A0].[UserId]";
-
-            Assert.AreEqual(expected, actual);
-        }
-
-        [Test]
-        public void Test_ErrorNotMatched()
-        {
-            Assert.Throws<SqExpressException>(() =>
-                {
-                    var user = Tables.User();
-                    var subQuery = new SubQueryError();
-
-                    Select(user.UserId)
-                        .From(user)
-                        .InnerJoin(subQuery, @on: subQuery.UserId == user.UserId)
-                        .Done()
-                        .ToSql();
-                },
-                "Number of declared columns does not match to number of selected columns in the derived table sub query");
-        }
-
-
-        [Test]
-        public void DerivedValues_NullColl()
-        {
-            var values = Values(new[]
-            {
-                Row(1, (string?)null, (DateTime?) null, (int?)null),
-                Row(2, (string?)null, (DateTime?) null, (int?)0),
-                Row(3, (string?)null, (DateTime?) null, (int?)null)
-            });
-
-            Console.WriteLine(values.ToSql());
-
-            static IReadOnlyList<ExprValue> Row(params ExprValue[] values) => values;
-        }
-
-        [Test]
-        public void EmptyModifyTest()
-        {
-            var original = new SubQuery(new User());
-
-            var modified = original.SyntaxTree().Modify(e => e);
-
-            Assert.AreSame(original, modified);
-        }
-
-        [Test]
-        public void TestWrongOrder()
-        {
-            var subQuery = new WrongOrderDerivedTable();
-
-            var actual = subQuery.ToSql();
-
-            Console.WriteLine(actual);
-
-            var expected = "(SELECT [A0].[LastName],[A0].[FirstName] FROM [dbo].[user] [A1])[A0]";
-
-            Assert.AreEqual(expected, actual);
-        }
-
-        [Test]
-        public void Test_AutoNamesAnonymousDerivedTableColumns_ForTSql()
-        {
-            var user = Tables.User();
-            var source = Select(
-                    Literal(1),
-                    Literal("AA").As("BB"),
-                    user.UserId,
-                    GetUtcDate())
-                .From(user)
-                .Done()
-                .As(TableAlias("S"), "Col_1", "BB", "UserId", "Col_4");
-
-            var actual = Select(source.Column("BB"), source.Column(user.UserId.ColumnName))
-                .From(source)
-                .Done()
-                .ToSql();
-
-            var expected = "SELECT [S].[BB],[S].[UserId] " +
-                           "FROM (SELECT 1,'AA' [BB],[A0].[UserId],GETUTCDATE() FROM [dbo].[user] [A0])" +
-                           "[S]([Col_1],[BB],[UserId],[Col_4])";
-
-            Assert.AreEqual(expected, actual);
-        }
-
-        private class SubQuery : DerivedTableBase
-        {
-            public Int32CustomColumn UserId { get; }
-
-            public Int32CustomColumn Count { get; }
-
-            public SubQuery(User userTable)
-            {
-                this.UserId = userTable.UserId.AddToDerivedTable(this);
-                this.Count = this.CreateInt32Column("Count");
-            }
-
-            protected override IExprSubQuery CreateQuery()
-            {
-                var user = Tables.User();
-
-                return Select(user.UserId, Literal(17))
-                    .From(user)
-                    .Done();
-            }
-        }
-
-        private class SubQueryAllNamed : DerivedTableBase
-        {
-            public Int32CustomColumn UserId { get; }
-
-            public Int32CustomColumn Count { get; }
-
-            public SubQueryAllNamed(User userTable)
-            {
-                this.UserId = userTable.UserId.AddToDerivedTable(this);
-                this.Count = this.CreateInt32Column("Count");
-            }
-
-            protected override IExprSubQuery CreateQuery()
-            {
-                var user = Tables.User();
-
-                return Select(user.UserId, Literal(17).As(this.Count))
-                    .From(user)
-                    .Done();
-            }
-        }
-
-        private class SubQueryReNamed : DerivedTableBase
-        {
-            public Int32CustomColumn UserId { get; }
-
-            public Int32CustomColumn Count { get; }
-
-            public SubQueryReNamed()
-            {
-                this.UserId = this.CreateInt32Column("OtherUserId");
-                this.Count = this.CreateInt32Column("Count");
-            }
-
-            protected override IExprSubQuery CreateQuery()
-            {
-                var user = Tables.User();
-
-                return Select(user.UserId, Literal(17).As(this.Count))
-                    .From(user)
-                    .Done();
-            }
-        }
-
-        private class SubQueryError : DerivedTableBase
-        {
-            public Int32CustomColumn UserId { get; }
-
-            public SubQueryError()
-            {
-                this.UserId = this.CreateInt32Column("OtherUserId");
-            }
-
-            protected override IExprSubQuery CreateQuery()
-            {
-                var user = Tables.User();
-
-                return Select(user.UserId, Literal(17))
-                    .From(user)
-                    .Done();
-            }
-        }
-
-
-        private class WrongOrderDerivedTable : DerivedTableBase
-        {
-           private User _table = Tables.User();
-
-           public StringCustomColumn LastName { get; }
-
-           public StringCustomColumn FirstName { get; }
-
-            public WrongOrderDerivedTable(Alias alias = default) : base(alias)
-           {
-               this.FirstName = this._table.FirstName.AddToDerivedTable(this);
-               this.LastName = this._table.LastName.AddToDerivedTable(this);
-           }
-
-            protected override IExprSubQuery CreateQuery()
-            {
-                return Select(this.LastName, this.FirstName).From(this._table).Done();
-            }
-        }
-
-        public static IExprQuery Build(out User user)
-        {
-            user = new User();
-            var query = Select(
-                    user.UserId,
-                    user.FirstName,
-                    user.LastName,
-                    (user.FirstName + " " + user.LastName).As("FullName"))
+            return Select(user.UserId, Literal(17))
                 .From(user)
                 .Done();
-            return query;
+        }
+    }
+
+    private class SubQueryAllNamed : DerivedTableBase
+    {
+        public Int32CustomColumn UserId { get; }
+
+        public Int32CustomColumn Count { get; }
+
+        public SubQueryAllNamed(User userTable)
+        {
+            this.UserId = userTable.UserId.AddToDerivedTable(this);
+            this.Count = this.CreateInt32Column("Count");
         }
 
-        public static async Task Query(ISqDatabase database)
+        protected override IExprSubQuery CreateQuery()
         {
-            await foreach (var record in Build(out var user).Query(database))
-            {
-                var userId = user.UserId.Read(record);
-                var firstName = user.FirstName.Read(record);
-                var lastName = user.LastName.Read(record);
-                var fullName = record.GetString("FullName");
-            }
+            var user = Tables.User();
+
+            return Select(user.UserId, Literal(17).As(this.Count))
+                .From(user)
+                .Done();
+        }
+    }
+
+    private class SubQueryReNamed : DerivedTableBase
+    {
+        public Int32CustomColumn UserId { get; }
+
+        public Int32CustomColumn Count { get; }
+
+        public SubQueryReNamed()
+        {
+            this.UserId = this.CreateInt32Column("OtherUserId");
+            this.Count = this.CreateInt32Column("Count");
+        }
+
+        protected override IExprSubQuery CreateQuery()
+        {
+            var user = Tables.User();
+
+            return Select(user.UserId, Literal(17).As(this.Count))
+                .From(user)
+                .Done();
+        }
+    }
+
+    private class SubQueryError : DerivedTableBase
+    {
+        public Int32CustomColumn UserId { get; }
+
+        public SubQueryError()
+        {
+            this.UserId = this.CreateInt32Column("OtherUserId");
+        }
+
+        protected override IExprSubQuery CreateQuery()
+        {
+            var user = Tables.User();
+
+            return Select(user.UserId, Literal(17))
+                .From(user)
+                .Done();
+        }
+    }
+
+
+    private class WrongOrderDerivedTable : DerivedTableBase
+    {
+        private User _table = Tables.User();
+
+        public StringCustomColumn LastName { get; }
+
+        public StringCustomColumn FirstName { get; }
+
+        public WrongOrderDerivedTable(Alias alias = default) : base(alias)
+        {
+            this.FirstName = this._table.FirstName.AddToDerivedTable(this);
+            this.LastName = this._table.LastName.AddToDerivedTable(this);
+        }
+
+        protected override IExprSubQuery CreateQuery()
+        {
+            return Select(this.LastName, this.FirstName).From(this._table).Done();
+        }
+    }
+
+    public static IExprQuery Build(out User user)
+    {
+        user = new User();
+        var query = Select(
+                user.UserId,
+                user.FirstName,
+                user.LastName,
+                (user.FirstName + " " + user.LastName).As("FullName"))
+            .From(user)
+            .Done();
+        return query;
+    }
+
+    public static async Task Query(ISqDatabase database)
+    {
+        await foreach (var record in Build(out var user).Query(database))
+        {
+            var userId = user.UserId.Read(record);
+            var firstName = user.FirstName.Read(record);
+            var lastName = user.LastName.Read(record);
+            var fullName = record.GetString("FullName");
         }
     }
 }

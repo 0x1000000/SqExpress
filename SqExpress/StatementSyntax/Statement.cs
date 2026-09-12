@@ -1,7 +1,6 @@
-﻿namespace SqExpress.StatementSyntax
+﻿namespace SqExpress.StatementSyntax;
+
+public interface IStatement
 {
-    public interface IStatement
-    {
-        void Accept(IStatementVisitor visitor);
-    }
+    void Accept(IStatementVisitor visitor);
 }

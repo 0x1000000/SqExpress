@@ -8,454 +8,453 @@ using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Update;
 using SqExpress.SyntaxTreeOperations.Internal;
 
-namespace SqExpress.Utils
-{
-    internal readonly struct TempTableBuilderCtx
-    {
-        public readonly ExprColumnName ColumnName;
-        public readonly TableColumn? PreviousType;
-        public readonly bool PrimaryKey;
+namespace SqExpress.Utils;
 
-        public TempTableBuilderCtx(ExprColumnName columnName, TableColumn? previousType, bool primaryKey)
+internal readonly struct TempTableBuilderCtx
+{
+    public readonly ExprColumnName ColumnName;
+    public readonly TableColumn? PreviousType;
+    public readonly bool PrimaryKey;
+
+    public TempTableBuilderCtx(ExprColumnName columnName, TableColumn? previousType, bool primaryKey)
+    {
+        this.ColumnName = columnName;
+        this.PreviousType = previousType;
+        this.PrimaryKey = primaryKey;
+    }
+}
+
+internal class TempTableData : TempTableBase, IExprValueTypeVisitor<TableColumn?, TempTableBuilderCtx>
+{
+    private static string GenerateName() => $"t{Guid.NewGuid().ToString("N")}";
+
+    private TempTableData(string name,Alias alias = default) : base(name, alias)
+    {
+    }
+
+    public static ExprList FromDerivedTableValuesInsert(ExprDerivedTableValues derivedTableValues, IReadOnlyList<ExprColumnName>? keys, out TempTableBase tempTable, Alias alias = default, string? name = null, IReadOnlyDictionary<ExprColumnName, TableColumn>? hints = null)
+    {
+        tempTable = FromDerivedTableValues(derivedTableValues, keys, alias, name, hints);
+
+        var insertData = derivedTableValues.Values.Items.SelectToReadOnlyList(r => new ExprInsertValueRow(r.Items));
+
+        var insert = SqQueryBuilder.InsertInto(tempTable, derivedTableValues.Columns).Values(new ExprInsertValues(insertData));
+
+        return new ExprList(new IExprExec[] {new ExprStatement(tempTable.Script.Create()), insert});
+    }
+
+    public static TempTableData FromDerivedTableValues(ExprDerivedTableValues derivedTableValues, IReadOnlyList<ExprColumnName>? keys, Alias alias = default, string? name = null, IReadOnlyDictionary<ExprColumnName, TableColumn>? hints = null)
+    {
+        var result = new TempTableData(string.IsNullOrEmpty(name) || name == null ? GenerateName() : name, alias);
+
+        derivedTableValues.Columns.AssertNotEmpty("Columns list cannot be empty");
+        derivedTableValues.Values.Items.AssertNotEmpty("Rows list cannot be empty");
+
+        var tableColumns = new TableColumn?[derivedTableValues.Columns.Count];
+        HashSet<ExprColumnName>? hintedColumns = null; 
+        if (hints != null)
         {
-            this.ColumnName = columnName;
-            this.PreviousType = previousType;
-            this.PrimaryKey = primaryKey;
+            for (var index = 0; index < derivedTableValues.Columns.Count; index++)
+            {
+                var derivedTableColumnName = derivedTableValues.Columns[index];
+                if (derivedTableColumnName != null && hints.TryGetValue(derivedTableColumnName, out var targetColumn))
+                {
+                    tableColumns[index] = targetColumn
+                        .WithColumnName(derivedTableColumnName)
+                        .WithTable(result)
+                        .WithColumnMeta(null);
+                    hintedColumns ??= new HashSet<ExprColumnName>();
+                    hintedColumns.Add(derivedTableColumnName);
+                }
+            }
+        }
+
+        if (hintedColumns == null || hintedColumns.Count < tableColumns.Length)
+        {
+            for (var rowIndex = 0; rowIndex < derivedTableValues.Values.Items.Count; rowIndex++)
+            {
+                var lastRow = rowIndex + 1 == derivedTableValues.Values.Items.Count;
+                var row = derivedTableValues.Values.Items[rowIndex];
+                if (row.Items.Count != derivedTableValues.Columns.Count)
+                {
+                    throw new SqExpressException("Number of values in a row does not match number of columns");
+                }
+
+                for (var valueIndex = 0; valueIndex < row.Items.Count; valueIndex++)
+                {
+                    var currentColumnName = derivedTableValues.Columns[valueIndex];
+
+                    if (hintedColumns != null && hintedColumns.Contains(currentColumnName))
+                    {
+                        continue;
+                    }
+
+                    var value = row.Items[valueIndex];
+                    var previousColumn = tableColumns[valueIndex];
+                    var res = value.Accept(
+                        ExprValueVisitorTypeAnalyzer<TableColumn?, TempTableBuilderCtx>.Instance,
+                        new ExprValueTypeAnalyzerCtx<TableColumn?, TempTableBuilderCtx>(
+                            new TempTableBuilderCtx(
+                                currentColumnName,
+                                previousColumn,
+                                CheckIsPk(currentColumnName)
+                            ),
+                            result
+                        )
+                    );
+
+                    tableColumns[valueIndex] = res;
+                    if (lastRow)
+                    {
+                        if (ReferenceEquals(res, null))
+                        {
+                            throw new SqExpressException($"Could not evaluate column type at {valueIndex}");
+                        }
+                    }
+                }
+            }
+        }
+
+        result.AddColumns(tableColumns!);
+
+        return result;
+
+        bool CheckIsPk(ExprColumnName columnName)
+        {
+            if (keys == null || keys.Count < 1)
+            {
+                return false;
+            }
+
+            for (var index = 0; index < keys.Count; index++)
+            {
+                var key = keys[index];
+
+                if (key.LowerInvariantName == columnName.LowerInvariantName)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 
-    internal class TempTableData : TempTableBase, IExprValueTypeVisitor<TableColumn?, TempTableBuilderCtx>
+    public static ExprList FromTableSourceInsert(IExprTableSource tableSource, IReadOnlyList<ExprColumnName>? keys, out TempTableBase tempTable, Alias alias = default, string? name = null, IReadOnlyDictionary<ExprColumnName, TableColumn>? hints = null)
     {
-        private static string GenerateName() => $"t{Guid.NewGuid().ToString("N")}";
-
-        private TempTableData(string name,Alias alias = default) : base(name, alias)
+        if (tableSource is ExprDerivedTableValues derivedTableValues)
         {
+            return FromDerivedTableValuesInsert(derivedTableValues, keys, out tempTable, alias, name, hints);
         }
 
-        public static ExprList FromDerivedTableValuesInsert(ExprDerivedTableValues derivedTableValues, IReadOnlyList<ExprColumnName>? keys, out TempTableBase tempTable, Alias alias = default, string? name = null, IReadOnlyDictionary<ExprColumnName, TableColumn>? hints = null)
+        tempTable = FromTableSource(tableSource, keys, alias, name, hints);
+
+        var insert = SqQueryBuilder.InsertInto((ExprTable)tempTable, ((TableBase)tempTable).Columns)
+            .From(tableSource.CreateSubQuery());
+
+        return new ExprList(new IExprExec[] { new ExprStatement(tempTable.Script.Create()), insert });
+    }
+
+    public static TempTableData FromTableSource(IExprTableSource tableSource, IReadOnlyList<ExprColumnName>? keys, Alias alias = default, string? name = null, IReadOnlyDictionary<ExprColumnName, TableColumn>? hints = null)
+    {
+        if (tableSource is ExprDerivedTableValues derivedTableValues)
         {
-            tempTable = FromDerivedTableValues(derivedTableValues, keys, alias, name, hints);
-
-            var insertData = derivedTableValues.Values.Items.SelectToReadOnlyList(r => new ExprInsertValueRow(r.Items));
-
-            var insert = SqQueryBuilder.InsertInto(tempTable, derivedTableValues.Columns).Values(new ExprInsertValues(insertData));
-
-            return new ExprList(new IExprExec[] {new ExprStatement(tempTable.Script.Create()), insert});
+            return FromDerivedTableValues(derivedTableValues, keys, alias, name, hints);
         }
 
-        public static TempTableData FromDerivedTableValues(ExprDerivedTableValues derivedTableValues, IReadOnlyList<ExprColumnName>? keys, Alias alias = default, string? name = null, IReadOnlyDictionary<ExprColumnName, TableColumn>? hints = null)
+        var result = new TempTableData(string.IsNullOrEmpty(name) || name == null ? GenerateName() : name, alias);
+
+        var sourceSelecting = tableSource.ExtractSelecting();
+        sourceSelecting.AssertNotEmpty("Could not extract output columns from the table source");
+
+        var sourceQuery = tableSource.CreateSubQuery();
+        var querySelecting = sourceQuery.ExtractSelecting();
+        if (querySelecting.Count != sourceSelecting.Count)
         {
-            var result = new TempTableData(string.IsNullOrEmpty(name) || name == null ? GenerateName() : name, alias);
-
-            derivedTableValues.Columns.AssertNotEmpty("Columns list cannot be empty");
-            derivedTableValues.Values.Items.AssertNotEmpty("Rows list cannot be empty");
-
-            var tableColumns = new TableColumn?[derivedTableValues.Columns.Count];
-            HashSet<ExprColumnName>? hintedColumns = null; 
-            if (hints != null)
-            {
-                for (var index = 0; index < derivedTableValues.Columns.Count; index++)
-                {
-                    var derivedTableColumnName = derivedTableValues.Columns[index];
-                    if (derivedTableColumnName != null && hints.TryGetValue(derivedTableColumnName, out var targetColumn))
-                    {
-                        tableColumns[index] = targetColumn
-                            .WithColumnName(derivedTableColumnName)
-                            .WithTable(result)
-                            .WithColumnMeta(null);
-                        hintedColumns ??= new HashSet<ExprColumnName>();
-                        hintedColumns.Add(derivedTableColumnName);
-                    }
-                }
-            }
-
-            if (hintedColumns == null || hintedColumns.Count < tableColumns.Length)
-            {
-                for (var rowIndex = 0; rowIndex < derivedTableValues.Values.Items.Count; rowIndex++)
-                {
-                    var lastRow = rowIndex + 1 == derivedTableValues.Values.Items.Count;
-                    var row = derivedTableValues.Values.Items[rowIndex];
-                    if (row.Items.Count != derivedTableValues.Columns.Count)
-                    {
-                        throw new SqExpressException("Number of values in a row does not match number of columns");
-                    }
-
-                    for (var valueIndex = 0; valueIndex < row.Items.Count; valueIndex++)
-                    {
-                        var currentColumnName = derivedTableValues.Columns[valueIndex];
-
-                        if (hintedColumns != null && hintedColumns.Contains(currentColumnName))
-                        {
-                            continue;
-                        }
-
-                        var value = row.Items[valueIndex];
-                        var previousColumn = tableColumns[valueIndex];
-                        var res = value.Accept(
-                            ExprValueVisitorTypeAnalyzer<TableColumn?, TempTableBuilderCtx>.Instance,
-                            new ExprValueTypeAnalyzerCtx<TableColumn?, TempTableBuilderCtx>(
-                                new TempTableBuilderCtx(
-                                    currentColumnName,
-                                    previousColumn,
-                                    CheckIsPk(currentColumnName)
-                                ),
-                                result
-                            )
-                        );
-
-                        tableColumns[valueIndex] = res;
-                        if (lastRow)
-                        {
-                            if (ReferenceEquals(res, null))
-                            {
-                                throw new SqExpressException($"Could not evaluate column type at {valueIndex}");
-                            }
-                        }
-                    }
-                }
-            }
-
-            result.AddColumns(tableColumns!);
-
-            return result;
-
-            bool CheckIsPk(ExprColumnName columnName)
-            {
-                if (keys == null || keys.Count < 1)
-                {
-                    return false;
-                }
-
-                for (var index = 0; index < keys.Count; index++)
-                {
-                    var key = keys[index];
-
-                    if (key.LowerInvariantName == columnName.LowerInvariantName)
-                    {
-                        return true;
-                    }
-                }
-
-                return false;
-            }
+            throw new SqExpressException("Number of source columns does not match number of selected expressions");
         }
 
-        public static ExprList FromTableSourceInsert(IExprTableSource tableSource, IReadOnlyList<ExprColumnName>? keys, out TempTableBase tempTable, Alias alias = default, string? name = null, IReadOnlyDictionary<ExprColumnName, TableColumn>? hints = null)
+        var queryOutputNames = sourceQuery.GetOutputColumnNames();
+        var tableColumns = new TableColumn[sourceSelecting.Count];
+
+        for (var index = 0; index < sourceSelecting.Count; index++)
         {
-            if (tableSource is ExprDerivedTableValues derivedTableValues)
+            var columnName = GetOutputColumnName(
+                sourceSelecting[index],
+                index < queryOutputNames.Count ? queryOutputNames[index] : null,
+                index);
+
+            if (hints != null && hints.TryGetValue(columnName, out var targetColumn))
             {
-                return FromDerivedTableValuesInsert(derivedTableValues, keys, out tempTable, alias, name, hints);
-            }
-
-            tempTable = FromTableSource(tableSource, keys, alias, name, hints);
-
-            var insert = SqQueryBuilder.InsertInto((ExprTable)tempTable, ((TableBase)tempTable).Columns)
-                .From(tableSource.CreateSubQuery());
-
-            return new ExprList(new IExprExec[] { new ExprStatement(tempTable.Script.Create()), insert });
-        }
-
-        public static TempTableData FromTableSource(IExprTableSource tableSource, IReadOnlyList<ExprColumnName>? keys, Alias alias = default, string? name = null, IReadOnlyDictionary<ExprColumnName, TableColumn>? hints = null)
-        {
-            if (tableSource is ExprDerivedTableValues derivedTableValues)
-            {
-                return FromDerivedTableValues(derivedTableValues, keys, alias, name, hints);
-            }
-
-            var result = new TempTableData(string.IsNullOrEmpty(name) || name == null ? GenerateName() : name, alias);
-
-            var sourceSelecting = tableSource.ExtractSelecting();
-            sourceSelecting.AssertNotEmpty("Could not extract output columns from the table source");
-
-            var sourceQuery = tableSource.CreateSubQuery();
-            var querySelecting = sourceQuery.ExtractSelecting();
-            if (querySelecting.Count != sourceSelecting.Count)
-            {
-                throw new SqExpressException("Number of source columns does not match number of selected expressions");
-            }
-
-            var queryOutputNames = sourceQuery.GetOutputColumnNames();
-            var tableColumns = new TableColumn[sourceSelecting.Count];
-
-            for (var index = 0; index < sourceSelecting.Count; index++)
-            {
-                var columnName = GetOutputColumnName(
-                    sourceSelecting[index],
-                    index < queryOutputNames.Count ? queryOutputNames[index] : null,
-                    index);
-
-                if (hints != null && hints.TryGetValue(columnName, out var targetColumn))
-                {
-                    tableColumns[index] = targetColumn
-                        .WithColumnName(columnName)
-                        .WithTable(result)
-                        .WithColumnMeta(null);
-                    continue;
-                }
-
-                var columnInfo = querySelecting[index].Accept(ExprSelectingToColumnInfo.Instance, null);
-                if (columnInfo == null)
-                {
-                    throw new SqExpressException($"Could not evaluate column type for \"{columnName.Name}\"");
-                }
-
-                tableColumns[index] = CreateColumnFromInfo(result, columnName, columnInfo, CheckIsPk(columnName))
-                    ?? throw new SqExpressException($"Could not evaluate column type for \"{columnName.Name}\"");
-            }
-
-            result.AddColumns(tableColumns);
-            return result;
-
-            bool CheckIsPk(ExprColumnName columnName)
-            {
-                if (keys == null || keys.Count < 1)
-                {
-                    return false;
-                }
-
-                for (var index = 0; index < keys.Count; index++)
-                {
-                    if (keys[index].LowerInvariantName == columnName.LowerInvariantName)
-                    {
-                        return true;
-                    }
-                }
-
-                return false;
-            }
-        }
-
-        public TableColumn? VisitAny(TempTableBuilderCtx arg, bool? isNull)
-        {
-            return arg.PreviousType;
-        }
-
-        private static ExprColumnName GetOutputColumnName(IExprSelecting selecting, string? fallbackName, int ordinal)
-        {
-            if (selecting is IExprNamedSelecting named && !string.IsNullOrWhiteSpace(named.OutputName))
-            {
-                return new ExprColumnName(named.OutputName!);
-            }
-
-            if (!string.IsNullOrWhiteSpace(fallbackName))
-            {
-                return new ExprColumnName(fallbackName!);
-            }
-
-            return new ExprColumnName($"Expr{ordinal + 1}");
-        }
-
-        private static TableColumn? CreateColumnFromInfo(TempTableData table, ExprColumnName columnName, ExprSelectingAsColumnInfo columnInfo, bool primaryKey)
-        {
-            return columnInfo.Match(
-                column => CreateColumnFromExprColumn(table, columnName, column, primaryKey),
-                _ => null,
-                type => CreateColumnFromExprType(table, columnName, type, primaryKey));
-        }
-
-        private static TableColumn? CreateColumnFromExprColumn(TempTableData table, ExprColumnName columnName, ExprColumn column, bool primaryKey)
-        {
-            if (column is TableColumn tableColumn)
-            {
-                return tableColumn
+                tableColumns[index] = targetColumn
                     .WithColumnName(columnName)
-                    .WithTable(table)
-                    .WithColumnMeta(primaryKey ? ColumnMeta.PrimaryKey() : null);
+                    .WithTable(result)
+                    .WithColumnMeta(null);
+                continue;
             }
 
-            return TryGetExprType(column, out var exprType) ? CreateColumnFromExprType(table, columnName, exprType, primaryKey) : null;
+            var columnInfo = querySelecting[index].Accept(ExprSelectingToColumnInfo.Instance, null);
+            if (columnInfo == null)
+            {
+                throw new SqExpressException($"Could not evaluate column type for \"{columnName.Name}\"");
+            }
+
+            tableColumns[index] = CreateColumnFromInfo(result, columnName, columnInfo, CheckIsPk(columnName))
+                                  ?? throw new SqExpressException($"Could not evaluate column type for \"{columnName.Name}\"");
         }
 
-        private static bool TryGetExprType(ExprColumn column, out ExprType exprType)
+        result.AddColumns(tableColumns);
+        return result;
+
+        bool CheckIsPk(ExprColumnName columnName)
         {
-            if (column is TypedColumn typedColumn)
+            if (keys == null || keys.Count < 1)
             {
-                exprType = typedColumn.SqlType;
-                return true;
+                return false;
             }
 
-            exprType = null!;
+            for (var index = 0; index < keys.Count; index++)
+            {
+                if (keys[index].LowerInvariantName == columnName.LowerInvariantName)
+                {
+                    return true;
+                }
+            }
+
             return false;
         }
+    }
 
-        private static TableColumn? CreateColumnFromExprType(TempTableData table, ExprColumnName columnName, ExprType exprType, bool primaryKey)
-            => exprType.Accept(ExprTypeToTableColumn.Instance, new ExprTypeToTableColumnCtx(table, columnName, primaryKey));
+    public TableColumn? VisitAny(TempTableBuilderCtx arg, bool? isNull)
+    {
+        return arg.PreviousType;
+    }
 
-        private static T? EnsureColumnType<T>(TempTableBuilderCtx arg) where T : TableColumn
+    private static ExprColumnName GetOutputColumnName(IExprSelecting selecting, string? fallbackName, int ordinal)
+    {
+        if (selecting is IExprNamedSelecting named && !string.IsNullOrWhiteSpace(named.OutputName))
         {
-            if (ReferenceEquals(arg.PreviousType, null))
+            return new ExprColumnName(named.OutputName!);
+        }
+
+        if (!string.IsNullOrWhiteSpace(fallbackName))
+        {
+            return new ExprColumnName(fallbackName!);
+        }
+
+        return new ExprColumnName($"Expr{ordinal + 1}");
+    }
+
+    private static TableColumn? CreateColumnFromInfo(TempTableData table, ExprColumnName columnName, ExprSelectingAsColumnInfo columnInfo, bool primaryKey)
+    {
+        return columnInfo.Match(
+            column => CreateColumnFromExprColumn(table, columnName, column, primaryKey),
+            _ => null,
+            type => CreateColumnFromExprType(table, columnName, type, primaryKey));
+    }
+
+    private static TableColumn? CreateColumnFromExprColumn(TempTableData table, ExprColumnName columnName, ExprColumn column, bool primaryKey)
+    {
+        if (column is TableColumn tableColumn)
+        {
+            return tableColumn
+                .WithColumnName(columnName)
+                .WithTable(table)
+                .WithColumnMeta(primaryKey ? ColumnMeta.PrimaryKey() : null);
+        }
+
+        return TryGetExprType(column, out var exprType) ? CreateColumnFromExprType(table, columnName, exprType, primaryKey) : null;
+    }
+
+    private static bool TryGetExprType(ExprColumn column, out ExprType exprType)
+    {
+        if (column is TypedColumn typedColumn)
+        {
+            exprType = typedColumn.SqlType;
+            return true;
+        }
+
+        exprType = null!;
+        return false;
+    }
+
+    private static TableColumn? CreateColumnFromExprType(TempTableData table, ExprColumnName columnName, ExprType exprType, bool primaryKey)
+        => exprType.Accept(ExprTypeToTableColumn.Instance, new ExprTypeToTableColumnCtx(table, columnName, primaryKey));
+
+    private static T? EnsureColumnType<T>(TempTableBuilderCtx arg) where T : TableColumn
+    {
+        if (ReferenceEquals(arg.PreviousType, null))
+        {
+            return null;
+        }
+        if (arg.PreviousType is T result)
+        {
+            if (arg.PrimaryKey && (result.ColumnMeta == null || !result.ColumnMeta.IsPrimaryKey))
             {
-                return null;
+                throw new SqExpressException($"\"{arg.ColumnName.Name}\" should be marked as primary key in meta");
             }
-            if (arg.PreviousType is T result)
+            if (!arg.PrimaryKey && result.ColumnMeta != null && result.ColumnMeta.IsPrimaryKey)
             {
-                if (arg.PrimaryKey && (result.ColumnMeta == null || !result.ColumnMeta.IsPrimaryKey))
-                {
-                    throw new SqExpressException($"\"{arg.ColumnName.Name}\" should be marked as primary key in meta");
-                }
-                if (!arg.PrimaryKey && result.ColumnMeta != null && result.ColumnMeta.IsPrimaryKey)
-                {
-                    throw new SqExpressException($"\"{arg.ColumnName.Name}\" should not be marked as primary key in meta");
-                }
-                return result;
+                throw new SqExpressException($"\"{arg.ColumnName.Name}\" should not be marked as primary key in meta");
             }
-
-            throw new SqExpressException($"\"{typeof(T).Name}\" was expected");
+            return result;
         }
 
-        public TableColumn VisitBool(TempTableBuilderCtx arg, bool? isNull)
+        throw new SqExpressException($"\"{typeof(T).Name}\" was expected");
+    }
+
+    public TableColumn VisitBool(TempTableBuilderCtx arg, bool? isNull)
+    {
+        return EnsureColumnType<NullableBooleanTableColumn>(arg) ??
+               new NullableBooleanTableColumn(this.Alias, arg.ColumnName, this, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
+    }
+
+    public TableColumn VisitByte(TempTableBuilderCtx arg, bool? isNull)
+    {
+        return EnsureColumnType<NullableByteTableColumn>(arg) ??
+               new NullableByteTableColumn(this.Alias, arg.ColumnName, this, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
+    }
+
+    public TableColumn VisitInt16(TempTableBuilderCtx arg, bool? isNull)
+    {
+        return EnsureColumnType<NullableInt16TableColumn>(arg) ??
+               new NullableInt16TableColumn(this.Alias, arg.ColumnName, this, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
+    }
+
+    public TableColumn VisitInt32(TempTableBuilderCtx arg, bool? isNull)
+    {
+        return EnsureColumnType<NullableInt32TableColumn>(arg) ??
+               new NullableInt32TableColumn(this.Alias, arg.ColumnName, this, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
+    }
+
+    public TableColumn VisitInt64(TempTableBuilderCtx arg, bool? isNull)
+    {
+        return EnsureColumnType<NullableInt64TableColumn>(arg) ??
+               new NullableInt64TableColumn(this.Alias, arg.ColumnName, this, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
+    }
+
+    public TableColumn VisitDecimal(TempTableBuilderCtx arg, bool? isNull, DecimalPrecisionScale? decimalPrecisionScale)
+    {
+        var column = EnsureColumnType<NullableDecimalTableColumn>(arg);
+
+        if (ReferenceEquals(column, null))
         {
-            return EnsureColumnType<NullableBooleanTableColumn>(arg) ??
-                   new NullableBooleanTableColumn(this.Alias, arg.ColumnName, this, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
+            return CreateColumn(decimalPrecisionScale);
         }
-
-        public TableColumn VisitByte(TempTableBuilderCtx arg, bool? isNull)
+        else
         {
-            return EnsureColumnType<NullableByteTableColumn>(arg) ??
-                   new NullableByteTableColumn(this.Alias, arg.ColumnName, this, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
-        }
-
-        public TableColumn VisitInt16(TempTableBuilderCtx arg, bool? isNull)
-        {
-            return EnsureColumnType<NullableInt16TableColumn>(arg) ??
-                   new NullableInt16TableColumn(this.Alias, arg.ColumnName, this, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
-        }
-
-        public TableColumn VisitInt32(TempTableBuilderCtx arg, bool? isNull)
-        {
-            return EnsureColumnType<NullableInt32TableColumn>(arg) ??
-                   new NullableInt32TableColumn(this.Alias, arg.ColumnName, this, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
-        }
-
-        public TableColumn VisitInt64(TempTableBuilderCtx arg, bool? isNull)
-        {
-            return EnsureColumnType<NullableInt64TableColumn>(arg) ??
-                   new NullableInt64TableColumn(this.Alias, arg.ColumnName, this, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
-        }
-
-        public TableColumn VisitDecimal(TempTableBuilderCtx arg, bool? isNull, DecimalPrecisionScale? decimalPrecisionScale)
-        {
-            var column = EnsureColumnType<NullableDecimalTableColumn>(arg);
-
-            if (ReferenceEquals(column, null))
+            if (decimalPrecisionScale.HasValue)
             {
-                return CreateColumn(decimalPrecisionScale);
-            }
-            else
-            {
-                if (decimalPrecisionScale.HasValue)
+                if (column.PrecisionScale.HasValue)
                 {
-                    if (column.PrecisionScale.HasValue)
+                    var old = column.PrecisionScale.Value;
+                    var newPs = decimalPrecisionScale.Value;
+
+                    if (old.Precision < newPs.Precision || old.Scale < newPs.Scale)
                     {
-                        var old = column.PrecisionScale.Value;
-                        var newPs = decimalPrecisionScale.Value;
-
-                        if (old.Precision < newPs.Precision || old.Scale < newPs.Scale)
-                        {
-                            return CreateColumn(decimalPrecisionScale);
-                        }
+                        return CreateColumn(decimalPrecisionScale);
                     }
                 }
-
-                return column;
             }
 
-            NullableDecimalTableColumn CreateColumn(DecimalPrecisionScale? precisionScale)
-            {
-                return new NullableDecimalTableColumn(this.Alias, arg.ColumnName, this, precisionScale, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
-            }
+            return column;
         }
 
-        public TableColumn VisitDouble(TempTableBuilderCtx arg, bool? isNull)
+        NullableDecimalTableColumn CreateColumn(DecimalPrecisionScale? precisionScale)
         {
-            return EnsureColumnType<NullableDoubleTableColumn>(arg) ??
-                   new NullableDoubleTableColumn(this.Alias, arg.ColumnName, this, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
+            return new NullableDecimalTableColumn(this.Alias, arg.ColumnName, this, precisionScale, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
         }
+    }
 
-        public TableColumn VisitString(TempTableBuilderCtx arg, bool? isNull, int? size, bool fix)
+    public TableColumn VisitDouble(TempTableBuilderCtx arg, bool? isNull)
+    {
+        return EnsureColumnType<NullableDoubleTableColumn>(arg) ??
+               new NullableDoubleTableColumn(this.Alias, arg.ColumnName, this, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
+    }
+
+    public TableColumn VisitString(TempTableBuilderCtx arg, bool? isNull, int? size, bool fix)
+    {
+        var stringTableColumn = EnsureColumnType<NullableStringTableColumn>(arg);
+
+        if (ReferenceEquals(stringTableColumn, null))
         {
-            var stringTableColumn = EnsureColumnType<NullableStringTableColumn>(arg);
-
-            if (ReferenceEquals(stringTableColumn, null))
+            return CreateString(size);
+        }
+        else
+        {
+            if (stringTableColumn.SqlType.GetSize().HasValue && (!size.HasValue || size.Value > stringTableColumn.SqlType.GetSize()))
             {
                 return CreateString(size);
             }
-            else
-            {
-                if (stringTableColumn.SqlType.GetSize().HasValue && (!size.HasValue || size.Value > stringTableColumn.SqlType.GetSize()))
-                {
-                    return CreateString(size);
-                }
-                return stringTableColumn;
-            }
-
-            NullableStringTableColumn CreateString(int? len)
-            {
-                return new NullableStringTableColumn(this.Alias,
-                    arg.ColumnName,
-                    this,
-                    fix
-                        ? new ExprTypeFixSizeString(len.AssertNotNull("Length cannot be null for fixed size string"), true)
-                        : new ExprTypeString(len, true, false),
-                    arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
-            }
+            return stringTableColumn;
         }
 
-        public TableColumn? VisitXml(TempTableBuilderCtx arg, bool? isNull)
+        NullableStringTableColumn CreateString(int? len)
         {
-            return EnsureColumnType<NullableStringTableColumn>(arg) ??
-                   new NullableStringTableColumn(this.Alias,
-                       arg.ColumnName,
-                       this,
-                       ExprTypeXml.Instance,
-                       arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
+            return new NullableStringTableColumn(this.Alias,
+                arg.ColumnName,
+                this,
+                fix
+                    ? new ExprTypeFixSizeString(len.AssertNotNull("Length cannot be null for fixed size string"), true)
+                    : new ExprTypeString(len, true, false),
+                arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
         }
+    }
 
-        public TableColumn? VisitDateTime(TempTableBuilderCtx arg, bool? isNull)
+    public TableColumn? VisitXml(TempTableBuilderCtx arg, bool? isNull)
+    {
+        return EnsureColumnType<NullableStringTableColumn>(arg) ??
+               new NullableStringTableColumn(this.Alias,
+                   arg.ColumnName,
+                   this,
+                   ExprTypeXml.Instance,
+                   arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
+    }
+
+    public TableColumn? VisitDateTime(TempTableBuilderCtx arg, bool? isNull)
+    {
+        return EnsureColumnType<NullableDateTimeTableColumn>(arg) ??
+               new NullableDateTimeTableColumn(this.Alias, arg.ColumnName, this, false, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
+    }
+
+    public TableColumn? VisitDateTimeOffset(TempTableBuilderCtx arg, bool? isNull)
+    {
+        return EnsureColumnType<NullableDateTimeOffsetTableColumn>(arg) ??
+               new NullableDateTimeOffsetTableColumn(this.Alias, arg.ColumnName, this, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
+    }
+
+    public TableColumn? VisitGuid(TempTableBuilderCtx arg, bool? isNull)
+    {
+        return EnsureColumnType<NullableGuidTableColumn>(arg) ??
+               new NullableGuidTableColumn(this.Alias, arg.ColumnName, this, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
+    }
+
+    public TableColumn? VisitByteArray(TempTableBuilderCtx arg, bool? isNull, int? length, bool fix)
+    {
+        var arrayTableColumn = EnsureColumnType<NullableByteArrayTableColumn>(arg);
+
+        if (ReferenceEquals(arrayTableColumn, null))
         {
-            return EnsureColumnType<NullableDateTimeTableColumn>(arg) ??
-                   new NullableDateTimeTableColumn(this.Alias, arg.ColumnName, this, false, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
+            return CreateCol(length);
         }
-
-        public TableColumn? VisitDateTimeOffset(TempTableBuilderCtx arg, bool? isNull)
+        else
         {
-            return EnsureColumnType<NullableDateTimeOffsetTableColumn>(arg) ??
-                   new NullableDateTimeOffsetTableColumn(this.Alias, arg.ColumnName, this, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
-        }
-
-        public TableColumn? VisitGuid(TempTableBuilderCtx arg, bool? isNull)
-        {
-            return EnsureColumnType<NullableGuidTableColumn>(arg) ??
-                   new NullableGuidTableColumn(this.Alias, arg.ColumnName, this, arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
-        }
-
-        public TableColumn? VisitByteArray(TempTableBuilderCtx arg, bool? isNull, int? length, bool fix)
-        {
-            var arrayTableColumn = EnsureColumnType<NullableByteArrayTableColumn>(arg);
-
-            if (ReferenceEquals(arrayTableColumn, null))
+            if (arrayTableColumn.SqlType.GetSize().HasValue && (!length.HasValue || length.Value > arrayTableColumn.SqlType.GetSize()))
             {
                 return CreateCol(length);
             }
-            else
-            {
-                if (arrayTableColumn.SqlType.GetSize().HasValue && (!length.HasValue || length.Value > arrayTableColumn.SqlType.GetSize()))
-                {
-                    return CreateCol(length);
-                }
-                return arrayTableColumn;
-            }
+            return arrayTableColumn;
+        }
 
-            NullableByteArrayTableColumn CreateCol(int? len)
-            {
-                return new NullableByteArrayTableColumn(this.Alias,
-                    arg.ColumnName,
-                    this,
-                    fix
-                        ? new ExprTypeFixSizeByteArray(length.AssertNotNull("Length cannot be null for fixed size array"))
-                        : new ExprTypeByteArray(length),
-                    arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
-            }
+        NullableByteArrayTableColumn CreateCol(int? len)
+        {
+            return new NullableByteArrayTableColumn(this.Alias,
+                arg.ColumnName,
+                this,
+                fix
+                    ? new ExprTypeFixSizeByteArray(length.AssertNotNull("Length cannot be null for fixed size array"))
+                    : new ExprTypeByteArray(length),
+                arg.PrimaryKey ? ColumnMeta.PrimaryKey() : null);
         }
     }
 }

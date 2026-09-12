@@ -1,8 +1,7 @@
 ﻿using SqExpress.Syntax.Value;
 
-namespace SqExpress.Syntax.Expressions
+namespace SqExpress.Syntax.Expressions;
+
+public abstract class ExprBitwise : ExprValue
 {
-    public abstract class ExprBitwise : ExprValue
-    {
-    }
 }

@@ -4,155 +4,154 @@ using SqExpress.SqlExport;
 using SqExpress.Syntax.Value;
 using static SqExpress.SqQueryBuilder;
 
-namespace SqExpress.Test.QueryBuilder
+namespace SqExpress.Test.QueryBuilder;
+
+[TestFixture]
+public class FunctionsTest
 {
-    [TestFixture]
-    public class FunctionsTest
+    [Test]
+    public void AggBasicTest()
     {
-        [Test]
-        public void AggBasicTest()
-        {
-            var userTable = Tables.User(Alias.Empty);
+        var userTable = Tables.User(Alias.Empty);
 
-            Assert.AreEqual("SELECT COUNT(1) FROM [dbo].[user]", Select(CountOne()).From(userTable).Done().ToSql());
-            Assert.AreEqual("SELECT COUNT([UserId]) FROM [dbo].[user]", Select(Count(userTable.UserId)).From(userTable).Done().ToSql());
-            Assert.AreEqual("SELECT COUNT(DISTINCT [UserId]) FROM [dbo].[user]", Select(CountDistinct(userTable.UserId)).From(userTable).Done().ToSql());
-            Assert.AreEqual("SELECT COUNT([UserId])OVER() FROM [dbo].[user]", Select(Count(userTable.UserId).Over()).From(userTable).Done().ToSql());
+        Assert.AreEqual("SELECT COUNT(1) FROM [dbo].[user]", Select(CountOne()).From(userTable).Done().ToSql());
+        Assert.AreEqual("SELECT COUNT([UserId]) FROM [dbo].[user]", Select(Count(userTable.UserId)).From(userTable).Done().ToSql());
+        Assert.AreEqual("SELECT COUNT(DISTINCT [UserId]) FROM [dbo].[user]", Select(CountDistinct(userTable.UserId)).From(userTable).Done().ToSql());
+        Assert.AreEqual("SELECT COUNT([UserId])OVER() FROM [dbo].[user]", Select(Count(userTable.UserId).Over()).From(userTable).Done().ToSql());
 
-            Assert.AreEqual("SELECT MIN([UserId]) FROM [dbo].[user]", Select(Min(userTable.UserId)).From(userTable).Done().ToSql());
-            Assert.AreEqual("SELECT MIN(DISTINCT [UserId]) FROM [dbo].[user]", Select(MinDistinct(userTable.UserId)).From(userTable).Done().ToSql());
-            Assert.AreEqual("SELECT MIN(DISTINCT [UserId]) FROM [dbo].[user]", Select(MinDistinct(userTable.UserId)).From(userTable).Done().ToSql());
-            Assert.AreEqual("SELECT MIN(DISTINCT [UserId])OVER(ORDER BY [Version]) FROM [dbo].[user]", Select(MinDistinct(userTable.UserId).OverOrderBy(userTable.Version)).From(userTable).Done().ToSql());
-            Assert.AreEqual("SELECT MIN(DISTINCT [UserId])OVER(PARTITION BY [Version] ORDER BY [Version]) FROM [dbo].[user]", Select(MinDistinct(userTable.UserId).OverPartitionBy(userTable.Version).OrderBy(userTable.Version)).From(userTable).Done().ToSql());
-            Assert.AreEqual("SELECT MIN(DISTINCT [UserId])OVER(PARTITION BY [Version]) FROM [dbo].[user]", Select(MinDistinct(userTable.UserId).OverPartitionBy(userTable.Version).NoOrderBy()).From(userTable).Done().ToSql());
+        Assert.AreEqual("SELECT MIN([UserId]) FROM [dbo].[user]", Select(Min(userTable.UserId)).From(userTable).Done().ToSql());
+        Assert.AreEqual("SELECT MIN(DISTINCT [UserId]) FROM [dbo].[user]", Select(MinDistinct(userTable.UserId)).From(userTable).Done().ToSql());
+        Assert.AreEqual("SELECT MIN(DISTINCT [UserId]) FROM [dbo].[user]", Select(MinDistinct(userTable.UserId)).From(userTable).Done().ToSql());
+        Assert.AreEqual("SELECT MIN(DISTINCT [UserId])OVER(ORDER BY [Version]) FROM [dbo].[user]", Select(MinDistinct(userTable.UserId).OverOrderBy(userTable.Version)).From(userTable).Done().ToSql());
+        Assert.AreEqual("SELECT MIN(DISTINCT [UserId])OVER(PARTITION BY [Version] ORDER BY [Version]) FROM [dbo].[user]", Select(MinDistinct(userTable.UserId).OverPartitionBy(userTable.Version).OrderBy(userTable.Version)).From(userTable).Done().ToSql());
+        Assert.AreEqual("SELECT MIN(DISTINCT [UserId])OVER(PARTITION BY [Version]) FROM [dbo].[user]", Select(MinDistinct(userTable.UserId).OverPartitionBy(userTable.Version).NoOrderBy()).From(userTable).Done().ToSql());
 
-            Assert.AreEqual("SELECT MAX([UserId]) FROM [dbo].[user]", Select(Max(userTable.UserId)).From(userTable).Done().ToSql());
-            Assert.AreEqual("SELECT MAX(DISTINCT [UserId]) FROM [dbo].[user]", Select(MaxDistinct(userTable.UserId)).From(userTable).Done().ToSql());
-            Assert.AreEqual("SELECT MAX(DISTINCT [UserId])OVER() FROM [dbo].[user]", Select(MaxDistinct(userTable.UserId).Over()).From(userTable).Done().ToSql());
+        Assert.AreEqual("SELECT MAX([UserId]) FROM [dbo].[user]", Select(Max(userTable.UserId)).From(userTable).Done().ToSql());
+        Assert.AreEqual("SELECT MAX(DISTINCT [UserId]) FROM [dbo].[user]", Select(MaxDistinct(userTable.UserId)).From(userTable).Done().ToSql());
+        Assert.AreEqual("SELECT MAX(DISTINCT [UserId])OVER() FROM [dbo].[user]", Select(MaxDistinct(userTable.UserId).Over()).From(userTable).Done().ToSql());
 
-            Assert.AreEqual("SELECT SUM([UserId]) FROM [dbo].[user]", Select(Sum(userTable.UserId)).From(userTable).Done().ToSql());
-            Assert.AreEqual("SELECT SUM(DISTINCT [UserId]) FROM [dbo].[user]", Select(SumDistinct(userTable.UserId)).From(userTable).Done().ToSql());
-        }
+        Assert.AreEqual("SELECT SUM([UserId]) FROM [dbo].[user]", Select(Sum(userTable.UserId)).From(userTable).Done().ToSql());
+        Assert.AreEqual("SELECT SUM(DISTINCT [UserId]) FROM [dbo].[user]", Select(SumDistinct(userTable.UserId)).From(userTable).Done().ToSql());
+    }
 
-        [Test]
-        public void StringAgg_ExportsPortableOrderedAndUnorderedForms()
-        {
-            var user = Tables.User(Alias.Empty);
-            var unordered = Select(StringAgg(user.LastName, "'|")).From(user).Done();
-            var ordered = Select(StringAgg(user.LastName, "'|").OrderBy(Asc(user.UserId), Desc(user.Version))).From(user).Done();
+    [Test]
+    public void StringAgg_ExportsPortableOrderedAndUnorderedForms()
+    {
+        var user = Tables.User(Alias.Empty);
+        var unordered = Select(StringAgg(user.LastName, "'|")).From(user).Done();
+        var ordered = Select(StringAgg(user.LastName, "'|").OrderBy(Asc(user.UserId), Desc(user.Version))).From(user).Done();
 
-            Assert.That(unordered.ToSql(), Is.EqualTo("SELECT STRING_AGG([LastName],'''|') FROM [dbo].[user]"));
-            Assert.That(unordered.ToSql(PgSqlExporter.Default), Is.EqualTo("SELECT STRING_AGG(\"LastName\",'''|') FROM \"dbo\".\"user\""));
-            Assert.That(unordered.ToSql(MySqlExporter.MariaDbDefault), Is.EqualTo("SELECT GROUP_CONCAT(`LastName` SEPARATOR '''|') FROM `user`"));
-            Assert.That(unordered.ToSql(SqliteExporter.Default), Is.EqualTo("SELECT GROUP_CONCAT(\"LastName\",'''|') FROM \"user\""));
+        Assert.That(unordered.ToSql(), Is.EqualTo("SELECT STRING_AGG([LastName],'''|') FROM [dbo].[user]"));
+        Assert.That(unordered.ToSql(PgSqlExporter.Default), Is.EqualTo("SELECT STRING_AGG(\"LastName\",'''|') FROM \"dbo\".\"user\""));
+        Assert.That(unordered.ToSql(MySqlExporter.MariaDbDefault), Is.EqualTo("SELECT GROUP_CONCAT(`LastName` SEPARATOR '''|') FROM `user`"));
+        Assert.That(unordered.ToSql(SqliteExporter.Default), Is.EqualTo("SELECT GROUP_CONCAT(\"LastName\",'''|') FROM \"user\""));
 
-            Assert.That(ordered.ToSql(), Is.EqualTo("SELECT STRING_AGG([LastName],'''|') WITHIN GROUP (ORDER BY [UserId],[Version] DESC) FROM [dbo].[user]"));
-            Assert.That(ordered.ToSql(PgSqlExporter.Default), Is.EqualTo("SELECT STRING_AGG(\"LastName\",'''|' ORDER BY \"UserId\",\"Version\" DESC) FROM \"dbo\".\"user\""));
-            Assert.That(ordered.ToSql(MySqlExporter.MariaDbDefault), Is.EqualTo("SELECT GROUP_CONCAT(`LastName` ORDER BY `UserId`,`Version` DESC SEPARATOR '''|') FROM `user`"));
-            Assert.That(ordered.ToSql(SqliteExporter.Default), Is.EqualTo("SELECT GROUP_CONCAT(\"LastName\",'''|' ORDER BY \"UserId\",\"Version\" DESC) FROM \"user\""));
-        }
+        Assert.That(ordered.ToSql(), Is.EqualTo("SELECT STRING_AGG([LastName],'''|') WITHIN GROUP (ORDER BY [UserId],[Version] DESC) FROM [dbo].[user]"));
+        Assert.That(ordered.ToSql(PgSqlExporter.Default), Is.EqualTo("SELECT STRING_AGG(\"LastName\",'''|' ORDER BY \"UserId\",\"Version\" DESC) FROM \"dbo\".\"user\""));
+        Assert.That(ordered.ToSql(MySqlExporter.MariaDbDefault), Is.EqualTo("SELECT GROUP_CONCAT(`LastName` ORDER BY `UserId`,`Version` DESC SEPARATOR '''|') FROM `user`"));
+        Assert.That(ordered.ToSql(SqliteExporter.Default), Is.EqualTo("SELECT GROUP_CONCAT(\"LastName\",'''|' ORDER BY \"UserId\",\"Version\" DESC) FROM \"user\""));
+    }
 
-        [Test]
-        public void StringAgg_MySqlRejectsDynamicSeparator()
-        {
-            var user = Tables.User(Alias.Empty);
-            var query = Select(StringAgg(user.LastName, user.FirstName)).From(user).Done();
+    [Test]
+    public void StringAgg_MySqlRejectsDynamicSeparator()
+    {
+        var user = Tables.User(Alias.Empty);
+        var query = Select(StringAgg(user.LastName, user.FirstName)).From(user).Done();
 
-            var exception = Assert.Throws<SqExpressException>(() => query.ToSql(MySqlExporter.MariaDbDefault));
-            Assert.That(exception!.Message, Does.Contain("separator must be a non-null string literal"));
-        }
+        var exception = Assert.Throws<SqExpressException>(() => query.ToSql(MySqlExporter.MariaDbDefault));
+        Assert.That(exception!.Message, Does.Contain("separator must be a non-null string literal"));
+    }
 
-        [Test]
-        public void StringAgg_MySqlUnwrapsParameterizedLiteralSeparator()
-        {
-            var user = Tables.User(Alias.Empty);
-            var separator = new ExprParameter(new ExprStringLiteral("'|"), null);
-            var query = Select(StringAgg(user.LastName, separator)).From(user).Done();
+    [Test]
+    public void StringAgg_MySqlUnwrapsParameterizedLiteralSeparator()
+    {
+        var user = Tables.User(Alias.Empty);
+        var separator = new ExprParameter(new ExprStringLiteral("'|"), null);
+        var query = Select(StringAgg(user.LastName, separator)).From(user).Done();
 
-            Assert.That(query.ToSql(MySqlExporter.MariaDbDefault),
-                Is.EqualTo("SELECT GROUP_CONCAT(`LastName` SEPARATOR '''|') FROM `user`"));
-        }
+        Assert.That(query.ToSql(MySqlExporter.MariaDbDefault),
+            Is.EqualTo("SELECT GROUP_CONCAT(`LastName` SEPARATOR '''|') FROM `user`"));
+    }
 
-        [Test]
-        public void StringAgg_TSqlUnwrapsParameterizedLiteralSeparator()
-        {
-            var user = Tables.User(Alias.Empty);
-            var separator = new ExprParameter(new ExprStringLiteral("'|"), null);
-            var query = Select(StringAgg(user.LastName, separator)).From(user).Done();
+    [Test]
+    public void StringAgg_TSqlUnwrapsParameterizedLiteralSeparator()
+    {
+        var user = Tables.User(Alias.Empty);
+        var separator = new ExprParameter(new ExprStringLiteral("'|"), null);
+        var query = Select(StringAgg(user.LastName, separator)).From(user).Done();
 
-            Assert.That(query.ToSql(),
-                Is.EqualTo("SELECT STRING_AGG([LastName],'''|') FROM [dbo].[user]"));
-        }
+        Assert.That(query.ToSql(),
+            Is.EqualTo("SELECT STRING_AGG([LastName],'''|') FROM [dbo].[user]"));
+    }
 
-        [Test]
-        public void CaseWhenThenTest()
-        {
-            var userTable = Tables.User();
+    [Test]
+    public void CaseWhenThenTest()
+    {
+        var userTable = Tables.User();
 
-            var actual = Select(Case()
-                    .When(userTable.FirstName == "John")
-                    .Then("J")
-                    .When(userTable.FirstName == "Bob")
-                    .Then(false)
-                    .Else(5)
-                    .As("Result"))
-                .From(userTable)
-                .Done()
-                .ToSql();
+        var actual = Select(Case()
+                .When(userTable.FirstName == "John")
+                .Then("J")
+                .When(userTable.FirstName == "Bob")
+                .Then(false)
+                .Else(5)
+                .As("Result"))
+            .From(userTable)
+            .Done()
+            .ToSql();
 
-            Assert.AreEqual("SELECT CASE WHEN [A0].[FirstName]='John' THEN 'J' WHEN [A0].[FirstName]='Bob' THEN CAST(0 AS bit) ELSE 5 END [Result] FROM [dbo].[user] [A0]", actual);
-        }
+        Assert.AreEqual("SELECT CASE WHEN [A0].[FirstName]='John' THEN 'J' WHEN [A0].[FirstName]='Bob' THEN CAST(0 AS bit) ELSE 5 END [Result] FROM [dbo].[user] [A0]", actual);
+    }
 
-        [Test]
-        public void ScalarFunctionTest()
-        {
-            Assert.AreEqual("COUNT()", ScalarFunctionSys("COUNT").ToSql());
-            Assert.AreEqual("COUNT(1)", ScalarFunctionSys("COUNT", 1).ToSql());
-            Assert.AreEqual("COUNT(1,'5')", ScalarFunctionSys("COUNT", 1, "5").ToSql());
-            Assert.AreEqual("COUNT(1,'5','2020-10-19')", ScalarFunctionSys("COUNT", 1, "5", new DateTime(2020, 10, 19)).ToSql());
+    [Test]
+    public void ScalarFunctionTest()
+    {
+        Assert.AreEqual("COUNT()", ScalarFunctionSys("COUNT").ToSql());
+        Assert.AreEqual("COUNT(1)", ScalarFunctionSys("COUNT", 1).ToSql());
+        Assert.AreEqual("COUNT(1,'5')", ScalarFunctionSys("COUNT", 1, "5").ToSql());
+        Assert.AreEqual("COUNT(1,'5','2020-10-19')", ScalarFunctionSys("COUNT", 1, "5", new DateTime(2020, 10, 19)).ToSql());
 
-            Assert.AreEqual("[dbo].[m]]yFun'c]()", ScalarFunctionCustom("dbo", "m]yFun'c").ToSql());
-            Assert.AreEqual("[dbo].[m]]yFun'c](1)", ScalarFunctionCustom("dbo", "m]yFun'c", 1).ToSql());
-            Assert.AreEqual("[dbo].[m]]yFun'c](1,'5')", ScalarFunctionCustom("dbo", "m]yFun'c", 1, "5").ToSql());
-            Assert.AreEqual("[dbo].[m]]yFun'c](1,'5','2020-10-19')", ScalarFunctionCustom("dbo", "m]yFun'c", 1, "5", new DateTime(2020,10,19)).ToSql());
+        Assert.AreEqual("[dbo].[m]]yFun'c]()", ScalarFunctionCustom("dbo", "m]yFun'c").ToSql());
+        Assert.AreEqual("[dbo].[m]]yFun'c](1)", ScalarFunctionCustom("dbo", "m]yFun'c", 1).ToSql());
+        Assert.AreEqual("[dbo].[m]]yFun'c](1,'5')", ScalarFunctionCustom("dbo", "m]yFun'c", 1, "5").ToSql());
+        Assert.AreEqual("[dbo].[m]]yFun'c](1,'5','2020-10-19')", ScalarFunctionCustom("dbo", "m]yFun'c", 1, "5", new DateTime(2020,10,19)).ToSql());
 
-            Assert.AreEqual("[db1].[dbo].[m]]yFun'c]()", ScalarFunctionDbCustom("db1", "dbo", "m]yFun'c").ToSql());
-            Assert.AreEqual("[db1].[dbo].[m]]yFun'c](1)", ScalarFunctionDbCustom("db1", "dbo", "m]yFun'c", 1).ToSql());
-            Assert.AreEqual("[db1].[dbo].[m]]yFun'c](1,'5')", ScalarFunctionDbCustom("db1", "dbo", "m]yFun'c", 1, "5").ToSql());
-            Assert.AreEqual("[db1].[dbo].[m]]yFun'c](1,'5','2020-10-19')", ScalarFunctionDbCustom("db1", "dbo", "m]yFun'c", 1, "5", new DateTime(2020,10,19)).ToSql());
-        }
+        Assert.AreEqual("[db1].[dbo].[m]]yFun'c]()", ScalarFunctionDbCustom("db1", "dbo", "m]yFun'c").ToSql());
+        Assert.AreEqual("[db1].[dbo].[m]]yFun'c](1)", ScalarFunctionDbCustom("db1", "dbo", "m]yFun'c", 1).ToSql());
+        Assert.AreEqual("[db1].[dbo].[m]]yFun'c](1,'5')", ScalarFunctionDbCustom("db1", "dbo", "m]yFun'c", 1, "5").ToSql());
+        Assert.AreEqual("[db1].[dbo].[m]]yFun'c](1,'5','2020-10-19')", ScalarFunctionDbCustom("db1", "dbo", "m]yFun'c", 1, "5", new DateTime(2020,10,19)).ToSql());
+    }
 
-        [Test]
-        public void UnsafeValueTest()
-        {
-            Assert.AreEqual("SELECT 'Wh' + 'at ever'", Select(UnsafeValue("'Wh' + 'at ever'")).Done().ToSql());
-        }
+    [Test]
+    public void UnsafeValueTest()
+    {
+        Assert.AreEqual("SELECT 'Wh' + 'at ever'", Select(UnsafeValue("'Wh' + 'at ever'")).Done().ToSql());
+    }
 
-        [Test]
-        public void OracleMySql_Hour_UsesSqlDateTimeLiteralFormat()
-        {
-            var sql = Select(Hour(new DateTime(2020, 2, 3, 4, 5, 6))).Done().ToOracleSql();
+    [Test]
+    public void OracleMySql_Hour_UsesSqlDateTimeLiteralFormat()
+    {
+        var sql = Select(Hour(new DateTime(2020, 2, 3, 4, 5, 6))).Done().ToOracleSql();
 
-            Assert.AreEqual("SELECT HOUR('2020-02-03 04:05:06.000')", sql);
-        }
+        Assert.AreEqual("SELECT HOUR('2020-02-03 04:05:06.000')", sql);
+    }
 
-        [Test]
-        public void Sqlite_ScalarFunction_IgnoresSchemaPrefix()
-        {
-            var sql = ScalarFunctionCustom("dbo", "MyFunc", 1).ToSql(SqliteExporter.Default);
+    [Test]
+    public void Sqlite_ScalarFunction_IgnoresSchemaPrefix()
+    {
+        var sql = ScalarFunctionCustom("dbo", "MyFunc", 1).ToSql(SqliteExporter.Default);
 
-            Assert.AreEqual("\"MyFunc\"(1)", sql);
-        }
+        Assert.AreEqual("\"MyFunc\"(1)", sql);
+    }
 
-        [Test]
-        public void Sqlite_TableFunction_IgnoresSchemaPrefix()
-        {
-            var sql = SelectOne()
-                .From(TableFunctionCustom("dbo", "MyTableFunc", 1).As(TableAlias("T")))
-                .Done()
-                .ToSql(SqliteExporter.Default);
+    [Test]
+    public void Sqlite_TableFunction_IgnoresSchemaPrefix()
+    {
+        var sql = SelectOne()
+            .From(TableFunctionCustom("dbo", "MyTableFunc", 1).As(TableAlias("T")))
+            .Done()
+            .ToSql(SqliteExporter.Default);
 
-            Assert.AreEqual("SELECT 1 FROM \"MyTableFunc\"(1) \"T\"", sql);
-        }
+        Assert.AreEqual("SELECT 1 FROM \"MyTableFunc\"(1) \"T\"", sql);
     }
 }

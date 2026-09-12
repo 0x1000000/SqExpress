@@ -1,34 +1,33 @@
 ﻿using SqExpress.StatementSyntax;
 
-namespace SqExpress.Meta
+namespace SqExpress.Meta;
+
+public readonly struct TableBaseScript
 {
-    public readonly struct TableBaseScript
+    private readonly TableBase _table;
+
+    public TableBaseScript(TableBase table)
     {
-        private readonly TableBase _table;
+        this._table = table;
+    }
 
-        public TableBaseScript(TableBase table)
-        {
-            this._table = table;
-        }
+    public IStatement DropAndCreate()
+    {
+        return StatementList.Combine(this.DropIfExist(), this.Create());
+    }
 
-        public IStatement DropAndCreate()
-        {
-            return StatementList.Combine(this.DropIfExist(), this.Create());
-        }
+    public IStatement DropIfExist()
+    {
+        return new StatementDropTable(this._table.FullName, ifExists: true);
+    }
 
-        public IStatement DropIfExist()
-        {
-            return new StatementDropTable(this._table.FullName, ifExists: true);
-        }
+    public IStatement Drop()
+    {
+        return new StatementDropTable(this._table.FullName, ifExists: false);
+    }
 
-        public IStatement Drop()
-        {
-            return new StatementDropTable(this._table.FullName, ifExists: false);
-        }
-
-        public IStatement Create()
-        {
-            return new StatementCreateTable(this._table);
-        }
+    public IStatement Create()
+    {
+        return new StatementCreateTable(this._table);
     }
 }

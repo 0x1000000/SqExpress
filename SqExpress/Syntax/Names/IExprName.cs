@@ -1,9 +1,8 @@
-﻿namespace SqExpress.Syntax.Names
-{
-    public interface IExprName : IExpr
-    {
-        string Name { get; }
+﻿namespace SqExpress.Syntax.Names;
 
-        string LowerInvariantName { get; }
-    }
+public interface IExprName : IExpr
+{
+    string Name { get; }
+
+    string LowerInvariantName { get; }
 }

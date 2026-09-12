@@ -1,11 +1,6 @@
-﻿using SqExpress.Syntax;
+﻿namespace SqExpress;
 
-namespace SqExpress
+public interface IExprExec : IExprComplete
 {
-    public interface IExprExec : IExprComplete
-    {
         
-    }
-
-    
 }

@@ -1,56 +1,54 @@
 ﻿using System.Collections.Generic;
 using SqExpress.Syntax.Boolean;
-using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Value;
 
-namespace SqExpress.Syntax.Select
+namespace SqExpress.Syntax.Select;
+
+public class ExprQuerySpecification : IExprQueryExpression
 {
-    public class ExprQuerySpecification : IExprQueryExpression
+    public IReadOnlyList<IExprSelecting> SelectList { get; }
+
+    public ExprValue? Top { get; }
+
+    public bool Distinct { get; }
+
+    public IExprTableSource? From { get; }
+
+    public ExprBoolean? Where { get; }
+
+    public IReadOnlyList<ExprValue>? GroupBy { get; }
+
+    public ExprQuerySpecification(IReadOnlyList<IExprSelecting> selectList, ExprValue? top, bool distinct, IExprTableSource? from, ExprBoolean? where, IReadOnlyList<ExprValue>? groupBy)
     {
-        public IReadOnlyList<IExprSelecting> SelectList { get; }
-
-        public ExprValue? Top { get; }
-
-        public bool Distinct { get; }
-
-        public IExprTableSource? From { get; }
-
-        public ExprBoolean? Where { get; }
-
-        public IReadOnlyList<ExprValue>? GroupBy { get; }
-
-        public ExprQuerySpecification(IReadOnlyList<IExprSelecting> selectList, ExprValue? top, bool distinct, IExprTableSource? from, ExprBoolean? where, IReadOnlyList<ExprValue>? groupBy)
-        {
-            this.SelectList = selectList;
-            this.Top = top;
-            this.Distinct = distinct;
-            this.From = from;
-            this.Where = where;
-            this.GroupBy = groupBy;
-        }
-
-        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
-            => visitor.VisitExprQuerySpecification(this, arg);
-
-        public IReadOnlyList<string?> GetOutputColumnNames()
-        {
-            string?[] result = new string?[this.SelectList.Count];
-            for (int i = 0; i < this.SelectList.Count; i++)
-            {
-                if (this.SelectList[i] is IExprNamedSelecting item)
-                {
-                    result[i] = item.OutputName;
-                }
-            }
-
-            return result;
-        }
-
-        public IReadOnlyList<IExprSelecting> ExtractSelecting()
-        {
-            return this.SelectList;
-        }
-
-        IExprSubQuery ISubQuerySource.CreateSubQuery() => this;
+        this.SelectList = selectList;
+        this.Top = top;
+        this.Distinct = distinct;
+        this.From = from;
+        this.Where = where;
+        this.GroupBy = groupBy;
     }
+
+    public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        => visitor.VisitExprQuerySpecification(this, arg);
+
+    public IReadOnlyList<string?> GetOutputColumnNames()
+    {
+        string?[] result = new string?[this.SelectList.Count];
+        for (int i = 0; i < this.SelectList.Count; i++)
+        {
+            if (this.SelectList[i] is IExprNamedSelecting item)
+            {
+                result[i] = item.OutputName;
+            }
+        }
+
+        return result;
+    }
+
+    public IReadOnlyList<IExprSelecting> ExtractSelecting()
+    {
+        return this.SelectList;
+    }
+
+    IExprSubQuery ISubQuerySource.CreateSubQuery() => this;
 }

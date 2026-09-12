@@ -3,2290 +3,1556 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using SqExpress.SqlParser.Internal.Dom;
 
-namespace SqExpress.SqlParser.Internal.Parsing
+namespace SqExpress.SqlParser.Internal.Parsing;
+
+internal sealed class SqlDomParser
 {
-    internal sealed class SqlDomParser
+    public static bool TryParseSingleStatement(
+        string sql,
+        [NotNullWhen(true)] out SqlDomStatement? statement,
+        [NotNullWhen(false)] out IReadOnlyList<string>? errors)
     {
-        public static bool TryParseSingleStatement(
-            string sql,
-            [NotNullWhen(true)] out SqlDomStatement? statement,
-            [NotNullWhen(false)] out IReadOnlyList<string>? errors)
+        if (string.IsNullOrWhiteSpace(sql))
         {
-            if (string.IsNullOrWhiteSpace(sql))
+            statement = null;
+            errors = new[] { "SQL text cannot be empty." };
+            return false;
+        }
+
+        var rawSql = sql.Trim();
+        var forJson = false;
+        var forJsonWithoutArrayWrapper = false;
+        var forJsonIncludeNullValues = false;
+        IReadOnlyList<SqlToken> tokens;
+        try
+        {
+            tokens = SqlLexer.Tokenize(rawSql);
+        }
+
+        catch (InvalidOperationException ex)
+        {
+            statement = null;
+            errors = new[] { ex.Message };
+            return false;
+        }
+
+        if (TryStripPortableForJson(rawSql, tokens, out var sqlWithoutForJson, out forJsonWithoutArrayWrapper, out forJsonIncludeNullValues))
+        {
+            forJson = true;
+            rawSql = sqlWithoutForJson;
+            tokens = SqlLexer.Tokenize(rawSql);
+        }
+
+        if (HasMultipleStatements(tokens))
+        {
+            statement = null;
+            errors = new[] { "Only one SQL statement is supported." };
+            return false;
+        }
+
+        if (TryDetectUnsupportedFeature(tokens, out var unsupportedFeatureError))
+        {
+            statement = null;
+            errors = new[] { unsupportedFeatureError };
+            return false;
+        }
+
+        if (ContainsMalformedQuantifiedPredicate(tokens, out var malformedQuantifiedError))
+        {
+            statement = null;
+            errors = new[] { malformedQuantifiedError };
+            return false;
+        }
+
+        var cursor = new TokenCursor(tokens, rawSql);
+        var withClause = ParseWithClause(cursor);
+        var kind = DetermineStatementKind(cursor.Tokens, cursor.Index);
+
+        var topLevelSelect = ParseTopLevelSelectIfAny(rawSql, tokens, cursor.Index, kind);
+
+        if (TryDetectBasicSyntaxError(rawSql, tokens, cursor.Index, kind, topLevelSelect, out var syntaxError))
+        {
+            statement = null;
+            errors = new[] { syntaxError };
+            return false;
+        }
+
+        var tableReferences = ExtractTableReferences(tokens);
+        var columnReferences = ExtractColumnReferences(tokens);
+        var normalizedSql = SqlTextNormalizer.Normalize(rawSql);
+
+        statement = new SqlDomStatement(
+            kind,
+            rawSql,
+            normalizedSql,
+            withClause,
+            topLevelSelect,
+            tableReferences,
+            columnReferences,
+            forJson,
+            forJsonWithoutArrayWrapper,
+            forJsonIncludeNullValues);
+        errors = null;
+        return true;
+    }
+
+    private static bool TryStripPortableForJson(string sql, IReadOnlyList<SqlToken> tokens, out string querySql, out bool withoutArrayWrapper, out bool includeNullValues)
+    {
+        querySql = sql;
+        withoutArrayWrapper = false;
+        includeNullValues = false;
+        var depth = 0;
+        var forIndex = -1;
+        for (var i = 0; i < tokens.Count; i++)
+        {
+            if (tokens[i].Type == SqlTokenType.OpenParen) depth++;
+            else if (tokens[i].Type == SqlTokenType.CloseParen) depth--;
+            else if (depth == 0 && tokens[i].IsKeyword("FOR")) forIndex = i;
+        }
+        if (forIndex < 0 || forIndex + 2 >= tokens.Count || !tokens[forIndex + 1].IsKeyword("JSON")) return false;
+        if (!tokens[forIndex + 2].IsKeyword("PATH")) return false;
+        var optionIndex = forIndex + 3;
+        while (optionIndex < tokens.Count && tokens[optionIndex].Type is not (SqlTokenType.EndOfFile or SqlTokenType.Semicolon))
+        {
+            if (tokens[optionIndex].Type != SqlTokenType.Comma || optionIndex + 1 >= tokens.Count) return false;
+            optionIndex++;
+            if (tokens[optionIndex].IsKeyword("INCLUDE_NULL_VALUES") && !includeNullValues) includeNullValues = true;
+            else if (tokens[optionIndex].IsKeyword("WITHOUT_ARRAY_WRAPPER") && !withoutArrayWrapper) withoutArrayWrapper = true;
+            else return false;
+            optionIndex++;
+        }
+        for (; optionIndex < tokens.Count; optionIndex++)
+            if (tokens[optionIndex].Type is not (SqlTokenType.EndOfFile or SqlTokenType.Semicolon)) return false;
+        querySql = sql.Substring(0, tokens[forIndex].Start).TrimEnd();
+        return true;
+    }
+
+    private static bool HasMultipleStatements(IReadOnlyList<SqlToken> tokens)
+    {
+        var hasAnyToken = false;
+        var statementCount = 0;
+
+        for (var i = 0; i < tokens.Count; i++)
+        {
+            var token = tokens[i];
+            if (token.Type == SqlTokenType.EndOfFile)
             {
-                statement = null;
-                errors = new[] { "SQL text cannot be empty." };
-                return false;
+                break;
             }
 
-            var rawSql = sql.Trim();
-            var forJson = false;
-            var forJsonWithoutArrayWrapper = false;
-            var forJsonIncludeNullValues = false;
-            IReadOnlyList<SqlToken> tokens;
-            try
+            if (token.Type == SqlTokenType.Semicolon)
             {
-                tokens = SqlLexer.Tokenize(rawSql);
+                if (hasAnyToken)
+                {
+                    statementCount++;
+                    hasAnyToken = false;
+                }
+
+                continue;
             }
 
-            catch (InvalidOperationException ex)
-            {
-                statement = null;
-                errors = new[] { ex.Message };
-                return false;
-            }
+            hasAnyToken = true;
+        }
 
-            if (TryStripPortableForJson(rawSql, tokens, out var sqlWithoutForJson, out forJsonWithoutArrayWrapper, out forJsonIncludeNullValues))
-            {
-                forJson = true;
-                rawSql = sqlWithoutForJson;
-                tokens = SqlLexer.Tokenize(rawSql);
-            }
+        if (hasAnyToken)
+        {
+            statementCount++;
+        }
 
-            if (HasMultipleStatements(tokens))
-            {
-                statement = null;
-                errors = new[] { "Only one SQL statement is supported." };
-                return false;
-            }
+        return statementCount > 1;
+    }
 
-            if (TryDetectUnsupportedFeature(tokens, out var unsupportedFeatureError))
-            {
-                statement = null;
-                errors = new[] { unsupportedFeatureError };
-                return false;
-            }
-
-            if (ContainsMalformedQuantifiedPredicate(tokens, out var malformedQuantifiedError))
-            {
-                statement = null;
-                errors = new[] { malformedQuantifiedError };
-                return false;
-            }
-
-            var cursor = new TokenCursor(tokens, rawSql);
-            var withClause = ParseWithClause(cursor);
-            var kind = DetermineStatementKind(cursor.Tokens, cursor.Index);
-
-            var topLevelSelect = ParseTopLevelSelectIfAny(rawSql, tokens, cursor.Index, kind);
-
-            if (TryDetectBasicSyntaxError(rawSql, tokens, cursor.Index, kind, topLevelSelect, out var syntaxError))
-            {
-                statement = null;
-                errors = new[] { syntaxError };
-                return false;
-            }
-
-            var tableReferences = ExtractTableReferences(tokens);
-            var columnReferences = ExtractColumnReferences(tokens);
-            var normalizedSql = SqlTextNormalizer.Normalize(rawSql);
-
-            statement = new SqlDomStatement(
-                kind,
-                rawSql,
-                normalizedSql,
-                withClause,
-                topLevelSelect,
-                tableReferences,
-                columnReferences,
-                forJson,
-                forJsonWithoutArrayWrapper,
-                forJsonIncludeNullValues);
-            errors = null;
+    private static bool TryDetectUnsupportedFeature(IReadOnlyList<SqlToken> tokens, [NotNullWhen(true)] out string? error)
+    {
+        if (ContainsKeyword(tokens, "PIVOT"))
+        {
+            error = "Feature 'PIVOT' is not supported by SqExpress parser.";
             return true;
         }
 
-        private static bool TryStripPortableForJson(string sql, IReadOnlyList<SqlToken> tokens, out string querySql, out bool withoutArrayWrapper, out bool includeNullValues)
+        if (ContainsKeyword(tokens, "UNPIVOT"))
         {
-            querySql = sql;
-            withoutArrayWrapper = false;
-            includeNullValues = false;
-            var depth = 0;
-            var forIndex = -1;
-            for (var i = 0; i < tokens.Count; i++)
-            {
-                if (tokens[i].Type == SqlTokenType.OpenParen) depth++;
-                else if (tokens[i].Type == SqlTokenType.CloseParen) depth--;
-                else if (depth == 0 && tokens[i].IsKeyword("FOR")) forIndex = i;
-            }
-            if (forIndex < 0 || forIndex + 2 >= tokens.Count || !tokens[forIndex + 1].IsKeyword("JSON")) return false;
-            if (!tokens[forIndex + 2].IsKeyword("PATH")) return false;
-            var optionIndex = forIndex + 3;
-            while (optionIndex < tokens.Count && tokens[optionIndex].Type is not (SqlTokenType.EndOfFile or SqlTokenType.Semicolon))
-            {
-                if (tokens[optionIndex].Type != SqlTokenType.Comma || optionIndex + 1 >= tokens.Count) return false;
-                optionIndex++;
-                if (tokens[optionIndex].IsKeyword("INCLUDE_NULL_VALUES") && !includeNullValues) includeNullValues = true;
-                else if (tokens[optionIndex].IsKeyword("WITHOUT_ARRAY_WRAPPER") && !withoutArrayWrapper) withoutArrayWrapper = true;
-                else return false;
-                optionIndex++;
-            }
-            for (; optionIndex < tokens.Count; optionIndex++)
-                if (tokens[optionIndex].Type is not (SqlTokenType.EndOfFile or SqlTokenType.Semicolon)) return false;
-            querySql = sql.Substring(0, tokens[forIndex].Start).TrimEnd();
+            error = "Feature 'UNPIVOT' is not supported by SqExpress parser.";
             return true;
         }
 
-        private static bool HasMultipleStatements(IReadOnlyList<SqlToken> tokens)
+        if (ContainsForJsonOrXml(tokens))
         {
-            var hasAnyToken = false;
-            var statementCount = 0;
-
-            for (var i = 0; i < tokens.Count; i++)
-            {
-                var token = tokens[i];
-                if (token.Type == SqlTokenType.EndOfFile)
-                {
-                    break;
-                }
-
-                if (token.Type == SqlTokenType.Semicolon)
-                {
-                    if (hasAnyToken)
-                    {
-                        statementCount++;
-                        hasAnyToken = false;
-                    }
-
-                    continue;
-                }
-
-                hasAnyToken = true;
-            }
-
-            if (hasAnyToken)
-            {
-                statementCount++;
-            }
-
-            return statementCount > 1;
+            error = "Feature 'FOR JSON/XML' is not supported by SqExpress parser.";
+            return true;
         }
 
-        private static bool TryDetectUnsupportedFeature(IReadOnlyList<SqlToken> tokens, [NotNullWhen(true)] out string? error)
+        if (ContainsTopLevelOptionHint(tokens))
         {
-            if (ContainsKeyword(tokens, "PIVOT"))
-            {
-                error = "Feature 'PIVOT' is not supported by SqExpress parser.";
-                return true;
-            }
-
-            if (ContainsKeyword(tokens, "UNPIVOT"))
-            {
-                error = "Feature 'UNPIVOT' is not supported by SqExpress parser.";
-                return true;
-            }
-
-            if (ContainsForJsonOrXml(tokens))
-            {
-                error = "Feature 'FOR JSON/XML' is not supported by SqExpress parser.";
-                return true;
-            }
-
-            if (ContainsTopLevelOptionHint(tokens))
-            {
-                error = "Feature 'OPTION(...)' is not supported by SqExpress parser.";
-                return true;
-            }
-
-            if (ContainsOutputInto(tokens))
-            {
-                error = "Feature 'OUTPUT ... INTO' is not supported by SqExpress parser.";
-                return true;
-            }
-
-            if (ContainsUnsupportedQuantifiedPredicate(tokens))
-            {
-                error = "Feature 'ANY/SOME/ALL predicates' is not supported by SqExpress parser.";
-                return true;
-            }
-
-            error = null;
-            return false;
+            error = "Feature 'OPTION(...)' is not supported by SqExpress parser.";
+            return true;
         }
 
-        private static bool ContainsUnsupportedQuantifiedPredicate(IReadOnlyList<SqlToken> tokens)
+        if (ContainsOutputInto(tokens))
         {
-            for (var i = 0; i < tokens.Count - 1; i++)
-            {
-                if ((tokens[i].IsKeyword("ANY") || tokens[i].IsKeyword("SOME") || tokens[i].IsKeyword("ALL"))
-                    && tokens[i + 1].Type == SqlTokenType.OpenParen
-                    && IsQuantifiedPredicateLead(tokens, i))
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            error = "Feature 'OUTPUT ... INTO' is not supported by SqExpress parser.";
+            return true;
         }
 
-        private static bool IsQuantifiedPredicateLead(IReadOnlyList<SqlToken> tokens, int keywordIndex)
+        if (ContainsUnsupportedQuantifiedPredicate(tokens))
         {
-            for (var i = keywordIndex - 1; i >= 0; i--)
-            {
-                var token = tokens[i];
-                if (token.Type == SqlTokenType.Comma
-                    || token.Type == SqlTokenType.OpenParen
-                    || token.IsKeyword("UNION")
-                    || token.IsKeyword("INTERSECT")
-                    || token.IsKeyword("EXCEPT")
-                    || token.IsKeyword("SELECT")
-                    || token.IsKeyword("FROM")
-                    || token.IsKeyword("WHERE")
-                    || token.IsKeyword("ON"))
-                {
-                    return false;
-                }
-
-                if (token.Type == SqlTokenType.CloseParen)
-                {
-                    return true;
-                }
-
-                if (token.Type == SqlTokenType.NumberLiteral
-                    || token.Type == SqlTokenType.StringLiteral
-                    || token.IsIdentifierLike)
-                {
-                    return true;
-                }
-
-                if (token.Type == SqlTokenType.Operator)
-                {
-                    return token.Text == "="
-                           || token.Text == "!"
-                           || token.Text == "<"
-                           || token.Text == ">"
-                           || token.Text == "<="
-                           || token.Text == ">="
-                           || token.Text == "<>"
-                           || token.Text == "!=";
-                }
-            }
-
-            return false;
+            error = "Feature 'ANY/SOME/ALL predicates' is not supported by SqExpress parser.";
+            return true;
         }
 
-        private static bool ContainsMalformedQuantifiedPredicate(IReadOnlyList<SqlToken> tokens, [NotNullWhen(true)] out string? error)
+        error = null;
+        return false;
+    }
+
+    private static bool ContainsUnsupportedQuantifiedPredicate(IReadOnlyList<SqlToken> tokens)
+    {
+        for (var i = 0; i < tokens.Count - 1; i++)
         {
-            for (var i = 1; i < tokens.Count; i++)
+            if ((tokens[i].IsKeyword("ANY") || tokens[i].IsKeyword("SOME") || tokens[i].IsKeyword("ALL"))
+                && tokens[i + 1].Type == SqlTokenType.OpenParen
+                && IsQuantifiedPredicateLead(tokens, i))
             {
-                if (!tokens[i].IsKeyword("ANY") && !tokens[i].IsKeyword("SOME") && !tokens[i].IsKeyword("ALL"))
-                {
-                    continue;
-                }
-
-                if (tokens[i - 1].Type != SqlTokenType.Operator)
-                {
-                    continue;
-                }
-
-                if (i + 1 < tokens.Count && tokens[i + 1].Type == SqlTokenType.OpenParen)
-                {
-                    continue;
-                }
-
-                error = $"Syntax error: incorrect syntax near '{tokens[i].Text}'.";
                 return true;
             }
-
-            error = null;
-            return false;
         }
 
-        private static bool TryDetectBasicSyntaxError(
-            string sql,
-            IReadOnlyList<SqlToken> tokens,
-            int statementStartIndex,
-            SqlDomStatementKind kind,
-            SqlDomSelectClause? topLevelSelect,
-            [NotNullWhen(true)] out string? error)
+        return false;
+    }
+
+    private static bool IsQuantifiedPredicateLead(IReadOnlyList<SqlToken> tokens, int keywordIndex)
+    {
+        for (var i = keywordIndex - 1; i >= 0; i--)
         {
-            if (kind == SqlDomStatementKind.Unknown)
-            {
-                if (statementStartIndex < tokens.Count && tokens[statementStartIndex].IsKeyword("AS"))
-                {
-                    error = "Syntax error: incorrect syntax near 'AS'.";
-                    return true;
-                }
-
-                error = "Unsupported or invalid statement start.";
-                return true;
-            }
-
-            if (HasUnbalancedParentheses(tokens))
-            {
-                error = "Syntax error: unbalanced parentheses.";
-                return true;
-            }
-
-            if (HasInvalidJoinSyntax(tokens))
-            {
-                error = "Syntax error: JOIN clause must contain ON condition.";
-                return true;
-            }
-
-            if (HasUnexpectedOnAfterCrossOrApply(tokens))
-            {
-                error = "Syntax error: CROSS/ APPLY join cannot contain ON condition.";
-                return true;
-            }
-
-            if (kind == SqlDomStatementKind.Select && HasUnexpectedOnWithoutJoin(tokens, statementStartIndex))
-            {
-                error = "Syntax error: ON clause is invalid.";
-                return true;
-            }
-
-            if (TryDetectSelectClauseError(topLevelSelect, out error))
-            {
-                return true;
-            }
-
-            if (HasDanglingTailToken(tokens))
-            {
-                error = "Syntax error: unexpected end of statement.";
-                return true;
-            }
-
-            if (kind == SqlDomStatementKind.Select && topLevelSelect != null && IsSelectProjectionMissing(tokens, statementStartIndex))
-            {
-                error = "Syntax error: SELECT list is missing.";
-                return true;
-            }
-
-            if (HasEmptyInPredicate(tokens))
-            {
-                error = "Syntax error: IN predicate list cannot be empty.";
-                return true;
-            }
-
-            if (TryDetectInvalidInPredicateList(tokens, out error))
-            {
-                return true;
-            }
-
-            if (TryDetectInvalidNestedQueryOperand(sql, tokens, out error))
-            {
-                return true;
-            }
-
-            if (TryDetectOrderWithoutBy(tokens, out error))
-            {
-                return true;
-            }
-
-            if (TryDetectEmptyQuantifiedOrExistsPredicate(tokens, out error))
-            {
-                return true;
-            }
-
-            if (kind == SqlDomStatementKind.Update && !ContainsTopLevelKeyword(tokens, statementStartIndex + 1, "SET"))
-            {
-                error = "Syntax error: UPDATE statement must contain SET clause.";
-                return true;
-            }
-
-            if (kind == SqlDomStatementKind.Update && TryDetectInvalidUpdateSetClause(tokens, statementStartIndex, out error))
-            {
-                return true;
-            }
-
-            if (kind == SqlDomStatementKind.Insert && TryDetectInvalidInsertColumnsClause(tokens, statementStartIndex, out error))
-            {
-                return true;
-            }
-
-            if (kind == SqlDomStatementKind.Insert && TryDetectInvalidInsertTargetClause(tokens, statementStartIndex, out error))
-            {
-                return true;
-            }
-
-            if (kind == SqlDomStatementKind.Insert && TryDetectInvalidInsertValuesClause(tokens, statementStartIndex, out error))
-            {
-                return true;
-            }
-
-            if (kind == SqlDomStatementKind.Delete && !HasDeleteTarget(tokens, statementStartIndex))
-            {
-                error = "Syntax error: DELETE statement must contain target.";
-                return true;
-            }
-
-            if (kind == SqlDomStatementKind.Delete && TryDetectInvalidDeleteTargetSyntax(tokens, statementStartIndex, out error))
-            {
-                return true;
-            }
-
-            if (kind == SqlDomStatementKind.Merge && !ContainsTopLevelKeyword(tokens, statementStartIndex + 1, "ON"))
-            {
-                error = "Syntax error: MERGE statement must contain ON clause.";
-                return true;
-            }
-
-            error = null;
-            return false;
-        }
-
-        private static bool TryDetectSelectClauseError(SqlDomSelectClause? selectClause, [NotNullWhen(true)] out string? error)
-        {
-            if (selectClause == null)
-            {
-                error = null;
-                return false;
-            }
-
-            if (!string.IsNullOrWhiteSpace(selectClause.HavingSql))
-            {
-                error = "Feature 'HAVING' is not supported by SqExpress parser.";
-                return true;
-            }
-
-            if (selectClause.HasHavingClause)
-            {
-                error = "Syntax error: incorrect syntax near 'HAVING'.";
-                return true;
-            }
-
-            if (TryDetectInvalidWildcardProjectionAlias(selectClause.Items, out error))
-            {
-                return true;
-            }
-
-            if (TryDetectInvalidProjectionAlias(selectClause.Items, out error))
-            {
-                return true;
-            }
-
-            if (!selectClause.HasValidSelectListSyntax)
-            {
-                error = selectClause.Items.Count == 0
-                    ? "Syntax error: SELECT list is missing."
-                    : "Syntax error: SELECT list is invalid.";
-                return true;
-            }
-
-            if (selectClause.HasFromClause && selectClause.From == null)
-            {
-                error = "Syntax error: FROM clause is invalid.";
-                return true;
-            }
-
-            if (selectClause.GroupBySql != null && !IsValidTopLevelCommaSeparatedClause(selectClause.GroupBySql))
-            {
-                error = "Syntax error: GROUP BY clause is invalid.";
-                return true;
-            }
-
-            if (selectClause.OrderBySql != null && !IsValidTopLevelCommaSeparatedClause(selectClause.OrderBySql))
-            {
-                error = "Syntax error: ORDER BY clause is invalid.";
-                return true;
-            }
-
-            if (ContainsTopLevelKeyword(selectClause.OrderBySql, "FETCH"))
-            {
-                error = "Syntax error: OFFSET/FETCH clause is invalid.";
-                return true;
-            }
-
-            if (TryDetectOffsetFetchError(selectClause.OrderBySql, selectClause.OffsetFetchSql, out error))
-            {
-                return true;
-            }
-
-            error = null;
-            return false;
-        }
-
-        private static bool TryDetectInvalidWildcardProjectionAlias(
-            IReadOnlyList<SqlDomSelectItem> items,
-            [NotNullWhen(true)] out string? error)
-        {
-            for (var i = 0; i < items.Count; i++)
-            {
-                var item = items[i];
-                if (string.IsNullOrWhiteSpace(item.Alias))
-                {
-                    continue;
-                }
-
-                if (IsWildcardProjectionAlias(item.Sql, item.Alias!))
-                {
-                    error = $"Syntax error: incorrect syntax near '{item.Alias}'.";
-                    return true;
-                }
-            }
-
-            error = null;
-            return false;
-        }
-
-        private static bool TryDetectInvalidProjectionAlias(
-            IReadOnlyList<SqlDomSelectItem> items,
-            [NotNullWhen(true)] out string? error)
-        {
-            for (var i = 0; i < items.Count; i++)
-            {
-                var item = items[i];
-                if (item.Alias != null && string.IsNullOrWhiteSpace(item.Alias))
-                {
-                    error = "Syntax error: SELECT list is invalid.";
-                    return true;
-                }
-            }
-
-            error = null;
-            return false;
-        }
-
-        private static bool IsWildcardProjectionAlias(string itemSql, string alias)
-        {
-            var tokens = GetMeaningfulTokens(itemSql);
-            if (tokens.Count < 2)
+            var token = tokens[i];
+            if (token.Type == SqlTokenType.Comma
+                || token.Type == SqlTokenType.OpenParen
+                || token.IsKeyword("UNION")
+                || token.IsKeyword("INTERSECT")
+                || token.IsKeyword("EXCEPT")
+                || token.IsKeyword("SELECT")
+                || token.IsKeyword("FROM")
+                || token.IsKeyword("WHERE")
+                || token.IsKeyword("ON"))
             {
                 return false;
             }
 
-            var endExclusive = tokens.Count;
-            var last = tokens[endExclusive - 1];
-
-            if (last.Type == SqlTokenType.StringLiteral)
+            if (token.Type == SqlTokenType.CloseParen)
             {
-                if (!string.Equals(ParseAliasToken(last), alias, StringComparison.Ordinal))
-                {
-                    return false;
-                }
+                return true;
+            }
 
+            if (token.Type == SqlTokenType.NumberLiteral
+                || token.Type == SqlTokenType.StringLiteral
+                || token.IsIdentifierLike)
+            {
+                return true;
+            }
+
+            if (token.Type == SqlTokenType.Operator)
+            {
+                return token.Text == "="
+                       || token.Text == "!"
+                       || token.Text == "<"
+                       || token.Text == ">"
+                       || token.Text == "<="
+                       || token.Text == ">="
+                       || token.Text == "<>"
+                       || token.Text == "!=";
+            }
+        }
+
+        return false;
+    }
+
+    private static bool ContainsMalformedQuantifiedPredicate(IReadOnlyList<SqlToken> tokens, [NotNullWhen(true)] out string? error)
+    {
+        for (var i = 1; i < tokens.Count; i++)
+        {
+            if (!tokens[i].IsKeyword("ANY") && !tokens[i].IsKeyword("SOME") && !tokens[i].IsKeyword("ALL"))
+            {
+                continue;
+            }
+
+            if (tokens[i - 1].Type != SqlTokenType.Operator)
+            {
+                continue;
+            }
+
+            if (i + 1 < tokens.Count && tokens[i + 1].Type == SqlTokenType.OpenParen)
+            {
+                continue;
+            }
+
+            error = $"Syntax error: incorrect syntax near '{tokens[i].Text}'.";
+            return true;
+        }
+
+        error = null;
+        return false;
+    }
+
+    private static bool TryDetectBasicSyntaxError(
+        string sql,
+        IReadOnlyList<SqlToken> tokens,
+        int statementStartIndex,
+        SqlDomStatementKind kind,
+        SqlDomSelectClause? topLevelSelect,
+        [NotNullWhen(true)] out string? error)
+    {
+        if (kind == SqlDomStatementKind.Unknown)
+        {
+            if (statementStartIndex < tokens.Count && tokens[statementStartIndex].IsKeyword("AS"))
+            {
+                error = "Syntax error: incorrect syntax near 'AS'.";
+                return true;
+            }
+
+            error = "Unsupported or invalid statement start.";
+            return true;
+        }
+
+        if (HasUnbalancedParentheses(tokens))
+        {
+            error = "Syntax error: unbalanced parentheses.";
+            return true;
+        }
+
+        if (HasInvalidJoinSyntax(tokens))
+        {
+            error = "Syntax error: JOIN clause must contain ON condition.";
+            return true;
+        }
+
+        if (HasUnexpectedOnAfterCrossOrApply(tokens))
+        {
+            error = "Syntax error: CROSS/ APPLY join cannot contain ON condition.";
+            return true;
+        }
+
+        if (kind == SqlDomStatementKind.Select && HasUnexpectedOnWithoutJoin(tokens, statementStartIndex))
+        {
+            error = "Syntax error: ON clause is invalid.";
+            return true;
+        }
+
+        if (TryDetectSelectClauseError(topLevelSelect, out error))
+        {
+            return true;
+        }
+
+        if (HasDanglingTailToken(tokens))
+        {
+            error = "Syntax error: unexpected end of statement.";
+            return true;
+        }
+
+        if (kind == SqlDomStatementKind.Select && topLevelSelect != null && IsSelectProjectionMissing(tokens, statementStartIndex))
+        {
+            error = "Syntax error: SELECT list is missing.";
+            return true;
+        }
+
+        if (HasEmptyInPredicate(tokens))
+        {
+            error = "Syntax error: IN predicate list cannot be empty.";
+            return true;
+        }
+
+        if (TryDetectInvalidInPredicateList(tokens, out error))
+        {
+            return true;
+        }
+
+        if (TryDetectInvalidNestedQueryOperand(sql, tokens, out error))
+        {
+            return true;
+        }
+
+        if (TryDetectOrderWithoutBy(tokens, out error))
+        {
+            return true;
+        }
+
+        if (TryDetectEmptyQuantifiedOrExistsPredicate(tokens, out error))
+        {
+            return true;
+        }
+
+        if (kind == SqlDomStatementKind.Update && !ContainsTopLevelKeyword(tokens, statementStartIndex + 1, "SET"))
+        {
+            error = "Syntax error: UPDATE statement must contain SET clause.";
+            return true;
+        }
+
+        if (kind == SqlDomStatementKind.Update && TryDetectInvalidUpdateSetClause(tokens, statementStartIndex, out error))
+        {
+            return true;
+        }
+
+        if (kind == SqlDomStatementKind.Insert && TryDetectInvalidInsertColumnsClause(tokens, statementStartIndex, out error))
+        {
+            return true;
+        }
+
+        if (kind == SqlDomStatementKind.Insert && TryDetectInvalidInsertTargetClause(tokens, statementStartIndex, out error))
+        {
+            return true;
+        }
+
+        if (kind == SqlDomStatementKind.Insert && TryDetectInvalidInsertValuesClause(tokens, statementStartIndex, out error))
+        {
+            return true;
+        }
+
+        if (kind == SqlDomStatementKind.Delete && !HasDeleteTarget(tokens, statementStartIndex))
+        {
+            error = "Syntax error: DELETE statement must contain target.";
+            return true;
+        }
+
+        if (kind == SqlDomStatementKind.Delete && TryDetectInvalidDeleteTargetSyntax(tokens, statementStartIndex, out error))
+        {
+            return true;
+        }
+
+        if (kind == SqlDomStatementKind.Merge && !ContainsTopLevelKeyword(tokens, statementStartIndex + 1, "ON"))
+        {
+            error = "Syntax error: MERGE statement must contain ON clause.";
+            return true;
+        }
+
+        error = null;
+        return false;
+    }
+
+    private static bool TryDetectSelectClauseError(SqlDomSelectClause? selectClause, [NotNullWhen(true)] out string? error)
+    {
+        if (selectClause == null)
+        {
+            error = null;
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(selectClause.HavingSql))
+        {
+            error = "Feature 'HAVING' is not supported by SqExpress parser.";
+            return true;
+        }
+
+        if (selectClause.HasHavingClause)
+        {
+            error = "Syntax error: incorrect syntax near 'HAVING'.";
+            return true;
+        }
+
+        if (TryDetectInvalidWildcardProjectionAlias(selectClause.Items, out error))
+        {
+            return true;
+        }
+
+        if (TryDetectInvalidProjectionAlias(selectClause.Items, out error))
+        {
+            return true;
+        }
+
+        if (!selectClause.HasValidSelectListSyntax)
+        {
+            error = selectClause.Items.Count == 0
+                ? "Syntax error: SELECT list is missing."
+                : "Syntax error: SELECT list is invalid.";
+            return true;
+        }
+
+        if (selectClause.HasFromClause && selectClause.From == null)
+        {
+            error = "Syntax error: FROM clause is invalid.";
+            return true;
+        }
+
+        if (selectClause.GroupBySql != null && !IsValidTopLevelCommaSeparatedClause(selectClause.GroupBySql))
+        {
+            error = "Syntax error: GROUP BY clause is invalid.";
+            return true;
+        }
+
+        if (selectClause.OrderBySql != null && !IsValidTopLevelCommaSeparatedClause(selectClause.OrderBySql))
+        {
+            error = "Syntax error: ORDER BY clause is invalid.";
+            return true;
+        }
+
+        if (ContainsTopLevelKeyword(selectClause.OrderBySql, "FETCH"))
+        {
+            error = "Syntax error: OFFSET/FETCH clause is invalid.";
+            return true;
+        }
+
+        if (TryDetectOffsetFetchError(selectClause.OrderBySql, selectClause.OffsetFetchSql, out error))
+        {
+            return true;
+        }
+
+        error = null;
+        return false;
+    }
+
+    private static bool TryDetectInvalidWildcardProjectionAlias(
+        IReadOnlyList<SqlDomSelectItem> items,
+        [NotNullWhen(true)] out string? error)
+    {
+        for (var i = 0; i < items.Count; i++)
+        {
+            var item = items[i];
+            if (string.IsNullOrWhiteSpace(item.Alias))
+            {
+                continue;
+            }
+
+            if (IsWildcardProjectionAlias(item.Sql, item.Alias!))
+            {
+                error = $"Syntax error: incorrect syntax near '{item.Alias}'.";
+                return true;
+            }
+        }
+
+        error = null;
+        return false;
+    }
+
+    private static bool TryDetectInvalidProjectionAlias(
+        IReadOnlyList<SqlDomSelectItem> items,
+        [NotNullWhen(true)] out string? error)
+    {
+        for (var i = 0; i < items.Count; i++)
+        {
+            var item = items[i];
+            if (item.Alias != null && string.IsNullOrWhiteSpace(item.Alias))
+            {
+                error = "Syntax error: SELECT list is invalid.";
+                return true;
+            }
+        }
+
+        error = null;
+        return false;
+    }
+
+    private static bool IsWildcardProjectionAlias(string itemSql, string alias)
+    {
+        var tokens = GetMeaningfulTokens(itemSql);
+        if (tokens.Count < 2)
+        {
+            return false;
+        }
+
+        var endExclusive = tokens.Count;
+        var last = tokens[endExclusive - 1];
+
+        if (last.Type == SqlTokenType.StringLiteral)
+        {
+            if (!string.Equals(ParseAliasToken(last), alias, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            endExclusive--;
+            if (endExclusive > 0 && tokens[endExclusive - 1].IsKeyword("AS"))
+            {
                 endExclusive--;
-                if (endExclusive > 0 && tokens[endExclusive - 1].IsKeyword("AS"))
+            }
+        }
+        else if (last.IsIdentifierLike)
+        {
+            if (!string.Equals(last.IdentifierValue, alias, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            endExclusive--;
+            if (endExclusive > 0 && tokens[endExclusive - 1].IsKeyword("AS"))
+            {
+                endExclusive--;
+            }
+        }
+        else
+        {
+            return false;
+        }
+
+        if (endExclusive == 1 && tokens[0].Type == SqlTokenType.Operator && tokens[0].Text == "*")
+        {
+            return true;
+        }
+
+        return endExclusive == 3
+               && tokens[0].IsIdentifierLike
+               && tokens[1].Type == SqlTokenType.Dot
+               && tokens[2].Type == SqlTokenType.Operator
+               && tokens[2].Text == "*";
+    }
+
+    private static bool HasUnbalancedParentheses(IReadOnlyList<SqlToken> tokens)
+    {
+        var depth = 0;
+        for (var i = 0; i < tokens.Count; i++)
+        {
+            if (tokens[i].Type == SqlTokenType.EndOfFile)
+            {
+                break;
+            }
+
+            if (tokens[i].Type == SqlTokenType.OpenParen)
+            {
+                depth++;
+                continue;
+            }
+
+            if (tokens[i].Type == SqlTokenType.CloseParen)
+            {
+                depth--;
+                if (depth < 0)
                 {
-                    endExclusive--;
+                    return true;
                 }
             }
-            else if (last.IsIdentifierLike)
+        }
+
+        return depth != 0;
+    }
+
+    private static bool HasDanglingTailToken(IReadOnlyList<SqlToken> tokens)
+    {
+        var last = tokens.Count - 1;
+        while (last >= 0
+               && (tokens[last].Type == SqlTokenType.EndOfFile || tokens[last].Type == SqlTokenType.Semicolon))
+        {
+            last--;
+        }
+
+        if (last < 0)
+        {
+            return true;
+        }
+
+        return tokens[last].Type == SqlTokenType.Operator
+               || tokens[last].Type == SqlTokenType.Comma
+               || tokens[last].Type == SqlTokenType.Dot
+               || tokens[last].Type == SqlTokenType.OpenParen
+               || tokens[last].IsKeyword("WHERE")
+               || tokens[last].IsKeyword("ON")
+               || tokens[last].IsKeyword("AND")
+               || tokens[last].IsKeyword("OR")
+               || tokens[last].IsKeyword("SET")
+               || tokens[last].IsKeyword("FROM")
+               || tokens[last].IsKeyword("USING")
+               || tokens[last].IsKeyword("WHEN")
+               || tokens[last].IsKeyword("THEN")
+               || tokens[last].IsKeyword("BY");
+    }
+
+    private static bool HasEmptyInPredicate(IReadOnlyList<SqlToken> tokens)
+    {
+        for (var i = 0; i < tokens.Count - 2; i++)
+        {
+            if (!tokens[i].IsKeyword("IN"))
             {
-                if (!string.Equals(last.IdentifierValue, alias, StringComparison.Ordinal))
+                continue;
+            }
+
+            if (tokens[i + 1].Type == SqlTokenType.OpenParen
+                && tokens[i + 2].Type == SqlTokenType.CloseParen)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryDetectInvalidUpdateSetClause(
+        IReadOnlyList<SqlToken> tokens,
+        int statementStartIndex,
+        [NotNullWhen(true)] out string? error)
+    {
+        var setIndex = FindTopLevelKeywordIndex(tokens, statementStartIndex + 1, "SET");
+        if (setIndex < 0)
+        {
+            error = null;
+            return false;
+        }
+
+        var end = FindFirstTopLevel(tokens, setIndex + 1, new[] { "FROM", "WHERE", "OUTPUT" });
+        if (end < 0)
+        {
+            end = FindStatementEnd(tokens, setIndex + 1);
+        }
+
+        if (end <= setIndex + 1)
+        {
+            error = "Syntax error: UPDATE SET clause is invalid.";
+            return true;
+        }
+
+        if (!IsValidTopLevelCommaSeparatedClause(tokens, setIndex + 1, end))
+        {
+            error = "Syntax error: UPDATE SET clause is invalid.";
+            return true;
+        }
+
+        if (HasInvalidUpdateSetAssignment(tokens, setIndex + 1, end))
+        {
+            error = "Syntax error: UPDATE SET clause is invalid.";
+            return true;
+        }
+
+        error = null;
+        return false;
+    }
+
+    private static bool HasDeleteTarget(IReadOnlyList<SqlToken> tokens, int statementStartIndex)
+    {
+        var cursor = statementStartIndex + 1;
+        if (cursor >= tokens.Count)
+        {
+            return false;
+        }
+
+        if (cursor < tokens.Count && tokens[cursor].IsKeyword("TOP"))
+        {
+            cursor++;
+            if (cursor >= tokens.Count)
+            {
+                return false;
+            }
+
+            if (tokens[cursor].Type == SqlTokenType.OpenParen)
+            {
+                var close = FindMatchingCloseParen(tokens, cursor);
+                if (close < 0)
                 {
                     return false;
                 }
 
-                endExclusive--;
-                if (endExclusive > 0 && tokens[endExclusive - 1].IsKeyword("AS"))
-                {
-                    endExclusive--;
-                }
+                cursor = close + 1;
             }
             else
             {
-                return false;
+                cursor++;
             }
 
-            if (endExclusive == 1 && tokens[0].Type == SqlTokenType.Operator && tokens[0].Text == "*")
-            {
-                return true;
-            }
-
-            return endExclusive == 3
-                   && tokens[0].IsIdentifierLike
-                   && tokens[1].Type == SqlTokenType.Dot
-                   && tokens[2].Type == SqlTokenType.Operator
-                   && tokens[2].Text == "*";
-        }
-
-        private static bool HasUnbalancedParentheses(IReadOnlyList<SqlToken> tokens)
-        {
-            var depth = 0;
-            for (var i = 0; i < tokens.Count; i++)
-            {
-                if (tokens[i].Type == SqlTokenType.EndOfFile)
-                {
-                    break;
-                }
-
-                if (tokens[i].Type == SqlTokenType.OpenParen)
-                {
-                    depth++;
-                    continue;
-                }
-
-                if (tokens[i].Type == SqlTokenType.CloseParen)
-                {
-                    depth--;
-                    if (depth < 0)
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            return depth != 0;
-        }
-
-        private static bool HasDanglingTailToken(IReadOnlyList<SqlToken> tokens)
-        {
-            var last = tokens.Count - 1;
-            while (last >= 0
-                   && (tokens[last].Type == SqlTokenType.EndOfFile || tokens[last].Type == SqlTokenType.Semicolon))
-            {
-                last--;
-            }
-
-            if (last < 0)
-            {
-                return true;
-            }
-
-            return tokens[last].Type == SqlTokenType.Operator
-                   || tokens[last].Type == SqlTokenType.Comma
-                   || tokens[last].Type == SqlTokenType.Dot
-                   || tokens[last].Type == SqlTokenType.OpenParen
-                   || tokens[last].IsKeyword("WHERE")
-                   || tokens[last].IsKeyword("ON")
-                   || tokens[last].IsKeyword("AND")
-                   || tokens[last].IsKeyword("OR")
-                   || tokens[last].IsKeyword("SET")
-                   || tokens[last].IsKeyword("FROM")
-                   || tokens[last].IsKeyword("USING")
-                   || tokens[last].IsKeyword("WHEN")
-                   || tokens[last].IsKeyword("THEN")
-                   || tokens[last].IsKeyword("BY");
-        }
-
-        private static bool HasEmptyInPredicate(IReadOnlyList<SqlToken> tokens)
-        {
-            for (var i = 0; i < tokens.Count - 2; i++)
-            {
-                if (!tokens[i].IsKeyword("IN"))
-                {
-                    continue;
-                }
-
-                if (tokens[i + 1].Type == SqlTokenType.OpenParen
-                    && tokens[i + 2].Type == SqlTokenType.CloseParen)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private static bool TryDetectInvalidUpdateSetClause(
-            IReadOnlyList<SqlToken> tokens,
-            int statementStartIndex,
-            [NotNullWhen(true)] out string? error)
-        {
-            var setIndex = FindTopLevelKeywordIndex(tokens, statementStartIndex + 1, "SET");
-            if (setIndex < 0)
-            {
-                error = null;
-                return false;
-            }
-
-            var end = FindFirstTopLevel(tokens, setIndex + 1, new[] { "FROM", "WHERE", "OUTPUT" });
-            if (end < 0)
-            {
-                end = FindStatementEnd(tokens, setIndex + 1);
-            }
-
-            if (end <= setIndex + 1)
-            {
-                error = "Syntax error: UPDATE SET clause is invalid.";
-                return true;
-            }
-
-            if (!IsValidTopLevelCommaSeparatedClause(tokens, setIndex + 1, end))
-            {
-                error = "Syntax error: UPDATE SET clause is invalid.";
-                return true;
-            }
-
-            if (HasInvalidUpdateSetAssignment(tokens, setIndex + 1, end))
-            {
-                error = "Syntax error: UPDATE SET clause is invalid.";
-                return true;
-            }
-
-            error = null;
-            return false;
-        }
-
-        private static bool HasDeleteTarget(IReadOnlyList<SqlToken> tokens, int statementStartIndex)
-        {
-            var cursor = statementStartIndex + 1;
-            if (cursor >= tokens.Count)
-            {
-                return false;
-            }
-
-            if (cursor < tokens.Count && tokens[cursor].IsKeyword("TOP"))
+            if (cursor < tokens.Count && tokens[cursor].IsKeyword("PERCENT"))
             {
                 cursor++;
-                if (cursor >= tokens.Count)
+            }
+        }
+
+        if (cursor >= tokens.Count)
+        {
+            return false;
+        }
+
+        if (tokens[cursor].IsKeyword("FROM"))
+        {
+            cursor++;
+            return cursor < tokens.Count
+                   && tokens[cursor].Type != SqlTokenType.EndOfFile
+                   && tokens[cursor].Type != SqlTokenType.Semicolon
+                   && !tokens[cursor].IsKeyword("WHERE")
+                   && !tokens[cursor].IsKeyword("OUTPUT");
+        }
+
+        return tokens[cursor].Type != SqlTokenType.EndOfFile
+               && tokens[cursor].Type != SqlTokenType.Semicolon
+               && !tokens[cursor].IsKeyword("WHERE")
+               && !tokens[cursor].IsKeyword("OUTPUT")
+               && !tokens[cursor].IsKeyword("FROM");
+    }
+
+    private static bool TryDetectInvalidDeleteTargetSyntax(
+        IReadOnlyList<SqlToken> tokens,
+        int statementStartIndex,
+        [NotNullWhen(true)] out string? error)
+    {
+        error = null;
+        var cursor = statementStartIndex + 1;
+        if (cursor < tokens.Count && tokens[cursor].IsKeyword("TOP"))
+        {
+            cursor++;
+            if (cursor < tokens.Count && tokens[cursor].Type == SqlTokenType.OpenParen)
+            {
+                var close = FindMatchingCloseParen(tokens, cursor);
+                if (close < 0)
                 {
                     return false;
                 }
 
-                if (tokens[cursor].Type == SqlTokenType.OpenParen)
-                {
-                    var close = FindMatchingCloseParen(tokens, cursor);
-                    if (close < 0)
-                    {
-                        return false;
-                    }
-
-                    cursor = close + 1;
-                }
-                else
-                {
-                    cursor++;
-                }
-
-                if (cursor < tokens.Count && tokens[cursor].IsKeyword("PERCENT"))
-                {
-                    cursor++;
-                }
+                cursor = close + 1;
             }
-
-            if (cursor >= tokens.Count)
-            {
-                return false;
-            }
-
-            if (tokens[cursor].IsKeyword("FROM"))
+            else if (cursor < tokens.Count)
             {
                 cursor++;
-                return cursor < tokens.Count
-                       && tokens[cursor].Type != SqlTokenType.EndOfFile
-                       && tokens[cursor].Type != SqlTokenType.Semicolon
-                       && !tokens[cursor].IsKeyword("WHERE")
-                       && !tokens[cursor].IsKeyword("OUTPUT");
             }
 
-            return tokens[cursor].Type != SqlTokenType.EndOfFile
-                   && tokens[cursor].Type != SqlTokenType.Semicolon
-                   && !tokens[cursor].IsKeyword("WHERE")
-                   && !tokens[cursor].IsKeyword("OUTPUT")
-                   && !tokens[cursor].IsKeyword("FROM");
+            if (cursor < tokens.Count && tokens[cursor].IsKeyword("PERCENT"))
+            {
+                cursor++;
+            }
         }
 
-        private static bool TryDetectInvalidDeleteTargetSyntax(
-            IReadOnlyList<SqlToken> tokens,
-            int statementStartIndex,
-            [NotNullWhen(true)] out string? error)
+        if (cursor < tokens.Count && tokens[cursor].IsKeyword("AS"))
         {
-            error = null;
-            var cursor = statementStartIndex + 1;
-            if (cursor < tokens.Count && tokens[cursor].IsKeyword("TOP"))
-            {
-                cursor++;
-                if (cursor < tokens.Count && tokens[cursor].Type == SqlTokenType.OpenParen)
-                {
-                    var close = FindMatchingCloseParen(tokens, cursor);
-                    if (close < 0)
-                    {
-                        return false;
-                    }
+            error = "Syntax error: DELETE target is invalid.";
+            return true;
+        }
 
-                    cursor = close + 1;
-                }
-                else if (cursor < tokens.Count)
-                {
-                    cursor++;
-                }
+        return false;
+    }
 
-                if (cursor < tokens.Count && tokens[cursor].IsKeyword("PERCENT"))
-                {
-                    cursor++;
-                }
-            }
+    private static bool TryDetectInvalidInsertColumnsClause(
+        IReadOnlyList<SqlToken> tokens,
+        int statementStartIndex,
+        [NotNullWhen(true)] out string? error)
+    {
+        error = null;
 
-            if (cursor < tokens.Count && tokens[cursor].IsKeyword("AS"))
-            {
-                error = "Syntax error: DELETE target is invalid.";
-                return true;
-            }
-
+        var intoIndex = FindTopLevelKeywordIndex(tokens, statementStartIndex + 1, "INTO");
+        if (intoIndex < 0)
+        {
             return false;
         }
 
-        private static bool TryDetectInvalidInsertColumnsClause(
-            IReadOnlyList<SqlToken> tokens,
-            int statementStartIndex,
-            [NotNullWhen(true)] out string? error)
+        var boundary = FindFirstTopLevel(tokens, intoIndex + 1, new[] { "OUTPUT", "VALUES", "SELECT", "DEFAULT" });
+        if (boundary < 0)
         {
-            error = null;
+            boundary = FindStatementEnd(tokens, intoIndex + 1);
+        }
 
-            var intoIndex = FindTopLevelKeywordIndex(tokens, statementStartIndex + 1, "INTO");
-            if (intoIndex < 0)
+        var openParen = -1;
+        var depth = 0;
+        for (var i = intoIndex + 1; i < boundary; i++)
+        {
+            if (tokens[i].Type == SqlTokenType.OpenParen)
+            {
+                if (depth == 0)
+                {
+                    openParen = i;
+                    break;
+                }
+
+                depth++;
+            }
+            else if (tokens[i].Type == SqlTokenType.CloseParen && depth > 0)
+            {
+                depth--;
+            }
+        }
+
+        if (openParen < 0)
+        {
+            return false;
+        }
+
+        var closeParen = FindMatchingCloseParen(tokens, openParen);
+        if (closeParen < 0 || closeParen >= boundary || !IsValidTopLevelCommaSeparatedClause(tokens, openParen + 1, closeParen))
+        {
+            error = "Syntax error: INSERT column list is invalid.";
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryDetectEmptyQuantifiedOrExistsPredicate(
+        IReadOnlyList<SqlToken> tokens,
+        [NotNullWhen(true)] out string? error)
+    {
+        for (var i = 0; i < tokens.Count - 2; i++)
+        {
+            if (tokens[i].Type != SqlTokenType.Identifier)
+            {
+                continue;
+            }
+
+            if (tokens[i + 1].Type != SqlTokenType.OpenParen
+                || tokens[i + 2].Type != SqlTokenType.CloseParen)
+            {
+                continue;
+            }
+
+            if (tokens[i].IsKeyword("EXISTS"))
+            {
+                error = "Syntax error: EXISTS predicate cannot be empty.";
+                return true;
+            }
+
+            if (tokens[i].IsKeyword("ANY") || tokens[i].IsKeyword("SOME") || tokens[i].IsKeyword("ALL"))
+            {
+                error = "Syntax error: quantified predicate operand cannot be empty.";
+                return true;
+            }
+        }
+
+        error = null;
+        return false;
+    }
+
+    private static bool TryDetectInvalidInsertTargetClause(
+        IReadOnlyList<SqlToken> tokens,
+        int statementStartIndex,
+        [NotNullWhen(true)] out string? error)
+    {
+        error = null;
+
+        var intoIndex = FindTopLevelKeywordIndex(tokens, statementStartIndex + 1, "INTO");
+        if (intoIndex < 0)
+        {
+            return false;
+        }
+
+        var boundary = FindFirstTopLevel(tokens, intoIndex + 1, new[] { "OUTPUT", "VALUES", "SELECT", "DEFAULT" });
+        if (boundary < 0)
+        {
+            boundary = FindStatementEnd(tokens, intoIndex + 1);
+        }
+
+        var openParen = -1;
+        for (var i = intoIndex + 1; i < boundary; i++)
+        {
+            if (tokens[i].Type == SqlTokenType.OpenParen)
+            {
+                openParen = i;
+                break;
+            }
+        }
+
+        var targetEnd = openParen >= 0 ? openParen : boundary;
+        if (!IsValidMultipartIdentifier(tokens, intoIndex + 1, targetEnd))
+        {
+            error = "Syntax error: INSERT target is invalid.";
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryDetectInvalidInsertValuesClause(
+        IReadOnlyList<SqlToken> tokens,
+        int statementStartIndex,
+        [NotNullWhen(true)] out string? error)
+    {
+        error = null;
+
+        var valuesIndex = FindTopLevelKeywordIndex(tokens, statementStartIndex + 1, "VALUES");
+        if (valuesIndex < 0)
+        {
+            return false;
+        }
+
+        var end = FindStatementEnd(tokens, valuesIndex + 1);
+        var index = valuesIndex + 1;
+
+        while (index < end)
+        {
+            while (index < end && tokens[index].Type == SqlTokenType.Comma)
+            {
+                index++;
+            }
+
+            if (index >= end)
+            {
+                break;
+            }
+
+            if (tokens[index].Type != SqlTokenType.OpenParen)
             {
                 return false;
             }
 
-            var boundary = FindFirstTopLevel(tokens, intoIndex + 1, new[] { "OUTPUT", "VALUES", "SELECT", "DEFAULT" });
-            if (boundary < 0)
+            var closeParen = FindMatchingCloseParen(tokens, index);
+            if (closeParen < 0 || closeParen >= end || !IsValidTopLevelCommaSeparatedClause(tokens, index + 1, closeParen))
             {
-                boundary = FindStatementEnd(tokens, intoIndex + 1);
+                error = "Syntax error: INSERT VALUES clause is invalid.";
+                return true;
             }
 
-            var openParen = -1;
-            var depth = 0;
-            for (var i = intoIndex + 1; i < boundary; i++)
+            index = closeParen + 1;
+            if (index < end && tokens[index].Type == SqlTokenType.Comma)
+            {
+                index++;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryDetectInvalidInPredicateList(
+        IReadOnlyList<SqlToken> tokens,
+        [NotNullWhen(true)] out string? error)
+    {
+        for (var i = 0; i < tokens.Count - 2; i++)
+        {
+            if (!tokens[i].IsKeyword("IN") || tokens[i + 1].Type != SqlTokenType.OpenParen)
+            {
+                continue;
+            }
+
+            var closeParen = FindMatchingCloseParen(tokens, i + 1);
+            if (closeParen < 0)
+            {
+                continue;
+            }
+
+            if (closeParen == i + 2)
+            {
+                continue;
+            }
+
+            var firstContentIndex = i + 2;
+            if (tokens[firstContentIndex].IsKeyword("SELECT") || tokens[firstContentIndex].IsKeyword("WITH"))
+            {
+                continue;
+            }
+
+            if (!IsValidTopLevelCommaSeparatedClause(tokens, firstContentIndex, closeParen))
+            {
+                error = "Syntax error: IN predicate list is invalid.";
+                return true;
+            }
+        }
+
+        error = null;
+        return false;
+    }
+
+    private static bool TryDetectInvalidNestedQueryOperand(
+        string sql,
+        IReadOnlyList<SqlToken> tokens,
+        [NotNullWhen(true)] out string? error)
+    {
+        for (var i = 0; i < tokens.Count - 1; i++)
+        {
+            if (IsKeyword(tokens, i, "CROSS") && IsKeyword(tokens, i + 1, "APPLY"))
+            {
+                if (TryDetectInvalidParenthesizedQuery(sql, tokens, i + 2, requireQuery: false, "Syntax error: FROM clause is invalid.", out error))
+                {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if (IsKeyword(tokens, i, "OUTER") && IsKeyword(tokens, i + 1, "APPLY"))
+            {
+                if (TryDetectInvalidParenthesizedQuery(sql, tokens, i + 2, requireQuery: false, "Syntax error: FROM clause is invalid.", out error))
+                {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if (tokens[i].IsKeyword("ANY") || tokens[i].IsKeyword("SOME") || tokens[i].IsKeyword("ALL"))
+            {
+                if (TryDetectInvalidParenthesizedQuery(sql, tokens, i + 1, requireQuery: true, "Syntax error: quantified predicate operand is invalid.", out error))
+                {
+                    return true;
+                }
+            }
+        }
+
+        error = null;
+        return false;
+    }
+
+    private static bool TryDetectInvalidParenthesizedQuery(
+        string sql,
+        IReadOnlyList<SqlToken> tokens,
+        int openParenIndex,
+        bool requireQuery,
+        string errorMessage,
+        [NotNullWhen(true)] out string? error)
+    {
+        error = null;
+        if (openParenIndex >= tokens.Count || tokens[openParenIndex].Type != SqlTokenType.OpenParen)
+        {
+            return false;
+        }
+
+        var closeParen = FindMatchingCloseParen(tokens, openParenIndex);
+        if (closeParen < 0)
+        {
+            return false;
+        }
+
+        var innerSql = sql.Substring(tokens[openParenIndex].End, tokens[closeParen].Start - tokens[openParenIndex].End).Trim();
+        if (!TryClassifyNestedQuerySql(innerSql, requireQuery, out var isInvalid))
+        {
+            return false;
+        }
+
+        if (isInvalid)
+        {
+            error = errorMessage;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryClassifyNestedQuerySql(string innerSql, bool requireQuery, out bool isInvalid)
+    {
+        isInvalid = false;
+        if (string.IsNullOrWhiteSpace(innerSql))
+        {
+            return false;
+        }
+
+        var innerTokens = GetMeaningfulTokens(innerSql);
+        if (innerTokens.Count == 0)
+        {
+            return false;
+        }
+
+        if (innerTokens[0].IsKeyword("SELECT") || innerTokens[0].IsKeyword("WITH"))
+        {
+            isInvalid = !TryParseSingleStatement(innerSql, out _, out _);
+            return true;
+        }
+
+        if (innerTokens[0].IsKeyword("VALUES"))
+        {
+            isInvalid = !IsValidValuesTableSourceSql(innerSql);
+            return true;
+        }
+
+        if (requireQuery)
+        {
+            isInvalid = true;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsValidValuesTableSourceSql(string sql)
+    {
+        var tokens = GetMeaningfulTokens(sql);
+        if (tokens.Count < 2 || !tokens[0].IsKeyword("VALUES"))
+        {
+            return false;
+        }
+
+        var end = FindStatementEnd(tokens, 1);
+        var index = 1;
+        var sawRow = false;
+        while (index < end)
+        {
+            if (tokens[index].Type != SqlTokenType.OpenParen)
+            {
+                return false;
+            }
+
+            var closeParen = FindMatchingCloseParen(tokens, index);
+            if (closeParen < 0 || closeParen >= end || !IsValidTopLevelCommaSeparatedClause(tokens, index + 1, closeParen))
+            {
+                return false;
+            }
+
+            sawRow = true;
+            index = closeParen + 1;
+            if (index >= end)
+            {
+                break;
+            }
+
+            if (tokens[index].Type != SqlTokenType.Comma)
+            {
+                return false;
+            }
+
+            index++;
+            if (index >= end)
+            {
+                return false;
+            }
+        }
+
+        return sawRow;
+    }
+
+    private static bool HasInvalidUpdateSetAssignment(IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)
+    {
+        var segmentStart = startInclusive;
+        var depth = 0;
+        for (var i = startInclusive; i <= endExclusive; i++)
+        {
+            var isBoundary = i == endExclusive;
+            if (!isBoundary)
             {
                 if (tokens[i].Type == SqlTokenType.OpenParen)
                 {
-                    if (depth == 0)
-                    {
-                        openParen = i;
-                        break;
-                    }
-
                     depth++;
                 }
                 else if (tokens[i].Type == SqlTokenType.CloseParen && depth > 0)
                 {
                     depth--;
                 }
+
+                if (!(depth == 0 && tokens[i].Type == SqlTokenType.Comma))
+                {
+                    continue;
+                }
             }
 
-            if (openParen < 0)
+            if (segmentStart >= i || !IsValidUpdateSetAssignment(tokens, segmentStart, i))
             {
-                return false;
-            }
-
-            var closeParen = FindMatchingCloseParen(tokens, openParen);
-            if (closeParen < 0 || closeParen >= boundary || !IsValidTopLevelCommaSeparatedClause(tokens, openParen + 1, closeParen))
-            {
-                error = "Syntax error: INSERT column list is invalid.";
                 return true;
             }
 
+            segmentStart = i + 1;
+        }
+
+        return false;
+    }
+
+    private static bool IsValidUpdateSetAssignment(IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)
+    {
+        var equalsIndex = FindTopLevelEquals(tokens, startInclusive, endExclusive);
+        if (equalsIndex <= startInclusive || equalsIndex >= endExclusive - 1)
+        {
             return false;
         }
 
-        private static bool TryDetectEmptyQuantifiedOrExistsPredicate(
-            IReadOnlyList<SqlToken> tokens,
-            [NotNullWhen(true)] out string? error)
+        return IsValidMultipartIdentifier(tokens, startInclusive, equalsIndex);
+    }
+
+    private static int FindTopLevelEquals(IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)
+    {
+        var depth = 0;
+        for (var i = startInclusive; i < endExclusive; i++)
         {
-            for (var i = 0; i < tokens.Count - 2; i++)
+            if (tokens[i].Type == SqlTokenType.OpenParen)
             {
-                if (tokens[i].Type != SqlTokenType.Identifier)
+                depth++;
+                continue;
+            }
+
+            if (tokens[i].Type == SqlTokenType.CloseParen)
+            {
+                if (depth > 0)
                 {
-                    continue;
-                }
-
-                if (tokens[i + 1].Type != SqlTokenType.OpenParen
-                    || tokens[i + 2].Type != SqlTokenType.CloseParen)
-                {
-                    continue;
-                }
-
-                if (tokens[i].IsKeyword("EXISTS"))
-                {
-                    error = "Syntax error: EXISTS predicate cannot be empty.";
-                    return true;
-                }
-
-                if (tokens[i].IsKeyword("ANY") || tokens[i].IsKeyword("SOME") || tokens[i].IsKeyword("ALL"))
-                {
-                    error = "Syntax error: quantified predicate operand cannot be empty.";
-                    return true;
-                }
-            }
-
-            error = null;
-            return false;
-        }
-
-        private static bool TryDetectInvalidInsertTargetClause(
-            IReadOnlyList<SqlToken> tokens,
-            int statementStartIndex,
-            [NotNullWhen(true)] out string? error)
-        {
-            error = null;
-
-            var intoIndex = FindTopLevelKeywordIndex(tokens, statementStartIndex + 1, "INTO");
-            if (intoIndex < 0)
-            {
-                return false;
-            }
-
-            var boundary = FindFirstTopLevel(tokens, intoIndex + 1, new[] { "OUTPUT", "VALUES", "SELECT", "DEFAULT" });
-            if (boundary < 0)
-            {
-                boundary = FindStatementEnd(tokens, intoIndex + 1);
-            }
-
-            var openParen = -1;
-            for (var i = intoIndex + 1; i < boundary; i++)
-            {
-                if (tokens[i].Type == SqlTokenType.OpenParen)
-                {
-                    openParen = i;
-                    break;
-                }
-            }
-
-            var targetEnd = openParen >= 0 ? openParen : boundary;
-            if (!IsValidMultipartIdentifier(tokens, intoIndex + 1, targetEnd))
-            {
-                error = "Syntax error: INSERT target is invalid.";
-                return true;
-            }
-
-            return false;
-        }
-
-        private static bool TryDetectInvalidInsertValuesClause(
-            IReadOnlyList<SqlToken> tokens,
-            int statementStartIndex,
-            [NotNullWhen(true)] out string? error)
-        {
-            error = null;
-
-            var valuesIndex = FindTopLevelKeywordIndex(tokens, statementStartIndex + 1, "VALUES");
-            if (valuesIndex < 0)
-            {
-                return false;
-            }
-
-            var end = FindStatementEnd(tokens, valuesIndex + 1);
-            var index = valuesIndex + 1;
-
-            while (index < end)
-            {
-                while (index < end && tokens[index].Type == SqlTokenType.Comma)
-                {
-                    index++;
-                }
-
-                if (index >= end)
-                {
-                    break;
-                }
-
-                if (tokens[index].Type != SqlTokenType.OpenParen)
-                {
-                    return false;
-                }
-
-                var closeParen = FindMatchingCloseParen(tokens, index);
-                if (closeParen < 0 || closeParen >= end || !IsValidTopLevelCommaSeparatedClause(tokens, index + 1, closeParen))
-                {
-                    error = "Syntax error: INSERT VALUES clause is invalid.";
-                    return true;
-                }
-
-                index = closeParen + 1;
-                if (index < end && tokens[index].Type == SqlTokenType.Comma)
-                {
-                    index++;
-                }
-            }
-
-            return false;
-        }
-
-        private static bool TryDetectInvalidInPredicateList(
-            IReadOnlyList<SqlToken> tokens,
-            [NotNullWhen(true)] out string? error)
-        {
-            for (var i = 0; i < tokens.Count - 2; i++)
-            {
-                if (!tokens[i].IsKeyword("IN") || tokens[i + 1].Type != SqlTokenType.OpenParen)
-                {
-                    continue;
-                }
-
-                var closeParen = FindMatchingCloseParen(tokens, i + 1);
-                if (closeParen < 0)
-                {
-                    continue;
-                }
-
-                if (closeParen == i + 2)
-                {
-                    continue;
-                }
-
-                var firstContentIndex = i + 2;
-                if (tokens[firstContentIndex].IsKeyword("SELECT") || tokens[firstContentIndex].IsKeyword("WITH"))
-                {
-                    continue;
-                }
-
-                if (!IsValidTopLevelCommaSeparatedClause(tokens, firstContentIndex, closeParen))
-                {
-                    error = "Syntax error: IN predicate list is invalid.";
-                    return true;
-                }
-            }
-
-            error = null;
-            return false;
-        }
-
-        private static bool TryDetectInvalidNestedQueryOperand(
-            string sql,
-            IReadOnlyList<SqlToken> tokens,
-            [NotNullWhen(true)] out string? error)
-        {
-            for (var i = 0; i < tokens.Count - 1; i++)
-            {
-                if (IsKeyword(tokens, i, "CROSS") && IsKeyword(tokens, i + 1, "APPLY"))
-                {
-                    if (TryDetectInvalidParenthesizedQuery(sql, tokens, i + 2, requireQuery: false, "Syntax error: FROM clause is invalid.", out error))
-                    {
-                        return true;
-                    }
-
-                    continue;
-                }
-
-                if (IsKeyword(tokens, i, "OUTER") && IsKeyword(tokens, i + 1, "APPLY"))
-                {
-                    if (TryDetectInvalidParenthesizedQuery(sql, tokens, i + 2, requireQuery: false, "Syntax error: FROM clause is invalid.", out error))
-                    {
-                        return true;
-                    }
-
-                    continue;
-                }
-
-                if (tokens[i].IsKeyword("ANY") || tokens[i].IsKeyword("SOME") || tokens[i].IsKeyword("ALL"))
-                {
-                    if (TryDetectInvalidParenthesizedQuery(sql, tokens, i + 1, requireQuery: true, "Syntax error: quantified predicate operand is invalid.", out error))
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            error = null;
-            return false;
-        }
-
-        private static bool TryDetectInvalidParenthesizedQuery(
-            string sql,
-            IReadOnlyList<SqlToken> tokens,
-            int openParenIndex,
-            bool requireQuery,
-            string errorMessage,
-            [NotNullWhen(true)] out string? error)
-        {
-            error = null;
-            if (openParenIndex >= tokens.Count || tokens[openParenIndex].Type != SqlTokenType.OpenParen)
-            {
-                return false;
-            }
-
-            var closeParen = FindMatchingCloseParen(tokens, openParenIndex);
-            if (closeParen < 0)
-            {
-                return false;
-            }
-
-            var innerSql = sql.Substring(tokens[openParenIndex].End, tokens[closeParen].Start - tokens[openParenIndex].End).Trim();
-            if (!TryClassifyNestedQuerySql(innerSql, requireQuery, out var isInvalid))
-            {
-                return false;
-            }
-
-            if (isInvalid)
-            {
-                error = errorMessage;
-                return true;
-            }
-
-            return false;
-        }
-
-        private static bool TryClassifyNestedQuerySql(string innerSql, bool requireQuery, out bool isInvalid)
-        {
-            isInvalid = false;
-            if (string.IsNullOrWhiteSpace(innerSql))
-            {
-                return false;
-            }
-
-            var innerTokens = GetMeaningfulTokens(innerSql);
-            if (innerTokens.Count == 0)
-            {
-                return false;
-            }
-
-            if (innerTokens[0].IsKeyword("SELECT") || innerTokens[0].IsKeyword("WITH"))
-            {
-                isInvalid = !TryParseSingleStatement(innerSql, out _, out _);
-                return true;
-            }
-
-            if (innerTokens[0].IsKeyword("VALUES"))
-            {
-                isInvalid = !IsValidValuesTableSourceSql(innerSql);
-                return true;
-            }
-
-            if (requireQuery)
-            {
-                isInvalid = true;
-                return true;
-            }
-
-            return false;
-        }
-
-        private static bool IsValidValuesTableSourceSql(string sql)
-        {
-            var tokens = GetMeaningfulTokens(sql);
-            if (tokens.Count < 2 || !tokens[0].IsKeyword("VALUES"))
-            {
-                return false;
-            }
-
-            var end = FindStatementEnd(tokens, 1);
-            var index = 1;
-            var sawRow = false;
-            while (index < end)
-            {
-                if (tokens[index].Type != SqlTokenType.OpenParen)
-                {
-                    return false;
-                }
-
-                var closeParen = FindMatchingCloseParen(tokens, index);
-                if (closeParen < 0 || closeParen >= end || !IsValidTopLevelCommaSeparatedClause(tokens, index + 1, closeParen))
-                {
-                    return false;
-                }
-
-                sawRow = true;
-                index = closeParen + 1;
-                if (index >= end)
-                {
-                    break;
-                }
-
-                if (tokens[index].Type != SqlTokenType.Comma)
-                {
-                    return false;
-                }
-
-                index++;
-                if (index >= end)
-                {
-                    return false;
-                }
-            }
-
-            return sawRow;
-        }
-
-        private static bool HasInvalidUpdateSetAssignment(IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)
-        {
-            var segmentStart = startInclusive;
-            var depth = 0;
-            for (var i = startInclusive; i <= endExclusive; i++)
-            {
-                var isBoundary = i == endExclusive;
-                if (!isBoundary)
-                {
-                    if (tokens[i].Type == SqlTokenType.OpenParen)
-                    {
-                        depth++;
-                    }
-                    else if (tokens[i].Type == SqlTokenType.CloseParen && depth > 0)
-                    {
-                        depth--;
-                    }
-
-                    if (!(depth == 0 && tokens[i].Type == SqlTokenType.Comma))
-                    {
-                        continue;
-                    }
-                }
-
-                if (segmentStart >= i || !IsValidUpdateSetAssignment(tokens, segmentStart, i))
-                {
-                    return true;
-                }
-
-                segmentStart = i + 1;
-            }
-
-            return false;
-        }
-
-        private static bool IsValidUpdateSetAssignment(IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)
-        {
-            var equalsIndex = FindTopLevelEquals(tokens, startInclusive, endExclusive);
-            if (equalsIndex <= startInclusive || equalsIndex >= endExclusive - 1)
-            {
-                return false;
-            }
-
-            return IsValidMultipartIdentifier(tokens, startInclusive, equalsIndex);
-        }
-
-        private static int FindTopLevelEquals(IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)
-        {
-            var depth = 0;
-            for (var i = startInclusive; i < endExclusive; i++)
-            {
-                if (tokens[i].Type == SqlTokenType.OpenParen)
-                {
-                    depth++;
-                    continue;
-                }
-
-                if (tokens[i].Type == SqlTokenType.CloseParen)
-                {
-                    if (depth > 0)
-                    {
-                        depth--;
-                    }
-
-                    continue;
-                }
-
-                if (depth == 0 && tokens[i].Type == SqlTokenType.Operator && tokens[i].Text == "=")
-                {
-                    return i;
-                }
-            }
-
-            return -1;
-        }
-
-        private static bool IsValidMultipartIdentifier(IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)
-        {
-            if (endExclusive <= startInclusive)
-            {
-                return false;
-            }
-
-            var index = startInclusive;
-            var nameParts = ParseMultipartIdentifier(tokens, ref index, endExclusive);
-            return nameParts.Count >= 1 && index == endExclusive;
-        }
-
-        private static bool IsValidTopLevelCommaSeparatedClause(string? sql)
-        {
-            if (sql == null)
-            {
-                return true;
-            }
-
-            if (string.IsNullOrWhiteSpace(sql))
-            {
-                return false;
-            }
-
-            var meaningfulTokens = GetMeaningfulTokens(sql);
-            if (meaningfulTokens.Count < 1)
-            {
-                return false;
-            }
-
-            var depth = 0;
-            var segmentHasToken = false;
-            for (var i = 0; i < meaningfulTokens.Count; i++)
-            {
-                var token = meaningfulTokens[i];
-                if (token.Type == SqlTokenType.OpenParen)
-                {
-                    depth++;
-                    segmentHasToken = true;
-                    continue;
-                }
-
-                if (token.Type == SqlTokenType.CloseParen)
-                {
-                    if (depth > 0)
-                    {
-                        depth--;
-                    }
-
-                    segmentHasToken = true;
-                    continue;
-                }
-
-                if (depth == 0 && token.Type == SqlTokenType.Comma)
-                {
-                    if (!segmentHasToken)
-                    {
-                        return false;
-                    }
-
-                    segmentHasToken = false;
-                    continue;
-                }
-
-                segmentHasToken = true;
-            }
-
-            return segmentHasToken;
-        }
-
-        private static bool IsValidTopLevelCommaSeparatedClause(IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)
-        {
-            if (endExclusive <= startInclusive)
-            {
-                return false;
-            }
-
-            var depth = 0;
-            var segmentHasToken = false;
-            for (var i = startInclusive; i < endExclusive; i++)
-            {
-                var token = tokens[i];
-                if (token.Type == SqlTokenType.OpenParen)
-                {
-                    depth++;
-                    segmentHasToken = true;
-                    continue;
-                }
-
-                if (token.Type == SqlTokenType.CloseParen)
-                {
-                    if (depth > 0)
-                    {
-                        depth--;
-                    }
-
-                    segmentHasToken = true;
-                    continue;
-                }
-
-                if (depth == 0 && token.Type == SqlTokenType.Comma)
-                {
-                    if (!segmentHasToken)
-                    {
-                        return false;
-                    }
-
-                    segmentHasToken = false;
-                    continue;
-                }
-
-                segmentHasToken = true;
-            }
-
-            return segmentHasToken;
-        }
-
-        private static bool ContainsTopLevelKeyword(string? sql, string keyword)
-        {
-            if (string.IsNullOrWhiteSpace(sql))
-            {
-                return false;
-            }
-
-            var tokens = SqlLexer.Tokenize(sql!);
-            return ContainsTopLevelKeyword(tokens, 0, keyword);
-        }
-
-        private static bool TryDetectOffsetFetchError(string? orderBySql, string? offsetFetchSql, [NotNullWhen(true)] out string? error)
-        {
-            if (string.IsNullOrWhiteSpace(offsetFetchSql))
-            {
-                error = null;
-                return false;
-            }
-
-            if (string.IsNullOrWhiteSpace(orderBySql))
-            {
-                error = "Syntax error: OFFSET requires ORDER BY clause.";
-                return true;
-            }
-
-            var tokens = GetMeaningfulTokens(offsetFetchSql!);
-            if (tokens.Count < 3 || !tokens[0].IsKeyword("OFFSET"))
-            {
-                error = "Syntax error: OFFSET/FETCH clause is invalid.";
-                return true;
-            }
-
-            var index = 1;
-            if (!TryReadClauseExpression(tokens, ref index, "ROW", "ROWS"))
-            {
-                error = "Syntax error: OFFSET/FETCH clause is invalid.";
-                return true;
-            }
-
-            if (index >= tokens.Count)
-            {
-                error = null;
-                return false;
-            }
-
-            if (!tokens[index].IsKeyword("FETCH"))
-            {
-                error = "Syntax error: OFFSET/FETCH clause is invalid.";
-                return true;
-            }
-
-            index++;
-            if (index >= tokens.Count || (!tokens[index].IsKeyword("NEXT") && !tokens[index].IsKeyword("FIRST")))
-            {
-                error = "Syntax error: OFFSET/FETCH clause is invalid.";
-                return true;
-            }
-
-            index++;
-            if (!TryReadClauseExpression(tokens, ref index, "ROW", "ROWS"))
-            {
-                error = "Syntax error: OFFSET/FETCH clause is invalid.";
-                return true;
-            }
-
-            if (index >= tokens.Count || !tokens[index].IsKeyword("ONLY"))
-            {
-                error = "Syntax error: OFFSET/FETCH clause is invalid.";
-                return true;
-            }
-
-            index++;
-            if (index != tokens.Count)
-            {
-                error = "Syntax error: OFFSET/FETCH clause is invalid.";
-                return true;
-            }
-
-            error = null;
-            return false;
-        }
-
-        private static List<SqlToken> GetMeaningfulTokens(string sql)
-        {
-            var meaningfulTokens = new List<SqlToken>();
-            var tokens = SqlLexer.Tokenize(sql);
-            for (var i = 0; i < tokens.Count; i++)
-            {
-                if (tokens[i].Type != SqlTokenType.EndOfFile)
-                {
-                    meaningfulTokens.Add(tokens[i]);
-                }
-            }
-
-            return meaningfulTokens;
-        }
-
-        private static bool TryReadClauseExpression(IReadOnlyList<SqlToken> tokens, ref int index, string terminalKeyword1, string terminalKeyword2)
-        {
-            var depth = 0;
-            var expressionStart = index;
-
-            while (index < tokens.Count)
-            {
-                if (tokens[index].Type == SqlTokenType.OpenParen)
-                {
-                    depth++;
-                    index++;
-                    continue;
-                }
-
-                if (tokens[index].Type == SqlTokenType.CloseParen)
-                {
-                    if (depth == 0)
-                    {
-                        break;
-                    }
-
                     depth--;
-                    index++;
-                    continue;
                 }
 
-                if (depth == 0 && (tokens[index].IsKeyword(terminalKeyword1) || tokens[index].IsKeyword(terminalKeyword2)))
-                {
-                    break;
-                }
-
-                index++;
+                continue;
             }
 
-            if (index <= expressionStart || index >= tokens.Count)
+            if (depth == 0 && tokens[i].Type == SqlTokenType.Operator && tokens[i].Text == "=")
             {
-                return false;
+                return i;
             }
+        }
 
-            if (!tokens[index].IsKeyword(terminalKeyword1) && !tokens[index].IsKeyword(terminalKeyword2))
-            {
-                return false;
-            }
+        return -1;
+    }
 
-            index++;
+    private static bool IsValidMultipartIdentifier(IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)
+    {
+        if (endExclusive <= startInclusive)
+        {
+            return false;
+        }
+
+        var index = startInclusive;
+        var nameParts = ParseMultipartIdentifier(tokens, ref index, endExclusive);
+        return nameParts.Count >= 1 && index == endExclusive;
+    }
+
+    private static bool IsValidTopLevelCommaSeparatedClause(string? sql)
+    {
+        if (sql == null)
+        {
             return true;
         }
 
-        private static bool HasInvalidJoinSyntax(IReadOnlyList<SqlToken> tokens)
+        if (string.IsNullOrWhiteSpace(sql))
         {
-            for (var i = 0; i < tokens.Count; i++)
-            {
-                if (tokens[i].Type == SqlTokenType.EndOfFile)
-                {
-                    break;
-                }
-
-                if (!IsKeyword(tokens, i, "INNER")
-                    && !IsKeyword(tokens, i, "LEFT")
-                    && !IsKeyword(tokens, i, "RIGHT")
-                    && !IsKeyword(tokens, i, "FULL"))
-                {
-                    continue;
-                }
-
-                if (i + 1 >= tokens.Count || !IsKeyword(tokens, i + 1, "JOIN"))
-                {
-                    continue;
-                }
-
-                var boundary = FindNextJoinBoundary(tokens, i + 2, tokens.Count);
-                var hasOn = false;
-                var depth = 0;
-                for (var j = i + 2; j < boundary; j++)
-                {
-                    if (tokens[j].Type == SqlTokenType.OpenParen)
-                    {
-                        depth++;
-                        continue;
-                    }
-
-                    if (tokens[j].Type == SqlTokenType.CloseParen)
-                    {
-                        if (depth > 0)
-                        {
-                            depth--;
-                        }
-
-                        continue;
-                    }
-
-                    if (depth == 0 && IsKeyword(tokens, j, "ON"))
-                    {
-                        hasOn = true;
-                        break;
-                    }
-                }
-
-                if (!hasOn)
-                {
-                    return true;
-                }
-            }
-
             return false;
         }
 
-        private static bool HasUnexpectedOnAfterCrossOrApply(IReadOnlyList<SqlToken> tokens)
+        var meaningfulTokens = GetMeaningfulTokens(sql);
+        if (meaningfulTokens.Count < 1)
         {
-            for (var i = 0; i < tokens.Count; i++)
-            {
-                if (tokens[i].Type == SqlTokenType.EndOfFile)
-                {
-                    break;
-                }
-
-                var isCrossJoin = IsKeyword(tokens, i, "CROSS") && i + 1 < tokens.Count && IsKeyword(tokens, i + 1, "JOIN");
-                var isCrossApply = IsKeyword(tokens, i, "CROSS") && i + 1 < tokens.Count && IsKeyword(tokens, i + 1, "APPLY");
-                var isOuterApply = IsKeyword(tokens, i, "OUTER") && i + 1 < tokens.Count && IsKeyword(tokens, i + 1, "APPLY");
-                if (!isCrossJoin && !isCrossApply && !isOuterApply)
-                {
-                    continue;
-                }
-
-                var boundary = FindNextJoinBoundary(tokens, i + 2, tokens.Count);
-                var depth = 0;
-                for (var j = i + 2; j < boundary; j++)
-                {
-                    if (tokens[j].Type == SqlTokenType.OpenParen)
-                    {
-                        depth++;
-                        continue;
-                    }
-
-                    if (tokens[j].Type == SqlTokenType.CloseParen)
-                    {
-                        if (depth > 0)
-                        {
-                            depth--;
-                        }
-
-                        continue;
-                    }
-
-                    if (depth == 0 && IsKeyword(tokens, j, "ON"))
-                    {
-                        return true;
-                    }
-                }
-            }
-
             return false;
         }
 
-        private static bool TryDetectOrderWithoutBy(IReadOnlyList<SqlToken> tokens, [NotNullWhen(true)] out string? error)
+        var depth = 0;
+        var segmentHasToken = false;
+        for (var i = 0; i < meaningfulTokens.Count; i++)
         {
-            for (var i = 0; i < tokens.Count; i++)
+            var token = meaningfulTokens[i];
+            if (token.Type == SqlTokenType.OpenParen)
             {
-                if (!tokens[i].IsKeyword("ORDER"))
-                {
-                    continue;
-                }
-
-                if (i + 1 < tokens.Count && tokens[i + 1].IsKeyword("BY"))
-                {
-                    continue;
-                }
-
-                error = i + 1 < tokens.Count
-                    ? "Syntax error: incorrect syntax near '" + tokens[i + 1].Text + "'."
-                    : "Syntax error: ORDER BY clause is invalid.";
-                return true;
+                depth++;
+                segmentHasToken = true;
+                continue;
             }
 
+            if (token.Type == SqlTokenType.CloseParen)
+            {
+                if (depth > 0)
+                {
+                    depth--;
+                }
+
+                segmentHasToken = true;
+                continue;
+            }
+
+            if (depth == 0 && token.Type == SqlTokenType.Comma)
+            {
+                if (!segmentHasToken)
+                {
+                    return false;
+                }
+
+                segmentHasToken = false;
+                continue;
+            }
+
+            segmentHasToken = true;
+        }
+
+        return segmentHasToken;
+    }
+
+    private static bool IsValidTopLevelCommaSeparatedClause(IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)
+    {
+        if (endExclusive <= startInclusive)
+        {
+            return false;
+        }
+
+        var depth = 0;
+        var segmentHasToken = false;
+        for (var i = startInclusive; i < endExclusive; i++)
+        {
+            var token = tokens[i];
+            if (token.Type == SqlTokenType.OpenParen)
+            {
+                depth++;
+                segmentHasToken = true;
+                continue;
+            }
+
+            if (token.Type == SqlTokenType.CloseParen)
+            {
+                if (depth > 0)
+                {
+                    depth--;
+                }
+
+                segmentHasToken = true;
+                continue;
+            }
+
+            if (depth == 0 && token.Type == SqlTokenType.Comma)
+            {
+                if (!segmentHasToken)
+                {
+                    return false;
+                }
+
+                segmentHasToken = false;
+                continue;
+            }
+
+            segmentHasToken = true;
+        }
+
+        return segmentHasToken;
+    }
+
+    private static bool ContainsTopLevelKeyword(string? sql, string keyword)
+    {
+        if (string.IsNullOrWhiteSpace(sql))
+        {
+            return false;
+        }
+
+        var tokens = SqlLexer.Tokenize(sql!);
+        return ContainsTopLevelKeyword(tokens, 0, keyword);
+    }
+
+    private static bool TryDetectOffsetFetchError(string? orderBySql, string? offsetFetchSql, [NotNullWhen(true)] out string? error)
+    {
+        if (string.IsNullOrWhiteSpace(offsetFetchSql))
+        {
             error = null;
             return false;
         }
 
-        private static bool HasUnexpectedOnWithoutJoin(IReadOnlyList<SqlToken> tokens, int statementStartIndex)
+        if (string.IsNullOrWhiteSpace(orderBySql))
         {
-            var fromIndex = FindTopLevelKeywordIndex(tokens, statementStartIndex + 1, "FROM");
-            if (fromIndex < 0)
-            {
-                return false;
-            }
+            error = "Syntax error: OFFSET requires ORDER BY clause.";
+            return true;
+        }
 
-            var boundary = FindFirstTopLevel(tokens, fromIndex + 1, new[] { "WHERE", "GROUP", "HAVING", "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT" });
-            if (boundary < 0)
-            {
-                boundary = FindStatementEnd(tokens, fromIndex + 1);
-            }
+        var tokens = GetMeaningfulTokens(offsetFetchSql!);
+        if (tokens.Count < 3 || !tokens[0].IsKeyword("OFFSET"))
+        {
+            error = "Syntax error: OFFSET/FETCH clause is invalid.";
+            return true;
+        }
 
-            var depth = 0;
-            var pendingJoinCondition = false;
-            for (var i = fromIndex + 1; i < boundary; i++)
-            {
-                if (tokens[i].Type == SqlTokenType.OpenParen)
-                {
-                    depth++;
-                    continue;
-                }
+        var index = 1;
+        if (!TryReadClauseExpression(tokens, ref index, "ROW", "ROWS"))
+        {
+            error = "Syntax error: OFFSET/FETCH clause is invalid.";
+            return true;
+        }
 
-                if (tokens[i].Type == SqlTokenType.CloseParen)
-                {
-                    if (depth > 0)
-                    {
-                        depth--;
-                    }
-
-                    continue;
-                }
-
-                if (depth != 0)
-                {
-                    continue;
-                }
-
-                if (IsJoinLead(tokens, i))
-                {
-                    pendingJoinCondition = !(
-                        (IsKeyword(tokens, i, "CROSS") && i + 1 < boundary && IsKeyword(tokens, i + 1, "JOIN"))
-                        || (IsKeyword(tokens, i, "CROSS") && i + 1 < boundary && IsKeyword(tokens, i + 1, "APPLY"))
-                        || (IsKeyword(tokens, i, "OUTER") && i + 1 < boundary && IsKeyword(tokens, i + 1, "APPLY")));
-                    continue;
-                }
-
-                if (tokens[i].IsKeyword("ON"))
-                {
-                    if (!pendingJoinCondition)
-                    {
-                        return true;
-                    }
-
-                    pendingJoinCondition = false;
-                }
-            }
-
+        if (index >= tokens.Count)
+        {
+            error = null;
             return false;
         }
 
-        private static bool IsSelectProjectionMissing(IReadOnlyList<SqlToken> tokens, int startIndex)
+        if (!tokens[index].IsKeyword("FETCH"))
         {
-            var index = startIndex + 1;
-            if (index >= tokens.Count)
-            {
-                return true;
-            }
+            error = "Syntax error: OFFSET/FETCH clause is invalid.";
+            return true;
+        }
 
-            if (tokens[index].IsKeyword("DISTINCT"))
+        index++;
+        if (index >= tokens.Count || (!tokens[index].IsKeyword("NEXT") && !tokens[index].IsKeyword("FIRST")))
+        {
+            error = "Syntax error: OFFSET/FETCH clause is invalid.";
+            return true;
+        }
+
+        index++;
+        if (!TryReadClauseExpression(tokens, ref index, "ROW", "ROWS"))
+        {
+            error = "Syntax error: OFFSET/FETCH clause is invalid.";
+            return true;
+        }
+
+        if (index >= tokens.Count || !tokens[index].IsKeyword("ONLY"))
+        {
+            error = "Syntax error: OFFSET/FETCH clause is invalid.";
+            return true;
+        }
+
+        index++;
+        if (index != tokens.Count)
+        {
+            error = "Syntax error: OFFSET/FETCH clause is invalid.";
+            return true;
+        }
+
+        error = null;
+        return false;
+    }
+
+    private static List<SqlToken> GetMeaningfulTokens(string sql)
+    {
+        var meaningfulTokens = new List<SqlToken>();
+        var tokens = SqlLexer.Tokenize(sql);
+        for (var i = 0; i < tokens.Count; i++)
+        {
+            if (tokens[i].Type != SqlTokenType.EndOfFile)
             {
+                meaningfulTokens.Add(tokens[i]);
+            }
+        }
+
+        return meaningfulTokens;
+    }
+
+    private static bool TryReadClauseExpression(IReadOnlyList<SqlToken> tokens, ref int index, string terminalKeyword1, string terminalKeyword2)
+    {
+        var depth = 0;
+        var expressionStart = index;
+
+        while (index < tokens.Count)
+        {
+            if (tokens[index].Type == SqlTokenType.OpenParen)
+            {
+                depth++;
                 index++;
+                continue;
             }
 
-            if (index < tokens.Count && tokens[index].IsKeyword("ALL"))
+            if (tokens[index].Type == SqlTokenType.CloseParen)
             {
+                if (depth == 0)
+                {
+                    break;
+                }
+
+                depth--;
                 index++;
+                continue;
             }
 
-            if (index < tokens.Count && tokens[index].IsKeyword("TOP"))
+            if (depth == 0 && (tokens[index].IsKeyword(terminalKeyword1) || tokens[index].IsKeyword(terminalKeyword2)))
             {
-                index++;
-                if (index < tokens.Count && tokens[index].Type == SqlTokenType.OpenParen)
-                {
-                    var close = FindMatchingCloseParen(tokens, index);
-                    if (close < 0)
-                    {
-                        return true;
-                    }
-
-                    index = close + 1;
-                }
-                else if (index < tokens.Count)
-                {
-                    index++;
-                }
-
-                if (index < tokens.Count && tokens[index].IsKeyword("WITH") && IsKeyword(tokens, index + 1, "TIES"))
-                {
-                    index += 2;
-                }
-            }
-
-            if (index >= tokens.Count)
-            {
-                return true;
-            }
-
-            return tokens[index].IsKeyword("FROM")
-                   || tokens[index].IsKeyword("WHERE")
-                   || tokens[index].IsKeyword("GROUP")
-                   || tokens[index].IsKeyword("HAVING")
-                   || tokens[index].IsKeyword("ORDER")
-                   || tokens[index].IsKeyword("OFFSET")
-                   || tokens[index].IsKeyword("UNION")
-                   || tokens[index].IsKeyword("INTERSECT")
-                   || tokens[index].IsKeyword("EXCEPT")
-                   || tokens[index].Type == SqlTokenType.Comma
-                   || tokens[index].Type == SqlTokenType.EndOfFile
-                   || tokens[index].Type == SqlTokenType.Semicolon;
-        }
-
-        private static bool ContainsTopLevelKeyword(IReadOnlyList<SqlToken> tokens, int startIndex, string keyword)
-        {
-            var depth = 0;
-            for (var i = startIndex; i < tokens.Count; i++)
-            {
-                if (tokens[i].Type == SqlTokenType.EndOfFile || tokens[i].Type == SqlTokenType.Semicolon)
-                {
-                    break;
-                }
-
-                if (tokens[i].Type == SqlTokenType.OpenParen)
-                {
-                    depth++;
-                    continue;
-                }
-
-                if (tokens[i].Type == SqlTokenType.CloseParen)
-                {
-                    if (depth > 0)
-                    {
-                        depth--;
-                    }
-
-                    continue;
-                }
-
-                if (depth == 0 && tokens[i].IsKeyword(keyword))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private static bool ContainsKeyword(IReadOnlyList<SqlToken> tokens, string keyword)
-        {
-            for (var i = 0; i < tokens.Count; i++)
-            {
-                if (tokens[i].IsKeyword(keyword))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private static bool ContainsForJsonOrXml(IReadOnlyList<SqlToken> tokens)
-        {
-            var depth = 0;
-            for (var i = 0; i < tokens.Count - 1; i++)
-            {
-                if (tokens[i].Type == SqlTokenType.OpenParen)
-                {
-                    depth++;
-                    continue;
-                }
-
-                if (tokens[i].Type == SqlTokenType.CloseParen)
-                {
-                    if (depth > 0)
-                    {
-                        depth--;
-                    }
-
-                    continue;
-                }
-
-                if (depth == 0
-                    && tokens[i].IsKeyword("FOR")
-                    && (tokens[i + 1].IsKeyword("JSON") || tokens[i + 1].IsKeyword("XML")))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private static bool ContainsTopLevelOptionHint(IReadOnlyList<SqlToken> tokens)
-        {
-            var depth = 0;
-            for (var i = 0; i < tokens.Count; i++)
-            {
-                if (tokens[i].Type == SqlTokenType.OpenParen)
-                {
-                    depth++;
-                    continue;
-                }
-
-                if (tokens[i].Type == SqlTokenType.CloseParen)
-                {
-                    if (depth > 0)
-                    {
-                        depth--;
-                    }
-
-                    continue;
-                }
-
-                if (depth == 0 && tokens[i].IsKeyword("OPTION"))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private static bool ContainsOutputInto(IReadOnlyList<SqlToken> tokens)
-        {
-            for (var i = 0; i < tokens.Count; i++)
-            {
-                if (!tokens[i].IsKeyword("OUTPUT"))
-                {
-                    continue;
-                }
-
-                var depth = 0;
-                for (var j = i + 1; j < tokens.Count; j++)
-                {
-                    if (tokens[j].Type == SqlTokenType.EndOfFile || tokens[j].Type == SqlTokenType.Semicolon)
-                    {
-                        break;
-                    }
-
-                    if (tokens[j].Type == SqlTokenType.OpenParen)
-                    {
-                        depth++;
-                        continue;
-                    }
-
-                    if (tokens[j].Type == SqlTokenType.CloseParen)
-                    {
-                        if (depth > 0)
-                        {
-                            depth--;
-                        }
-
-                        continue;
-                    }
-
-                    if (depth == 0 && tokens[j].IsKeyword("INTO"))
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
-        }
-
-        private static SqlDomStatementKind DetermineStatementKind(IReadOnlyList<SqlToken> tokens, int startIndex)
-        {
-            if (IsSelectStatementStart(tokens, startIndex, FindStatementEnd(tokens, startIndex)))
-            {
-                return SqlDomStatementKind.Select;
-            }
-
-            var token = tokens[startIndex];
-            if (token.IsKeyword("SELECT"))
-            {
-                return SqlDomStatementKind.Select;
-            }
-
-            if (token.IsKeyword("INSERT"))
-            {
-                return SqlDomStatementKind.Insert;
-            }
-
-            if (token.IsKeyword("UPDATE"))
-            {
-                return SqlDomStatementKind.Update;
-            }
-
-            if (token.IsKeyword("DELETE"))
-            {
-                return SqlDomStatementKind.Delete;
-            }
-
-            if (token.IsKeyword("MERGE"))
-            {
-                return SqlDomStatementKind.Merge;
-            }
-
-            return SqlDomStatementKind.Unknown;
-        }
-
-        private static bool IsSelectStatementStart(IReadOnlyList<SqlToken> tokens, int startIndex, int endExclusive)
-        {
-            if (startIndex >= endExclusive)
-            {
-                return false;
-            }
-
-            return IsQueryExpressionStart(tokens, startIndex, endExclusive);
-        }
-
-        private static bool IsQueryExpressionStart(IReadOnlyList<SqlToken> tokens, int startIndex, int endExclusive)
-        {
-            if (startIndex >= endExclusive)
-            {
-                return false;
-            }
-
-            if (tokens[startIndex].IsKeyword("SELECT"))
-            {
-                return true;
-            }
-
-            if (tokens[startIndex].Type != SqlTokenType.OpenParen)
-            {
-                return false;
-            }
-
-            return IsParenthesizedQueryExpression(tokens, startIndex, endExclusive);
-        }
-
-        private static bool IsParenthesizedQueryExpression(IReadOnlyList<SqlToken> tokens, int openParenIndex, int endExclusive)
-        {
-            if (openParenIndex >= endExclusive || tokens[openParenIndex].Type != SqlTokenType.OpenParen)
-            {
-                return false;
-            }
-
-            var closeParenIndex = FindMatchingCloseParen(tokens, openParenIndex);
-            if (closeParenIndex < 0 || closeParenIndex >= endExclusive)
-            {
-                return false;
-            }
-
-            if (!IsQueryExpressionStart(tokens, openParenIndex + 1, closeParenIndex))
-            {
-                return false;
-            }
-
-            return closeParenIndex == endExclusive - 1
-                   || tokens[closeParenIndex + 1].IsKeyword("UNION")
-                   || tokens[closeParenIndex + 1].IsKeyword("INTERSECT")
-                   || tokens[closeParenIndex + 1].IsKeyword("EXCEPT")
-                   || tokens[closeParenIndex + 1].IsKeyword("ORDER")
-                   || tokens[closeParenIndex + 1].IsKeyword("OFFSET");
-        }
-
-        private static SqlDomWithClause? ParseWithClause(TokenCursor cursor)
-        {
-            if (!cursor.Current.IsKeyword("WITH"))
-            {
-                return null;
-            }
-
-            cursor.MoveNext();
-            var ctes = new List<SqlDomCte>();
-
-            while (cursor.Current.IsIdentifierLike)
-            {
-                if (cursor.Current.IsKeyword("AS"))
-                {
-                    break;
-                }
-
-                var cteName = cursor.Current.IdentifierValue;
-                cursor.MoveNext();
-
-                if (cursor.Current.Type == SqlTokenType.OpenParen)
-                {
-                    SkipBalancedParenthesis(cursor);
-                }
-
-                if (!cursor.Current.IsKeyword("AS"))
-                {
-                    break;
-                }
-
-                cursor.MoveNext();
-
-                if (cursor.Current.Type != SqlTokenType.OpenParen)
-                {
-                    break;
-                }
-
-                var open = cursor.Current;
-                var closeIndex = FindMatchingCloseParen(cursor.Tokens, cursor.Index);
-                if (closeIndex < 0)
-                {
-                    break;
-                }
-
-                var close = cursor.Tokens[closeIndex];
-                var querySql = cursor.Sql.Substring(open.End, close.Start - open.End).Trim();
-                ctes.Add(new SqlDomCte(cteName, querySql));
-
-                cursor.Index = closeIndex + 1;
-                if (cursor.Current.Type == SqlTokenType.Comma)
-                {
-                    if (cursor.Index + 1 >= cursor.Tokens.Count || !cursor.Tokens[cursor.Index + 1].IsIdentifierLike)
-                    {
-                        break;
-                    }
-
-                    cursor.MoveNext();
-                    continue;
-                }
-
                 break;
             }
 
-            return ctes.Count > 0
-                ? new SqlDomWithClause(ctes)
-                : null;
-        }
-
-        private static SqlDomSelectClause? ParseTopLevelSelectIfAny(
-            string sql,
-            IReadOnlyList<SqlToken> tokens,
-            int startIndex,
-            SqlDomStatementKind kind)
-        {
-            if (kind != SqlDomStatementKind.Select)
-            {
-                return null;
-            }
-
-            var index = startIndex;
-            if (!tokens[index].IsKeyword("SELECT"))
-            {
-                return null;
-            }
-
             index++;
-            var isDistinct = false;
-            string? topSql = null;
-
-            if (tokens[index].IsKeyword("DISTINCT"))
-            {
-                isDistinct = true;
-                index++;
-            }
-
-            if (tokens[index].IsKeyword("TOP"))
-            {
-                var topStart = index + 1;
-                index++;
-                if (tokens[index].Type == SqlTokenType.OpenParen)
-                {
-                    var closeIndex = FindMatchingCloseParen(tokens, index);
-                    if (closeIndex > index)
-                    {
-                        index = closeIndex + 1;
-                    }
-                }
-                else if (tokens[index].Type != SqlTokenType.EndOfFile)
-                {
-                    index++;
-                }
-
-                if (tokens[index].IsKeyword("WITH") && IsKeyword(tokens, index + 1, "TIES"))
-                {
-                    index += 2;
-                }
-
-                topSql = SliceSql(sql, tokens, topStart, index);
-            }
-
-            var selectStart = index;
-            var selectEnd = FindFirstTopLevel(tokens, index, new[] { "FROM", "WHERE", "GROUP", "HAVING", "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT" });
-            if (selectEnd < 0)
-            {
-                selectEnd = FindStatementEnd(tokens, index);
-            }
-
-            var hasValidSelectListSyntax = IsValidTopLevelCommaSeparatedClause(tokens, selectStart, selectEnd);
-            var items = ParseSelectItems(sql, tokens, selectStart, selectEnd);
-
-            SqlDomTableSource? from = null;
-            string? whereSql = null;
-            string? groupBySql = null;
-            string? havingSql = null;
-            var hasHavingClause = false;
-            string? orderBySql = null;
-            string? offsetFetchSql = null;
-            var hasSetOperation = false;
-            var hasFromClause = false;
-
-            var current = selectEnd;
-            if (current >= 0 && tokens[current].IsKeyword("FROM"))
-            {
-                hasFromClause = true;
-                var fromStart = current + 1;
-                var fromEnd = FindFirstTopLevel(tokens, fromStart, new[] { "WHERE", "GROUP", "HAVING", "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT" });
-                if (fromEnd < 0)
-                {
-                    fromEnd = FindStatementEnd(tokens, fromStart);
-                }
-
-                from = ParseTableSource(sql, tokens, fromStart, fromEnd);
-                current = fromEnd;
-            }
-
-            while (current >= 0 && current < tokens.Count)
-            {
-                if (tokens[current].Type == SqlTokenType.EndOfFile || tokens[current].Type == SqlTokenType.Semicolon)
-                {
-                    break;
-                }
-
-                if (tokens[current].IsKeyword("WHERE"))
-                {
-                    var end = FindFirstTopLevel(tokens, current + 1, new[] { "GROUP", "HAVING", "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT" });
-                    if (end < 0)
-                    {
-                        end = FindStatementEnd(tokens, current + 1);
-                    }
-
-                    whereSql = SliceSql(sql, tokens, current + 1, end);
-                    current = end;
-                    continue;
-                }
-
-                if (tokens[current].IsKeyword("GROUP") && IsKeyword(tokens, current + 1, "BY"))
-                {
-                    var end = FindFirstTopLevel(tokens, current + 2, new[] { "HAVING", "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT" });
-                    if (end < 0)
-                    {
-                        end = FindStatementEnd(tokens, current + 2);
-                    }
-
-                    groupBySql = SliceSql(sql, tokens, current + 2, end);
-                    current = end;
-                    continue;
-                }
-
-                if (tokens[current].IsKeyword("HAVING"))
-                {
-                    hasHavingClause = true;
-                    var end = FindFirstTopLevel(tokens, current + 1, new[] { "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT" });
-                    if (end < 0)
-                    {
-                        end = FindStatementEnd(tokens, current + 1);
-                    }
-
-                    havingSql = SliceSql(sql, tokens, current + 1, end);
-                    current = end;
-                    continue;
-                }
-
-                if (tokens[current].IsKeyword("ORDER") && IsKeyword(tokens, current + 1, "BY"))
-                {
-                    var end = FindFirstTopLevel(tokens, current + 2, new[] { "OFFSET", "UNION", "INTERSECT", "EXCEPT" });
-                    if (end < 0)
-                    {
-                        end = FindStatementEnd(tokens, current + 2);
-                    }
-
-                    orderBySql = SliceSql(sql, tokens, current + 2, end);
-                    current = end;
-                    continue;
-                }
-
-                if (tokens[current].IsKeyword("OFFSET"))
-                {
-                    var end = FindFirstTopLevel(tokens, current + 1, new[] { "UNION", "INTERSECT", "EXCEPT" });
-                    if (end < 0)
-                    {
-                        end = FindStatementEnd(tokens, current + 1);
-                    }
-
-                    offsetFetchSql = SliceSql(sql, tokens, current, end);
-                    current = end;
-                    continue;
-                }
-
-                if (tokens[current].IsKeyword("UNION")
-                    || tokens[current].IsKeyword("INTERSECT")
-                    || tokens[current].IsKeyword("EXCEPT"))
-                {
-                    hasSetOperation = true;
-                    break;
-                }
-
-                current++;
-            }
-
-            return new SqlDomSelectClause(
-                items,
-                hasValidSelectListSyntax,
-                from,
-                hasFromClause,
-                whereSql,
-                groupBySql,
-                hasHavingClause,
-                havingSql,
-                orderBySql,
-                offsetFetchSql,
-                isDistinct,
-                topSql,
-                hasSetOperation);
         }
 
-        private static IReadOnlyList<SqlDomSelectItem> ParseSelectItems(string sql, IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)
+        if (index <= expressionStart || index >= tokens.Count)
         {
-            var result = new List<SqlDomSelectItem>();
-            var segmentStart = startInclusive;
-            var depth = 0;
+            return false;
+        }
 
-            for (var i = startInclusive; i < endExclusive; i++)
+        if (!tokens[index].IsKeyword(terminalKeyword1) && !tokens[index].IsKeyword(terminalKeyword2))
+        {
+            return false;
+        }
+
+        index++;
+        return true;
+    }
+
+    private static bool HasInvalidJoinSyntax(IReadOnlyList<SqlToken> tokens)
+    {
+        for (var i = 0; i < tokens.Count; i++)
+        {
+            if (tokens[i].Type == SqlTokenType.EndOfFile)
             {
-                if (tokens[i].Type == SqlTokenType.OpenParen)
+                break;
+            }
+
+            if (!IsKeyword(tokens, i, "INNER")
+                && !IsKeyword(tokens, i, "LEFT")
+                && !IsKeyword(tokens, i, "RIGHT")
+                && !IsKeyword(tokens, i, "FULL"))
+            {
+                continue;
+            }
+
+            if (i + 1 >= tokens.Count || !IsKeyword(tokens, i + 1, "JOIN"))
+            {
+                continue;
+            }
+
+            var boundary = FindNextJoinBoundary(tokens, i + 2, tokens.Count);
+            var hasOn = false;
+            var depth = 0;
+            for (var j = i + 2; j < boundary; j++)
+            {
+                if (tokens[j].Type == SqlTokenType.OpenParen)
                 {
                     depth++;
                     continue;
                 }
 
-                if (tokens[i].Type == SqlTokenType.CloseParen)
+                if (tokens[j].Type == SqlTokenType.CloseParen)
                 {
                     if (depth > 0)
                     {
@@ -2296,807 +1562,1539 @@ namespace SqExpress.SqlParser.Internal.Parsing
                     continue;
                 }
 
-                if (tokens[i].Type == SqlTokenType.Comma && depth == 0)
+                if (depth == 0 && IsKeyword(tokens, j, "ON"))
                 {
-                    AddSelectItem(sql, tokens, segmentStart, i, result);
-                    segmentStart = i + 1;
+                    hasOn = true;
+                    break;
                 }
             }
 
-            if (segmentStart < endExclusive)
+            if (!hasOn)
             {
-                AddSelectItem(sql, tokens, segmentStart, endExclusive, result);
+                return true;
             }
-
-            return result;
         }
 
-        private static void AddSelectItem(string sql, IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive, ICollection<SqlDomSelectItem> result)
+        return false;
+    }
+
+    private static bool HasUnexpectedOnAfterCrossOrApply(IReadOnlyList<SqlToken> tokens)
+    {
+        for (var i = 0; i < tokens.Count; i++)
         {
-            var itemSql = SliceSql(sql, tokens, startInclusive, endExclusive);
-            if (itemSql.Length == 0)
+            if (tokens[i].Type == SqlTokenType.EndOfFile)
             {
-                return;
+                break;
             }
 
-            var alias = TryParseProjectionAlias(tokens, startInclusive, endExclusive);
-            result.Add(new SqlDomSelectItem(itemSql, alias));
-        }
-
-        private static string? TryParseProjectionAlias(IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)
-        {
-            if (endExclusive - startInclusive < 2)
+            var isCrossJoin = IsKeyword(tokens, i, "CROSS") && i + 1 < tokens.Count && IsKeyword(tokens, i + 1, "JOIN");
+            var isCrossApply = IsKeyword(tokens, i, "CROSS") && i + 1 < tokens.Count && IsKeyword(tokens, i + 1, "APPLY");
+            var isOuterApply = IsKeyword(tokens, i, "OUTER") && i + 1 < tokens.Count && IsKeyword(tokens, i + 1, "APPLY");
+            if (!isCrossJoin && !isCrossApply && !isOuterApply)
             {
-                return null;
+                continue;
             }
 
-            var last = tokens[endExclusive - 1];
-            if (last.Type == SqlTokenType.StringLiteral)
+            var boundary = FindNextJoinBoundary(tokens, i + 2, tokens.Count);
+            var depth = 0;
+            for (var j = i + 2; j < boundary; j++)
             {
-                var prevString = tokens[endExclusive - 2];
-                return prevString.IsKeyword("AS") ? ParseAliasToken(last) : null;
-            }
-
-            if (!last.IsIdentifierLike)
-            {
-                return null;
-            }
-
-            if (last.IdentifierValue.StartsWith("@", StringComparison.Ordinal))
-            {
-                return null;
-            }
-
-            var prev = tokens[endExclusive - 2];
-            if (prev.IsKeyword("AS"))
-            {
-                return last.IdentifierValue;
-            }
-
-            if (prev.Type == SqlTokenType.CloseParen
-                || prev.IsIdentifierLike
-                || prev.Type == SqlTokenType.NumberLiteral
-                || prev.Type == SqlTokenType.StringLiteral)
-            {
-                return null;
-            }
-
-            return last.IdentifierValue;
-        }
-
-        private static string ParseAliasToken(SqlToken token)
-        {
-            if (token.Type != SqlTokenType.StringLiteral)
-            {
-                return token.IdentifierValue;
-            }
-
-            return token.Text.Length >= 3 && (token.Text[0] == 'N' || token.Text[0] == 'n') && token.Text[1] == '\''
-                ? token.Text.Substring(2, token.Text.Length - 3).Replace("''", "'")
-                : token.Text.Length >= 2
-                    ? token.Text.Substring(1, token.Text.Length - 2).Replace("''", "'")
-                    : string.Empty;
-        }
-
-        private static SqlDomTableSource? ParseTableSource(string sql, IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)
-        {
-            var index = startInclusive;
-            var left = ParseTableFactor(sql, tokens, ref index, endExclusive);
-            if (left == null)
-            {
-                return null;
-            }
-
-            while (index < endExclusive)
-            {
-                if (tokens[index].Type == SqlTokenType.Comma)
+                if (tokens[j].Type == SqlTokenType.OpenParen)
                 {
-                    index++;
-                    var rightCross = ParseTableFactor(sql, tokens, ref index, endExclusive);
-                    if (rightCross == null)
-                    {
-                        return null;
-                    }
-
-                    left = new SqlDomJoinedTableSource(left, rightCross, SqlDomJoinType.Cross, null);
+                    depth++;
                     continue;
                 }
 
-                if (!TryParseJoinType(tokens, ref index, endExclusive, out var joinType))
+                if (tokens[j].Type == SqlTokenType.CloseParen)
+                {
+                    if (depth > 0)
+                    {
+                        depth--;
+                    }
+
+                    continue;
+                }
+
+                if (depth == 0 && IsKeyword(tokens, j, "ON"))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryDetectOrderWithoutBy(IReadOnlyList<SqlToken> tokens, [NotNullWhen(true)] out string? error)
+    {
+        for (var i = 0; i < tokens.Count; i++)
+        {
+            if (!tokens[i].IsKeyword("ORDER"))
+            {
+                continue;
+            }
+
+            if (i + 1 < tokens.Count && tokens[i + 1].IsKeyword("BY"))
+            {
+                continue;
+            }
+
+            error = i + 1 < tokens.Count
+                ? "Syntax error: incorrect syntax near '" + tokens[i + 1].Text + "'."
+                : "Syntax error: ORDER BY clause is invalid.";
+            return true;
+        }
+
+        error = null;
+        return false;
+    }
+
+    private static bool HasUnexpectedOnWithoutJoin(IReadOnlyList<SqlToken> tokens, int statementStartIndex)
+    {
+        var fromIndex = FindTopLevelKeywordIndex(tokens, statementStartIndex + 1, "FROM");
+        if (fromIndex < 0)
+        {
+            return false;
+        }
+
+        var boundary = FindFirstTopLevel(tokens, fromIndex + 1, new[] { "WHERE", "GROUP", "HAVING", "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT" });
+        if (boundary < 0)
+        {
+            boundary = FindStatementEnd(tokens, fromIndex + 1);
+        }
+
+        var depth = 0;
+        var pendingJoinCondition = false;
+        for (var i = fromIndex + 1; i < boundary; i++)
+        {
+            if (tokens[i].Type == SqlTokenType.OpenParen)
+            {
+                depth++;
+                continue;
+            }
+
+            if (tokens[i].Type == SqlTokenType.CloseParen)
+            {
+                if (depth > 0)
+                {
+                    depth--;
+                }
+
+                continue;
+            }
+
+            if (depth != 0)
+            {
+                continue;
+            }
+
+            if (IsJoinLead(tokens, i))
+            {
+                pendingJoinCondition = !(
+                    (IsKeyword(tokens, i, "CROSS") && i + 1 < boundary && IsKeyword(tokens, i + 1, "JOIN"))
+                    || (IsKeyword(tokens, i, "CROSS") && i + 1 < boundary && IsKeyword(tokens, i + 1, "APPLY"))
+                    || (IsKeyword(tokens, i, "OUTER") && i + 1 < boundary && IsKeyword(tokens, i + 1, "APPLY")));
+                continue;
+            }
+
+            if (tokens[i].IsKeyword("ON"))
+            {
+                if (!pendingJoinCondition)
+                {
+                    return true;
+                }
+
+                pendingJoinCondition = false;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsSelectProjectionMissing(IReadOnlyList<SqlToken> tokens, int startIndex)
+    {
+        var index = startIndex + 1;
+        if (index >= tokens.Count)
+        {
+            return true;
+        }
+
+        if (tokens[index].IsKeyword("DISTINCT"))
+        {
+            index++;
+        }
+
+        if (index < tokens.Count && tokens[index].IsKeyword("ALL"))
+        {
+            index++;
+        }
+
+        if (index < tokens.Count && tokens[index].IsKeyword("TOP"))
+        {
+            index++;
+            if (index < tokens.Count && tokens[index].Type == SqlTokenType.OpenParen)
+            {
+                var close = FindMatchingCloseParen(tokens, index);
+                if (close < 0)
+                {
+                    return true;
+                }
+
+                index = close + 1;
+            }
+            else if (index < tokens.Count)
+            {
+                index++;
+            }
+
+            if (index < tokens.Count && tokens[index].IsKeyword("WITH") && IsKeyword(tokens, index + 1, "TIES"))
+            {
+                index += 2;
+            }
+        }
+
+        if (index >= tokens.Count)
+        {
+            return true;
+        }
+
+        return tokens[index].IsKeyword("FROM")
+               || tokens[index].IsKeyword("WHERE")
+               || tokens[index].IsKeyword("GROUP")
+               || tokens[index].IsKeyword("HAVING")
+               || tokens[index].IsKeyword("ORDER")
+               || tokens[index].IsKeyword("OFFSET")
+               || tokens[index].IsKeyword("UNION")
+               || tokens[index].IsKeyword("INTERSECT")
+               || tokens[index].IsKeyword("EXCEPT")
+               || tokens[index].Type == SqlTokenType.Comma
+               || tokens[index].Type == SqlTokenType.EndOfFile
+               || tokens[index].Type == SqlTokenType.Semicolon;
+    }
+
+    private static bool ContainsTopLevelKeyword(IReadOnlyList<SqlToken> tokens, int startIndex, string keyword)
+    {
+        var depth = 0;
+        for (var i = startIndex; i < tokens.Count; i++)
+        {
+            if (tokens[i].Type == SqlTokenType.EndOfFile || tokens[i].Type == SqlTokenType.Semicolon)
+            {
+                break;
+            }
+
+            if (tokens[i].Type == SqlTokenType.OpenParen)
+            {
+                depth++;
+                continue;
+            }
+
+            if (tokens[i].Type == SqlTokenType.CloseParen)
+            {
+                if (depth > 0)
+                {
+                    depth--;
+                }
+
+                continue;
+            }
+
+            if (depth == 0 && tokens[i].IsKeyword(keyword))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool ContainsKeyword(IReadOnlyList<SqlToken> tokens, string keyword)
+    {
+        for (var i = 0; i < tokens.Count; i++)
+        {
+            if (tokens[i].IsKeyword(keyword))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool ContainsForJsonOrXml(IReadOnlyList<SqlToken> tokens)
+    {
+        var depth = 0;
+        for (var i = 0; i < tokens.Count - 1; i++)
+        {
+            if (tokens[i].Type == SqlTokenType.OpenParen)
+            {
+                depth++;
+                continue;
+            }
+
+            if (tokens[i].Type == SqlTokenType.CloseParen)
+            {
+                if (depth > 0)
+                {
+                    depth--;
+                }
+
+                continue;
+            }
+
+            if (depth == 0
+                && tokens[i].IsKeyword("FOR")
+                && (tokens[i + 1].IsKeyword("JSON") || tokens[i + 1].IsKeyword("XML")))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool ContainsTopLevelOptionHint(IReadOnlyList<SqlToken> tokens)
+    {
+        var depth = 0;
+        for (var i = 0; i < tokens.Count; i++)
+        {
+            if (tokens[i].Type == SqlTokenType.OpenParen)
+            {
+                depth++;
+                continue;
+            }
+
+            if (tokens[i].Type == SqlTokenType.CloseParen)
+            {
+                if (depth > 0)
+                {
+                    depth--;
+                }
+
+                continue;
+            }
+
+            if (depth == 0 && tokens[i].IsKeyword("OPTION"))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool ContainsOutputInto(IReadOnlyList<SqlToken> tokens)
+    {
+        for (var i = 0; i < tokens.Count; i++)
+        {
+            if (!tokens[i].IsKeyword("OUTPUT"))
+            {
+                continue;
+            }
+
+            var depth = 0;
+            for (var j = i + 1; j < tokens.Count; j++)
+            {
+                if (tokens[j].Type == SqlTokenType.EndOfFile || tokens[j].Type == SqlTokenType.Semicolon)
                 {
                     break;
                 }
 
-                var right = ParseTableFactor(sql, tokens, ref index, endExclusive);
-                if (right == null)
+                if (tokens[j].Type == SqlTokenType.OpenParen)
                 {
-                    return null;
+                    depth++;
+                    continue;
                 }
 
-                if ((joinType == SqlDomJoinType.CrossApply || joinType == SqlDomJoinType.OuterApply)
-                    && right is SqlDomNamedTableSource)
+                if (tokens[j].Type == SqlTokenType.CloseParen)
                 {
-                    return null;
-                }
-
-                string? onSql = null;
-                if (joinType == SqlDomJoinType.Inner
-                    || joinType == SqlDomJoinType.Left
-                    || joinType == SqlDomJoinType.Right
-                    || joinType == SqlDomJoinType.Full)
-                {
-                    if (index < endExclusive && tokens[index].IsKeyword("ON"))
+                    if (depth > 0)
                     {
-                        var onStart = index + 1;
-                        index = FindNextJoinBoundary(tokens, onStart, endExclusive);
-                        onSql = SliceSql(sql, tokens, onStart, index);
+                        depth--;
                     }
+
+                    continue;
                 }
 
-                left = new SqlDomJoinedTableSource(left, right, joinType, onSql);
+                if (depth == 0 && tokens[j].IsKeyword("INTO"))
+                {
+                    return true;
+                }
             }
-
-            return index == endExclusive ? left : null;
         }
 
-        private static SqlDomTableSource? ParseTableFactor(string sql, IReadOnlyList<SqlToken> tokens, ref int index, int endExclusive)
+        return false;
+    }
+
+    private static SqlDomStatementKind DetermineStatementKind(IReadOnlyList<SqlToken> tokens, int startIndex)
+    {
+        if (IsSelectStatementStart(tokens, startIndex, FindStatementEnd(tokens, startIndex)))
         {
-            if (index >= endExclusive)
+            return SqlDomStatementKind.Select;
+        }
+
+        var token = tokens[startIndex];
+        if (token.IsKeyword("SELECT"))
+        {
+            return SqlDomStatementKind.Select;
+        }
+
+        if (token.IsKeyword("INSERT"))
+        {
+            return SqlDomStatementKind.Insert;
+        }
+
+        if (token.IsKeyword("UPDATE"))
+        {
+            return SqlDomStatementKind.Update;
+        }
+
+        if (token.IsKeyword("DELETE"))
+        {
+            return SqlDomStatementKind.Delete;
+        }
+
+        if (token.IsKeyword("MERGE"))
+        {
+            return SqlDomStatementKind.Merge;
+        }
+
+        return SqlDomStatementKind.Unknown;
+    }
+
+    private static bool IsSelectStatementStart(IReadOnlyList<SqlToken> tokens, int startIndex, int endExclusive)
+    {
+        if (startIndex >= endExclusive)
+        {
+            return false;
+        }
+
+        return IsQueryExpressionStart(tokens, startIndex, endExclusive);
+    }
+
+    private static bool IsQueryExpressionStart(IReadOnlyList<SqlToken> tokens, int startIndex, int endExclusive)
+    {
+        if (startIndex >= endExclusive)
+        {
+            return false;
+        }
+
+        if (tokens[startIndex].IsKeyword("SELECT"))
+        {
+            return true;
+        }
+
+        if (tokens[startIndex].Type != SqlTokenType.OpenParen)
+        {
+            return false;
+        }
+
+        return IsParenthesizedQueryExpression(tokens, startIndex, endExclusive);
+    }
+
+    private static bool IsParenthesizedQueryExpression(IReadOnlyList<SqlToken> tokens, int openParenIndex, int endExclusive)
+    {
+        if (openParenIndex >= endExclusive || tokens[openParenIndex].Type != SqlTokenType.OpenParen)
+        {
+            return false;
+        }
+
+        var closeParenIndex = FindMatchingCloseParen(tokens, openParenIndex);
+        if (closeParenIndex < 0 || closeParenIndex >= endExclusive)
+        {
+            return false;
+        }
+
+        if (!IsQueryExpressionStart(tokens, openParenIndex + 1, closeParenIndex))
+        {
+            return false;
+        }
+
+        return closeParenIndex == endExclusive - 1
+               || tokens[closeParenIndex + 1].IsKeyword("UNION")
+               || tokens[closeParenIndex + 1].IsKeyword("INTERSECT")
+               || tokens[closeParenIndex + 1].IsKeyword("EXCEPT")
+               || tokens[closeParenIndex + 1].IsKeyword("ORDER")
+               || tokens[closeParenIndex + 1].IsKeyword("OFFSET");
+    }
+
+    private static SqlDomWithClause? ParseWithClause(TokenCursor cursor)
+    {
+        if (!cursor.Current.IsKeyword("WITH"))
+        {
+            return null;
+        }
+
+        cursor.MoveNext();
+        var ctes = new List<SqlDomCte>();
+
+        while (cursor.Current.IsIdentifierLike)
+        {
+            if (cursor.Current.IsKeyword("AS"))
             {
-                return null;
+                break;
             }
 
-            if (IsReservedTableFactorLeadKeyword(tokens[index]))
+            var cteName = cursor.Current.IdentifierValue;
+            cursor.MoveNext();
+
+            if (cursor.Current.Type == SqlTokenType.OpenParen)
             {
-                return null;
+                SkipBalancedParenthesis(cursor);
             }
 
+            if (!cursor.Current.IsKeyword("AS"))
+            {
+                break;
+            }
+
+            cursor.MoveNext();
+
+            if (cursor.Current.Type != SqlTokenType.OpenParen)
+            {
+                break;
+            }
+
+            var open = cursor.Current;
+            var closeIndex = FindMatchingCloseParen(cursor.Tokens, cursor.Index);
+            if (closeIndex < 0)
+            {
+                break;
+            }
+
+            var close = cursor.Tokens[closeIndex];
+            var querySql = cursor.Sql.Substring(open.End, close.Start - open.End).Trim();
+            ctes.Add(new SqlDomCte(cteName, querySql));
+
+            cursor.Index = closeIndex + 1;
+            if (cursor.Current.Type == SqlTokenType.Comma)
+            {
+                if (cursor.Index + 1 >= cursor.Tokens.Count || !cursor.Tokens[cursor.Index + 1].IsIdentifierLike)
+                {
+                    break;
+                }
+
+                cursor.MoveNext();
+                continue;
+            }
+
+            break;
+        }
+
+        return ctes.Count > 0
+            ? new SqlDomWithClause(ctes)
+            : null;
+    }
+
+    private static SqlDomSelectClause? ParseTopLevelSelectIfAny(
+        string sql,
+        IReadOnlyList<SqlToken> tokens,
+        int startIndex,
+        SqlDomStatementKind kind)
+    {
+        if (kind != SqlDomStatementKind.Select)
+        {
+            return null;
+        }
+
+        var index = startIndex;
+        if (!tokens[index].IsKeyword("SELECT"))
+        {
+            return null;
+        }
+
+        index++;
+        var isDistinct = false;
+        string? topSql = null;
+
+        if (tokens[index].IsKeyword("DISTINCT"))
+        {
+            isDistinct = true;
+            index++;
+        }
+
+        if (tokens[index].IsKeyword("TOP"))
+        {
+            var topStart = index + 1;
+            index++;
             if (tokens[index].Type == SqlTokenType.OpenParen)
             {
-                var openIndex = index;
-                var closeIndex = FindMatchingCloseParen(tokens, openIndex);
-                if (closeIndex < 0 || closeIndex >= endExclusive)
+                var closeIndex = FindMatchingCloseParen(tokens, index);
+                if (closeIndex > index)
+                {
+                    index = closeIndex + 1;
+                }
+            }
+            else if (tokens[index].Type != SqlTokenType.EndOfFile)
+            {
+                index++;
+            }
+
+            if (tokens[index].IsKeyword("WITH") && IsKeyword(tokens, index + 1, "TIES"))
+            {
+                index += 2;
+            }
+
+            topSql = SliceSql(sql, tokens, topStart, index);
+        }
+
+        var selectStart = index;
+        var selectEnd = FindFirstTopLevel(tokens, index, new[] { "FROM", "WHERE", "GROUP", "HAVING", "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT" });
+        if (selectEnd < 0)
+        {
+            selectEnd = FindStatementEnd(tokens, index);
+        }
+
+        var hasValidSelectListSyntax = IsValidTopLevelCommaSeparatedClause(tokens, selectStart, selectEnd);
+        var items = ParseSelectItems(sql, tokens, selectStart, selectEnd);
+
+        SqlDomTableSource? from = null;
+        string? whereSql = null;
+        string? groupBySql = null;
+        string? havingSql = null;
+        var hasHavingClause = false;
+        string? orderBySql = null;
+        string? offsetFetchSql = null;
+        var hasSetOperation = false;
+        var hasFromClause = false;
+
+        var current = selectEnd;
+        if (current >= 0 && tokens[current].IsKeyword("FROM"))
+        {
+            hasFromClause = true;
+            var fromStart = current + 1;
+            var fromEnd = FindFirstTopLevel(tokens, fromStart, new[] { "WHERE", "GROUP", "HAVING", "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT" });
+            if (fromEnd < 0)
+            {
+                fromEnd = FindStatementEnd(tokens, fromStart);
+            }
+
+            from = ParseTableSource(sql, tokens, fromStart, fromEnd);
+            current = fromEnd;
+        }
+
+        while (current >= 0 && current < tokens.Count)
+        {
+            if (tokens[current].Type == SqlTokenType.EndOfFile || tokens[current].Type == SqlTokenType.Semicolon)
+            {
+                break;
+            }
+
+            if (tokens[current].IsKeyword("WHERE"))
+            {
+                var end = FindFirstTopLevel(tokens, current + 1, new[] { "GROUP", "HAVING", "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT" });
+                if (end < 0)
+                {
+                    end = FindStatementEnd(tokens, current + 1);
+                }
+
+                whereSql = SliceSql(sql, tokens, current + 1, end);
+                current = end;
+                continue;
+            }
+
+            if (tokens[current].IsKeyword("GROUP") && IsKeyword(tokens, current + 1, "BY"))
+            {
+                var end = FindFirstTopLevel(tokens, current + 2, new[] { "HAVING", "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT" });
+                if (end < 0)
+                {
+                    end = FindStatementEnd(tokens, current + 2);
+                }
+
+                groupBySql = SliceSql(sql, tokens, current + 2, end);
+                current = end;
+                continue;
+            }
+
+            if (tokens[current].IsKeyword("HAVING"))
+            {
+                hasHavingClause = true;
+                var end = FindFirstTopLevel(tokens, current + 1, new[] { "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT" });
+                if (end < 0)
+                {
+                    end = FindStatementEnd(tokens, current + 1);
+                }
+
+                havingSql = SliceSql(sql, tokens, current + 1, end);
+                current = end;
+                continue;
+            }
+
+            if (tokens[current].IsKeyword("ORDER") && IsKeyword(tokens, current + 1, "BY"))
+            {
+                var end = FindFirstTopLevel(tokens, current + 2, new[] { "OFFSET", "UNION", "INTERSECT", "EXCEPT" });
+                if (end < 0)
+                {
+                    end = FindStatementEnd(tokens, current + 2);
+                }
+
+                orderBySql = SliceSql(sql, tokens, current + 2, end);
+                current = end;
+                continue;
+            }
+
+            if (tokens[current].IsKeyword("OFFSET"))
+            {
+                var end = FindFirstTopLevel(tokens, current + 1, new[] { "UNION", "INTERSECT", "EXCEPT" });
+                if (end < 0)
+                {
+                    end = FindStatementEnd(tokens, current + 1);
+                }
+
+                offsetFetchSql = SliceSql(sql, tokens, current, end);
+                current = end;
+                continue;
+            }
+
+            if (tokens[current].IsKeyword("UNION")
+                || tokens[current].IsKeyword("INTERSECT")
+                || tokens[current].IsKeyword("EXCEPT"))
+            {
+                hasSetOperation = true;
+                break;
+            }
+
+            current++;
+        }
+
+        return new SqlDomSelectClause(
+            items,
+            hasValidSelectListSyntax,
+            from,
+            hasFromClause,
+            whereSql,
+            groupBySql,
+            hasHavingClause,
+            havingSql,
+            orderBySql,
+            offsetFetchSql,
+            isDistinct,
+            topSql,
+            hasSetOperation);
+    }
+
+    private static IReadOnlyList<SqlDomSelectItem> ParseSelectItems(string sql, IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)
+    {
+        var result = new List<SqlDomSelectItem>();
+        var segmentStart = startInclusive;
+        var depth = 0;
+
+        for (var i = startInclusive; i < endExclusive; i++)
+        {
+            if (tokens[i].Type == SqlTokenType.OpenParen)
+            {
+                depth++;
+                continue;
+            }
+
+            if (tokens[i].Type == SqlTokenType.CloseParen)
+            {
+                if (depth > 0)
+                {
+                    depth--;
+                }
+
+                continue;
+            }
+
+            if (tokens[i].Type == SqlTokenType.Comma && depth == 0)
+            {
+                AddSelectItem(sql, tokens, segmentStart, i, result);
+                segmentStart = i + 1;
+            }
+        }
+
+        if (segmentStart < endExclusive)
+        {
+            AddSelectItem(sql, tokens, segmentStart, endExclusive, result);
+        }
+
+        return result;
+    }
+
+    private static void AddSelectItem(string sql, IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive, ICollection<SqlDomSelectItem> result)
+    {
+        var itemSql = SliceSql(sql, tokens, startInclusive, endExclusive);
+        if (itemSql.Length == 0)
+        {
+            return;
+        }
+
+        var alias = TryParseProjectionAlias(tokens, startInclusive, endExclusive);
+        result.Add(new SqlDomSelectItem(itemSql, alias));
+    }
+
+    private static string? TryParseProjectionAlias(IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)
+    {
+        if (endExclusive - startInclusive < 2)
+        {
+            return null;
+        }
+
+        var last = tokens[endExclusive - 1];
+        if (last.Type == SqlTokenType.StringLiteral)
+        {
+            var prevString = tokens[endExclusive - 2];
+            return prevString.IsKeyword("AS") ? ParseAliasToken(last) : null;
+        }
+
+        if (!last.IsIdentifierLike)
+        {
+            return null;
+        }
+
+        if (last.IdentifierValue.StartsWith("@", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var prev = tokens[endExclusive - 2];
+        if (prev.IsKeyword("AS"))
+        {
+            return last.IdentifierValue;
+        }
+
+        if (prev.Type == SqlTokenType.CloseParen
+            || prev.IsIdentifierLike
+            || prev.Type == SqlTokenType.NumberLiteral
+            || prev.Type == SqlTokenType.StringLiteral)
+        {
+            return null;
+        }
+
+        return last.IdentifierValue;
+    }
+
+    private static string ParseAliasToken(SqlToken token)
+    {
+        if (token.Type != SqlTokenType.StringLiteral)
+        {
+            return token.IdentifierValue;
+        }
+
+        return token.Text.Length >= 3 && (token.Text[0] == 'N' || token.Text[0] == 'n') && token.Text[1] == '\''
+            ? token.Text.Substring(2, token.Text.Length - 3).Replace("''", "'")
+            : token.Text.Length >= 2
+                ? token.Text.Substring(1, token.Text.Length - 2).Replace("''", "'")
+                : string.Empty;
+    }
+
+    private static SqlDomTableSource? ParseTableSource(string sql, IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)
+    {
+        var index = startInclusive;
+        var left = ParseTableFactor(sql, tokens, ref index, endExclusive);
+        if (left == null)
+        {
+            return null;
+        }
+
+        while (index < endExclusive)
+        {
+            if (tokens[index].Type == SqlTokenType.Comma)
+            {
+                index++;
+                var rightCross = ParseTableFactor(sql, tokens, ref index, endExclusive);
+                if (rightCross == null)
                 {
                     return null;
                 }
 
-                var innerSql = sql.Substring(tokens[openIndex].End, tokens[closeIndex].Start - tokens[openIndex].End).Trim();
-                index = closeIndex + 1;
-
-                var alias = ParseOptionalAlias(tokens, ref index, endExclusive);
-                var columnAliases = ParseOptionalColumnAliasList(tokens, ref index, endExclusive);
-
-                if (innerSql.StartsWith("VALUES", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (!IsValidValuesTableSourceSql(innerSql))
-                    {
-                        return null;
-                    }
-
-                    return new SqlDomValuesTableSource(innerSql, alias, columnAliases);
-                }
-
-                return new SqlDomDerivedTableSource(innerSql, alias);
+                left = new SqlDomJoinedTableSource(left, rightCross, SqlDomJoinType.Cross, null);
+                continue;
             }
 
-            var nameParts = ParseMultipartIdentifier(tokens, ref index, endExclusive);
-            if (nameParts.Count < 1)
+            if (!TryParseJoinType(tokens, ref index, endExclusive, out var joinType))
+            {
+                break;
+            }
+
+            var right = ParseTableFactor(sql, tokens, ref index, endExclusive);
+            if (right == null)
             {
                 return null;
             }
 
-            if (index < endExclusive && tokens[index].Type == SqlTokenType.OpenParen)
+            if ((joinType == SqlDomJoinType.CrossApply || joinType == SqlDomJoinType.OuterApply)
+                && right is SqlDomNamedTableSource)
             {
-                var openIndex = index;
-                var closeIndex = FindMatchingCloseParen(tokens, openIndex);
-                if (closeIndex < 0)
+                return null;
+            }
+
+            string? onSql = null;
+            if (joinType == SqlDomJoinType.Inner
+                || joinType == SqlDomJoinType.Left
+                || joinType == SqlDomJoinType.Right
+                || joinType == SqlDomJoinType.Full)
+            {
+                if (index < endExclusive && tokens[index].IsKeyword("ON"))
+                {
+                    var onStart = index + 1;
+                    index = FindNextJoinBoundary(tokens, onStart, endExclusive);
+                    onSql = SliceSql(sql, tokens, onStart, index);
+                }
+            }
+
+            left = new SqlDomJoinedTableSource(left, right, joinType, onSql);
+        }
+
+        return index == endExclusive ? left : null;
+    }
+
+    private static SqlDomTableSource? ParseTableFactor(string sql, IReadOnlyList<SqlToken> tokens, ref int index, int endExclusive)
+    {
+        if (index >= endExclusive)
+        {
+            return null;
+        }
+
+        if (IsReservedTableFactorLeadKeyword(tokens[index]))
+        {
+            return null;
+        }
+
+        if (tokens[index].Type == SqlTokenType.OpenParen)
+        {
+            var openIndex = index;
+            var closeIndex = FindMatchingCloseParen(tokens, openIndex);
+            if (closeIndex < 0 || closeIndex >= endExclusive)
+            {
+                return null;
+            }
+
+            var innerSql = sql.Substring(tokens[openIndex].End, tokens[closeIndex].Start - tokens[openIndex].End).Trim();
+            index = closeIndex + 1;
+
+            var alias = ParseOptionalAlias(tokens, ref index, endExclusive);
+            var columnAliases = ParseOptionalColumnAliasList(tokens, ref index, endExclusive);
+
+            if (innerSql.StartsWith("VALUES", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!IsValidValuesTableSourceSql(innerSql))
                 {
                     return null;
                 }
 
-                var argsSql = sql.Substring(tokens[openIndex].End, tokens[closeIndex].Start - tokens[openIndex].End).Trim();
-                index = closeIndex + 1;
-                string? withSql = null;
-                if (nameParts.Count == 1 && string.Equals(nameParts[0], "OPENJSON", StringComparison.OrdinalIgnoreCase)
-                    && index < endExclusive && tokens[index].IsKeyword("WITH"))
-                {
-                    index++;
-                    if (index >= endExclusive || tokens[index].Type != SqlTokenType.OpenParen) return null;
-                    var withClose = FindMatchingCloseParen(tokens, index);
-                    if (withClose < 0 || withClose >= endExclusive) return null;
-                    withSql = sql.Substring(tokens[index].End, tokens[withClose].Start - tokens[index].End).Trim();
-                    index = withClose + 1;
-                }
-                var alias = ParseOptionalAlias(tokens, ref index, endExclusive);
-                return new SqlDomFunctionTableSource(string.Join(".", nameParts), argsSql, alias, withSql);
+                return new SqlDomValuesTableSource(innerSql, alias, columnAliases);
             }
 
-            var table = nameParts[nameParts.Count - 1];
-            string? schema = nameParts.Count >= 2 ? nameParts[nameParts.Count - 2] : null;
-            var finalAlias = ParseOptionalAlias(tokens, ref index, endExclusive);
-            return new SqlDomNamedTableSource(schema, table, finalAlias);
+            return new SqlDomDerivedTableSource(innerSql, alias);
         }
 
-        private static bool IsReservedTableFactorLeadKeyword(SqlToken token)
+        var nameParts = ParseMultipartIdentifier(tokens, ref index, endExclusive);
+        if (nameParts.Count < 1)
         {
-            return token.IsKeyword("FROM")
-                   || token.IsKeyword("WHERE")
-                   || token.IsKeyword("GROUP")
-                   || token.IsKeyword("HAVING")
-                   || token.IsKeyword("ORDER")
-                   || token.IsKeyword("OFFSET")
-                   || token.IsKeyword("UNION")
-                   || token.IsKeyword("INTERSECT")
-                   || token.IsKeyword("EXCEPT")
-                   || token.IsKeyword("ON")
-                   || token.IsKeyword("JOIN")
-                   || token.IsKeyword("INNER")
-                   || token.IsKeyword("LEFT")
-                   || token.IsKeyword("RIGHT")
-                   || token.IsKeyword("FULL")
-                   || token.IsKeyword("CROSS")
-                   || token.IsKeyword("OUTER")
-                   || token.IsKeyword("WHEN")
-                   || token.IsKeyword("THEN");
+            return null;
         }
 
-        private static bool TryParseJoinType(IReadOnlyList<SqlToken> tokens, ref int index, int endExclusive, out SqlDomJoinType joinType)
+        if (index < endExclusive && tokens[index].Type == SqlTokenType.OpenParen)
         {
-            joinType = SqlDomJoinType.Inner;
-            if (index >= endExclusive)
+            var openIndex = index;
+            var closeIndex = FindMatchingCloseParen(tokens, openIndex);
+            if (closeIndex < 0)
             {
-                return false;
+                return null;
+            }
+
+            var argsSql = sql.Substring(tokens[openIndex].End, tokens[closeIndex].Start - tokens[openIndex].End).Trim();
+            index = closeIndex + 1;
+            string? withSql = null;
+            if (nameParts.Count == 1 && string.Equals(nameParts[0], "OPENJSON", StringComparison.OrdinalIgnoreCase)
+                                     && index < endExclusive && tokens[index].IsKeyword("WITH"))
+            {
+                index++;
+                if (index >= endExclusive || tokens[index].Type != SqlTokenType.OpenParen) return null;
+                var withClose = FindMatchingCloseParen(tokens, index);
+                if (withClose < 0 || withClose >= endExclusive) return null;
+                withSql = sql.Substring(tokens[index].End, tokens[withClose].Start - tokens[index].End).Trim();
+                index = withClose + 1;
+            }
+            var alias = ParseOptionalAlias(tokens, ref index, endExclusive);
+            return new SqlDomFunctionTableSource(string.Join(".", nameParts), argsSql, alias, withSql);
+        }
+
+        var table = nameParts[nameParts.Count - 1];
+        string? schema = nameParts.Count >= 2 ? nameParts[nameParts.Count - 2] : null;
+        var finalAlias = ParseOptionalAlias(tokens, ref index, endExclusive);
+        return new SqlDomNamedTableSource(schema, table, finalAlias);
+    }
+
+    private static bool IsReservedTableFactorLeadKeyword(SqlToken token)
+    {
+        return token.IsKeyword("FROM")
+               || token.IsKeyword("WHERE")
+               || token.IsKeyword("GROUP")
+               || token.IsKeyword("HAVING")
+               || token.IsKeyword("ORDER")
+               || token.IsKeyword("OFFSET")
+               || token.IsKeyword("UNION")
+               || token.IsKeyword("INTERSECT")
+               || token.IsKeyword("EXCEPT")
+               || token.IsKeyword("ON")
+               || token.IsKeyword("JOIN")
+               || token.IsKeyword("INNER")
+               || token.IsKeyword("LEFT")
+               || token.IsKeyword("RIGHT")
+               || token.IsKeyword("FULL")
+               || token.IsKeyword("CROSS")
+               || token.IsKeyword("OUTER")
+               || token.IsKeyword("WHEN")
+               || token.IsKeyword("THEN");
+    }
+
+    private static bool TryParseJoinType(IReadOnlyList<SqlToken> tokens, ref int index, int endExclusive, out SqlDomJoinType joinType)
+    {
+        joinType = SqlDomJoinType.Inner;
+        if (index >= endExclusive)
+        {
+            return false;
+        }
+
+        if (IsKeyword(tokens, index, "JOIN"))
+        {
+            index++;
+            joinType = SqlDomJoinType.Inner;
+            return true;
+        }
+
+        if (IsKeyword(tokens, index, "INNER") && IsKeyword(tokens, index + 1, "JOIN"))
+        {
+            index += 2;
+            joinType = SqlDomJoinType.Inner;
+            return true;
+        }
+
+        if (IsKeyword(tokens, index, "LEFT"))
+        {
+            index++;
+            if (IsKeyword(tokens, index, "OUTER"))
+            {
+                index++;
             }
 
             if (IsKeyword(tokens, index, "JOIN"))
             {
                 index++;
-                joinType = SqlDomJoinType.Inner;
+                joinType = SqlDomJoinType.Left;
                 return true;
             }
+        }
 
-            if (IsKeyword(tokens, index, "INNER") && IsKeyword(tokens, index + 1, "JOIN"))
+        if (IsKeyword(tokens, index, "RIGHT"))
+        {
+            index++;
+            if (IsKeyword(tokens, index, "OUTER"))
+            {
+                index++;
+            }
+
+            if (IsKeyword(tokens, index, "JOIN"))
+            {
+                index++;
+                joinType = SqlDomJoinType.Right;
+                return true;
+            }
+        }
+
+        if (IsKeyword(tokens, index, "FULL"))
+        {
+            index++;
+            if (IsKeyword(tokens, index, "OUTER"))
+            {
+                index++;
+            }
+
+            if (IsKeyword(tokens, index, "JOIN"))
+            {
+                index++;
+                joinType = SqlDomJoinType.Full;
+                return true;
+            }
+        }
+
+        if (IsKeyword(tokens, index, "CROSS"))
+        {
+            if (IsKeyword(tokens, index + 1, "JOIN"))
             {
                 index += 2;
-                joinType = SqlDomJoinType.Inner;
+                joinType = SqlDomJoinType.Cross;
                 return true;
             }
 
-            if (IsKeyword(tokens, index, "LEFT"))
-            {
-                index++;
-                if (IsKeyword(tokens, index, "OUTER"))
-                {
-                    index++;
-                }
-
-                if (IsKeyword(tokens, index, "JOIN"))
-                {
-                    index++;
-                    joinType = SqlDomJoinType.Left;
-                    return true;
-                }
-            }
-
-            if (IsKeyword(tokens, index, "RIGHT"))
-            {
-                index++;
-                if (IsKeyword(tokens, index, "OUTER"))
-                {
-                    index++;
-                }
-
-                if (IsKeyword(tokens, index, "JOIN"))
-                {
-                    index++;
-                    joinType = SqlDomJoinType.Right;
-                    return true;
-                }
-            }
-
-            if (IsKeyword(tokens, index, "FULL"))
-            {
-                index++;
-                if (IsKeyword(tokens, index, "OUTER"))
-                {
-                    index++;
-                }
-
-                if (IsKeyword(tokens, index, "JOIN"))
-                {
-                    index++;
-                    joinType = SqlDomJoinType.Full;
-                    return true;
-                }
-            }
-
-            if (IsKeyword(tokens, index, "CROSS"))
-            {
-                if (IsKeyword(tokens, index + 1, "JOIN"))
-                {
-                    index += 2;
-                    joinType = SqlDomJoinType.Cross;
-                    return true;
-                }
-
-                if (IsKeyword(tokens, index + 1, "APPLY"))
-                {
-                    index += 2;
-                    joinType = SqlDomJoinType.CrossApply;
-                    return true;
-                }
-            }
-
-            if (IsKeyword(tokens, index, "OUTER") && IsKeyword(tokens, index + 1, "APPLY"))
+            if (IsKeyword(tokens, index + 1, "APPLY"))
             {
                 index += 2;
-                joinType = SqlDomJoinType.OuterApply;
+                joinType = SqlDomJoinType.CrossApply;
                 return true;
             }
-
-            return false;
         }
 
-        private static List<SqlDomTableReference> ExtractTableReferences(IReadOnlyList<SqlToken> tokens)
+        if (IsKeyword(tokens, index, "OUTER") && IsKeyword(tokens, index + 1, "APPLY"))
         {
-            var result = new List<SqlDomTableReference>();
-            for (var i = 0; i < tokens.Count; i++)
-            {
-                if (!IsReferenceLeadKeyword(tokens[i]))
-                {
-                    continue;
-                }
-
-                var index = i + 1;
-                if (TryReadNamedTableReference(tokens, ref index, out var tableReference))
-                {
-                    result.Add(tableReference);
-                    i = index - 1;
-                }
-            }
-
-            return result;
-        }
-
-        private static bool IsReferenceLeadKeyword(SqlToken token)
-        {
-            return token.IsKeyword("FROM")
-                   || token.IsKeyword("JOIN")
-                   || token.IsKeyword("INTO")
-                   || token.IsKeyword("USING")
-                   || token.IsKeyword("MERGE");
-        }
-
-        private static bool TryReadNamedTableReference(IReadOnlyList<SqlToken> tokens, ref int index, [NotNullWhen(true)] out SqlDomTableReference? tableReference)
-        {
-            tableReference = null;
-            if (index >= tokens.Count || tokens[index].Type == SqlTokenType.EndOfFile)
-            {
-                return false;
-            }
-
-            if (tokens[index].Type == SqlTokenType.OpenParen)
-            {
-                var closeIndex = FindMatchingCloseParen(tokens, index);
-                if (closeIndex < 0)
-                {
-                    return false;
-                }
-
-                index = closeIndex + 1;
-                ParseOptionalAlias(tokens, ref index, tokens.Count);
-                return false;
-            }
-
-            var nameParts = ParseMultipartIdentifier(tokens, ref index, tokens.Count);
-            if (nameParts.Count < 1)
-            {
-                return false;
-            }
-
-            if (index < tokens.Count && tokens[index].Type == SqlTokenType.OpenParen)
-            {
-                var closeIndex = FindMatchingCloseParen(tokens, index);
-                if (closeIndex < 0)
-                {
-                    return false;
-                }
-
-                index = closeIndex + 1;
-                ParseOptionalAlias(tokens, ref index, tokens.Count);
-                return false;
-            }
-
-            var table = nameParts[nameParts.Count - 1];
-            var schema = nameParts.Count >= 2 ? nameParts[nameParts.Count - 2] : null;
-            var alias = ParseOptionalAlias(tokens, ref index, tokens.Count);
-            tableReference = new SqlDomTableReference(schema, table, alias);
+            index += 2;
+            joinType = SqlDomJoinType.OuterApply;
             return true;
         }
 
-        private static List<SqlDomColumnReference> ExtractColumnReferences(IReadOnlyList<SqlToken> tokens)
-        {
-            var result = new List<SqlDomColumnReference>();
-            for (var i = 0; i < tokens.Count - 2; i++)
-            {
-                if (!tokens[i].IsIdentifierLike || tokens[i + 1].Type != SqlTokenType.Dot || !tokens[i + 2].IsIdentifierLike)
-                {
-                    continue;
-                }
+        return false;
+    }
 
-                result.Add(new SqlDomColumnReference(tokens[i].IdentifierValue, tokens[i + 2].IdentifierValue));
+    private static List<SqlDomTableReference> ExtractTableReferences(IReadOnlyList<SqlToken> tokens)
+    {
+        var result = new List<SqlDomTableReference>();
+        for (var i = 0; i < tokens.Count; i++)
+        {
+            if (!IsReferenceLeadKeyword(tokens[i]))
+            {
+                continue;
             }
 
+            var index = i + 1;
+            if (TryReadNamedTableReference(tokens, ref index, out var tableReference))
+            {
+                result.Add(tableReference);
+                i = index - 1;
+            }
+        }
+
+        return result;
+    }
+
+    private static bool IsReferenceLeadKeyword(SqlToken token)
+    {
+        return token.IsKeyword("FROM")
+               || token.IsKeyword("JOIN")
+               || token.IsKeyword("INTO")
+               || token.IsKeyword("USING")
+               || token.IsKeyword("MERGE");
+    }
+
+    private static bool TryReadNamedTableReference(IReadOnlyList<SqlToken> tokens, ref int index, [NotNullWhen(true)] out SqlDomTableReference? tableReference)
+    {
+        tableReference = null;
+        if (index >= tokens.Count || tokens[index].Type == SqlTokenType.EndOfFile)
+        {
+            return false;
+        }
+
+        if (tokens[index].Type == SqlTokenType.OpenParen)
+        {
+            var closeIndex = FindMatchingCloseParen(tokens, index);
+            if (closeIndex < 0)
+            {
+                return false;
+            }
+
+            index = closeIndex + 1;
+            ParseOptionalAlias(tokens, ref index, tokens.Count);
+            return false;
+        }
+
+        var nameParts = ParseMultipartIdentifier(tokens, ref index, tokens.Count);
+        if (nameParts.Count < 1)
+        {
+            return false;
+        }
+
+        if (index < tokens.Count && tokens[index].Type == SqlTokenType.OpenParen)
+        {
+            var closeIndex = FindMatchingCloseParen(tokens, index);
+            if (closeIndex < 0)
+            {
+                return false;
+            }
+
+            index = closeIndex + 1;
+            ParseOptionalAlias(tokens, ref index, tokens.Count);
+            return false;
+        }
+
+        var table = nameParts[nameParts.Count - 1];
+        var schema = nameParts.Count >= 2 ? nameParts[nameParts.Count - 2] : null;
+        var alias = ParseOptionalAlias(tokens, ref index, tokens.Count);
+        tableReference = new SqlDomTableReference(schema, table, alias);
+        return true;
+    }
+
+    private static List<SqlDomColumnReference> ExtractColumnReferences(IReadOnlyList<SqlToken> tokens)
+    {
+        var result = new List<SqlDomColumnReference>();
+        for (var i = 0; i < tokens.Count - 2; i++)
+        {
+            if (!tokens[i].IsIdentifierLike || tokens[i + 1].Type != SqlTokenType.Dot || !tokens[i + 2].IsIdentifierLike)
+            {
+                continue;
+            }
+
+            result.Add(new SqlDomColumnReference(tokens[i].IdentifierValue, tokens[i + 2].IdentifierValue));
+        }
+
+        return result;
+    }
+
+    private static List<string> ParseMultipartIdentifier(IReadOnlyList<SqlToken> tokens, ref int index, int endExclusive)
+    {
+        var result = new List<string>();
+        if (index >= endExclusive || !tokens[index].IsIdentifierLike)
+        {
             return result;
         }
 
-        private static List<string> ParseMultipartIdentifier(IReadOnlyList<SqlToken> tokens, ref int index, int endExclusive)
-        {
-            var result = new List<string>();
-            if (index >= endExclusive || !tokens[index].IsIdentifierLike)
-            {
-                return result;
-            }
+        result.Add(tokens[index].IdentifierValue);
+        index++;
 
+        while ((index + 1) < endExclusive && tokens[index].Type == SqlTokenType.Dot && tokens[index + 1].IsIdentifierLike)
+        {
+            index++;
             result.Add(tokens[index].IdentifierValue);
             index++;
-
-            while ((index + 1) < endExclusive && tokens[index].Type == SqlTokenType.Dot && tokens[index + 1].IsIdentifierLike)
-            {
-                index++;
-                result.Add(tokens[index].IdentifierValue);
-                index++;
-            }
-
-            return result;
         }
 
-        private static string? ParseOptionalAlias(IReadOnlyList<SqlToken> tokens, ref int index, int endExclusive)
+        return result;
+    }
+
+    private static string? ParseOptionalAlias(IReadOnlyList<SqlToken> tokens, ref int index, int endExclusive)
+    {
+        if (index >= endExclusive)
         {
-            if (index >= endExclusive)
-            {
-                return null;
-            }
+            return null;
+        }
 
-            if (IsKeyword(tokens, index, "AS"))
+        if (IsKeyword(tokens, index, "AS"))
+        {
+            if (index + 1 < endExclusive && IsValidAliasToken(tokens[index + 1]))
             {
-                if (index + 1 < endExclusive && IsValidAliasToken(tokens[index + 1]))
-                {
-                    index += 2;
-                    return tokens[index - 1].IdentifierValue;
-                }
-
-                return null;
-            }
-
-            if (index < endExclusive && IsValidAliasToken(tokens[index]))
-            {
-                var alias = tokens[index].IdentifierValue;
-                index++;
-                return alias;
+                index += 2;
+                return tokens[index - 1].IdentifierValue;
             }
 
             return null;
         }
 
-        private static bool IsValidAliasToken(SqlToken token)
+        if (index < endExclusive && IsValidAliasToken(tokens[index]))
         {
-            return token.IsIdentifierLike
-                   && !IsReservedWord(token)
-                   && !string.IsNullOrWhiteSpace(token.IdentifierValue);
+            var alias = tokens[index].IdentifierValue;
+            index++;
+            return alias;
         }
 
-        private static IReadOnlyList<string> ParseOptionalColumnAliasList(IReadOnlyList<SqlToken> tokens, ref int index, int endExclusive)
+        return null;
+    }
+
+    private static bool IsValidAliasToken(SqlToken token)
+    {
+        return token.IsIdentifierLike
+               && !IsReservedWord(token)
+               && !string.IsNullOrWhiteSpace(token.IdentifierValue);
+    }
+
+    private static IReadOnlyList<string> ParseOptionalColumnAliasList(IReadOnlyList<SqlToken> tokens, ref int index, int endExclusive)
+    {
+        if (index >= endExclusive || tokens[index].Type != SqlTokenType.OpenParen)
         {
-            if (index >= endExclusive || tokens[index].Type != SqlTokenType.OpenParen)
-            {
-                return Array.Empty<string>();
-            }
-
-            var closeIndex = FindMatchingCloseParen(tokens, index);
-            if (closeIndex < 0)
-            {
-                return Array.Empty<string>();
-            }
-
-            var result = new List<string>();
-            for (var i = index + 1; i < closeIndex; i++)
-            {
-                if (tokens[i].IsIdentifierLike)
-                {
-                    result.Add(tokens[i].IdentifierValue);
-                }
-            }
-
-            index = closeIndex + 1;
-            return result;
+            return Array.Empty<string>();
         }
 
-        private static int FindMatchingCloseParen(IReadOnlyList<SqlToken> tokens, int openParenIndex)
+        var closeIndex = FindMatchingCloseParen(tokens, index);
+        if (closeIndex < 0)
         {
-            var depth = 0;
-            for (var i = openParenIndex; i < tokens.Count; i++)
-            {
-                if (tokens[i].Type == SqlTokenType.OpenParen)
-                {
-                    depth++;
-                    continue;
-                }
+            return Array.Empty<string>();
+        }
 
-                if (tokens[i].Type == SqlTokenType.CloseParen)
+        var result = new List<string>();
+        for (var i = index + 1; i < closeIndex; i++)
+        {
+            if (tokens[i].IsIdentifierLike)
+            {
+                result.Add(tokens[i].IdentifierValue);
+            }
+        }
+
+        index = closeIndex + 1;
+        return result;
+    }
+
+    private static int FindMatchingCloseParen(IReadOnlyList<SqlToken> tokens, int openParenIndex)
+    {
+        var depth = 0;
+        for (var i = openParenIndex; i < tokens.Count; i++)
+        {
+            if (tokens[i].Type == SqlTokenType.OpenParen)
+            {
+                depth++;
+                continue;
+            }
+
+            if (tokens[i].Type == SqlTokenType.CloseParen)
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    return i;
+                }
+            }
+        }
+
+        return -1;
+    }
+
+    private static int FindStatementEnd(IReadOnlyList<SqlToken> tokens, int startIndex)
+    {
+        for (var i = startIndex; i < tokens.Count; i++)
+        {
+            if (tokens[i].Type == SqlTokenType.EndOfFile || tokens[i].Type == SqlTokenType.Semicolon)
+            {
+                return i;
+            }
+        }
+
+        return tokens.Count;
+    }
+
+    private static int FindFirstTopLevel(IReadOnlyList<SqlToken> tokens, int startIndex, IReadOnlyList<string> keywords)
+    {
+        var depth = 0;
+        for (var i = startIndex; i < tokens.Count; i++)
+        {
+            if (tokens[i].Type == SqlTokenType.EndOfFile || tokens[i].Type == SqlTokenType.Semicolon)
+            {
+                return i;
+            }
+
+            if (tokens[i].Type == SqlTokenType.OpenParen)
+            {
+                depth++;
+                continue;
+            }
+
+            if (tokens[i].Type == SqlTokenType.CloseParen)
+            {
+                if (depth > 0)
                 {
                     depth--;
-                    if (depth == 0)
+                }
+
+                continue;
+            }
+
+            if (depth == 0)
+            {
+                for (var k = 0; k < keywords.Count; k++)
+                {
+                    if (tokens[i].IsKeyword(keywords[k]))
                     {
+                        if (tokens[i].IsKeyword("GROUP")
+                            && i > startIndex
+                            && tokens[i - 1].IsKeyword("WITHIN")
+                            && i + 1 < tokens.Count
+                            && tokens[i + 1].Type == SqlTokenType.OpenParen)
+                        {
+                            continue;
+                        }
+
                         return i;
                     }
                 }
             }
-
-            return -1;
         }
 
-        private static int FindStatementEnd(IReadOnlyList<SqlToken> tokens, int startIndex)
+        return -1;
+    }
+
+    private static int FindTopLevelKeywordIndex(IReadOnlyList<SqlToken> tokens, int startIndex, string keyword)
+    {
+        var depth = 0;
+        for (var i = startIndex; i < tokens.Count; i++)
         {
-            for (var i = startIndex; i < tokens.Count; i++)
+            if (tokens[i].Type == SqlTokenType.EndOfFile || tokens[i].Type == SqlTokenType.Semicolon)
             {
-                if (tokens[i].Type == SqlTokenType.EndOfFile || tokens[i].Type == SqlTokenType.Semicolon)
-                {
-                    return i;
-                }
+                break;
             }
 
-            return tokens.Count;
-        }
-
-        private static int FindFirstTopLevel(IReadOnlyList<SqlToken> tokens, int startIndex, IReadOnlyList<string> keywords)
-        {
-            var depth = 0;
-            for (var i = startIndex; i < tokens.Count; i++)
+            if (tokens[i].Type == SqlTokenType.OpenParen)
             {
-                if (tokens[i].Type == SqlTokenType.EndOfFile || tokens[i].Type == SqlTokenType.Semicolon)
-                {
-                    return i;
-                }
-
-                if (tokens[i].Type == SqlTokenType.OpenParen)
-                {
-                    depth++;
-                    continue;
-                }
-
-                if (tokens[i].Type == SqlTokenType.CloseParen)
-                {
-                    if (depth > 0)
-                    {
-                        depth--;
-                    }
-
-                    continue;
-                }
-
-                if (depth == 0)
-                {
-                    for (var k = 0; k < keywords.Count; k++)
-                    {
-                        if (tokens[i].IsKeyword(keywords[k]))
-                        {
-                            if (tokens[i].IsKeyword("GROUP")
-                                && i > startIndex
-                                && tokens[i - 1].IsKeyword("WITHIN")
-                                && i + 1 < tokens.Count
-                                && tokens[i + 1].Type == SqlTokenType.OpenParen)
-                            {
-                                continue;
-                            }
-
-                            return i;
-                        }
-                    }
-                }
+                depth++;
+                continue;
             }
 
-            return -1;
-        }
-
-        private static int FindTopLevelKeywordIndex(IReadOnlyList<SqlToken> tokens, int startIndex, string keyword)
-        {
-            var depth = 0;
-            for (var i = startIndex; i < tokens.Count; i++)
+            if (tokens[i].Type == SqlTokenType.CloseParen)
             {
-                if (tokens[i].Type == SqlTokenType.EndOfFile || tokens[i].Type == SqlTokenType.Semicolon)
+                if (depth > 0)
                 {
-                    break;
+                    depth--;
                 }
 
-                if (tokens[i].Type == SqlTokenType.OpenParen)
-                {
-                    depth++;
-                    continue;
-                }
-
-                if (tokens[i].Type == SqlTokenType.CloseParen)
-                {
-                    if (depth > 0)
-                    {
-                        depth--;
-                    }
-
-                    continue;
-                }
-
-                if (depth == 0 && tokens[i].IsKeyword(keyword))
-                {
-                    return i;
-                }
+                continue;
             }
 
-            return -1;
+            if (depth == 0 && tokens[i].IsKeyword(keyword))
+            {
+                return i;
+            }
         }
 
-        private static int FindNextJoinBoundary(IReadOnlyList<SqlToken> tokens, int startIndex, int endExclusive)
+        return -1;
+    }
+
+    private static int FindNextJoinBoundary(IReadOnlyList<SqlToken> tokens, int startIndex, int endExclusive)
+    {
+        var depth = 0;
+        for (var i = startIndex; i < endExclusive; i++)
         {
-            var depth = 0;
-            for (var i = startIndex; i < endExclusive; i++)
+            if (tokens[i].Type == SqlTokenType.OpenParen)
             {
-                if (tokens[i].Type == SqlTokenType.OpenParen)
-                {
-                    depth++;
-                    continue;
-                }
-
-                if (tokens[i].Type == SqlTokenType.CloseParen)
-                {
-                    if (depth > 0)
-                    {
-                        depth--;
-                    }
-
-                    continue;
-                }
-
-                if (depth == 0 && IsJoinLead(tokens, i))
-                {
-                    return i;
-                }
+                depth++;
+                continue;
             }
 
-            return endExclusive;
-        }
-
-        private static bool IsJoinLead(IReadOnlyList<SqlToken> tokens, int index)
-        {
-            return IsKeyword(tokens, index, "JOIN")
-                   || IsKeyword(tokens, index, "INNER")
-                   || IsKeyword(tokens, index, "LEFT")
-                   || IsKeyword(tokens, index, "RIGHT")
-                   || IsKeyword(tokens, index, "FULL")
-                   || IsKeyword(tokens, index, "CROSS")
-                   || IsKeyword(tokens, index, "OUTER");
-        }
-
-        private static bool IsReservedWord(SqlToken token)
-        {
-            if (token.Type != SqlTokenType.Identifier)
+            if (tokens[i].Type == SqlTokenType.CloseParen)
             {
+                if (depth > 0)
+                {
+                    depth--;
+                }
+
+                continue;
+            }
+
+            if (depth == 0 && IsJoinLead(tokens, i))
+            {
+                return i;
+            }
+        }
+
+        return endExclusive;
+    }
+
+    private static bool IsJoinLead(IReadOnlyList<SqlToken> tokens, int index)
+    {
+        return IsKeyword(tokens, index, "JOIN")
+               || IsKeyword(tokens, index, "INNER")
+               || IsKeyword(tokens, index, "LEFT")
+               || IsKeyword(tokens, index, "RIGHT")
+               || IsKeyword(tokens, index, "FULL")
+               || IsKeyword(tokens, index, "CROSS")
+               || IsKeyword(tokens, index, "OUTER");
+    }
+
+    private static bool IsReservedWord(SqlToken token)
+    {
+        if (token.Type != SqlTokenType.Identifier)
+        {
+            return false;
+        }
+
+        switch (token.Text.ToUpperInvariant())
+        {
+            case "SELECT":
+            case "FROM":
+            case "JOIN":
+            case "INNER":
+            case "LEFT":
+            case "RIGHT":
+            case "FULL":
+            case "UPDATE":
+            case "DELETE":
+            case "INSERT":
+            case "MERGE":
+            case "WHERE":
+            case "SET":
+            case "VALUES":
+            case "INTO":
+            case "USING":
+            case "ON":
+            case "GROUP":
+            case "BY":
+            case "ORDER":
+            case "OFFSET":
+            case "FETCH":
+            case "ROW":
+            case "ROWS":
+            case "UNION":
+            case "INTERSECT":
+            case "EXCEPT":
+            case "OUTER":
+            case "CROSS":
+            case "APPLY":
+            case "WHEN":
+            case "THEN":
+            case "ELSE":
+            case "END":
+            case "AS":
+            case "WITH":
+            case "TOP":
+            case "DISTINCT":
+            case "PERCENT":
+            case "HAVING":
+            case "AND":
+            case "OR":
+            case "NOT":
+            case "LIKE":
+            case "NULL":
+            case "CASE":
+            case "OVER":
+            case "PARTITION":
+            case "ASC":
+            case "DESC":
+                return true;
+            default:
                 return false;
-            }
+        }
+    }
 
-            switch (token.Text.ToUpperInvariant())
-            {
-                case "SELECT":
-                case "FROM":
-                case "JOIN":
-                case "INNER":
-                case "LEFT":
-                case "RIGHT":
-                case "FULL":
-                case "UPDATE":
-                case "DELETE":
-                case "INSERT":
-                case "MERGE":
-                case "WHERE":
-                case "SET":
-                case "VALUES":
-                case "INTO":
-                case "USING":
-                case "ON":
-                case "GROUP":
-                case "BY":
-                case "ORDER":
-                case "OFFSET":
-                case "FETCH":
-                case "ROW":
-                case "ROWS":
-                case "UNION":
-                case "INTERSECT":
-                case "EXCEPT":
-                case "OUTER":
-                case "CROSS":
-                case "APPLY":
-                case "WHEN":
-                case "THEN":
-                case "ELSE":
-                case "END":
-                case "AS":
-                case "WITH":
-                case "TOP":
-                case "DISTINCT":
-                case "PERCENT":
-                case "HAVING":
-                case "AND":
-                case "OR":
-                case "NOT":
-                case "LIKE":
-                case "NULL":
-                case "CASE":
-                case "OVER":
-                case "PARTITION":
-                case "ASC":
-                case "DESC":
-                    return true;
-                default:
-                    return false;
-            }
+    private static bool IsKeyword(IReadOnlyList<SqlToken> tokens, int index, string keyword)
+        => index >= 0 && index < tokens.Count && tokens[index].IsKeyword(keyword);
+
+    private static void SkipBalancedParenthesis(TokenCursor cursor)
+    {
+        if (cursor.Current.Type != SqlTokenType.OpenParen)
+        {
+            return;
         }
 
-        private static bool IsKeyword(IReadOnlyList<SqlToken> tokens, int index, string keyword)
-            => index >= 0 && index < tokens.Count && tokens[index].IsKeyword(keyword);
-
-        private static void SkipBalancedParenthesis(TokenCursor cursor)
+        var closeIndex = FindMatchingCloseParen(cursor.Tokens, cursor.Index);
+        if (closeIndex > cursor.Index)
         {
-            if (cursor.Current.Type != SqlTokenType.OpenParen)
-            {
-                return;
-            }
+            cursor.Index = closeIndex + 1;
+        }
+    }
 
-            var closeIndex = FindMatchingCloseParen(cursor.Tokens, cursor.Index);
-            if (closeIndex > cursor.Index)
-            {
-                cursor.Index = closeIndex + 1;
-            }
+    private static string SliceSql(string sql, IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)
+    {
+        if (startInclusive >= endExclusive || startInclusive < 0 || endExclusive > tokens.Count)
+        {
+            return string.Empty;
         }
 
-        private static string SliceSql(string sql, IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)
-        {
-            if (startInclusive >= endExclusive || startInclusive < 0 || endExclusive > tokens.Count)
-            {
-                return string.Empty;
-            }
+        var startPos = tokens[startInclusive].Start;
+        var endPos = tokens[endExclusive - 1].End;
+        return sql.Substring(startPos, endPos - startPos).Trim();
+    }
 
-            var startPos = tokens[startInclusive].Start;
-            var endPos = tokens[endExclusive - 1].End;
-            return sql.Substring(startPos, endPos - startPos).Trim();
+    private sealed class TokenCursor
+    {
+        public TokenCursor(IReadOnlyList<SqlToken> tokens, string sql)
+        {
+            this.Tokens = tokens;
+            this.Sql = sql;
+            this.Index = 0;
         }
 
-        private sealed class TokenCursor
+        public IReadOnlyList<SqlToken> Tokens { get; }
+
+        public string Sql { get; }
+
+        public int Index { get; set; }
+
+        public SqlToken Current
+            => this.Index >= 0 && this.Index < this.Tokens.Count
+                ? this.Tokens[this.Index]
+                : this.Tokens[this.Tokens.Count - 1];
+
+        public void MoveNext()
         {
-            public TokenCursor(IReadOnlyList<SqlToken> tokens, string sql)
+            if (this.Index < this.Tokens.Count - 1)
             {
-                this.Tokens = tokens;
-                this.Sql = sql;
-                this.Index = 0;
-            }
-
-            public IReadOnlyList<SqlToken> Tokens { get; }
-
-            public string Sql { get; }
-
-            public int Index { get; set; }
-
-            public SqlToken Current
-                => this.Index >= 0 && this.Index < this.Tokens.Count
-                    ? this.Tokens[this.Index]
-                    : this.Tokens[this.Tokens.Count - 1];
-
-            public void MoveNext()
-            {
-                if (this.Index < this.Tokens.Count - 1)
-                {
-                    this.Index++;
-                }
+                this.Index++;
             }
         }
     }
 }
-

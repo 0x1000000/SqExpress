@@ -1,5 +1,4 @@
 using NUnit.Framework;
-using SqExpress.Syntax;
 using SqExpress.Syntax.Type;
 using SqExpress.SyntaxTreeOperations.Internal;
 using static SqExpress.SqQueryBuilder;

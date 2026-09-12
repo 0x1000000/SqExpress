@@ -1,7 +1,6 @@
-namespace SqExpress.SqlTranspiler
+namespace SqExpress.SqlTranspiler;
+
+public interface ISqExpressSqlTranspiler
 {
-    public interface ISqExpressSqlTranspiler
-    {
-        SqExpressTranspileResult Transpile(string sql, SqExpressSqlTranspilerOptions? options = null);
-    }
+    SqExpressTranspileResult Transpile(string sql, SqExpressSqlTranspilerOptions? options = null);
 }

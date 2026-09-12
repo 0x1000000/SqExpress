@@ -1,14 +1,13 @@
 ﻿using System.Collections.Generic;
 using SqExpress.Syntax.Names;
 
-namespace SqExpress
+namespace SqExpress;
+
+public interface ISqModelReader<out TEntity, in TTable>
 {
-    public interface ISqModelReader<out TEntity, in TTable>
-    {
-        IReadOnlyList<ExprColumn> GetColumns(TTable table);
+    IReadOnlyList<ExprColumn> GetColumns(TTable table);
 
-        TEntity Read(ISqDataRecordReader record, TTable table);
+    TEntity Read(ISqDataRecordReader record, TTable table);
 
-        TEntity ReadOrdinal(ISqDataRecordReader record, TTable table, int offset);
-    }
+    TEntity ReadOrdinal(ISqDataRecordReader record, TTable table, int offset);
 }

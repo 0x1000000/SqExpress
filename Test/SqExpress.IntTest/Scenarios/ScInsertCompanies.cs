@@ -11,176 +11,174 @@ using SqExpress.IntTest.Tables.Derived;
 using SqExpress.IntTest.Tables.Models;
 using static SqExpress.SqQueryBuilder;
 
-namespace SqExpress.IntTest.Scenarios
+namespace SqExpress.IntTest.Scenarios;
+
+public class ScInsertCompanies : IScenario
 {
-    public class ScInsertCompanies : IScenario
+    public async Task Exec(IScenarioContext context)
     {
-        public async Task Exec(IScenarioContext context)
+        var company = AllTables.GetItCompany(context.Dialect);
+        var companyData = this.ReadCompanyData().ToList();
+
+        DateTime now = DateTime.UtcNow;
+
+        IReadOnlyList<int> inserted;
+        if (context.Dialect.IsOracleMySql())
         {
-            var company = AllTables.GetItCompany(context.Dialect);
-            var companyData = this.ReadCompanyData().ToList();
+            await InsertDataInto(company, companyData)
+                .MapData(s => s
+                    .Set(s.Target.ExternalId, s.Source.ExternalId)
+                    .Set(s.Target.CompanyName, s.Source.Name))
+                .AlsoInsert(s => s
+                    .Set(s.Target.Modified, now)
+                    .Set(s.Target.Created, now)
+                    .Set(s.Target.Version, 1))
+                .Exec(context.Database);
 
-            DateTime now = DateTime.UtcNow;
+            inserted = await Select(company.CompanyId)
+                .From(company)
+                .Where(company.ExternalId.In(companyData.Select(d => d.ExternalId).ToArray()))
+                .OrderBy(company.CompanyId)
+                .QueryList(context.Database, company.CompanyId.Read);
+        }
+        else
+        {
+            inserted = await InsertDataInto(company, companyData)
+                .MapData(s => s
+                    .Set(s.Target.ExternalId, s.Source.ExternalId)
+                    .Set(s.Target.CompanyName, s.Source.Name))
+                .AlsoInsert(s => s
+                    .Set(s.Target.Modified, now)
+                    .Set(s.Target.Created, now)
+                    .Set(s.Target.Version, 1))
+                .Output(company.CompanyId)
+                .Query(context.Database)
+                .Select(company.CompanyId.Read)
+                .ToList();
+        }
 
-            IReadOnlyList<int> inserted;
-            if (context.Dialect.IsOracleMySql())
-            {
-                await InsertDataInto(company, companyData)
-                    .MapData(s => s
-                        .Set(s.Target.ExternalId, s.Source.ExternalId)
-                        .Set(s.Target.CompanyName, s.Source.Name))
-                    .AlsoInsert(s => s
-                        .Set(s.Target.Modified, now)
-                        .Set(s.Target.Created, now)
-                        .Set(s.Target.Version, 1))
-                    .Exec(context.Database);
+        IReadOnlyList<int> insertedDuplicates;
+        if (context.Dialect.IsOracleMySql())
+        {
+            var duplicateIds = companyData.Take(2).Select(d => d.ExternalId).ToArray();
+            var beforeCount = (long?)await Select(Cast(CountOne(), SqlType.Int64))
+                .From(company)
+                .Where(company.ExternalId.In(duplicateIds))
+                .QueryScalar(context.Database);
 
-                inserted = await Select(company.CompanyId)
-                    .From(company)
-                    .Where(company.ExternalId.In(companyData.Select(d => d.ExternalId).ToArray()))
-                    .OrderBy(company.CompanyId)
-                    .QueryList(context.Database, company.CompanyId.Read);
-            }
-            else
-            {
-                inserted = await InsertDataInto(company, companyData)
-                    .MapData(s => s
-                        .Set(s.Target.ExternalId, s.Source.ExternalId)
-                        .Set(s.Target.CompanyName, s.Source.Name))
-                    .AlsoInsert(s => s
-                        .Set(s.Target.Modified, now)
-                        .Set(s.Target.Created, now)
-                        .Set(s.Target.Version, 1))
-                    .Output(company.CompanyId)
-                    .Query(context.Database)
-                    .Select(company.CompanyId.Read)
-                    .ToList();
-            }
+            var afterCount = (long?)await Select(Cast(CountOne(), SqlType.Int64))
+                .From(company)
+                .Where(company.ExternalId.In(duplicateIds))
+                .QueryScalar(context.Database);
 
-            IReadOnlyList<int> insertedDuplicates;
-            if (context.Dialect.IsOracleMySql())
-            {
-                var duplicateIds = companyData.Take(2).Select(d => d.ExternalId).ToArray();
-                var beforeCount = (long?)await Select(Cast(CountOne(), SqlType.Int64))
-                    .From(company)
-                    .Where(company.ExternalId.In(duplicateIds))
-                    .QueryScalar(context.Database);
-
-                var afterCount = (long?)await Select(Cast(CountOne(), SqlType.Int64))
-                    .From(company)
-                    .Where(company.ExternalId.In(duplicateIds))
-                    .QueryScalar(context.Database);
-
-                if (beforeCount != afterCount)
-                {
-                    throw new Exception("CheckExistenceBy does not work");
-                }
-
-                insertedDuplicates = Array.Empty<int>();
-            }
-            else
-            {
-                insertedDuplicates = await InsertDataInto(company, companyData.Take(2))
-                    .MapData(s => s
-                        .Set(s.Target.ExternalId, s.Source.ExternalId)
-                        .Set(s.Target.CompanyName, s.Source.Name))
-                    .AlsoInsert(s => s
-                        .Set(s.Target.Modified, now)
-                        .Set(s.Target.Created, now)
-                        .Set(s.Target.Version, 1))
-                    .CheckExistenceBy(company.ExternalId)
-                    .Output(company.CompanyId)
-                    .QueryList(context.Database, r =>
-                        {
-                            return company.CompanyId.Read(r);
-                        }
-                    );
-            }
-
-            if (insertedDuplicates.Count > 0)
+            if (beforeCount != afterCount)
             {
                 throw new Exception("CheckExistenceBy does not work");
             }
 
-            var customer = AllTables.GetItCustomer();
-
-            //Insert customer
-            await InsertDataInto(customer, inserted)
-                .MapData(s => s.Set(s.Target.CompanyId, s.Source)).Exec(context.Database);
-
-            context.WriteLine($"{inserted.Count} have been inserted into {nameof(TableItCustomer)}");
-
-
-            var tCustomerName = new CustomerName(context.Dialect);
-
-            var users = await Select(CustomerNameData.GetColumns(tCustomerName))
-                .From(tCustomerName)
-                .Where(tCustomerName.CustomerTypeId == 1)
-                .OrderBy(tCustomerName.Name)
-                .OffsetFetch(0, 5)
-                .QueryList(context.Database, r => CustomerNameData.Read(r, tCustomerName));
-
-            var companies = await Select(CustomerNameData.GetColumns(tCustomerName))
-                .From(tCustomerName)
-                .Where(tCustomerName.CustomerTypeId == 2)
-                .OrderBy(tCustomerName.CustomerId)
-                .OffsetFetch(0, 5)
-                .QueryList(context.Database, r => CustomerNameData.Read(r, tCustomerName));
-
-            context.WriteLine(null);
-            context.WriteLine("Top 5 users: ");
-            context.WriteLine(null);
-
-            foreach (var valueTuple in users)
-            {
-                Console.WriteLine($"Id: {valueTuple.Id},  Name: {valueTuple.Name}");
-            }
-            context.WriteLine(null);
-            context.WriteLine("Top 5 Users companies: ");
-            context.WriteLine(null);
-
-            foreach (var valueTuple in companies)
-            {
-                Console.WriteLine(valueTuple);
-                Console.WriteLine($"Id: {valueTuple.Id},  Name: {valueTuple.Name}");
-            }
+            insertedDuplicates = Array.Empty<int>();
+        }
+        else
+        {
+            insertedDuplicates = await InsertDataInto(company, companyData.Take(2))
+                .MapData(s => s
+                    .Set(s.Target.ExternalId, s.Source.ExternalId)
+                    .Set(s.Target.CompanyName, s.Source.Name))
+                .AlsoInsert(s => s
+                    .Set(s.Target.Modified, now)
+                    .Set(s.Target.Created, now)
+                    .Set(s.Target.Version, 1))
+                .CheckExistenceBy(company.ExternalId)
+                .Output(company.CompanyId)
+                .QueryList(context.Database, r =>
+                    {
+                        return company.CompanyId.Read(r);
+                    }
+                );
         }
 
-        private IEnumerable<JsonCompanyData> ReadCompanyData()
+        if (insertedDuplicates.Count > 0)
         {
-            var assembly = typeof(Program).GetTypeInfo().Assembly;
-
-            const string resourceName = "SqExpress.IntTest.TestData.company.json";
-            using Stream? resource = assembly.GetManifestResourceStream(resourceName);
-            if (resource == null)
-            {
-                throw new Exception($"Could not find resource name \"{resourceName}\"");
-            }
-            var document = JsonDocument.Parse(resource);
-
-            foreach (var user in document.RootElement.EnumerateArray())
-            {
-                JsonCompanyData buffer = default;
-                foreach (var userProperty in user.EnumerateObject())
-                {
-                    if (userProperty.Name == "external_id")
-                    {
-                        buffer.ExternalId = userProperty.Value.GetGuid();
-                    }
-                    if (userProperty.Name == "name")
-                    {
-                        buffer.Name = userProperty.Value.GetString() ?? string.Empty;
-                    }
-                }
-                yield return buffer;
-            }
+            throw new Exception("CheckExistenceBy does not work");
         }
 
-        private struct JsonCompanyData
+        var customer = AllTables.GetItCustomer();
+
+        //Insert customer
+        await InsertDataInto(customer, inserted)
+            .MapData(s => s.Set(s.Target.CompanyId, s.Source)).Exec(context.Database);
+
+        context.WriteLine($"{inserted.Count} have been inserted into {nameof(TableItCustomer)}");
+
+
+        var tCustomerName = new CustomerName(context.Dialect);
+
+        var users = await Select(CustomerNameData.GetColumns(tCustomerName))
+            .From(tCustomerName)
+            .Where(tCustomerName.CustomerTypeId == 1)
+            .OrderBy(tCustomerName.Name)
+            .OffsetFetch(0, 5)
+            .QueryList(context.Database, r => CustomerNameData.Read(r, tCustomerName));
+
+        var companies = await Select(CustomerNameData.GetColumns(tCustomerName))
+            .From(tCustomerName)
+            .Where(tCustomerName.CustomerTypeId == 2)
+            .OrderBy(tCustomerName.CustomerId)
+            .OffsetFetch(0, 5)
+            .QueryList(context.Database, r => CustomerNameData.Read(r, tCustomerName));
+
+        context.WriteLine(null);
+        context.WriteLine("Top 5 users: ");
+        context.WriteLine(null);
+
+        foreach (var valueTuple in users)
         {
-            public Guid ExternalId;
-            public string Name;
+            Console.WriteLine($"Id: {valueTuple.Id},  Name: {valueTuple.Name}");
+        }
+        context.WriteLine(null);
+        context.WriteLine("Top 5 Users companies: ");
+        context.WriteLine(null);
+
+        foreach (var valueTuple in companies)
+        {
+            Console.WriteLine(valueTuple);
+            Console.WriteLine($"Id: {valueTuple.Id},  Name: {valueTuple.Name}");
         }
     }
-}
 
+    private IEnumerable<JsonCompanyData> ReadCompanyData()
+    {
+        var assembly = typeof(Program).GetTypeInfo().Assembly;
+
+        const string resourceName = "SqExpress.IntTest.TestData.company.json";
+        using Stream? resource = assembly.GetManifestResourceStream(resourceName);
+        if (resource == null)
+        {
+            throw new Exception($"Could not find resource name \"{resourceName}\"");
+        }
+        var document = JsonDocument.Parse(resource);
+
+        foreach (var user in document.RootElement.EnumerateArray())
+        {
+            JsonCompanyData buffer = default;
+            foreach (var userProperty in user.EnumerateObject())
+            {
+                if (userProperty.Name == "external_id")
+                {
+                    buffer.ExternalId = userProperty.Value.GetGuid();
+                }
+                if (userProperty.Name == "name")
+                {
+                    buffer.Name = userProperty.Value.GetString() ?? string.Empty;
+                }
+            }
+            yield return buffer;
+        }
+    }
+
+    private struct JsonCompanyData
+    {
+        public Guid ExternalId;
+        public string Name;
+    }
+}

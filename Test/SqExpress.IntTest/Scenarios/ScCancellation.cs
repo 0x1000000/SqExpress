@@ -2,45 +2,43 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using SqExpress.IntTest.Context;
-using SqExpress.IntTest.Tables;
 
-namespace SqExpress.IntTest.Scenarios
+namespace SqExpress.IntTest.Scenarios;
+
+public class ScCancellation : IScenario
 {
-    public class ScCancellation : IScenario
+    public async Task Exec(IScenarioContext context)
     {
-        public async Task Exec(IScenarioContext context)
+        if (context.Dialect.IsOracleMySql())
         {
-            if (context.Dialect.IsOracleMySql())
-            {
-                context.WriteLine("Skipped: cancellation behavior is provider-specific on Oracle MySQL");
-                return;
-            }
+            context.WriteLine("Skipped: cancellation behavior is provider-specific on Oracle MySQL");
+            return;
+        }
 
-            if (!context.Dialect.IsMariaDb())
-            {
-                return;
-            }
+        if (!context.Dialect.IsMariaDb())
+        {
+            return;
+        }
 
-            var source = new CancellationTokenSource(100/*ms*/);
+        var source = new CancellationTokenSource(100/*ms*/);
 
-            var tQ = SqQueryBuilder
-                .Select(SqQueryBuilder.ScalarFunctionCustom("", "SLEEP", 1000/*s*/))
-                .QueryScalar(context.Database, source.Token);
+        var tQ = SqQueryBuilder
+            .Select(SqQueryBuilder.ScalarFunctionCustom("", "SLEEP", 1000/*s*/))
+            .QueryScalar(context.Database, source.Token);
 
-            Exception? cancelException = null;
-            try
-            {
-                await tQ;
-            }
-            catch (Exception e)
-            {
-                cancelException = e;
-            }
+        Exception? cancelException = null;
+        try
+        {
+            await tQ;
+        }
+        catch (Exception e)
+        {
+            cancelException = e;
+        }
 
-            if (!(cancelException?.InnerException is OperationCanceledException))
-            {
-                throw new Exception($"{nameof(OperationCanceledException)} was expected");
-            }
+        if (!(cancelException?.InnerException is OperationCanceledException))
+        {
+            throw new Exception($"{nameof(OperationCanceledException)} was expected");
         }
     }
 }

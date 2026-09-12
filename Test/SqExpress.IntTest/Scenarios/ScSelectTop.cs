@@ -5,29 +5,28 @@ using SqExpress.IntTest.Tables;
 using SqExpress.IntTest.Tables.Models;
 using static SqExpress.SqQueryBuilder;
 
-namespace SqExpress.IntTest.Scenarios
+namespace SqExpress.IntTest.Scenarios;
+
+public class ScSelectTop : IScenario
 {
-    public class ScSelectTop : IScenario
+    public async Task Exec(IScenarioContext context)
     {
-        public async Task Exec(IScenarioContext context)
-        {
-            var tUser = AllTables.GetItUser(context.Dialect);
+        var tUser = AllTables.GetItUser(context.Dialect);
 
-            var top2Users = await SelectTop(2, UserEmail.GetColumns(tUser))
-                .From(tUser)
-                .OrderBy(tUser.FirstName)
-                .QueryList(context.Database, r => UserEmail.Read(r, tUser));
+        var top2Users = await SelectTop(2, UserEmail.GetColumns(tUser))
+            .From(tUser)
+            .OrderBy(tUser.FirstName)
+            .QueryList(context.Database, r => UserEmail.Read(r, tUser));
 
-            Console.WriteLine(top2Users[0]);
-            Console.WriteLine(top2Users[1]);
+        Console.WriteLine(top2Users[0]);
+        Console.WriteLine(top2Users[1]);
 
-            top2Users = await SelectTop(2, UserEmail.GetColumns(tUser))
-                .From(tUser)
-                .Offset(5)
-                .QueryList(context.Database, r => UserEmail.Read(r, tUser));
+        top2Users = await SelectTop(2, UserEmail.GetColumns(tUser))
+            .From(tUser)
+            .Offset(5)
+            .QueryList(context.Database, r => UserEmail.Read(r, tUser));
 
-            Console.WriteLine(top2Users[0].Email);
-            Console.WriteLine(top2Users[1].Email);
-        }
+        Console.WriteLine(top2Users[0].Email);
+        Console.WriteLine(top2Users[1].Email);
     }
 }

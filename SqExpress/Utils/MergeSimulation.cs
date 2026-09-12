@@ -3,320 +3,318 @@ using System.Linq;
 using SqExpress.Syntax;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Boolean.Predicate;
-using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Update;
 using SqExpress.Syntax.Value;
 
-namespace SqExpress.Utils
+namespace SqExpress.Utils;
+
+internal static class MergeSimulation
 {
-    internal static class MergeSimulation
+    public static ExprList ConvertMerge(
+        ExprMerge merge,
+        string tempTableName,
+        bool useJoinBasedInsertAntiMatch = false,
+        bool useTargetOnlyDelete = false)
     {
-        public static ExprList ConvertMerge(
-            ExprMerge merge,
-            string tempTableName,
-            bool useJoinBasedInsertAntiMatch = false,
-            bool useTargetOnlyDelete = false)
+        var acc = new List<IExprExec>();
+
+        var sourceAlias = GetSourceAlias(merge.Source);
+
+        var keys = ExtractKeys(merge, sourceAlias);
+
+        IReadOnlyDictionary<ExprColumnName, TableColumn>? hints = ExtractHints(merge, ExtractSourceColumnNames(merge.Source));
+
+        var exprInsertIntoTmp = TempTableData.FromTableSourceInsert(
+            tableSource: merge.Source,
+            keys: keys.SourceKeys,
+            tempTable: out var tempTable,
+            name: tempTableName,
+            alias: Alias.From(sourceAlias),
+            hints: hints
+        );
+
+        acc.AddRange(exprInsertIntoTmp.Expressions);
+
+        //MATCHED
+        var e = WhenMatched(merge, tempTable, useTargetOnlyDelete);
+        if (e != null)
         {
-            var acc = new List<IExprExec>();
-
-            var sourceAlias = GetSourceAlias(merge.Source);
-
-            var keys = ExtractKeys(merge, sourceAlias);
-
-            IReadOnlyDictionary<ExprColumnName, TableColumn>? hints = ExtractHints(merge, ExtractSourceColumnNames(merge.Source));
-
-            var exprInsertIntoTmp = TempTableData.FromTableSourceInsert(
-                tableSource: merge.Source,
-                keys: keys.SourceKeys,
-                tempTable: out var tempTable,
-                name: tempTableName,
-                alias: Alias.From(sourceAlias),
-                hints: hints
-            );
-
-            acc.AddRange(exprInsertIntoTmp.Expressions);
-
-            //MATCHED
-            var e = WhenMatched(merge, tempTable, useTargetOnlyDelete);
-            if (e != null)
-            {
-                acc.Add(e);
-            }
-
-            //NOT MATCHED BY TARGET
-            e = WhenNotMatchedByTarget(merge, tempTable, keys, useJoinBasedInsertAntiMatch);
-            if (e != null)
-            {
-                acc.Add(e);
-            }
-
-            //NOT MATCHED BY SOURCE
-            e = WhenNotMatchedBySource(merge, tempTable, useTargetOnlyDelete);
-            if (e != null)
-            {
-                acc.Add(e);
-            }
-
-            acc.Add(new ExprStatement(tempTable.Script.Drop()));
-            return new ExprList(acc);
+            acc.Add(e);
         }
 
-        private static IReadOnlyDictionary<ExprColumnName, TableColumn>? ExtractHints(
-            ExprMerge merge,
-            IReadOnlyCollection<ExprColumnName> sourceColumns)
+        //NOT MATCHED BY TARGET
+        e = WhenNotMatchedByTarget(merge, tempTable, keys, useJoinBasedInsertAntiMatch);
+        if (e != null)
         {
-            Dictionary<ExprColumnName, TableColumn>? result = null; 
+            acc.Add(e);
+        }
 
-            if (merge.WhenMatched is ExprMergeMatchedUpdate mu)
+        //NOT MATCHED BY SOURCE
+        e = WhenNotMatchedBySource(merge, tempTable, useTargetOnlyDelete);
+        if (e != null)
+        {
+            acc.Add(e);
+        }
+
+        acc.Add(new ExprStatement(tempTable.Script.Drop()));
+        return new ExprList(acc);
+    }
+
+    private static IReadOnlyDictionary<ExprColumnName, TableColumn>? ExtractHints(
+        ExprMerge merge,
+        IReadOnlyCollection<ExprColumnName> sourceColumns)
+    {
+        Dictionary<ExprColumnName, TableColumn>? result = null; 
+
+        if (merge.WhenMatched is ExprMergeMatchedUpdate mu)
+        {
+            foreach (var exprColumnSetClause in mu.Set)
             {
-                foreach (var exprColumnSetClause in mu.Set)
+                if (exprColumnSetClause.Column is TableColumn targetColumn && exprColumnSetClause.Value is ExprColumn col && sourceColumns.Contains(col.ColumnName))
                 {
-                    if (exprColumnSetClause.Column is TableColumn targetColumn && exprColumnSetClause.Value is ExprColumn col && sourceColumns.Contains(col.ColumnName))
-                    {
-                        result ??= new();
-                        result[col] = targetColumn;
-                    }
+                    result ??= new();
+                    result[col] = targetColumn;
                 }
             }
+        }
 
-            if (merge.WhenNotMatchedByTarget is ExprExprMergeNotMatchedInsert i)
+        if (merge.WhenNotMatchedByTarget is ExprExprMergeNotMatchedInsert i)
+        {
+            for (var index = 0; index < i.Columns.Count; index++)
             {
-                for (var index = 0; index < i.Columns.Count; index++)
-                {
-                    var exprColumnName = i.Columns[index];
-                    var assigning = i.Values[index];
+                var exprColumnName = i.Columns[index];
+                var assigning = i.Values[index];
 
-                    if (assigning is ExprColumn col && sourceColumns.Contains(col.ColumnName))
+                if (assigning is ExprColumn col && sourceColumns.Contains(col.ColumnName))
+                {
+                    if (merge.TargetTable is TableBase tb)
                     {
-                        if (merge.TargetTable is TableBase tb)
+                        var targetColumn = tb.Columns.FirstOrDefault(x => x.ColumnName.Equals(exprColumnName));
+                        if (!ReferenceEquals(targetColumn, null))
                         {
-                            var targetColumn = tb.Columns.FirstOrDefault(x => x.ColumnName.Equals(exprColumnName));
-                            if (!ReferenceEquals(targetColumn, null))
-                            {
-                                result ??= new();
-                                result[col] = targetColumn;
-                            }
+                            result ??= new();
+                            result[col] = targetColumn;
                         }
                     }
+                }
 
+            }
+        }
+
+        return result;
+    }
+
+    private static IExprAlias GetSourceAlias(IExprTableSource source)
+    {
+        return source.Alias?.Alias
+               ?? throw new SqExpressException("MERGE simulation requires a source with an exposed alias");
+    }
+
+    private static IReadOnlyCollection<ExprColumnName> ExtractSourceColumnNames(IExprTableSource source)
+    {
+        var result = new List<ExprColumnName>();
+        var selectings = source.ExtractSelecting();
+
+        for (var i = 0; i < selectings.Count; i++)
+        {
+            if (selectings[i] is IExprNamedSelecting named && !string.IsNullOrWhiteSpace(named.OutputName))
+            {
+                result.Add(new ExprColumnName(named.OutputName!));
+            }
+        }
+
+        return result;
+    }
+
+    private static ExtractKeysResult ExtractKeys(ExprMerge merge, IExprAlias sourceAlias)
+    {
+        IExprAlias targetAlias = merge.TargetTable.Alias?.Alias ?? throw new SqExpressException("Target table should have an alias");
+
+        var accSource = new List<ExprColumnName>();
+        var accTarget = new List<ExprColumnName>();
+
+        var eqs = merge.On.SyntaxTree().DescendantsAndSelf().OfType<ExprBooleanEq>();
+        foreach (var exprBooleanEq in eqs)
+        {
+            if (exprBooleanEq.Left is ExprColumn left 
+                && exprBooleanEq.Right is ExprColumn right 
+                && left.Source is ExprTableAlias ta 
+                && right.Source is ExprTableAlias sa)
+            {
+
+                if (sa.Alias.Equals(sourceAlias) && ta.Alias.Equals(targetAlias))
+                {
+                    accTarget.Add(left.ColumnName);
+                    accSource.Add(right.ColumnName);
+                }
+                else if(ta.Alias.Equals(sourceAlias) && sa.Alias.Equals(targetAlias))
+                {
+                    accTarget.Add(right.ColumnName);
+                    accSource.Add(left.ColumnName);
                 }
             }
-
-            return result;
         }
 
-        private static IExprAlias GetSourceAlias(IExprTableSource source)
-        {
-            return source.Alias?.Alias
-                ?? throw new SqExpressException("MERGE simulation requires a source with an exposed alias");
-        }
+        return new ExtractKeysResult(accTarget, accSource);
+    }
 
-        private static IReadOnlyCollection<ExprColumnName> ExtractSourceColumnNames(IExprTableSource source)
+    private static IExprExec? WhenMatched(ExprMerge merge, TempTableBase tempTable, bool useTargetOnlyDelete)
+    {
+        IExprExec? e = null;
+        if (merge.WhenMatched != null)
         {
-            var result = new List<ExprColumnName>();
-            var selectings = source.ExtractSelecting();
-
-            for (var i = 0; i < selectings.Count; i++)
+            if (merge.WhenMatched is ExprMergeMatchedUpdate update)
             {
-                if (selectings[i] is IExprNamedSelecting named && !string.IsNullOrWhiteSpace(named.OutputName))
+                e = SqQueryBuilder
+                    .Update(merge.TargetTable)
+                    .Set(update.Set)
+                    .From(merge.TargetTable)
+                    .InnerJoin(tempTable, merge.On)
+                    .Where(update.And);
+            }
+            else if (merge.WhenMatched is ExprMergeMatchedDelete delete)
+            {
+                ExprBoolean filter = SqQueryBuilder.Exists(SqQueryBuilder.SelectOne()
+                    .From(tempTable)
+                    .Where(merge.On));
+
+                if (delete.And != null)
                 {
-                    result.Add(new ExprColumnName(named.OutputName!));
+                    filter = filter & delete.And;
                 }
+
+                e = BuildDelete(merge.TargetTable, filter, useTargetOnlyDelete);
+            }
+            else
+            {
+                throw new SqExpressException($"Unknown type: '{merge.WhenMatched.GetType().Name}'");
+            }
+        }
+        return e;
+    }
+
+    private static IExprExec? WhenNotMatchedByTarget(ExprMerge merge, TempTableBase tempTable, ExtractKeysResult keys, bool useJoinBasedInsertAntiMatch)
+    {
+        IExprExec? e = null;
+        if (merge.WhenNotMatchedByTarget != null)
+        {
+            ExprBoolean BuildFilter(ExprBoolean? and)
+            {
+                ExprBoolean filter = !SqQueryBuilder.Exists(SqQueryBuilder
+                    .SelectOne()
+                    .From(merge.TargetTable)
+                    .Where(merge.On));
+
+                if (and != null)
+                {
+                    filter = filter & and;
+                }
+
+                return filter;
             }
 
-            return result;
-        }
-
-        private static ExtractKeysResult ExtractKeys(ExprMerge merge, IExprAlias sourceAlias)
-        {
-            IExprAlias targetAlias = merge.TargetTable.Alias?.Alias ?? throw new SqExpressException("Target table should have an alias");
-
-            var accSource = new List<ExprColumnName>();
-            var accTarget = new List<ExprColumnName>();
-
-            var eqs = merge.On.SyntaxTree().DescendantsAndSelf().OfType<ExprBooleanEq>();
-            foreach (var exprBooleanEq in eqs)
+            IExprExec BuildOracleSafeInsert(IExprExec insert)
             {
-                if (exprBooleanEq.Left is ExprColumn left 
-                    && exprBooleanEq.Right is ExprColumn right 
-                    && left.Source is ExprTableAlias ta 
-                    && right.Source is ExprTableAlias sa)
-                {
+                var deleteMatchedFromTemp = SqQueryBuilder.Delete(tempTable)
+                    .From(tempTable)
+                    .InnerJoin(merge.TargetTable, merge.On)
+                    .All();
 
-                    if (sa.Alias.Equals(sourceAlias) && ta.Alias.Equals(targetAlias))
-                    {
-                        accTarget.Add(left.ColumnName);
-                        accSource.Add(right.ColumnName);
-                    }
-                    else if(ta.Alias.Equals(sourceAlias) && sa.Alias.Equals(targetAlias))
-                    {
-                        accTarget.Add(right.ColumnName);
-                        accSource.Add(left.ColumnName);
-                    }
-                }
+                return new ExprList(new IExprExec[] { deleteMatchedFromTemp, insert });
             }
 
-            return new ExtractKeysResult(accTarget, accSource);
-        }
-
-        private static IExprExec? WhenMatched(ExprMerge merge, TempTableBase tempTable, bool useTargetOnlyDelete)
-        {
-            IExprExec? e = null;
-            if (merge.WhenMatched != null)
+            if (merge.WhenNotMatchedByTarget is ExprExprMergeNotMatchedInsert insert)
             {
-                if (merge.WhenMatched is ExprMergeMatchedUpdate update)
-                {
-                    e = SqQueryBuilder
-                        .Update(merge.TargetTable)
-                        .Set(update.Set)
-                        .From(merge.TargetTable)
-                        .InnerJoin(tempTable, merge.On)
-                        .Where(update.And);
-                }
-                else if (merge.WhenMatched is ExprMergeMatchedDelete delete)
-                {
-                    ExprBoolean filter = SqQueryBuilder.Exists(SqQueryBuilder.SelectOne()
+                var insertFromSelect = SqQueryBuilder.InsertInto(merge.TargetTable, insert.Columns)
+                    .From(SqQueryBuilder.Select(insert.Values.SelectToReadOnlyList(i =>
+                            i is ExprValue v
+                                ? v
+                                : throw new SqExpressException("DEFAULT value cannot be used in MERGE polyfill")))
                         .From(tempTable)
-                        .Where(merge.On));
+                        .Where(useJoinBasedInsertAntiMatch ? insert.And : BuildFilter(insert.And)));
 
-                    if (delete.And != null)
-                    {
-                        filter = filter & delete.And;
-                    }
-
-                    e = BuildDelete(merge.TargetTable, filter, useTargetOnlyDelete);
-                }
-                else
-                {
-                    throw new SqExpressException($"Unknown type: '{merge.WhenMatched.GetType().Name}'");
-                }
+                e = useJoinBasedInsertAntiMatch
+                    ? BuildOracleSafeInsert(insertFromSelect)
+                    : insertFromSelect;
             }
-            return e;
-        }
-
-        private static IExprExec? WhenNotMatchedByTarget(ExprMerge merge, TempTableBase tempTable, ExtractKeysResult keys, bool useJoinBasedInsertAntiMatch)
-        {
-            IExprExec? e = null;
-            if (merge.WhenNotMatchedByTarget != null)
+            else if (merge.WhenNotMatchedByTarget is ExprExprMergeNotMatchedInsertDefault insertDefault)
             {
-                ExprBoolean BuildFilter(ExprBoolean? and)
-                {
-                    ExprBoolean filter = !SqQueryBuilder.Exists(SqQueryBuilder
-                        .SelectOne()
-                        .From(merge.TargetTable)
-                        .Where(merge.On));
-
-                    if (and != null)
-                    {
-                        filter = filter & and;
-                    }
-
-                    return filter;
-                }
-
-                IExprExec BuildOracleSafeInsert(IExprExec insert)
-                {
-                    var deleteMatchedFromTemp = SqQueryBuilder.Delete(tempTable)
+                var insertFromSelect = SqQueryBuilder.InsertInto(merge.TargetTable, keys.TargetKeys)
+                    .From(SqQueryBuilder.Select(keys.SourceKeys)
                         .From(tempTable)
-                        .InnerJoin(merge.TargetTable, merge.On)
-                        .All();
+                        .Where(useJoinBasedInsertAntiMatch ? insertDefault.And : BuildFilter(insertDefault.And)));
 
-                    return new ExprList(new IExprExec[] { deleteMatchedFromTemp, insert });
-                }
+                e = useJoinBasedInsertAntiMatch
+                    ? BuildOracleSafeInsert(insertFromSelect)
+                    : insertFromSelect;
 
-                if (merge.WhenNotMatchedByTarget is ExprExprMergeNotMatchedInsert insert)
-                {
-                    var insertFromSelect = SqQueryBuilder.InsertInto(merge.TargetTable, insert.Columns)
-                        .From(SqQueryBuilder.Select(insert.Values.SelectToReadOnlyList(i =>
-                                i is ExprValue v
-                                    ? v
-                                    : throw new SqExpressException("DEFAULT value cannot be used in MERGE polyfill")))
-                            .From(tempTable)
-                            .Where(useJoinBasedInsertAntiMatch ? insert.And : BuildFilter(insert.And)));
-
-                    e = useJoinBasedInsertAntiMatch
-                        ? BuildOracleSafeInsert(insertFromSelect)
-                        : insertFromSelect;
-                }
-                else if (merge.WhenNotMatchedByTarget is ExprExprMergeNotMatchedInsertDefault insertDefault)
-                {
-                    var insertFromSelect = SqQueryBuilder.InsertInto(merge.TargetTable, keys.TargetKeys)
-                        .From(SqQueryBuilder.Select(keys.SourceKeys)
-                            .From(tempTable)
-                            .Where(useJoinBasedInsertAntiMatch ? insertDefault.And : BuildFilter(insertDefault.And)));
-
-                    e = useJoinBasedInsertAntiMatch
-                        ? BuildOracleSafeInsert(insertFromSelect)
-                        : insertFromSelect;
-
-                }
-                else
-                {
-                    throw new SqExpressException($"Unknown type: '{merge.WhenNotMatchedByTarget.GetType().Name}'");
-                }
             }
-            return e;
-        }
-
-        private static IExprExec? WhenNotMatchedBySource(ExprMerge merge, TempTableBase tempTable, bool useTargetOnlyDelete)
-        {
-            IExprExec? e = null;
-            if (merge.WhenNotMatchedBySource != null)
+            else
             {
-                if (merge.WhenNotMatchedBySource is ExprMergeMatchedDelete delete)
-                {
-                    ExprBoolean filter = !SqQueryBuilder.Exists(SqQueryBuilder.SelectOne()
-                        .From(tempTable)
-                        .Where(merge.On));
-
-                    if (delete.And != null)
-                    {
-                        filter = filter & delete.And;
-                    }
-
-                    e = BuildDelete(merge.TargetTable, filter, useTargetOnlyDelete);
-                }
-                else if (merge.WhenNotMatchedBySource is ExprMergeMatchedUpdate update)
-                {
-                    ExprBoolean filter = !SqQueryBuilder.Exists(SqQueryBuilder.SelectOne()
-                        .From(tempTable)
-                        .Where(merge.On));
-                    if (update.And != null)
-                    {
-                        filter = filter & update.And;
-                    }
-
-                    e = SqQueryBuilder.Update(merge.TargetTable).Set(update.Set).Where(filter);
-                }
-                else
-                {
-                    throw new SqExpressException($"Unknown type: '{merge.WhenNotMatchedBySource.GetType().Name}'");
-                }
+                throw new SqExpressException($"Unknown type: '{merge.WhenNotMatchedByTarget.GetType().Name}'");
             }
-
-            return e;
         }
+        return e;
+    }
 
-        private static IExprExec BuildDelete(ExprTable targetTable, ExprBoolean filter, bool useTargetOnlyDelete)
+    private static IExprExec? WhenNotMatchedBySource(ExprMerge merge, TempTableBase tempTable, bool useTargetOnlyDelete)
+    {
+        IExprExec? e = null;
+        if (merge.WhenNotMatchedBySource != null)
         {
-            return useTargetOnlyDelete
-                ? SqQueryBuilder.Delete(targetTable).Where(filter)
-                : SqQueryBuilder.Delete(targetTable).From(targetTable).Where(filter);
-        }
-
-        private readonly struct ExtractKeysResult
-        {
-            public readonly IReadOnlyList<ExprColumnName> TargetKeys;
-            public readonly IReadOnlyList<ExprColumnName> SourceKeys;
-
-            public ExtractKeysResult(IReadOnlyList<ExprColumnName> targetKeys, IReadOnlyList<ExprColumnName> sourceKeys)
+            if (merge.WhenNotMatchedBySource is ExprMergeMatchedDelete delete)
             {
-                this.TargetKeys = targetKeys;
-                this.SourceKeys = sourceKeys;
+                ExprBoolean filter = !SqQueryBuilder.Exists(SqQueryBuilder.SelectOne()
+                    .From(tempTable)
+                    .Where(merge.On));
+
+                if (delete.And != null)
+                {
+                    filter = filter & delete.And;
+                }
+
+                e = BuildDelete(merge.TargetTable, filter, useTargetOnlyDelete);
             }
+            else if (merge.WhenNotMatchedBySource is ExprMergeMatchedUpdate update)
+            {
+                ExprBoolean filter = !SqQueryBuilder.Exists(SqQueryBuilder.SelectOne()
+                    .From(tempTable)
+                    .Where(merge.On));
+                if (update.And != null)
+                {
+                    filter = filter & update.And;
+                }
+
+                e = SqQueryBuilder.Update(merge.TargetTable).Set(update.Set).Where(filter);
+            }
+            else
+            {
+                throw new SqExpressException($"Unknown type: '{merge.WhenNotMatchedBySource.GetType().Name}'");
+            }
+        }
+
+        return e;
+    }
+
+    private static IExprExec BuildDelete(ExprTable targetTable, ExprBoolean filter, bool useTargetOnlyDelete)
+    {
+        return useTargetOnlyDelete
+            ? SqQueryBuilder.Delete(targetTable).Where(filter)
+            : SqQueryBuilder.Delete(targetTable).From(targetTable).Where(filter);
+    }
+
+    private readonly struct ExtractKeysResult
+    {
+        public readonly IReadOnlyList<ExprColumnName> TargetKeys;
+        public readonly IReadOnlyList<ExprColumnName> SourceKeys;
+
+        public ExtractKeysResult(IReadOnlyList<ExprColumnName> targetKeys, IReadOnlyList<ExprColumnName> sourceKeys)
+        {
+            this.TargetKeys = targetKeys;
+            this.SourceKeys = sourceKeys;
         }
     }
 }

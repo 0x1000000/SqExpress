@@ -1,7 +1,6 @@
-﻿namespace SqExpress.Syntax.Select
+﻿namespace SqExpress.Syntax.Select;
+
+public interface IExprQueryExpression : IExprSubQuery
 {
-    public interface IExprQueryExpression : IExprSubQuery
-    {
         
-    }
 }

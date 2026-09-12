@@ -1,5 +1,4 @@
 ﻿using SqExpress.Syntax.Names;
-using SqExpress.Syntax.Value;
 
 namespace SqExpress.QueryBuilders.RecordSetter;
 

@@ -8,512 +8,511 @@ using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Value;
 
-namespace SqExpress.SyntaxTreeOperations.Internal
+namespace SqExpress.SyntaxTreeOperations.Internal;
+
+internal readonly struct ExprValueTypeAnalyzerCtx<TRes, TCtx>
 {
-    internal readonly struct ExprValueTypeAnalyzerCtx<TRes, TCtx>
+    public readonly TCtx Ctx;
+
+    public readonly IExprValueTypeVisitor<TRes, TCtx> ValueVisitor;
+
+    public ExprValueTypeAnalyzerCtx(TCtx ctx, IExprValueTypeVisitor<TRes, TCtx> valueVisitor)
     {
-        public readonly TCtx Ctx;
+        this.Ctx = ctx;
+        this.ValueVisitor = valueVisitor;
+    }
+}
 
-        public readonly IExprValueTypeVisitor<TRes, TCtx> ValueVisitor;
+internal class ExprValueVisitorTypeAnalyzer<TRes, TCtx> : IExprValueVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>, IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>, IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>
+{
+    public static readonly ExprValueVisitorTypeAnalyzer<TRes, TCtx> Instance = new ExprValueVisitorTypeAnalyzer<TRes, TCtx>();
 
-        public ExprValueTypeAnalyzerCtx(TCtx ctx, IExprValueTypeVisitor<TRes, TCtx> valueVisitor)
+    private ExprValueVisitorTypeAnalyzer()
+    {
+    }
+
+    public TRes VisitExprInt32Literal(ExprInt32Literal exprInt32Literal, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitInt32(ctx.Ctx, !exprInt32Literal.Value.HasValue);
+    }
+
+    public TRes VisitExprGuidLiteral(ExprGuidLiteral exprGuidLiteral, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitGuid(ctx.Ctx, !exprGuidLiteral.Value.HasValue);
+    }
+
+    public TRes VisitExprStringLiteral(ExprStringLiteral stringLiteral, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitString(ctx.Ctx, stringLiteral.Value == null, stringLiteral.Value?.Length, false);
+    }
+
+    public TRes VisitExprDateTimeLiteral(ExprDateTimeLiteral dateTimeLiteral, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitDateTime(ctx.Ctx, !dateTimeLiteral.Value.HasValue);
+    }
+
+    public TRes VisitExprDateTimeOffsetLiteral(ExprDateTimeOffsetLiteral dateTimeLiteral, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitDateTimeOffset(ctx.Ctx, !dateTimeLiteral.Value.HasValue);
+    }
+
+    public TRes VisitExprBoolLiteral(ExprBoolLiteral boolLiteral, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitBool(ctx.Ctx, !boolLiteral.Value.HasValue);
+    }
+
+    public TRes VisitExprInt64Literal(ExprInt64Literal int64Literal, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitInt64(ctx.Ctx, !int64Literal.Value.HasValue);
+    }
+
+    public TRes VisitExprByteLiteral(ExprByteLiteral byteLiteral, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitByte(ctx.Ctx, !byteLiteral.Value.HasValue);
+    }
+
+    public TRes VisitExprInt16Literal(ExprInt16Literal int16Literal, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitInt16(ctx.Ctx, !int16Literal.Value.HasValue);
+    }
+
+    public TRes VisitExprDecimalLiteral(ExprDecimalLiteral decimalLiteral, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        DecimalPrecisionScale? precisionScale = null;
+
+        if (decimalLiteral.Value.HasValue)
         {
-            this.Ctx = ctx;
-            this.ValueVisitor = valueVisitor;
+            SqlDecimal sd = decimalLiteral.Value.Value;
+            precisionScale = new DecimalPrecisionScale(sd.Precision, sd.Scale);
+        }
+
+        return ctx.ValueVisitor.VisitDecimal(ctx.Ctx, !decimalLiteral.Value.HasValue, precisionScale);
+    }
+
+    public TRes VisitExprDoubleLiteral(ExprDoubleLiteral doubleLiteral, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitDouble(ctx.Ctx, !doubleLiteral.Value.HasValue);
+    }
+
+    public TRes VisitExprByteArrayLiteral(ExprByteArrayLiteral byteArrayLiteral, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitByteArray(ctx.Ctx, byteArrayLiteral.Value == null, byteArrayLiteral.Value?.Count, false);
+    }
+
+    public TRes VisitExprNull(ExprNull exprNull, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitAny(ctx.Ctx, true);
+    }
+
+    public TRes VisitExprJsonValue(ExprJsonValue expr, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+        => expr.ReturningType == null
+            ? ctx.ValueVisitor.VisitString(ctx.Ctx, true, null, false)
+            : expr.ReturningType.Accept(this, ctx);
+
+    public TRes VisitExprJsonQuery(ExprJsonQuery expr, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx) => ctx.ValueVisitor.VisitString(ctx.Ctx, true, null, false);
+    public TRes VisitExprJsonNull(ExprJsonNull expr, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx) => ctx.ValueVisitor.VisitString(ctx.Ctx, false, 4, false);
+    public TRes VisitExprJsonSet(ExprJsonSet expr, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx) => ctx.ValueVisitor.VisitString(ctx.Ctx, true, null, false);
+    public TRes VisitExprJsonRemove(ExprJsonRemove expr, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx) => ctx.ValueVisitor.VisitString(ctx.Ctx, true, null, false);
+    public TRes VisitExprJsonObject(ExprJsonObject expr, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx) => ctx.ValueVisitor.VisitString(ctx.Ctx, false, null, false);
+    public TRes VisitExprJsonArray(ExprJsonArray expr, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx) => ctx.ValueVisitor.VisitString(ctx.Ctx, false, null, false);
+
+    public TRes VisitExprUnsafeValue(ExprUnsafeValue exprUnsafeValue, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+    }
+
+    public TRes VisitExprSelectingValue(ExprSelectingValue exprSelectingValue, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        switch (exprSelectingValue.Selecting)
+        {
+            case ExprValue value:
+                return value.Accept(this, ctx);
+            case ExprAggregateFunction aggregateFunction:
+                return this.VisitExprAggregateFunction(aggregateFunction, ctx);
+            case ExprStringAgg:
+                return ctx.ValueVisitor.VisitString(ctx.Ctx, true, null, false);
+            case ExprAggregateOverFunction aggregateOverFunction:
+                return this.VisitExprAggregateOverFunction(aggregateOverFunction, ctx);
+            case ExprAnalyticFunction analyticFunction:
+                return this.VisitExprAnalyticFunction(analyticFunction, ctx);
+            default:
+                return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
         }
     }
 
-    internal class ExprValueVisitorTypeAnalyzer<TRes, TCtx> : IExprValueVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>, IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>, IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>
+    public TRes VisitExprValueQuery(ExprValueQuery exprValueQuery, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
     {
-        public static readonly ExprValueVisitorTypeAnalyzer<TRes, TCtx> Instance = new ExprValueVisitorTypeAnalyzer<TRes, TCtx>();
-
-        private ExprValueVisitorTypeAnalyzer()
-        {
-        }
-
-        public TRes VisitExprInt32Literal(ExprInt32Literal exprInt32Literal, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitInt32(ctx.Ctx, !exprInt32Literal.Value.HasValue);
-        }
-
-        public TRes VisitExprGuidLiteral(ExprGuidLiteral exprGuidLiteral, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitGuid(ctx.Ctx, !exprGuidLiteral.Value.HasValue);
-        }
-
-        public TRes VisitExprStringLiteral(ExprStringLiteral stringLiteral, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitString(ctx.Ctx, stringLiteral.Value == null, stringLiteral.Value?.Length, false);
-        }
-
-        public TRes VisitExprDateTimeLiteral(ExprDateTimeLiteral dateTimeLiteral, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitDateTime(ctx.Ctx, !dateTimeLiteral.Value.HasValue);
-        }
-
-        public TRes VisitExprDateTimeOffsetLiteral(ExprDateTimeOffsetLiteral dateTimeLiteral, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitDateTimeOffset(ctx.Ctx, !dateTimeLiteral.Value.HasValue);
-        }
-
-        public TRes VisitExprBoolLiteral(ExprBoolLiteral boolLiteral, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitBool(ctx.Ctx, !boolLiteral.Value.HasValue);
-        }
-
-        public TRes VisitExprInt64Literal(ExprInt64Literal int64Literal, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitInt64(ctx.Ctx, !int64Literal.Value.HasValue);
-        }
-
-        public TRes VisitExprByteLiteral(ExprByteLiteral byteLiteral, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitByte(ctx.Ctx, !byteLiteral.Value.HasValue);
-        }
-
-        public TRes VisitExprInt16Literal(ExprInt16Literal int16Literal, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitInt16(ctx.Ctx, !int16Literal.Value.HasValue);
-        }
-
-        public TRes VisitExprDecimalLiteral(ExprDecimalLiteral decimalLiteral, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            DecimalPrecisionScale? precisionScale = null;
-
-            if (decimalLiteral.Value.HasValue)
-            {
-                SqlDecimal sd = decimalLiteral.Value.Value;
-                precisionScale = new DecimalPrecisionScale(sd.Precision, sd.Scale);
-            }
-
-            return ctx.ValueVisitor.VisitDecimal(ctx.Ctx, !decimalLiteral.Value.HasValue, precisionScale);
-        }
-
-        public TRes VisitExprDoubleLiteral(ExprDoubleLiteral doubleLiteral, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitDouble(ctx.Ctx, !doubleLiteral.Value.HasValue);
-        }
-
-        public TRes VisitExprByteArrayLiteral(ExprByteArrayLiteral byteArrayLiteral, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitByteArray(ctx.Ctx, byteArrayLiteral.Value == null, byteArrayLiteral.Value?.Count, false);
-        }
-
-        public TRes VisitExprNull(ExprNull exprNull, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitAny(ctx.Ctx, true);
-        }
-
-        public TRes VisitExprJsonValue(ExprJsonValue expr, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-            => expr.ReturningType == null
-                ? ctx.ValueVisitor.VisitString(ctx.Ctx, true, null, false)
-                : expr.ReturningType.Accept(this, ctx);
-
-        public TRes VisitExprJsonQuery(ExprJsonQuery expr, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx) => ctx.ValueVisitor.VisitString(ctx.Ctx, true, null, false);
-        public TRes VisitExprJsonNull(ExprJsonNull expr, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx) => ctx.ValueVisitor.VisitString(ctx.Ctx, false, 4, false);
-        public TRes VisitExprJsonSet(ExprJsonSet expr, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx) => ctx.ValueVisitor.VisitString(ctx.Ctx, true, null, false);
-        public TRes VisitExprJsonRemove(ExprJsonRemove expr, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx) => ctx.ValueVisitor.VisitString(ctx.Ctx, true, null, false);
-        public TRes VisitExprJsonObject(ExprJsonObject expr, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx) => ctx.ValueVisitor.VisitString(ctx.Ctx, false, null, false);
-        public TRes VisitExprJsonArray(ExprJsonArray expr, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx) => ctx.ValueVisitor.VisitString(ctx.Ctx, false, null, false);
-
-        public TRes VisitExprUnsafeValue(ExprUnsafeValue exprUnsafeValue, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
-        }
-
-        public TRes VisitExprSelectingValue(ExprSelectingValue exprSelectingValue, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            switch (exprSelectingValue.Selecting)
-            {
-                case ExprValue value:
-                    return value.Accept(this, ctx);
-                case ExprAggregateFunction aggregateFunction:
-                    return this.VisitExprAggregateFunction(aggregateFunction, ctx);
-                case ExprStringAgg:
-                    return ctx.ValueVisitor.VisitString(ctx.Ctx, true, null, false);
-                case ExprAggregateOverFunction aggregateOverFunction:
-                    return this.VisitExprAggregateOverFunction(aggregateOverFunction, ctx);
-                case ExprAnalyticFunction analyticFunction:
-                    return this.VisitExprAnalyticFunction(analyticFunction, ctx);
-                default:
-                    return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
-            }
-        }
-
-        public TRes VisitExprValueQuery(ExprValueQuery exprValueQuery, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
-        }
-
-        public TRes VisitExprSum(ExprSum exprSum, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return exprSum.Left.Accept(this, ctx);
-        }
-
-        public TRes VisitExprSub(ExprSub exprSub, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return exprSub.Left.Accept(this, ctx);
-        }
-
-        public TRes VisitExprMul(ExprMul exprMul, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return exprMul.Left.Accept(this, ctx);
-        }
-
-        public TRes VisitExprDiv(ExprDiv exprDiv, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return exprDiv.Left.Accept(this, ctx);
-        }
-
-        public TRes VisitExprModulo(ExprModulo exprModulo, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return exprModulo.Left.Accept(this, ctx);
-        }
-
-        public TRes VisitExprStringConcat(ExprStringConcat exprStringConcat, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
-        }
-
-        public TRes VisitExprBitwiseNot(ExprBitwiseNot exprBitwiseNot, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return exprBitwiseNot.Value.Accept(this, ctx);
-        }
-
-        public TRes VisitExprBitwiseAnd(ExprBitwiseAnd exprBitwiseAnd, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return exprBitwiseAnd.Left.Accept(this, ctx);
-        }
-
-        public TRes VisitExprBitwiseXor(ExprBitwiseXor exprBitwiseXor, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return exprBitwiseXor.Left.Accept(this, ctx);
-        }
-
-        public TRes VisitExprBitwiseOr(ExprBitwiseOr exprBitwiseOr, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return exprBitwiseOr.Left.Accept(this, ctx);
-        }
-
-        public TRes VisitExprScalarFunction(ExprScalarFunction exprScalarFunction, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
-        }
-
-        public TRes VisitExprPortableScalarFunction(ExprPortableScalarFunction exprPortableScalarFunction, ExprValueTypeAnalyzerCtx<TRes, TCtx> arg)
-        {
-           return exprPortableScalarFunction.PortableFunction.Accept(this, arg);
-        }
-
-        public TRes VisitExprCase(ExprCase exprCase, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return exprCase.DefaultValue.Accept(this, ctx);
-        }
-
-        public TRes VisitExprCaseWhenThen(ExprCaseWhenThen exprCaseWhenThen, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return exprCaseWhenThen.Value.Accept(this, ctx);
-        }
-
-        public TRes VisitExprFuncIsNull(ExprFuncIsNull exprFuncIsNull, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return exprFuncIsNull.Test.Accept(this, ctx);
-        }
-
-        public TRes VisitExprFuncCoalesce(ExprFuncCoalesce exprFuncCoalesce, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return exprFuncCoalesce.Test.Accept(this, ctx);
-        }
-
-        public TRes VisitExprGetDate(ExprGetDate exprGetDate, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitDateTime(ctx.Ctx, false);
-        }
-
-        public TRes VisitExprGetUtcDate(ExprGetUtcDate exprGetUtcDate, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitDateTime(ctx.Ctx, false);
-        }
-
-        public TRes VisitExprDateAdd(ExprDateAdd exprDateAdd, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitDateTime(ctx.Ctx, null);
-        }
-
-        public TRes VisitExprDateDiff(ExprDateDiff exprDateDiff, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitInt32(ctx.Ctx, null);
-        }
-
-        public TRes VisitExprColumn(ExprColumn exprColumn, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            if (exprColumn is TableColumn tc)
-            {
-                return tc.SqlType.Accept(this, ctx);
-            }
-
-            return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
-        }
-
-        public TRes VisitExprCast(ExprCast exprCast, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return exprCast.SqlType.Accept(this, ctx);
-        }
-
-        private TRes VisitExprAggregateFunction(ExprAggregateFunction exprAggregateFunction, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            switch (exprAggregateFunction.Name.Name.ToUpperInvariant())
-            {
-                case "COUNT":
-                    return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
-
-                case "MIN":
-                case "MAX":
-                case "SUM":
-                case "AVG":
-                    return exprAggregateFunction.Expression.Accept(this, ctx);
-
-                default:
-                    return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
-            }
-        }
-
-        private TRes VisitExprAggregateOverFunction(ExprAggregateOverFunction exprAggregateOverFunction, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return this.VisitExprAggregateFunction(exprAggregateOverFunction.Function, ctx);
-        }
-
-        private TRes VisitExprAnalyticFunction(ExprAnalyticFunction exprAnalyticFunction, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            switch (exprAnalyticFunction.Name.Name.ToUpperInvariant())
-            {
-                case "ROW_NUMBER":
-                case "RANK":
-                case "DENSE_RANK":
-                case "NTILE":
-                    return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
-
-                case "CUME_DIST":
-                case "PERCENT_RANK":
-                    return ctx.ValueVisitor.VisitDouble(ctx.Ctx, false);
-
-                case "FIRST_VALUE":
-                case "LAST_VALUE":
-                case "LAG":
-                case "LEAD":
-                    return exprAnalyticFunction.Arguments != null && exprAnalyticFunction.Arguments.Count > 0
-                        ? exprAnalyticFunction.Arguments[0].Accept(this, ctx)
-                        : ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
-
-                default:
-                    return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
-            }
-        }
-
-        //Implementation to analyze in "VisitExprCast" and "VisitExprColumn"
-
-        TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeBoolean(ExprTypeBoolean exprTypeBoolean, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitBool(ctx.Ctx, null);
-        }
-
-        TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeByte(ExprTypeByte exprTypeByte, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitByte(ctx.Ctx, null);
-        }
-
-        TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeByteArray(ExprTypeByteArray exprTypeByte, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitByteArray(ctx.Ctx, null, exprTypeByte.Size, false);
-        }
-
-        TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeFixSizeByteArray(ExprTypeFixSizeByteArray exprTypeFixSizeByteArray, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitByteArray(ctx.Ctx, null, exprTypeFixSizeByteArray.Size, true);
-        }
-
-        TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeInt16(ExprTypeInt16 exprTypeInt16, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitInt16(ctx.Ctx, null);
-        }
-
-        TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeInt32(ExprTypeInt32 exprTypeInt32, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitInt32(ctx.Ctx, null);
-        }
-
-        TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeInt64(ExprTypeInt64 exprTypeInt64, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitInt64(ctx.Ctx, null);
-        }
-
-        TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeDecimal(ExprTypeDecimal exprTypeDecimal, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitDecimal(ctx.Ctx, null, exprTypeDecimal.PrecisionScale);
-        }
-
-        TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeDouble(ExprTypeDouble exprTypeDouble, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitDouble(ctx.Ctx, null);
-        }
-
-        TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeDateTime(ExprTypeDateTime exprTypeDateTime, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitDateTime(ctx.Ctx, null);
-        }
-
-        public TRes VisitExprTypeDateTimeOffset(ExprTypeDateTimeOffset exprTypeDateTimeOffset, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitDateTimeOffset(ctx.Ctx, null);
-        }
-
-        TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeGuid(ExprTypeGuid exprTypeGuid, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitGuid(ctx.Ctx, null);
-        }
-
-        TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeString(ExprTypeString exprTypeString, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitString(ctx.Ctx, null, exprTypeString.Size, false);
-        }
-
-        TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeFixSizeString(ExprTypeFixSizeString exprTypeFixSizeString, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitString(ctx.Ctx, null, exprTypeFixSizeString.Size, true);
-        }
-
-        TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeXml(ExprTypeXml exprTypeXml, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitXml(ctx.Ctx, null);
-        }
-
-        TRes IExprValueVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprParameter(ExprParameter exprParameter, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            if (!ReferenceEquals(exprParameter.ReplacedValue,null))
-            {
-                return exprParameter.ReplacedValue.Accept(this, ctx);
-            }
-            return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseLen(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseNullIf(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseAbs(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseLower(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseUpper(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseTrim(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseLTrim(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseRTrim(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseReplace(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseSubstring(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseRound(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseFloor(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseCeiling(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseDataLen(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseYear(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseMonth(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseDay(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseHour(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseMinute(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseSecond(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseIndexOf(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseLeft(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseRight(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
-        }
-
-        TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseRepeat(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
-        {
-            return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
-        }
+        return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+    }
+
+    public TRes VisitExprSum(ExprSum exprSum, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return exprSum.Left.Accept(this, ctx);
+    }
+
+    public TRes VisitExprSub(ExprSub exprSub, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return exprSub.Left.Accept(this, ctx);
+    }
+
+    public TRes VisitExprMul(ExprMul exprMul, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return exprMul.Left.Accept(this, ctx);
+    }
+
+    public TRes VisitExprDiv(ExprDiv exprDiv, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return exprDiv.Left.Accept(this, ctx);
+    }
+
+    public TRes VisitExprModulo(ExprModulo exprModulo, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return exprModulo.Left.Accept(this, ctx);
+    }
+
+    public TRes VisitExprStringConcat(ExprStringConcat exprStringConcat, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
+    }
+
+    public TRes VisitExprBitwiseNot(ExprBitwiseNot exprBitwiseNot, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return exprBitwiseNot.Value.Accept(this, ctx);
+    }
+
+    public TRes VisitExprBitwiseAnd(ExprBitwiseAnd exprBitwiseAnd, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return exprBitwiseAnd.Left.Accept(this, ctx);
+    }
+
+    public TRes VisitExprBitwiseXor(ExprBitwiseXor exprBitwiseXor, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return exprBitwiseXor.Left.Accept(this, ctx);
+    }
+
+    public TRes VisitExprBitwiseOr(ExprBitwiseOr exprBitwiseOr, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return exprBitwiseOr.Left.Accept(this, ctx);
+    }
+
+    public TRes VisitExprScalarFunction(ExprScalarFunction exprScalarFunction, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+    }
+
+    public TRes VisitExprPortableScalarFunction(ExprPortableScalarFunction exprPortableScalarFunction, ExprValueTypeAnalyzerCtx<TRes, TCtx> arg)
+    {
+        return exprPortableScalarFunction.PortableFunction.Accept(this, arg);
+    }
+
+    public TRes VisitExprCase(ExprCase exprCase, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return exprCase.DefaultValue.Accept(this, ctx);
+    }
+
+    public TRes VisitExprCaseWhenThen(ExprCaseWhenThen exprCaseWhenThen, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return exprCaseWhenThen.Value.Accept(this, ctx);
+    }
+
+    public TRes VisitExprFuncIsNull(ExprFuncIsNull exprFuncIsNull, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return exprFuncIsNull.Test.Accept(this, ctx);
+    }
+
+    public TRes VisitExprFuncCoalesce(ExprFuncCoalesce exprFuncCoalesce, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return exprFuncCoalesce.Test.Accept(this, ctx);
+    }
+
+    public TRes VisitExprGetDate(ExprGetDate exprGetDate, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitDateTime(ctx.Ctx, false);
+    }
+
+    public TRes VisitExprGetUtcDate(ExprGetUtcDate exprGetUtcDate, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitDateTime(ctx.Ctx, false);
+    }
+
+    public TRes VisitExprDateAdd(ExprDateAdd exprDateAdd, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitDateTime(ctx.Ctx, null);
+    }
+
+    public TRes VisitExprDateDiff(ExprDateDiff exprDateDiff, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitInt32(ctx.Ctx, null);
+    }
+
+    public TRes VisitExprColumn(ExprColumn exprColumn, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        if (exprColumn is TableColumn tc)
+        {
+            return tc.SqlType.Accept(this, ctx);
+        }
+
+        return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+    }
+
+    public TRes VisitExprCast(ExprCast exprCast, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return exprCast.SqlType.Accept(this, ctx);
+    }
+
+    private TRes VisitExprAggregateFunction(ExprAggregateFunction exprAggregateFunction, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        switch (exprAggregateFunction.Name.Name.ToUpperInvariant())
+        {
+            case "COUNT":
+                return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
+
+            case "MIN":
+            case "MAX":
+            case "SUM":
+            case "AVG":
+                return exprAggregateFunction.Expression.Accept(this, ctx);
+
+            default:
+                return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+        }
+    }
+
+    private TRes VisitExprAggregateOverFunction(ExprAggregateOverFunction exprAggregateOverFunction, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return this.VisitExprAggregateFunction(exprAggregateOverFunction.Function, ctx);
+    }
+
+    private TRes VisitExprAnalyticFunction(ExprAnalyticFunction exprAnalyticFunction, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        switch (exprAnalyticFunction.Name.Name.ToUpperInvariant())
+        {
+            case "ROW_NUMBER":
+            case "RANK":
+            case "DENSE_RANK":
+            case "NTILE":
+                return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
+
+            case "CUME_DIST":
+            case "PERCENT_RANK":
+                return ctx.ValueVisitor.VisitDouble(ctx.Ctx, false);
+
+            case "FIRST_VALUE":
+            case "LAST_VALUE":
+            case "LAG":
+            case "LEAD":
+                return exprAnalyticFunction.Arguments != null && exprAnalyticFunction.Arguments.Count > 0
+                    ? exprAnalyticFunction.Arguments[0].Accept(this, ctx)
+                    : ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+
+            default:
+                return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+        }
+    }
+
+    //Implementation to analyze in "VisitExprCast" and "VisitExprColumn"
+
+    TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeBoolean(ExprTypeBoolean exprTypeBoolean, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitBool(ctx.Ctx, null);
+    }
+
+    TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeByte(ExprTypeByte exprTypeByte, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitByte(ctx.Ctx, null);
+    }
+
+    TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeByteArray(ExprTypeByteArray exprTypeByte, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitByteArray(ctx.Ctx, null, exprTypeByte.Size, false);
+    }
+
+    TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeFixSizeByteArray(ExprTypeFixSizeByteArray exprTypeFixSizeByteArray, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitByteArray(ctx.Ctx, null, exprTypeFixSizeByteArray.Size, true);
+    }
+
+    TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeInt16(ExprTypeInt16 exprTypeInt16, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitInt16(ctx.Ctx, null);
+    }
+
+    TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeInt32(ExprTypeInt32 exprTypeInt32, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitInt32(ctx.Ctx, null);
+    }
+
+    TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeInt64(ExprTypeInt64 exprTypeInt64, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitInt64(ctx.Ctx, null);
+    }
+
+    TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeDecimal(ExprTypeDecimal exprTypeDecimal, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitDecimal(ctx.Ctx, null, exprTypeDecimal.PrecisionScale);
+    }
+
+    TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeDouble(ExprTypeDouble exprTypeDouble, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitDouble(ctx.Ctx, null);
+    }
+
+    TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeDateTime(ExprTypeDateTime exprTypeDateTime, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitDateTime(ctx.Ctx, null);
+    }
+
+    public TRes VisitExprTypeDateTimeOffset(ExprTypeDateTimeOffset exprTypeDateTimeOffset, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitDateTimeOffset(ctx.Ctx, null);
+    }
+
+    TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeGuid(ExprTypeGuid exprTypeGuid, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitGuid(ctx.Ctx, null);
+    }
+
+    TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeString(ExprTypeString exprTypeString, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitString(ctx.Ctx, null, exprTypeString.Size, false);
+    }
+
+    TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeFixSizeString(ExprTypeFixSizeString exprTypeFixSizeString, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitString(ctx.Ctx, null, exprTypeFixSizeString.Size, true);
+    }
+
+    TRes IExprTypeVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprTypeXml(ExprTypeXml exprTypeXml, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitXml(ctx.Ctx, null);
+    }
+
+    TRes IExprValueVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.VisitExprParameter(ExprParameter exprParameter, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        if (!ReferenceEquals(exprParameter.ReplacedValue,null))
+        {
+            return exprParameter.ReplacedValue.Accept(this, ctx);
+        }
+        return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+    }
+
+    TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseLen(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
+    }
+
+    TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseNullIf(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+    }
+
+    TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseAbs(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+    }
+
+    TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseLower(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
+    }
+
+    TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseUpper(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
+    }
+
+    TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseTrim(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
+    }
+
+    TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseLTrim(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
+    }
+
+    TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseRTrim(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
+    }
+
+    TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseReplace(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
+    }
+
+    TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseSubstring(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
+    }
+
+    TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseRound(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+    }
+
+    TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseFloor(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+    }
+
+    TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseCeiling(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitAny(ctx.Ctx, null);
+    }
+
+    TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseDataLen(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
+    }
+
+    TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseYear(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
+    }
+
+    TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseMonth(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
+    }
+
+    TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseDay(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
+    }
+
+    TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseHour(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
+    }
+
+    TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseMinute(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
+    }
+
+    TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseSecond(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
+    }
+
+    TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseIndexOf(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitInt32(ctx.Ctx, false);
+    }
+
+    TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseLeft(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
+    }
+
+    TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseRight(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
+    }
+
+    TRes IPortableScalarFunctionVisitor<TRes, ExprValueTypeAnalyzerCtx<TRes, TCtx>>.CaseRepeat(ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+    {
+        return ctx.ValueVisitor.VisitString(ctx.Ctx, null, null, false);
     }
 }

@@ -1,14 +1,13 @@
 ﻿using System;
 
-namespace SqExpress.DataAccess
-{
-    public class SqDatabaseCommandException: Exception
-    {
-        public string CommandText { get; }
+namespace SqExpress.DataAccess;
 
-        public SqDatabaseCommandException(string commandText, string message, Exception? innerException) : base(message, innerException)
-        {
-            this.CommandText = commandText;
-        }
+public class SqDatabaseCommandException: Exception
+{
+    public string CommandText { get; }
+
+    public SqDatabaseCommandException(string commandText, string message, Exception? innerException) : base(message, innerException)
+    {
+        this.CommandText = commandText;
     }
 }

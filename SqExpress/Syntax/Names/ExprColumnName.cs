@@ -1,58 +1,57 @@
 ﻿using System;
 using SqExpress.Syntax.Select;
 
-namespace SqExpress.Syntax.Names
+namespace SqExpress.Syntax.Names;
+
+public class ExprColumnName : IExprNamedSelecting, IExprName, IEquatable<ExprColumnName>
 {
-    public class ExprColumnName : IExprNamedSelecting, IExprName, IEquatable<ExprColumnName>
+    private string? _lowerInvariantName;
+
+    public ExprColumnName(string name)
     {
-        private string? _lowerInvariantName;
+        this.Name = name.Trim();
+    }
 
-        public ExprColumnName(string name)
+    public string Name { get; }
+
+    public string LowerInvariantName
+    {
+        get
         {
-            this.Name = name.Trim();
+            this._lowerInvariantName ??= this.Name.ToLowerInvariant();
+            return this._lowerInvariantName;
         }
+    }
 
-        public string Name { get; }
+    public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        => visitor.VisitExprColumnName(this, arg);
 
-        public string LowerInvariantName
-        {
-            get
-            {
-                this._lowerInvariantName ??= this.Name.ToLowerInvariant();
-                return this._lowerInvariantName;
-            }
-        }
+    public TRes Accept<TRes, TArg>(IExprSelectingVisitor<TRes, TArg> visitor, TArg arg)
+        => visitor.VisitExprColumnName(this, arg);
 
-        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
-            => visitor.VisitExprColumnName(this, arg);
+    public static implicit operator ExprColumnName(ExprColumn column) => column.ColumnName;
 
-        public TRes Accept<TRes, TArg>(IExprSelectingVisitor<TRes, TArg> visitor, TArg arg)
-            => visitor.VisitExprColumnName(this, arg);
+    public static implicit operator ExprColumnName(string columnName) => new ExprColumnName(columnName);
 
-        public static implicit operator ExprColumnName(ExprColumn column) => column.ColumnName;
+    string IExprNamedSelecting.OutputName => this.Name;
 
-        public static implicit operator ExprColumnName(string columnName) => new ExprColumnName(columnName);
+    public bool Equals(ExprColumnName? other)
+    {
+        if (ReferenceEquals(null, other)) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return this.Name == other.Name;
+    }
 
-        string IExprNamedSelecting.OutputName => this.Name;
+    public override bool Equals(object? obj)
+    {
+        if (ReferenceEquals(null, obj)) return false;
+        if (ReferenceEquals(this, obj)) return true;
+        if (obj.GetType() != this.GetType()) return false;
+        return Equals((ExprColumnName) obj);
+    }
 
-        public bool Equals(ExprColumnName? other)
-        {
-            if (ReferenceEquals(null, other)) return false;
-            if (ReferenceEquals(this, other)) return true;
-            return this.Name == other.Name;
-        }
-
-        public override bool Equals(object? obj)
-        {
-            if (ReferenceEquals(null, obj)) return false;
-            if (ReferenceEquals(this, obj)) return true;
-            if (obj.GetType() != this.GetType()) return false;
-            return Equals((ExprColumnName) obj);
-        }
-
-        public override int GetHashCode()
-        {
-            return this.Name.GetHashCode();
-        }
+    public override int GetHashCode()
+    {
+        return this.Name.GetHashCode();
     }
 }

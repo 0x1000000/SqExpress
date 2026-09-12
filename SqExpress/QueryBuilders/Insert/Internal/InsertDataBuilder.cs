@@ -10,234 +10,233 @@ using SqExpress.Syntax.Select.SelectItems;
 using SqExpress.Syntax.Update;
 using SqExpress.Utils;
 
-namespace SqExpress.QueryBuilders.Insert.Internal
+namespace SqExpress.QueryBuilders.Insert.Internal;
+
+public class InsertDataBuilder<TTable, TItem> : IInsertDataBuilder<TTable, TItem> where TTable : ExprTable
 {
-    public class InsertDataBuilder<TTable, TItem> : IInsertDataBuilder<TTable, TItem> where TTable : ExprTable
+    readonly TTable _target;
+
+    private readonly IEnumerable<TItem> _data;
+
+    private DataMapping<TTable, TItem>? _dataMapping;
+
+    private TargetInsertSelectMapping<TTable>? _targetInsertSelectMapping;
+
+    private IReadOnlyList<ExprAliasedColumnName>? _output;
+
+    private IReadOnlyList<ExprColumn>? _checkExistenceByColumns;
+
+    public InsertDataBuilder(TTable target, IEnumerable<TItem> data)
     {
-        readonly TTable _target;
+        this._target = target;
+        this._data = data;
+    }
 
-        private readonly IEnumerable<TItem> _data;
+    public IInsertDataBuilderAlsoInsert<TTable> MapData(DataMapping<TTable, TItem> mapping)
+    {
+        this._dataMapping.AssertFatalNull(nameof(this._dataMapping));
+        this._dataMapping = mapping;
+        return this;
+    }
 
-        private DataMapping<TTable, TItem>? _dataMapping;
+    public IInsertDataBuilderWhere AlsoInsert(TargetInsertSelectMapping<TTable> targetInsertSelectMapping)
+    {
+        this._targetInsertSelectMapping.AssertFatalNull(nameof(this._dataMapping));
+        this._targetInsertSelectMapping = targetInsertSelectMapping;
+        return this;
+    }
 
-        private TargetInsertSelectMapping<TTable>? _targetInsertSelectMapping;
+    public ExprInsert Done()
+    {
+        var checkExistence = this._checkExistenceByColumns != null && this._checkExistenceByColumns.Count > 0;
 
-        private IReadOnlyList<ExprAliasedColumnName>? _output;
+        var useDerivedTable = this._targetInsertSelectMapping != null || checkExistence;
 
-        private IReadOnlyList<ExprColumn>? _checkExistenceByColumns;
+        var mapping =  this._dataMapping.AssertFatalNotNull(nameof(this._dataMapping));
 
-        public InsertDataBuilder(TTable target, IEnumerable<TItem> data)
+        int? capacity = this._data.TryToCheckLength(out var c) ? c : (int?)null;
+
+        if (capacity != null && capacity.Value < 1)
         {
-            this._target = target;
-            this._data = data;
+            throw new SqExpressException("Input data should not be empty");
         }
 
-        public IInsertDataBuilderAlsoInsert<TTable> MapData(DataMapping<TTable, TItem> mapping)
+
+        List<ExprValueRow>? recordsS = null;
+        List<ExprInsertValueRow>? recordsI = null;
+
+        if (useDerivedTable)
         {
-            this._dataMapping.AssertFatalNull(nameof(this._dataMapping));
-            this._dataMapping = mapping;
-            return this;
+            recordsS = capacity.HasValue ? new List<ExprValueRow>(capacity.Value) : new List<ExprValueRow>();
+        }
+        else
+        {
+            recordsI = capacity.HasValue ? new List<ExprInsertValueRow>(capacity.Value) : new List<ExprInsertValueRow>();
         }
 
-        public IInsertDataBuilderWhere AlsoInsert(TargetInsertSelectMapping<TTable> targetInsertSelectMapping)
+        DataMapSetter<TTable, TItem>? dataMapSetter = null;
+        IReadOnlyList<ExprColumnName>? columns = null;
+
+        foreach (var item in this._data)
         {
-            this._targetInsertSelectMapping.AssertFatalNull(nameof(this._dataMapping));
-            this._targetInsertSelectMapping = targetInsertSelectMapping;
-            return this;
+            dataMapSetter ??= new DataMapSetter<TTable, TItem>(this._target, item);
+
+            dataMapSetter.NextItem(item, columns?.Count);
+            mapping(dataMapSetter);
+
+            columns ??= dataMapSetter.Columns;
+
+            dataMapSetter.EnsureRecordLength();
+
+            recordsS?.Add(new ExprValueRow(dataMapSetter.Record.AssertFatalNotNull(nameof(dataMapSetter.Record))));
+            recordsI?.Add(new ExprInsertValueRow(dataMapSetter.Record.AssertFatalNotNull(nameof(dataMapSetter.Record))));
         }
 
-        public ExprInsert Done()
+        if ( (recordsS?.Count ?? 0 + recordsI?.Count ?? 0) < 1 || columns == null)
         {
-            var checkExistence = this._checkExistenceByColumns != null && this._checkExistenceByColumns.Count > 0;
+            //In case of empty IEnumerable
+            throw new SqExpressException("Input data should not be empty");
+        }
 
-            var useDerivedTable = this._targetInsertSelectMapping != null || checkExistence;
+        IExprInsertSource insertSource;
 
-            var mapping =  this._dataMapping.AssertFatalNotNull(nameof(this._dataMapping));
+        if (recordsI != null)
+        {
+            insertSource = new ExprInsertValues(recordsI);
+        }
+        else if(recordsS != null && useDerivedTable)
+        {
+            var valuesConstructor = new ExprTableValueConstructor(recordsS);
+            var values = new ExprDerivedTableValues(
+                valuesConstructor,
+                new ExprTableAlias(Alias.Auto.BuildAliasExpression().AssertNotNull("Alias cannot be null")),
+                columns);
 
-            int? capacity = this._data.TryToCheckLength(out var c) ? c : (int?)null;
-
-            if (capacity != null && capacity.Value < 1)
+            IReadOnlyList<ColumnValueInsertSelectMap>? additionalMaps = null;
+            if (this._targetInsertSelectMapping != null)
             {
-                throw new SqExpressException("Input data should not be empty");
+                var targetUpdateSetter = new TargetInsertSelectSetter<TTable>(this._target);
+
+                this._targetInsertSelectMapping.Invoke(targetUpdateSetter);
+
+                additionalMaps = targetUpdateSetter.Maps;
+                if (additionalMaps.Count < 1)
+                {
+                    throw new SqExpressException("Additional insertion cannot be null");
+                }
             }
 
+            var selectValues = new List<IExprSelecting>(columns.Count + (additionalMaps?.Count ?? 0));
 
-            List<ExprValueRow>? recordsS = null;
-            List<ExprInsertValueRow>? recordsI = null;
-
-            if (useDerivedTable)
+            foreach (var exprColumnName in values.Columns)
             {
-                recordsS = capacity.HasValue ? new List<ExprValueRow>(capacity.Value) : new List<ExprValueRow>();
+                selectValues.Add(exprColumnName);
+            }
+
+            if (additionalMaps != null)
+            {
+                foreach (var m in additionalMaps)
+                {
+                    selectValues.Add(m.Value);
+                }
+            }
+
+            IExprQuery query;
+            var queryBuilder = SqQueryBuilder.Select(selectValues).From(values);
+
+            if (checkExistence && this._checkExistenceByColumns != null)
+            {
+
+                var tbl = this._target.WithAlias(new ExprTableAlias(Alias.Auto.BuildAliasExpression()!));
+
+                var existsFilter = !SqQueryBuilder.Exists(SqQueryBuilder
+                    .SelectOne()
+                    .From(tbl)
+                    .Where(this._checkExistenceByColumns
+                        .Select(column => column.WithSource(tbl.Alias) == column.WithSource(values.Alias))
+                        .JoinAsAnd()));
+
+                query = queryBuilder.Where(existsFilter).Done();
             }
             else
             {
-                recordsI = capacity.HasValue ? new List<ExprInsertValueRow>(capacity.Value) : new List<ExprInsertValueRow>();
+                query = queryBuilder.Done();
             }
 
-            DataMapSetter<TTable, TItem>? dataMapSetter = null;
-            IReadOnlyList<ExprColumnName>? columns = null;
+            insertSource = new ExprInsertQuery(query);
 
-            foreach (var item in this._data)
+            if (additionalMaps != null)
             {
-                dataMapSetter ??= new DataMapSetter<TTable, TItem>(this._target, item);
-
-                dataMapSetter.NextItem(item, columns?.Count);
-                mapping(dataMapSetter);
-
-                columns ??= dataMapSetter.Columns;
-
-                dataMapSetter.EnsureRecordLength();
-
-                recordsS?.Add(new ExprValueRow(dataMapSetter.Record.AssertFatalNotNull(nameof(dataMapSetter.Record))));
-                recordsI?.Add(new ExprInsertValueRow(dataMapSetter.Record.AssertFatalNotNull(nameof(dataMapSetter.Record))));
+                var extraInsertCols = additionalMaps.SelectToReadOnlyList(m => m.Column);
+                columns = Helpers.Combine(columns, extraInsertCols);
             }
 
-            if ( (recordsS?.Count ?? 0 + recordsI?.Count ?? 0) < 1 || columns == null)
-            {
-                //In case of empty IEnumerable
-                throw new SqExpressException("Input data should not be empty");
-            }
-
-            IExprInsertSource insertSource;
-
-            if (recordsI != null)
-            {
-                insertSource = new ExprInsertValues(recordsI);
-            }
-            else if(recordsS != null && useDerivedTable)
-            {
-                var valuesConstructor = new ExprTableValueConstructor(recordsS);
-                var values = new ExprDerivedTableValues(
-                    valuesConstructor,
-                    new ExprTableAlias(Alias.Auto.BuildAliasExpression().AssertNotNull("Alias cannot be null")),
-                    columns);
-
-                IReadOnlyList<ColumnValueInsertSelectMap>? additionalMaps = null;
-                if (this._targetInsertSelectMapping != null)
-                {
-                    var targetUpdateSetter = new TargetInsertSelectSetter<TTable>(this._target);
-
-                    this._targetInsertSelectMapping.Invoke(targetUpdateSetter);
-
-                    additionalMaps = targetUpdateSetter.Maps;
-                    if (additionalMaps.Count < 1)
-                    {
-                        throw new SqExpressException("Additional insertion cannot be null");
-                    }
-                }
-
-                var selectValues = new List<IExprSelecting>(columns.Count + (additionalMaps?.Count ?? 0));
-
-                foreach (var exprColumnName in values.Columns)
-                {
-                    selectValues.Add(exprColumnName);
-                }
-
-                if (additionalMaps != null)
-                {
-                    foreach (var m in additionalMaps)
-                    {
-                        selectValues.Add(m.Value);
-                    }
-                }
-
-                IExprQuery query;
-                var queryBuilder = SqQueryBuilder.Select(selectValues).From(values);
-
-                if (checkExistence && this._checkExistenceByColumns != null)
-                {
-
-                    var tbl = this._target.WithAlias(new ExprTableAlias(Alias.Auto.BuildAliasExpression()!));
-
-                    var existsFilter = !SqQueryBuilder.Exists(SqQueryBuilder
-                        .SelectOne()
-                        .From(tbl)
-                        .Where(this._checkExistenceByColumns
-                            .Select(column => column.WithSource(tbl.Alias) == column.WithSource(values.Alias))
-                            .JoinAsAnd()));
-
-                    query = queryBuilder.Where(existsFilter).Done();
-                }
-                else
-                {
-                    query = queryBuilder.Done();
-                }
-
-                insertSource = new ExprInsertQuery(query);
-
-                if (additionalMaps != null)
-                {
-                    var extraInsertCols = additionalMaps.SelectToReadOnlyList(m => m.Column);
-                    columns = Helpers.Combine(columns, extraInsertCols);
-                }
-
-            }
-            else
-            {
-                //Actually C# should have detected that this brunch cannot be invoked
-                throw new SqExpressException("Fatal logic error!");
-            }
-
-            return new ExprInsert(this._target.FullName, columns, insertSource);
         }
-
-        ExprIdentityInsert IIdentityInsertDataBuilderFinal.Done()
+        else
         {
-            var insertExpr = this.Done();
-            return new ExprIdentityInsert(insertExpr, IdentityInsertBuilder.ExprColumnNames(this._target));
+            //Actually C# should have detected that this brunch cannot be invoked
+            throw new SqExpressException("Fatal logic error!");
         }
 
-        public IIdentityInsertDataBuilderFinal IdentityInsert()
-        {
-            return this;
-        }
+        return new ExprInsert(this._target.FullName, columns, insertSource);
+    }
 
-        public IInsertDataBuilderFinalOutput Output(ExprAliasedColumnName column, params ExprAliasedColumnName[] rest)
-        {
-            this._output.AssertFatalNull(nameof(this._output));
-            this._output = Helpers.Combine(column, rest);
-            return this;
-        }
+    ExprIdentityInsert IIdentityInsertDataBuilderFinal.Done()
+    {
+        var insertExpr = this.Done();
+        return new ExprIdentityInsert(insertExpr, IdentityInsertBuilder.ExprColumnNames(this._target));
+    }
 
-        public IInsertDataBuilderFinalOutput Output(IReadOnlyList<ExprAliasedColumnName> columns)
-        {
-            this._output.AssertFatalNull(nameof(this._output));
-            this._output = columns;
-            return this;
-        }
+    public IIdentityInsertDataBuilderFinal IdentityInsert()
+    {
+        return this;
+    }
 
-        public IInsertDataBuilderMapOutput Where(Func<IExprColumnSource, ExprBoolean> dataFilter)
-        {
-            throw new NotImplementedException();
-        }
+    public IInsertDataBuilderFinalOutput Output(ExprAliasedColumnName column, params ExprAliasedColumnName[] rest)
+    {
+        this._output.AssertFatalNull(nameof(this._output));
+        this._output = Helpers.Combine(column, rest);
+        return this;
+    }
 
-        ExprInsertOutput IInsertDataBuilderFinalOutput.Done()
-        {
-            var output = this._output.AssertFatalNotNull(nameof(this._output));
-            var insert = this.Done();
+    public IInsertDataBuilderFinalOutput Output(IReadOnlyList<ExprAliasedColumnName> columns)
+    {
+        this._output.AssertFatalNull(nameof(this._output));
+        this._output = columns;
+        return this;
+    }
 
-            return new ExprInsertOutput(insert, output);
-        }
+    public IInsertDataBuilderMapOutput Where(Func<IExprColumnSource, ExprBoolean> dataFilter)
+    {
+        throw new NotImplementedException();
+    }
 
-        IExprQuery IExprQueryFinal.Done()
-        {
-            return ((IInsertDataBuilderFinalOutput) this).Done();
-        }
+    ExprInsertOutput IInsertDataBuilderFinalOutput.Done()
+    {
+        var output = this._output.AssertFatalNotNull(nameof(this._output));
+        var insert = this.Done();
 
-        IExprExec IExprExecFinal.Done()
-        {
-            return this.Done();
-        }
+        return new ExprInsertOutput(insert, output);
+    }
 
-        public IInsertDataBuilderMapOutput CheckExistenceBy(ExprColumn column, params ExprColumn[] rest)
-        {
-            return this.CheckExistenceBy(Helpers.Combine(column, rest));
-        }
+    IExprQuery IExprQueryFinal.Done()
+    {
+        return ((IInsertDataBuilderFinalOutput) this).Done();
+    }
 
-        public IInsertDataBuilderMapOutput CheckExistenceBy(IReadOnlyList<ExprColumn> columns)
-        {
-            this._checkExistenceByColumns = columns;
-            return this;
-        }
+    IExprExec IExprExecFinal.Done()
+    {
+        return this.Done();
+    }
+
+    public IInsertDataBuilderMapOutput CheckExistenceBy(ExprColumn column, params ExprColumn[] rest)
+    {
+        return this.CheckExistenceBy(Helpers.Combine(column, rest));
+    }
+
+    public IInsertDataBuilderMapOutput CheckExistenceBy(IReadOnlyList<ExprColumn> columns)
+    {
+        this._checkExistenceByColumns = columns;
+        return this;
     }
 }

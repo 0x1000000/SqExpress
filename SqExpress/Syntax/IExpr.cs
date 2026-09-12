@@ -1,7 +1,6 @@
-﻿namespace SqExpress.Syntax
+﻿namespace SqExpress.Syntax;
+
+public interface IExpr
 {
-    public interface IExpr
-    {
-        TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg);
-    }
+    TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg);
 }

@@ -1,19 +1,18 @@
 ﻿using System;
 
-namespace SqExpress
+namespace SqExpress;
+
+[AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
+public class SqModelAttribute : Attribute
 {
-    [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
-    public class SqModelAttribute : Attribute
+    public SqModelAttribute(string name)
     {
-        public SqModelAttribute(string name)
-        {
-            this.Name = name;
-        }
-
-        public string Name { get; }
-
-        public string? PropertyName { get; set;  }
-
-        public Type? CastType { get; set;  }
+        this.Name = name;
     }
+
+    public string Name { get; }
+
+    public string? PropertyName { get; set;  }
+
+    public Type? CastType { get; set;  }
 }

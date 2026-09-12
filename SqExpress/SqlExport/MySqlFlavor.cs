@@ -1,18 +1,17 @@
-namespace SqExpress.SqlExport
+namespace SqExpress.SqlExport;
+
+/// <summary>
+/// Identifies the MySQL-compatible dialect rendered by <see cref="MySqlExporter"/>.
+/// </summary>
+public enum MySqlFlavor
 {
     /// <summary>
-    /// Identifies the MySQL-compatible dialect rendered by <see cref="MySqlExporter"/>.
+    /// Render SQL using MariaDB-compatible syntax.
     /// </summary>
-    public enum MySqlFlavor
-    {
-        /// <summary>
-        /// Render SQL using MariaDB-compatible syntax.
-        /// </summary>
-        MariaDb,
+    MariaDb,
 
-        /// <summary>
-        /// Render SQL using Oracle MySQL-compatible syntax.
-        /// </summary>
-        Oracle
-    }
+    /// <summary>
+    /// Render SQL using Oracle MySQL-compatible syntax.
+    /// </summary>
+    Oracle
 }

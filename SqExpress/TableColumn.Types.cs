@@ -7,1279 +7,1278 @@ using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Value;
 
-namespace SqExpress
+namespace SqExpress;
+
+/// <summary>Models a required Boolean descriptor column with typed SQL predicates and non-null CLR result reading.</summary>
+public class BooleanTableColumn : TableColumn
 {
-    /// <summary>Models a required Boolean descriptor column with typed SQL predicates and non-null CLR result reading.</summary>
-    public class BooleanTableColumn : TableColumn
+    internal BooleanTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Boolean, false, columnMeta) { }
+
+    public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitBoolean(this);
+
+    public bool Read(ISqDataRecordReader recordReader) => recordReader.GetBoolean(this.ColumnName.Name);
+
+    public bool? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableBoolean(this.ColumnName.Name);
+
+    public bool Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetBoolean(customColumnName);
+
+    public bool? ReadNullable(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableBoolean(customColumnName);
+
+    public bool Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetBoolean(ordinal);
+
+    public bool? ReadNullable(ISqDataRecordReader recordReader, int ordinal) 
+        => !recordReader.IsDBNull(ordinal) ? recordReader.GetBoolean(ordinal):null;
+
+    public new BooleanTableColumn WithSource(IExprColumnSource? source) => new BooleanTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
+
+    public new BooleanTableColumn WithColumnName(ExprColumnName columnName) => new BooleanTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+    public new BooleanTableColumn WithTable(ExprTable table) => new BooleanTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+    public new BooleanTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new BooleanTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
+    protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+    protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+    protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+    protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
+
+    public override string ReadAsString(ISqDataRecordReader recordReader) 
+        => this.ReadNullable(recordReader)?.ToString() 
+           ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
+
+    public override ExprLiteral FromString(string? value) =>
+        value == null
+            ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
+            : bool.TryParse(value, out var result)
+                ? SqQueryBuilder.Literal(result)
+                : throw new SqExpressException($"Could not parse '{value}' as boolean for column '{this.ColumnName.Name}'.");
+
+    public BooleanCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new BooleanCustomColumn(this.ColumnName, columnSource);
+
+    public BooleanCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new BooleanCustomColumn(this.ColumnName, derivedTable.Alias));
+}
+
+/// <summary>Models an optional Boolean descriptor column whose typed readers preserve database null.</summary>
+public class NullableBooleanTableColumn : TableColumn
+{
+    internal NullableBooleanTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Boolean, true, columnMeta) { }
+
+    public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableBoolean(this);
+
+    public bool? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableBoolean(this.ColumnName.Name);
+
+    public bool? Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableBoolean(customColumnName);
+
+    public bool? Read(ISqDataRecordReader recordReader, int ordinal)
+        => !recordReader.IsDBNull(ordinal) ? recordReader.GetBoolean(ordinal) : null;
+
+    public new NullableBooleanTableColumn WithSource(IExprColumnSource? source) => new NullableBooleanTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
+
+    public new NullableBooleanTableColumn WithColumnName(ExprColumnName columnName) => new NullableBooleanTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+    public new NullableBooleanTableColumn WithTable(ExprTable table) => new NullableBooleanTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+    public new NullableBooleanTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableBooleanTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
+    protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+    protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+    protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+    protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
+
+    public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString();
+
+    public override ExprLiteral FromString(string? value) =>
+        value == null
+            ? SqQueryBuilder.Literal((bool?)null)
+            : bool.TryParse(value, out var result)
+                ? SqQueryBuilder.Literal(result)
+                : throw new SqExpressException($"Could not parse '{value}' as boolean.");
+
+    public NullableBooleanCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableBooleanCustomColumn(this.ColumnName, columnSource);
+
+    public NullableBooleanCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableBooleanCustomColumn(this.ColumnName, derivedTable.Alias));
+}
+
+/// <summary>Models a required unsigned-byte descriptor column with typed numeric expressions and CLR reading.</summary>
+public class ByteTableColumn : TableColumn
+{
+    internal ByteTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Byte, false, columnMeta) { }
+
+    public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitByte(this);
+
+    public byte Read(ISqDataRecordReader recordReader) => recordReader.GetByte(this.ColumnName.Name);
+
+    public byte? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableByte(this.ColumnName.Name);
+
+    public byte Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetByte(customColumnName);
+
+    public byte? ReadNullable(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableByte(customColumnName);
+
+    public byte Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetByte(ordinal);
+
+    public byte? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
+        => !recordReader.IsDBNull(ordinal) ? recordReader.GetByte(ordinal) : null;
+
+    public new ByteTableColumn WithSource(IExprColumnSource? source) => new ByteTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
+
+    public new ByteTableColumn WithColumnName(ExprColumnName columnName) => new ByteTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+    public new ByteTableColumn WithTable(ExprTable table) => new ByteTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+    public new ByteTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new ByteTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
+    protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+    protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+    protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+    protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
+
+    public override string ReadAsString(ISqDataRecordReader recordReader)
+        => this.ReadNullable(recordReader)?.ToString()
+           ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
+
+    public override ExprLiteral FromString(string? value) =>
+        value == null
+            ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
+            : byte.TryParse(value, out var result)
+                ? SqQueryBuilder.Literal(result)
+                : throw new SqExpressException($"Could not parse '{value}' as byte for column '{this.ColumnName.Name}'.");
+
+    public ByteCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new ByteCustomColumn(this.ColumnName, columnSource);
+
+    public ByteCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new ByteCustomColumn(this.ColumnName, derivedTable.Alias));
+}
+
+/// <summary>Models an optional unsigned-byte descriptor column whose typed readers preserve database null.</summary>
+public class NullableByteTableColumn : TableColumn
+{
+    internal NullableByteTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Byte, true, columnMeta) { }
+
+    public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableByte(this);
+
+    public byte? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableByte(this.ColumnName.Name);
+
+    public byte? Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableByte(customColumnName);
+
+    public byte? Read(ISqDataRecordReader recordReader, int ordinal)
+        => !recordReader.IsDBNull(ordinal) ? recordReader.GetByte(ordinal) : null;
+
+    public new NullableByteTableColumn WithSource(IExprColumnSource? source) => new NullableByteTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
+
+    public new NullableByteTableColumn WithColumnName(ExprColumnName columnName) => new NullableByteTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+    public new NullableByteTableColumn WithTable(ExprTable table) => new NullableByteTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+    public new NullableByteTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableByteTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
+    protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+    protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+    protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+    protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
+
+    public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString();
+
+    public override ExprLiteral FromString(string? value) =>
+        value == null
+            ? SqQueryBuilder.Literal((byte?)null)
+            : byte.TryParse(value, out var result)
+                ? SqQueryBuilder.Literal(result)
+                : throw new SqExpressException($"Could not parse '{value}' as byte for column '{this.ColumnName.Name}'.");
+
+    public NullableByteCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableByteCustomColumn(this.ColumnName, columnSource);
+
+    public NullableByteCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableByteCustomColumn(this.ColumnName, derivedTable.Alias));
+}
+
+/// <summary>Models a required binary descriptor column with byte-array and streaming result access.</summary>
+public class ByteArrayTableColumn : TableColumn
+{
+    internal ByteArrayTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ExprTypeByteArrayBase typeByteArray, ColumnMeta? columnMeta) : base(source, columnName, table, typeByteArray, false, columnMeta)
     {
-        internal BooleanTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Boolean, false, columnMeta) { }
-
-        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitBoolean(this);
-
-        public bool Read(ISqDataRecordReader recordReader) => recordReader.GetBoolean(this.ColumnName.Name);
-
-        public bool? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableBoolean(this.ColumnName.Name);
-
-        public bool Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetBoolean(customColumnName);
-
-        public bool? ReadNullable(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableBoolean(customColumnName);
-
-        public bool Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetBoolean(ordinal);
-
-        public bool? ReadNullable(ISqDataRecordReader recordReader, int ordinal) 
-            => !recordReader.IsDBNull(ordinal) ? recordReader.GetBoolean(ordinal):null;
-
-        public new BooleanTableColumn WithSource(IExprColumnSource? source) => new BooleanTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
-
-        public new BooleanTableColumn WithColumnName(ExprColumnName columnName) => new BooleanTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
-
-        public new BooleanTableColumn WithTable(ExprTable table) => new BooleanTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
-
-        public new BooleanTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new BooleanTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
-
-        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
-
-        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
-
-        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
-
-        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
-
-        public override string ReadAsString(ISqDataRecordReader recordReader) 
-            => this.ReadNullable(recordReader)?.ToString() 
-               ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
-
-        public override ExprLiteral FromString(string? value) =>
-            value == null
-                ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
-                : bool.TryParse(value, out var result)
-                    ? SqQueryBuilder.Literal(result)
-                    : throw new SqExpressException($"Could not parse '{value}' as boolean for column '{this.ColumnName.Name}'.");
-
-        public BooleanCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new BooleanCustomColumn(this.ColumnName, columnSource);
-
-        public BooleanCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new BooleanCustomColumn(this.ColumnName, derivedTable.Alias));
+        this.SqlType = typeByteArray;
     }
 
-    /// <summary>Models an optional Boolean descriptor column whose typed readers preserve database null.</summary>
-    public class NullableBooleanTableColumn : TableColumn
+    /// <summary>Gets the fixed- or variable-size binary SQL type.</summary>
+    public new ExprTypeByteArrayBase SqlType { get; }
+
+    public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitByteArray(this);
+
+    public byte[] Read(ISqDataRecordReader recordReader) => recordReader.GetByteArray(this.ColumnName.Name);
+
+    public byte[]? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableByteArray(this.ColumnName.Name);
+
+    public byte[] Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetByteArray(customColumnName);
+
+    public byte[]? ReadNullable(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableByteArray(customColumnName);
+
+    public byte[] Read(ISqDataRecordReader recordReader, int ordinal) => (byte[])recordReader.GetValue(ordinal);
+
+    public byte[]? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
+        => !recordReader.IsDBNull(ordinal) ? (byte[])recordReader.GetValue(ordinal) : null;
+
+    /// <summary>Opens the current binary field as a provider stream without buffering it into a byte array.</summary>
+    /// <param name="recordReader">The current result row; lookup uses this column's database name.</param>
+    /// <returns>The provider-owned stream for the non-null field.</returns>
+    public Stream GetStream(ISqDataRecordReader recordReader) => recordReader.GetStream(this.ColumnName.Name);
+
+    /// <summary>Opens the current binary field as a provider stream, preserving database null.</summary>
+    /// <param name="recordReader">The current result row; lookup uses this column's database name.</param>
+    /// <returns>The provider-owned stream, or <see langword="null"/> when the field is SQL <c>NULL</c>.</returns>
+    public Stream? ReadNullableStream(ISqDataRecordReader recordReader) => recordReader.GetNullableStream(this.ColumnName.Name);
+
+    public new ByteArrayTableColumn WithSource(IExprColumnSource? source) => new ByteArrayTableColumn(source, this.ColumnName, this.Table, this.SqlType, this.ColumnMeta);
+
+    public new ByteArrayTableColumn WithColumnName(ExprColumnName columnName) => new ByteArrayTableColumn(this.Source, columnName, this.Table, this.SqlType, this.ColumnMeta);
+
+    public new ByteArrayTableColumn WithTable(ExprTable table) => new ByteArrayTableColumn(this.Source, this.ColumnName, table, this.SqlType, this.ColumnMeta);
+
+    public new ByteArrayTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new ByteArrayTableColumn(this.Source, this.ColumnName, this.Table, this.SqlType, columnMeta);
+
+    protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+    protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+    protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
+
+    protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+    public override string? ReadAsString(ISqDataRecordReader recordReader)
     {
-        internal NullableBooleanTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Boolean, true, columnMeta) { }
-
-        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableBoolean(this);
-
-        public bool? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableBoolean(this.ColumnName.Name);
-
-        public bool? Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableBoolean(customColumnName);
-
-        public bool? Read(ISqDataRecordReader recordReader, int ordinal)
-            => !recordReader.IsDBNull(ordinal) ? recordReader.GetBoolean(ordinal) : null;
-
-        public new NullableBooleanTableColumn WithSource(IExprColumnSource? source) => new NullableBooleanTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
-
-        public new NullableBooleanTableColumn WithColumnName(ExprColumnName columnName) => new NullableBooleanTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
-
-        public new NullableBooleanTableColumn WithTable(ExprTable table) => new NullableBooleanTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
-
-        public new NullableBooleanTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableBooleanTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
-
-        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
-
-        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
-
-        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
-
-        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
-
-        public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString();
-
-        public override ExprLiteral FromString(string? value) =>
-            value == null
-                ? SqQueryBuilder.Literal((bool?)null)
-                : bool.TryParse(value, out var result)
-                    ? SqQueryBuilder.Literal(result)
-                    : throw new SqExpressException($"Could not parse '{value}' as boolean.");
-
-        public NullableBooleanCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableBooleanCustomColumn(this.ColumnName, columnSource);
-
-        public NullableBooleanCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableBooleanCustomColumn(this.ColumnName, derivedTable.Alias));
+        var base64Str = this.ReadNullable(recordReader);
+        return base64Str == null ? null : Convert.ToBase64String(base64Str);
     }
 
-    /// <summary>Models a required unsigned-byte descriptor column with typed numeric expressions and CLR reading.</summary>
-    public class ByteTableColumn : TableColumn
+    public override ExprLiteral FromString(string? value)
     {
-        internal ByteTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Byte, false, columnMeta) { }
-
-        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitByte(this);
-
-        public byte Read(ISqDataRecordReader recordReader) => recordReader.GetByte(this.ColumnName.Name);
-
-        public byte? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableByte(this.ColumnName.Name);
-
-        public byte Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetByte(customColumnName);
-
-        public byte? ReadNullable(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableByte(customColumnName);
-
-        public byte Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetByte(ordinal);
-
-        public byte? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
-            => !recordReader.IsDBNull(ordinal) ? recordReader.GetByte(ordinal) : null;
-
-        public new ByteTableColumn WithSource(IExprColumnSource? source) => new ByteTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
-
-        public new ByteTableColumn WithColumnName(ExprColumnName columnName) => new ByteTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
-
-        public new ByteTableColumn WithTable(ExprTable table) => new ByteTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
-
-        public new ByteTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new ByteTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
-
-        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
-
-        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
-
-        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
-
-        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
-
-        public override string ReadAsString(ISqDataRecordReader recordReader)
-            => this.ReadNullable(recordReader)?.ToString()
-               ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
-
-        public override ExprLiteral FromString(string? value) =>
-            value == null
-                ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
-                : byte.TryParse(value, out var result)
-                    ? SqQueryBuilder.Literal(result)
-                    : throw new SqExpressException($"Could not parse '{value}' as byte for column '{this.ColumnName.Name}'.");
-
-        public ByteCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new ByteCustomColumn(this.ColumnName, columnSource);
-
-        public ByteCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new ByteCustomColumn(this.ColumnName, derivedTable.Alias));
-    }
-
-    /// <summary>Models an optional unsigned-byte descriptor column whose typed readers preserve database null.</summary>
-    public class NullableByteTableColumn : TableColumn
-    {
-        internal NullableByteTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Byte, true, columnMeta) { }
-
-        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableByte(this);
-
-        public byte? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableByte(this.ColumnName.Name);
-
-        public byte? Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableByte(customColumnName);
-
-        public byte? Read(ISqDataRecordReader recordReader, int ordinal)
-            => !recordReader.IsDBNull(ordinal) ? recordReader.GetByte(ordinal) : null;
-
-        public new NullableByteTableColumn WithSource(IExprColumnSource? source) => new NullableByteTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
-
-        public new NullableByteTableColumn WithColumnName(ExprColumnName columnName) => new NullableByteTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
-
-        public new NullableByteTableColumn WithTable(ExprTable table) => new NullableByteTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
-
-        public new NullableByteTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableByteTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
-
-        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
-
-        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
-
-        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
-
-        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
-
-        public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString();
-
-        public override ExprLiteral FromString(string? value) =>
-            value == null
-                ? SqQueryBuilder.Literal((byte?)null)
-                : byte.TryParse(value, out var result)
-                    ? SqQueryBuilder.Literal(result)
-                    : throw new SqExpressException($"Could not parse '{value}' as byte for column '{this.ColumnName.Name}'.");
-
-        public NullableByteCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableByteCustomColumn(this.ColumnName, columnSource);
-
-        public NullableByteCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableByteCustomColumn(this.ColumnName, derivedTable.Alias));
-    }
-
-    /// <summary>Models a required binary descriptor column with byte-array and streaming result access.</summary>
-    public class ByteArrayTableColumn : TableColumn
-    {
-        internal ByteArrayTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ExprTypeByteArrayBase typeByteArray, ColumnMeta? columnMeta) : base(source, columnName, table, typeByteArray, false, columnMeta)
+        if (value == null)
+            throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column");
+        try
         {
-            this.SqlType = typeByteArray;
+            var result = Convert.FromBase64String(value);
+            return SqQueryBuilder.Literal(result);
+        }
+        catch (FormatException e)
+        {
+            throw new SqExpressException($"Could not parse base64 string '{(value.Length > 50 ? value.Substring(0, 50) : value)}' for '{this.ColumnName.Name}' column.", e);
+        }
+    }
+
+    public ByteArrayCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new ByteArrayCustomColumn(this.ColumnName, columnSource, this.SqlType);
+
+    public ByteArrayCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new ByteArrayCustomColumn(this.ColumnName, derivedTable.Alias, this.SqlType));
+}
+
+/// <summary>Models an optional binary descriptor column with null-aware byte-array and streaming access.</summary>
+public class NullableByteArrayTableColumn : TableColumn
+{
+    internal NullableByteArrayTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ExprTypeByteArrayBase typeByteArray, ColumnMeta? columnMeta) : base(source, columnName, table, typeByteArray, true, columnMeta)
+    {
+        this.SqlType = typeByteArray;
+    }
+
+    /// <summary>Gets the fixed- or variable-size binary SQL type.</summary>
+    public new ExprTypeByteArrayBase SqlType { get; }
+
+    public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableByteArray(this);
+
+    public byte[]? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableByteArray(this.ColumnName.Name);
+
+    public byte[]? Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableByteArray(customColumnName);
+
+    public byte[]? Read(ISqDataRecordReader recordReader, int ordinal)
+        => !recordReader.IsDBNull(ordinal) ? (byte[])recordReader.GetValue(ordinal) : null;
+
+    /// <summary>Opens the nullable binary field as a provider stream using this column's database name.</summary>
+    /// <param name="recordReader">The current result row.</param>
+    /// <returns>The provider stream for the field; provider behavior determines how SQL <c>NULL</c> is exposed by this method.</returns>
+    public Stream? GetStream(ISqDataRecordReader recordReader) => recordReader.GetStream(this.ColumnName.Name);
+
+    public new NullableByteArrayTableColumn WithSource(IExprColumnSource? source) => new NullableByteArrayTableColumn(source, this.ColumnName, this.Table, this.SqlType, this.ColumnMeta);
+
+    public new NullableByteArrayTableColumn WithColumnName(ExprColumnName columnName) => new NullableByteArrayTableColumn(this.Source, columnName, this.Table, this.SqlType, this.ColumnMeta);
+
+    public new NullableByteArrayTableColumn WithTable(ExprTable table) => new NullableByteArrayTableColumn(this.Source, this.ColumnName, table, this.SqlType, this.ColumnMeta);
+
+    public new NullableByteArrayTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableByteArrayTableColumn(this.Source, this.ColumnName, this.Table, this.SqlType, columnMeta);
+
+    protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+    protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+    protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
+
+    protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+    public override string? ReadAsString(ISqDataRecordReader recordReader)
+    {
+        var base64Str = this.Read(recordReader);
+        return base64Str == null ? null : Convert.ToBase64String(base64Str);
+    }
+
+    public override ExprLiteral FromString(string? value)
+    {
+        if (value == null)
+            return SqQueryBuilder.Literal((byte[]?)null);
+        try
+        {
+            var result = Convert.FromBase64String(value);
+            return SqQueryBuilder.Literal(result);
+        }
+        catch (FormatException e)
+        {
+            throw new SqExpressException($"Could not parse base64 string '{(value.Length > 50 ? value.Substring(0, 50) : value)}' for '{this.ColumnName.Name}' column.", e);
+        }
+    }
+
+    public NullableByteArrayCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableByteArrayCustomColumn(this.ColumnName, columnSource, this.SqlType);
+
+    public NullableByteArrayCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableByteArrayCustomColumn(this.ColumnName, derivedTable.Alias, this.SqlType));
+}
+
+/// <summary>Models a required 16-bit integer descriptor column with typed arithmetic, comparison, and CLR reads.</summary>
+public class Int16TableColumn : TableColumn
+{
+    internal Int16TableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Int16, false, columnMeta) { }
+
+    public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitInt16(this);
+
+    public short Read(ISqDataRecordReader recordReader) => recordReader.GetInt16(this.ColumnName.Name);
+
+    public short? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableInt16(this.ColumnName.Name);
+
+    public short Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetInt16(customColumnName);
+
+    public short? ReadNullable(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableInt16(customColumnName);
+
+    public short Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetInt16(ordinal);
+
+    public short? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
+        => !recordReader.IsDBNull(ordinal) ? recordReader.GetInt16(ordinal) : null;
+
+    public new Int16TableColumn WithSource(IExprColumnSource? source) => new Int16TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
+
+    public new Int16TableColumn WithColumnName(ExprColumnName columnName) => new Int16TableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+    public new Int16TableColumn WithTable(ExprTable table) => new Int16TableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+    public new Int16TableColumn WithColumnMeta(ColumnMeta? columnMeta) => new Int16TableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
+    protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+    protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+    protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+    protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
+
+    public override string ReadAsString(ISqDataRecordReader recordReader)
+        => this.ReadNullable(recordReader)?.ToString()
+           ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
+
+    public override ExprLiteral FromString(string? value) =>
+        value == null
+            ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
+            : short.TryParse(value, out var result)
+                ? SqQueryBuilder.Literal(result)
+                : throw new SqExpressException($"Could not parse '{value}' as short for column '{this.ColumnName.Name}'.");
+
+    public Int16CustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new Int16CustomColumn(this.ColumnName, columnSource);
+
+    public Int16CustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new Int16CustomColumn(this.ColumnName, derivedTable.Alias));
+}
+
+/// <summary>Models an optional 16-bit integer descriptor column whose typed readers preserve database null.</summary>
+public class NullableInt16TableColumn : TableColumn
+{
+    internal NullableInt16TableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Int16, true, columnMeta) { }
+
+    public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableInt16(this);
+
+    public short? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableInt16(this.ColumnName.Name);
+
+    public short? Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableInt16(customColumnName);
+
+    public short? Read(ISqDataRecordReader recordReader, int ordinal)
+        => !recordReader.IsDBNull(ordinal) ? recordReader.GetInt16(ordinal) : null;
+
+    public new NullableInt16TableColumn WithSource(IExprColumnSource? source) => new NullableInt16TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
+
+    public new NullableInt16TableColumn WithColumnName(ExprColumnName columnName) => new NullableInt16TableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+    public new NullableInt16TableColumn WithTable(ExprTable table) => new NullableInt16TableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+    public new NullableInt16TableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableInt16TableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
+    protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+    protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+    protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+    protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
+
+    public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString();
+
+    public override ExprLiteral FromString(string? value) =>
+        value == null
+            ? SqQueryBuilder.Literal((short?)null)
+            : short.TryParse(value, out var result)
+                ? SqQueryBuilder.Literal(result)
+                : throw new SqExpressException($"Could not parse '{value}' as short for column '{this.ColumnName.Name}'.");
+
+    public NullableInt16CustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableInt16CustomColumn(this.ColumnName, columnSource);
+
+    public NullableInt16CustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableInt16CustomColumn(this.ColumnName, derivedTable.Alias));
+}
+
+/// <summary>Models a required 32-bit integer descriptor column with typed arithmetic, comparison, and CLR reads.</summary>
+public class Int32TableColumn : TableColumn
+{
+    internal Int32TableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Int32, false, columnMeta) { }
+
+    public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitInt32(this);
+
+    public int Read(ISqDataRecordReader recordReader) => recordReader.GetInt32(this.ColumnName.Name);
+
+    public int? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableInt32(this.ColumnName.Name);
+
+    public int Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetInt32(customColumnName);
+
+    public int? ReadNullable(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableInt32(customColumnName);
+
+    public int Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetInt32(ordinal);
+
+    public int? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
+        => !recordReader.IsDBNull(ordinal) ? recordReader.GetInt32(ordinal) : null;
+
+    public new Int32TableColumn WithSource(IExprColumnSource? source) => new Int32TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
+
+    public new Int32TableColumn WithColumnName(ExprColumnName columnName) => new Int32TableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+    public new Int32TableColumn WithTable(ExprTable table) => new Int32TableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+    public new Int32TableColumn WithColumnMeta(ColumnMeta? columnMeta) => new Int32TableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
+    protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+    protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+    protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+    protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
+
+    public override string ReadAsString(ISqDataRecordReader recordReader)
+        => this.ReadNullable(recordReader)?.ToString()
+           ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
+
+    public override ExprLiteral FromString(string? value) =>
+        value == null
+            ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
+            : int.TryParse(value, out var result)
+                ? SqQueryBuilder.Literal(result)
+                : throw new SqExpressException($"Could not parse '{value}' as int for column '{this.ColumnName.Name}'.");
+
+    public Int32CustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new Int32CustomColumn(this.ColumnName, columnSource);
+
+    public Int32CustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new Int32CustomColumn(this.ColumnName, derivedTable.Alias));
+}
+
+/// <summary>Models an optional 32-bit integer descriptor column whose typed readers preserve database null.</summary>
+public class NullableInt32TableColumn : TableColumn
+{
+    internal NullableInt32TableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Int32, true, columnMeta) { }
+
+    public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableInt32(this);
+
+    public int? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableInt32(this.ColumnName.Name);
+
+    public int? Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableInt32(customColumnName);
+
+    public int? Read(ISqDataRecordReader recordReader, int ordinal)
+        => !recordReader.IsDBNull(ordinal) ? recordReader.GetInt32(ordinal) : null;
+
+    public new NullableInt32TableColumn WithSource(IExprColumnSource? source) => new NullableInt32TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
+
+    public new NullableInt32TableColumn WithColumnName(ExprColumnName columnName) => new NullableInt32TableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+    public new NullableInt32TableColumn WithTable(ExprTable table) => new NullableInt32TableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+    public new NullableInt32TableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableInt32TableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
+    protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+    protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+    protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+    protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
+
+    public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString();
+
+    public override ExprLiteral FromString(string? value) =>
+        value == null
+            ? SqQueryBuilder.Literal((int?)null)
+            : int.TryParse(value, out var result)
+                ? SqQueryBuilder.Literal(result)
+                : throw new SqExpressException($"Could not parse '{value}' as int for column '{this.ColumnName.Name}'.");
+
+    public NullableInt32CustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableInt32CustomColumn(this.ColumnName, columnSource);
+
+    public NullableInt32CustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableInt32CustomColumn(this.ColumnName, derivedTable.Alias));
+}
+
+/// <summary>Models a required 64-bit integer descriptor column with typed arithmetic, comparison, and CLR reads.</summary>
+public class Int64TableColumn : TableColumn
+{
+    internal Int64TableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Int64, false, columnMeta) { }
+
+    public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitInt64(this);
+
+    public long Read(ISqDataRecordReader recordReader) => recordReader.GetInt64(this.ColumnName.Name);
+
+    public long? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableInt64(this.ColumnName.Name);
+
+    public long Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetInt64(customColumnName);
+
+    public long? ReadNullable(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableInt64(customColumnName);
+
+    public long Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetInt64(ordinal);
+
+    public long? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
+        => !recordReader.IsDBNull(ordinal) ? recordReader.GetInt64(ordinal) : null;
+
+    public new Int64TableColumn WithSource(IExprColumnSource? source) => new Int64TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
+
+    public new Int64TableColumn WithColumnName(ExprColumnName columnName) => new Int64TableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+    public new Int64TableColumn WithTable(ExprTable table) => new Int64TableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+    public new Int64TableColumn WithColumnMeta(ColumnMeta? columnMeta) => new Int64TableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
+    protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+    protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+    protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+    protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
+
+    public override string ReadAsString(ISqDataRecordReader recordReader)
+        => this.ReadNullable(recordReader)?.ToString()
+           ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
+
+    public override ExprLiteral FromString(string? value) =>
+        value == null
+            ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
+            : long.TryParse(value, out var result)
+                ? SqQueryBuilder.Literal(result)
+                : throw new SqExpressException($"Could not parse '{value}' as long for column '{this.ColumnName.Name}'.");
+
+    public Int64CustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new Int64CustomColumn(this.ColumnName, columnSource);
+
+    public Int64CustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new Int64CustomColumn(this.ColumnName, derivedTable.Alias));
+}
+
+/// <summary>Models an optional 64-bit integer descriptor column whose typed readers preserve database null.</summary>
+public class NullableInt64TableColumn : TableColumn
+{
+    internal NullableInt64TableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Int64, true, columnMeta) { }
+
+    public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableInt64(this);
+
+    public long? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableInt64(this.ColumnName.Name);
+
+    public long? Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableInt64(customColumnName);
+
+    public long? Read(ISqDataRecordReader recordReader, int ordinal)
+        => !recordReader.IsDBNull(ordinal) ? recordReader.GetInt64(ordinal) : null;
+
+    public new NullableInt64TableColumn WithSource(IExprColumnSource? source) => new NullableInt64TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
+
+    public new NullableInt64TableColumn WithColumnName(ExprColumnName columnName) => new NullableInt64TableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+    public new NullableInt64TableColumn WithTable(ExprTable table) => new NullableInt64TableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+    public new NullableInt64TableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableInt64TableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
+    protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+    protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+    protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+    protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
+
+    public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString();
+
+    public override ExprLiteral FromString(string? value) =>
+        value == null
+            ? SqQueryBuilder.Literal((long?)null)
+            : long.TryParse(value, out var result)
+                ? SqQueryBuilder.Literal(result)
+                : throw new SqExpressException($"Could not parse '{value}' as long for column '{this.ColumnName.Name}'.");
+
+    public NullableInt64CustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableInt64CustomColumn(this.ColumnName, columnSource);
+
+    public NullableInt64CustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableInt64CustomColumn(this.ColumnName, derivedTable.Alias));
+}
+
+/// <summary>Models a required exact-numeric descriptor column, retaining precision/scale metadata and decimal reads.</summary>
+public class DecimalTableColumn : TableColumn
+{
+    internal DecimalTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, DecimalPrecisionScale? precisionScale, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Decimal(precisionScale), false, columnMeta)
+    {
+        this.PrecisionScale = precisionScale;
+    }
+
+    public DecimalPrecisionScale? PrecisionScale { get; }
+
+    public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitDecimal(this);
+
+    public decimal Read(ISqDataRecordReader recordReader) => recordReader.GetDecimal(this.ColumnName.Name);
+
+    public decimal? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableDecimal(this.ColumnName.Name);
+
+    public decimal Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetDecimal(customColumnName);
+
+    public decimal? ReadNullable(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableDecimal(customColumnName);
+
+    public decimal Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetDecimal(ordinal);
+
+    public decimal? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
+        => !recordReader.IsDBNull(ordinal) ? recordReader.GetDecimal(ordinal) : null;
+
+    public new DecimalTableColumn WithSource(IExprColumnSource? source) => new DecimalTableColumn(source, this.ColumnName, this.Table, this.PrecisionScale, this.ColumnMeta);
+
+    public new DecimalTableColumn WithColumnName(ExprColumnName columnName) => new DecimalTableColumn(this.Source, columnName, this.Table, this.PrecisionScale, this.ColumnMeta);
+
+    public new DecimalTableColumn WithTable(ExprTable table) => new DecimalTableColumn(this.Source, this.ColumnName, table, this.PrecisionScale, this.ColumnMeta);
+
+    public new DecimalTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new DecimalTableColumn(this.Source, this.ColumnName, this.Table, this.PrecisionScale, columnMeta);
+
+    protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+    protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+    protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+    protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
+
+    public override string ReadAsString(ISqDataRecordReader recordReader)
+        => this.ReadNullable(recordReader)?.ToString("F", CultureInfo.InvariantCulture)
+           ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
+
+    public override ExprLiteral FromString(string? value) =>
+        value == null
+            ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
+            : decimal.TryParse(value, NumberStyles.AllowDecimalPoint|NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var result)
+                ? SqQueryBuilder.Literal(result)
+                : throw new SqExpressException($"Could not parse '{value}' as decimal for column '{this.ColumnName.Name}'.");
+
+    public DecimalCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new DecimalCustomColumn(this.ColumnName, columnSource, new ExprTypeDecimal(this.PrecisionScale));
+
+    public DecimalCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new DecimalCustomColumn(this.ColumnName, derivedTable.Alias, new ExprTypeDecimal(this.PrecisionScale)));
+}
+
+/// <summary>Models an optional exact-numeric descriptor column with precision metadata and null-aware decimal reads.</summary>
+public class NullableDecimalTableColumn : TableColumn
+{
+    internal NullableDecimalTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, DecimalPrecisionScale? precisionScale, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Decimal(precisionScale), true, columnMeta)
+    {
+        this.PrecisionScale = precisionScale;
+    }
+
+    public DecimalPrecisionScale? PrecisionScale { get; }
+
+    public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableDecimal(this);
+
+    public decimal? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableDecimal(this.ColumnName.Name);
+
+    public decimal? Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableDecimal(customColumnName);
+
+    public decimal? Read(ISqDataRecordReader recordReader, int ordinal)
+        => !recordReader.IsDBNull(ordinal) ? recordReader.GetDecimal(ordinal) : null;
+
+    public new NullableDecimalTableColumn WithSource(IExprColumnSource? source) => new NullableDecimalTableColumn(source, this.ColumnName, this.Table, this.PrecisionScale, this.ColumnMeta);
+
+    public new NullableDecimalTableColumn WithColumnName(ExprColumnName columnName) => new NullableDecimalTableColumn(this.Source, columnName, this.Table, this.PrecisionScale, this.ColumnMeta);
+
+    public new NullableDecimalTableColumn WithTable(ExprTable table) => new NullableDecimalTableColumn(this.Source, this.ColumnName, table, this.PrecisionScale, this.ColumnMeta);
+
+    public new NullableDecimalTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableDecimalTableColumn(this.Source, this.ColumnName, this.Table, this.PrecisionScale, columnMeta);
+
+    protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+    protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+    protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+    protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
+
+    public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString("F", CultureInfo.InvariantCulture);
+
+    public override ExprLiteral FromString(string? value) =>
+        value == null
+            ? SqQueryBuilder.Literal((decimal?)null)
+            : decimal.TryParse(value, NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var result)
+                ? SqQueryBuilder.Literal(result)
+                : throw new SqExpressException($"Could not parse '{value}' as decimal for column '{this.ColumnName.Name}'.");
+    public NullableDecimalCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableDecimalCustomColumn(this.ColumnName, columnSource, new ExprTypeDecimal(this.PrecisionScale));
+
+    public NullableDecimalCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableDecimalCustomColumn(this.ColumnName, derivedTable.Alias, new ExprTypeDecimal(this.PrecisionScale)));
+}
+
+/// <summary>Models a required approximate-numeric descriptor column with typed expressions and double reads.</summary>
+public class DoubleTableColumn : TableColumn
+{
+    internal DoubleTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Double, false, columnMeta) { }
+
+    public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitDouble(this);
+
+    public double Read(ISqDataRecordReader recordReader) => recordReader.GetDouble(this.ColumnName.Name);
+
+    public double? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableDouble(this.ColumnName.Name);
+
+    public double Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetDouble(customColumnName);
+
+    public double? ReadNullable(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableDouble(customColumnName);
+
+    public double Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetDouble(ordinal);
+
+    public double? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
+        => !recordReader.IsDBNull(ordinal) ? recordReader.GetDouble(ordinal) : null;
+
+    public new DoubleTableColumn WithSource(IExprColumnSource? source) => new DoubleTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
+
+    public new DoubleTableColumn WithColumnName(ExprColumnName columnName) => new DoubleTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+    public new DoubleTableColumn WithTable(ExprTable table) => new DoubleTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+    public new DoubleTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new DoubleTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
+    protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+    protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+    protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+    protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
+
+    public override string ReadAsString(ISqDataRecordReader recordReader)
+        => this.ReadNullable(recordReader)?.ToString("F", CultureInfo.InvariantCulture)
+           ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
+
+    public override ExprLiteral FromString(string? value) =>
+        value == null
+            ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
+            : double.TryParse(value, NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var result)
+                ? SqQueryBuilder.Literal(result)
+                : throw new SqExpressException($"Could not parse '{value}' as double for column '{this.ColumnName.Name}'.");
+
+    public DoubleCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new DoubleCustomColumn(this.ColumnName, columnSource);
+
+    public DoubleCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new DoubleCustomColumn(this.ColumnName, derivedTable.Alias));
+}
+
+/// <summary>Models an optional approximate-numeric descriptor column with null-aware double reads.</summary>
+public class NullableDoubleTableColumn : TableColumn
+{
+    internal NullableDoubleTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Double, true, columnMeta) { }
+
+    public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableDouble(this);
+
+    public double? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableDouble(this.ColumnName.Name);
+
+    public double? Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableDouble(customColumnName);
+
+    public double? Read(ISqDataRecordReader recordReader, int ordinal)
+        => !recordReader.IsDBNull(ordinal) ? recordReader.GetDouble(ordinal) : null;
+
+    public new NullableDoubleTableColumn WithSource(IExprColumnSource? source) => new NullableDoubleTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
+
+    public new NullableDoubleTableColumn WithColumnName(ExprColumnName columnName) => new NullableDoubleTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+    public new NullableDoubleTableColumn WithTable(ExprTable table) => new NullableDoubleTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+    public new NullableDoubleTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableDoubleTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
+    protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+    protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+    protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+    protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
+
+    public override string? ReadAsString(ISqDataRecordReader recordReader)
+        => this.Read(recordReader)?.ToString("F", CultureInfo.InvariantCulture);
+
+    public override ExprLiteral FromString(string? value) =>
+        value == null
+            ? SqQueryBuilder.Literal((double?)null)
+            : double.TryParse(value, NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var result)
+                ? SqQueryBuilder.Literal(result)
+                : throw new SqExpressException($"Could not parse '{value}' as double for column '{this.ColumnName.Name}'.");
+
+    public NullableDoubleCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableDoubleCustomColumn(this.ColumnName, columnSource);
+
+    public NullableDoubleCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableDoubleCustomColumn(this.ColumnName, derivedTable.Alias));
+}
+
+/// <summary>Models a required date-only or date/time descriptor column with typed temporal comparisons and reads.</summary>
+public class DateTimeTableColumn : TableColumn
+{
+    internal DateTimeTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, bool isDate, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.DateTime(isDate), false, columnMeta)
+    {
+        this.IsDate = isDate;
+    }
+
+    /// <summary>Gets whether this column represents a date without a time component.</summary>
+    public bool IsDate { get; }
+
+    public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitDateTime(this);
+
+    public DateTime Read(ISqDataRecordReader recordReader) => recordReader.GetDateTime(this.ColumnName.Name);
+
+    public DateTime? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableDateTime(this.ColumnName.Name);
+
+    public DateTime Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetDateTime(customColumnName);
+
+    public DateTime? ReadNullable(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableDateTime(customColumnName);
+
+    public DateTime Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetDateTime(ordinal);
+
+    public DateTime? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
+        => !recordReader.IsDBNull(ordinal) ? recordReader.GetDateTime(ordinal) : null;
+
+    public new DateTimeTableColumn WithSource(IExprColumnSource? source) => new DateTimeTableColumn(source, this.ColumnName, this.Table, this.IsDate, this.ColumnMeta);
+
+    public new DateTimeTableColumn WithColumnName(ExprColumnName columnName) => new DateTimeTableColumn(this.Source, columnName, this.Table, this.IsDate, this.ColumnMeta);
+
+    public new DateTimeTableColumn WithTable(ExprTable table) => new DateTimeTableColumn(this.Source, this.ColumnName, table, this.IsDate, this.ColumnMeta);
+
+    public new DateTimeTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new DateTimeTableColumn(this.Source, this.ColumnName, this.Table, this.IsDate, columnMeta);
+
+    protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+    protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+    protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+    protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
+
+    public override string ReadAsString(ISqDataRecordReader recordReader)
+    {
+        var value = this.ReadNullable(recordReader);
+        if (value == null)
+        {
+            throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
         }
 
-        /// <summary>Gets the fixed- or variable-size binary SQL type.</summary>
-        public new ExprTypeByteArrayBase SqlType { get; }
+        return this.IsDate ? value.Value.ToString("yyyy-MM-dd") : value.Value.ToString("yyyy-MM-ddTHH:mm:ss.fff");
+    }
 
-        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitByteArray(this);
+    public override ExprLiteral FromString(string? value) =>
+        value == null
+            ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
+            : DateTime.TryParse(value, null, DateTimeStyles.RoundtripKind, out var result)
+                ? SqQueryBuilder.Literal(result)
+                : throw new SqExpressException($"Could not parse '{value}' as date(time) for column '{this.ColumnName.Name}'.");
 
-        public byte[] Read(ISqDataRecordReader recordReader) => recordReader.GetByteArray(this.ColumnName.Name);
+    public DateTimeCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new DateTimeCustomColumn(this.ColumnName, columnSource, new ExprTypeDateTime(this.IsDate));
 
-        public byte[]? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableByteArray(this.ColumnName.Name);
+    public DateTimeCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new DateTimeCustomColumn(this.ColumnName, derivedTable.Alias, new ExprTypeDateTime(this.IsDate)));
+}
 
-        public byte[] Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetByteArray(customColumnName);
+/// <summary>Models an optional date-only or date/time descriptor column whose readers preserve database null.</summary>
+public class NullableDateTimeTableColumn : TableColumn
+{
+    internal NullableDateTimeTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, bool isDate, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.DateTime(isDate), true, columnMeta)
+    {
+        this.IsDate = isDate;
+    }
 
-        public byte[]? ReadNullable(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableByteArray(customColumnName);
+    /// <summary>Gets whether this column represents a date without a time component.</summary>
+    public bool IsDate { get; }
 
-        public byte[] Read(ISqDataRecordReader recordReader, int ordinal) => (byte[])recordReader.GetValue(ordinal);
+    public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableDateTime(this);
 
-        public byte[]? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
-            => !recordReader.IsDBNull(ordinal) ? (byte[])recordReader.GetValue(ordinal) : null;
+    public DateTime? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableDateTime(this.ColumnName.Name);
 
-        /// <summary>Opens the current binary field as a provider stream without buffering it into a byte array.</summary>
-        /// <param name="recordReader">The current result row; lookup uses this column's database name.</param>
-        /// <returns>The provider-owned stream for the non-null field.</returns>
-        public Stream GetStream(ISqDataRecordReader recordReader) => recordReader.GetStream(this.ColumnName.Name);
+    public DateTime? Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableDateTime(customColumnName);
 
-        /// <summary>Opens the current binary field as a provider stream, preserving database null.</summary>
-        /// <param name="recordReader">The current result row; lookup uses this column's database name.</param>
-        /// <returns>The provider-owned stream, or <see langword="null"/> when the field is SQL <c>NULL</c>.</returns>
-        public Stream? ReadNullableStream(ISqDataRecordReader recordReader) => recordReader.GetNullableStream(this.ColumnName.Name);
+    public DateTime? Read(ISqDataRecordReader recordReader, int ordinal)
+        => !recordReader.IsDBNull(ordinal) ? recordReader.GetDateTime(ordinal) : null;
 
-        public new ByteArrayTableColumn WithSource(IExprColumnSource? source) => new ByteArrayTableColumn(source, this.ColumnName, this.Table, this.SqlType, this.ColumnMeta);
+    public new NullableDateTimeTableColumn WithSource(IExprColumnSource? source) => new NullableDateTimeTableColumn(source, this.ColumnName, this.Table, this.IsDate, this.ColumnMeta);
 
-        public new ByteArrayTableColumn WithColumnName(ExprColumnName columnName) => new ByteArrayTableColumn(this.Source, columnName, this.Table, this.SqlType, this.ColumnMeta);
+    public new NullableDateTimeTableColumn WithColumnName(ExprColumnName columnName) => new NullableDateTimeTableColumn(this.Source, columnName, this.Table, this.IsDate, this.ColumnMeta);
 
-        public new ByteArrayTableColumn WithTable(ExprTable table) => new ByteArrayTableColumn(this.Source, this.ColumnName, table, this.SqlType, this.ColumnMeta);
+    public new NullableDateTimeTableColumn WithTable(ExprTable table) => new NullableDateTimeTableColumn(this.Source, this.ColumnName, table, this.IsDate, this.ColumnMeta);
 
-        public new ByteArrayTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new ByteArrayTableColumn(this.Source, this.ColumnName, this.Table, this.SqlType, columnMeta);
+    public new NullableDateTimeTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableDateTimeTableColumn(this.Source, this.ColumnName, this.Table, this.IsDate, columnMeta);
 
-        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+    protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
 
-        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+    protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
 
-        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
+    protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
 
-        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+    protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
 
-        public override string? ReadAsString(ISqDataRecordReader recordReader)
+    public override string? ReadAsString(ISqDataRecordReader recordReader)
+    {
+        var value = this.Read(recordReader);
+        return value == null ? null : this.IsDate ? value.Value.ToString("yyyy-MM-dd") : value.Value.ToString("yyyy-MM-ddTHH:mm:ss.fff");
+    }
+
+    public override ExprLiteral FromString(string? value) =>
+        value == null
+            ? SqQueryBuilder.Literal((DateTime?)null)
+            : DateTime.TryParse(value, null, DateTimeStyles.RoundtripKind, out var result)
+                ? SqQueryBuilder.Literal(result)
+                : throw new SqExpressException($"Could not parse '{value}' as date(time) for column '{this.ColumnName.Name}'.");
+
+    public NullableDateTimeCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableDateTimeCustomColumn(this.ColumnName, columnSource, new ExprTypeDateTime(this.IsDate));
+
+    public NullableDateTimeCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableDateTimeCustomColumn(this.ColumnName, derivedTable.Alias, new ExprTypeDateTime(this.IsDate)));
+}
+
+/// <summary>Models a required GUID/UUID descriptor column with dialect-portable comparison and CLR reads.</summary>
+public class GuidTableColumn : TableColumn
+{
+    internal GuidTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Guid, false, columnMeta) { }
+
+    public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitGuid(this);
+
+    public Guid Read(ISqDataRecordReader recordReader) => recordReader.GetGuid(this.ColumnName.Name);
+
+    public Guid? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableGuid(this.ColumnName.Name);
+
+    public Guid Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetGuid(customColumnName);
+
+    public Guid? ReadNullable(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableGuid(customColumnName);
+
+    public Guid Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetGuid(ordinal);
+
+    public Guid? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
+        => !recordReader.IsDBNull(ordinal) ? recordReader.GetGuid(ordinal) : null;
+
+    public new GuidTableColumn WithSource(IExprColumnSource? source) => new GuidTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
+
+    public new GuidTableColumn WithColumnName(ExprColumnName columnName) => new GuidTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+    public new GuidTableColumn WithTable(ExprTable table) => new GuidTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+    public new GuidTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new GuidTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
+    protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+    protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+    protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+    protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
+
+    public override string ReadAsString(ISqDataRecordReader recordReader)
+        => this.ReadNullable(recordReader)?.ToString("D")
+           ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
+
+    public override ExprLiteral FromString(string? value) =>
+        value == null
+            ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
+            : Guid.TryParse(value, out var result)
+                ? SqQueryBuilder.Literal(result)
+                : throw new SqExpressException($"Could not parse '{value}' as GUID for column '{this.ColumnName.Name}'.");
+
+    public GuidCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new GuidCustomColumn(this.ColumnName, columnSource);
+
+    public GuidCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new GuidCustomColumn(this.ColumnName, derivedTable.Alias));
+}
+
+/// <summary>Models an optional GUID/UUID descriptor column whose readers preserve database null.</summary>
+public class NullableGuidTableColumn : TableColumn
+{
+    internal NullableGuidTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Guid, true, columnMeta) { }
+
+    public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableGuid(this);
+
+    public Guid? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableGuid(this.ColumnName.Name);
+
+    public Guid? Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableGuid(customColumnName);
+
+    public Guid? Read(ISqDataRecordReader recordReader, int ordinal)
+        => !recordReader.IsDBNull(ordinal) ? recordReader.GetGuid(ordinal) : null;
+
+    public new NullableGuidTableColumn WithSource(IExprColumnSource? source) => new NullableGuidTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
+
+    public new NullableGuidTableColumn WithColumnName(ExprColumnName columnName) => new NullableGuidTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+    public new NullableGuidTableColumn WithTable(ExprTable table) => new NullableGuidTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+    public new NullableGuidTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableGuidTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
+    protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+    protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+    protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+    protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
+
+    public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString("D");
+
+    public override ExprLiteral FromString(string? value) =>
+        value == null
+            ? SqQueryBuilder.Literal((Guid?)null)
+            : Guid.TryParse(value, out var result)
+                ? SqQueryBuilder.Literal(result)
+                : throw new SqExpressException($"Could not parse '{value}' as GUID for column '{this.ColumnName.Name}'.");
+
+    public NullableGuidCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableGuidCustomColumn(this.ColumnName, columnSource);
+
+    public NullableGuidCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableGuidCustomColumn(this.ColumnName, derivedTable.Alias));
+}
+
+/// <summary>Models a required character descriptor column with typed comparison, concatenation, and CLR reads.</summary>
+public class StringTableColumn : TableColumn
+{
+    internal StringTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ExprTypeStringBase stringType, ColumnMeta? columnMeta) : base(source, columnName, table, stringType, false, columnMeta)
+    {
+        this.SqlType = stringType;
+    }
+
+    /// <summary>Gets the fixed-, variable-, or large-text SQL string type.</summary>
+    public new ExprTypeStringBase SqlType { get; }
+
+    public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitString(this);
+
+    public string Read(ISqDataRecordReader recordReader) => recordReader.GetString(this.ColumnName.Name);
+
+    public string? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableString(this.ColumnName.Name);
+
+    public string Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetString(customColumnName);
+
+    public string? ReadNullable(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableString(customColumnName);
+
+    public string Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetString(ordinal);
+
+    public string? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
+        => !recordReader.IsDBNull(ordinal) ? recordReader.GetString(ordinal) : null;
+
+    public new StringTableColumn WithSource(IExprColumnSource? source) => new StringTableColumn(source, this.ColumnName, this.Table, this.SqlType, this.ColumnMeta);
+
+    public new StringTableColumn WithColumnName(ExprColumnName columnName) => new StringTableColumn(this.Source, columnName, this.Table, this.SqlType, this.ColumnMeta);
+
+    public new StringTableColumn WithTable(ExprTable table) => new StringTableColumn(this.Source, this.ColumnName, table, this.SqlType, this.ColumnMeta);
+
+    public new StringTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new StringTableColumn(this.Source, this.ColumnName, this.Table, this.SqlType, columnMeta);
+
+    protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+    protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+    protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+    protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
+
+    public override string ReadAsString(ISqDataRecordReader recordReader)
+        => this.ReadNullable(recordReader)
+           ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
+
+    public override ExprLiteral FromString(string? value) =>
+        value == null
+            ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
+            : SqQueryBuilder.Literal(value);
+
+    public StringCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new StringCustomColumn(this.ColumnName, columnSource, this.SqlType);
+
+    public StringCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new StringCustomColumn(this.ColumnName, derivedTable.Alias, this.SqlType));
+
+    /// <summary>Appends a column to a SQL string-concatenation AST; the exporter supplies dialect-specific concatenation syntax and null semantics.</summary>
+    /// <param name="a">The existing concatenation.</param>
+    /// <param name="b">The string column appended on the right.</param>
+    /// <returns>A new concatenation expression.</returns>
+    public static ExprStringConcat operator +(ExprStringConcat a, StringTableColumn b)
+        => new ExprStringConcat(a, b);
+
+    /// <summary>Prepends a column to a SQL string-concatenation AST rendered according to the selected dialect.</summary>
+    /// <param name="a">The string column placed on the left.</param>
+    /// <param name="b">The existing concatenation.</param>
+    /// <returns>A new concatenation expression.</returns>
+    public static ExprStringConcat operator +(StringTableColumn a, ExprStringConcat b)
+        => new ExprStringConcat(a, b);
+
+    /// <summary>Combines two string columns using the selected exporter's concatenation operator or function.</summary>
+    /// <param name="a">The left string column.</param>
+    /// <param name="b">The right string column.</param>
+    /// <returns>A dialect-neutral string-concatenation expression.</returns>
+    public static ExprStringConcat operator +(StringTableColumn a, StringTableColumn b)
+        => new ExprStringConcat(a, b);
+}
+
+/// <summary>Models an optional character descriptor column whose typed readers preserve database null.</summary>
+public class NullableStringTableColumn : TableColumn
+{
+    internal NullableStringTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ExprTypeStringBase stringType, ColumnMeta? columnMeta) : base(source, columnName, table, stringType, true, columnMeta)
+    {
+        this.SqlType = stringType;
+    }
+
+    /// <summary>Gets the fixed-, variable-, or large-text SQL string type.</summary>
+    public new ExprTypeStringBase SqlType { get; }
+
+    public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableString(this);
+
+    public string? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableString(this.ColumnName.Name);
+
+    public string? Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableString(customColumnName);
+
+    public string? Read(ISqDataRecordReader recordReader, int ordinal)
+        => !recordReader.IsDBNull(ordinal) ? recordReader.GetString(ordinal) : null;
+
+    public new NullableStringTableColumn WithSource(IExprColumnSource? source) => new NullableStringTableColumn(source, this.ColumnName, this.Table, this.SqlType, this.ColumnMeta);
+
+    public new NullableStringTableColumn WithColumnName(ExprColumnName columnName) => new NullableStringTableColumn(this.Source, columnName, this.Table, this.SqlType, this.ColumnMeta);
+
+    public new NullableStringTableColumn WithTable(ExprTable table) => new NullableStringTableColumn(this.Source, this.ColumnName, table, this.SqlType, this.ColumnMeta);
+
+    public new NullableStringTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableStringTableColumn(this.Source, this.ColumnName, this.Table, this.SqlType, columnMeta);
+
+    protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+    protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+    protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+    protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
+
+    public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader);
+
+    public override ExprLiteral FromString(string? value) =>
+        value == null
+            ? SqQueryBuilder.Literal((string?)null)
+            : SqQueryBuilder.Literal(value);
+
+    public NullableStringCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableStringCustomColumn(this.ColumnName, columnSource, this.SqlType);
+
+    public NullableStringCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableStringCustomColumn(this.ColumnName, derivedTable.Alias, this.SqlType));
+}
+
+/// <summary>Models a required offset-aware temporal descriptor column with typed comparisons and CLR reads.</summary>
+public class DateTimeOffsetTableColumn : TableColumn
+{
+    internal DateTimeOffsetTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.DateTimeOffset, false, columnMeta)
+    {
+    }
+
+    public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitDateTimeOffset(this);
+
+    public DateTimeOffset Read(ISqDataRecordReader recordReader) => recordReader.GetDateTimeOffset(this.ColumnName.Name);
+
+    public DateTimeOffset? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableDateTimeOffset(this.ColumnName.Name);
+
+    public DateTimeOffset Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetDateTimeOffset(customColumnName);
+
+    public DateTimeOffset? ReadNullable(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableDateTimeOffset(customColumnName);
+
+    public DateTimeOffset Read(ISqDataRecordReader recordReader, int ordinal) => (DateTimeOffset)recordReader.GetValue(ordinal);
+
+    public DateTimeOffset? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
+        => !recordReader.IsDBNull(ordinal) ? (DateTimeOffset)recordReader.GetValue(ordinal) : null;
+
+    public new DateTimeOffsetTableColumn WithSource(IExprColumnSource? source) => new DateTimeOffsetTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
+
+    public new DateTimeOffsetTableColumn WithColumnName(ExprColumnName columnName) => new DateTimeOffsetTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+
+    public new DateTimeOffsetTableColumn WithTable(ExprTable table) => new DateTimeOffsetTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+
+    public new DateTimeOffsetTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new DateTimeOffsetTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+
+    protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+
+    protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+
+    protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+
+    protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
+
+    public override string ReadAsString(ISqDataRecordReader recordReader)
+    {
+        var value = this.ReadNullable(recordReader);
+        if (value == null)
         {
-            var base64Str = this.ReadNullable(recordReader);
-            return base64Str == null ? null : Convert.ToBase64String(base64Str);
+            throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
         }
 
-        public override ExprLiteral FromString(string? value)
-        {
-            if (value == null)
-                throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column");
-            try
-            {
-                var result = Convert.FromBase64String(value);
-                return SqQueryBuilder.Literal(result);
-            }
-            catch (FormatException e)
-            {
-                throw new SqExpressException($"Could not parse base64 string '{(value.Length > 50 ? value.Substring(0, 50) : value)}' for '{this.ColumnName.Name}' column.", e);
-            }
-        }
-
-        public ByteArrayCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new ByteArrayCustomColumn(this.ColumnName, columnSource, this.SqlType);
-
-        public ByteArrayCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new ByteArrayCustomColumn(this.ColumnName, derivedTable.Alias, this.SqlType));
+        return value.Value.ToString("O");
     }
 
-    /// <summary>Models an optional binary descriptor column with null-aware byte-array and streaming access.</summary>
-    public class NullableByteArrayTableColumn : TableColumn
+    public override ExprLiteral FromString(string? value) =>
+        value == null
+            ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
+            : DateTimeOffset.TryParse(value, null, DateTimeStyles.RoundtripKind, out var result)
+                ? SqQueryBuilder.Literal(result)
+                : throw new SqExpressException($"Could not parse '{value}' as datetimeoffset for column '{this.ColumnName.Name}'.");
+
+    public DateTimeOffsetCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new DateTimeOffsetCustomColumn(this.ColumnName, columnSource);
+
+    public DateTimeOffsetCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new DateTimeOffsetCustomColumn(this.ColumnName, derivedTable.Alias));
+}
+
+/// <summary>Models an optional offset-aware temporal descriptor column whose readers preserve database null.</summary>
+public class NullableDateTimeOffsetTableColumn : TableColumn
+{
+    internal NullableDateTimeOffsetTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.DateTimeOffset, true, columnMeta)
     {
-        internal NullableByteArrayTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ExprTypeByteArrayBase typeByteArray, ColumnMeta? columnMeta) : base(source, columnName, table, typeByteArray, true, columnMeta)
-        {
-            this.SqlType = typeByteArray;
-        }
-
-        /// <summary>Gets the fixed- or variable-size binary SQL type.</summary>
-        public new ExprTypeByteArrayBase SqlType { get; }
-
-        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableByteArray(this);
-
-        public byte[]? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableByteArray(this.ColumnName.Name);
-
-        public byte[]? Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableByteArray(customColumnName);
-
-        public byte[]? Read(ISqDataRecordReader recordReader, int ordinal)
-            => !recordReader.IsDBNull(ordinal) ? (byte[])recordReader.GetValue(ordinal) : null;
-
-        /// <summary>Opens the nullable binary field as a provider stream using this column's database name.</summary>
-        /// <param name="recordReader">The current result row.</param>
-        /// <returns>The provider stream for the field; provider behavior determines how SQL <c>NULL</c> is exposed by this method.</returns>
-        public Stream? GetStream(ISqDataRecordReader recordReader) => recordReader.GetStream(this.ColumnName.Name);
-
-        public new NullableByteArrayTableColumn WithSource(IExprColumnSource? source) => new NullableByteArrayTableColumn(source, this.ColumnName, this.Table, this.SqlType, this.ColumnMeta);
-
-        public new NullableByteArrayTableColumn WithColumnName(ExprColumnName columnName) => new NullableByteArrayTableColumn(this.Source, columnName, this.Table, this.SqlType, this.ColumnMeta);
-
-        public new NullableByteArrayTableColumn WithTable(ExprTable table) => new NullableByteArrayTableColumn(this.Source, this.ColumnName, table, this.SqlType, this.ColumnMeta);
-
-        public new NullableByteArrayTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableByteArrayTableColumn(this.Source, this.ColumnName, this.Table, this.SqlType, columnMeta);
-
-        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
-
-        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
-
-        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
-
-        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
-
-        public override string? ReadAsString(ISqDataRecordReader recordReader)
-        {
-            var base64Str = this.Read(recordReader);
-            return base64Str == null ? null : Convert.ToBase64String(base64Str);
-        }
-
-        public override ExprLiteral FromString(string? value)
-        {
-            if (value == null)
-                return SqQueryBuilder.Literal((byte[]?)null);
-            try
-            {
-                var result = Convert.FromBase64String(value);
-                return SqQueryBuilder.Literal(result);
-            }
-            catch (FormatException e)
-            {
-                throw new SqExpressException($"Could not parse base64 string '{(value.Length > 50 ? value.Substring(0, 50) : value)}' for '{this.ColumnName.Name}' column.", e);
-            }
-        }
-
-        public NullableByteArrayCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableByteArrayCustomColumn(this.ColumnName, columnSource, this.SqlType);
-
-        public NullableByteArrayCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableByteArrayCustomColumn(this.ColumnName, derivedTable.Alias, this.SqlType));
     }
 
-    /// <summary>Models a required 16-bit integer descriptor column with typed arithmetic, comparison, and CLR reads.</summary>
-    public class Int16TableColumn : TableColumn
-    {
-        internal Int16TableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Int16, false, columnMeta) { }
+    public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableDateTimeOffset(this);
 
-        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitInt16(this);
+    public DateTimeOffset? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableDateTimeOffset(this.ColumnName.Name);
 
-        public short Read(ISqDataRecordReader recordReader) => recordReader.GetInt16(this.ColumnName.Name);
+    public DateTimeOffset? Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableDateTimeOffset(customColumnName);
 
-        public short? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableInt16(this.ColumnName.Name);
+    public DateTimeOffset? Read(ISqDataRecordReader recordReader, int ordinal)
+        => !recordReader.IsDBNull(ordinal) ? (DateTimeOffset)recordReader.GetValue(ordinal) : null;
 
-        public short Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetInt16(customColumnName);
+    public new NullableDateTimeOffsetTableColumn WithSource(IExprColumnSource? source) => new NullableDateTimeOffsetTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
 
-        public short? ReadNullable(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableInt16(customColumnName);
+    public new NullableDateTimeOffsetTableColumn WithColumnName(ExprColumnName columnName) => new NullableDateTimeOffsetTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
 
-        public short Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetInt16(ordinal);
+    public new NullableDateTimeOffsetTableColumn WithTable(ExprTable table) => new NullableDateTimeOffsetTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
 
-        public short? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
-            => !recordReader.IsDBNull(ordinal) ? recordReader.GetInt16(ordinal) : null;
+    public new NullableDateTimeOffsetTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableDateTimeOffsetTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
 
-        public new Int16TableColumn WithSource(IExprColumnSource? source) => new Int16TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
+    protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
 
-        public new Int16TableColumn WithColumnName(ExprColumnName columnName) => new Int16TableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
+    protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
 
-        public new Int16TableColumn WithTable(ExprTable table) => new Int16TableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
+    protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
 
-        public new Int16TableColumn WithColumnMeta(ColumnMeta? columnMeta) => new Int16TableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
+    protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
 
-        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
+    public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString("O");
 
-        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
+    public override ExprLiteral FromString(string? value) =>
+        value == null
+            ? SqQueryBuilder.Literal((DateTimeOffset?)null)
+            : DateTimeOffset.TryParse(value, null, DateTimeStyles.RoundtripKind, out var result)
+                ? SqQueryBuilder.Literal(result)
+                : throw new SqExpressException($"Could not parse '{value}' as datetimeoffset for column '{this.ColumnName.Name}'.");
 
-        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
+    public NullableDateTimeOffsetCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableDateTimeOffsetCustomColumn(this.ColumnName, columnSource);
 
-        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
-
-        public override string ReadAsString(ISqDataRecordReader recordReader)
-            => this.ReadNullable(recordReader)?.ToString()
-               ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
-
-        public override ExprLiteral FromString(string? value) =>
-            value == null
-                ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
-                : short.TryParse(value, out var result)
-                    ? SqQueryBuilder.Literal(result)
-                    : throw new SqExpressException($"Could not parse '{value}' as short for column '{this.ColumnName.Name}'.");
-
-        public Int16CustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new Int16CustomColumn(this.ColumnName, columnSource);
-
-        public Int16CustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new Int16CustomColumn(this.ColumnName, derivedTable.Alias));
-    }
-
-    /// <summary>Models an optional 16-bit integer descriptor column whose typed readers preserve database null.</summary>
-    public class NullableInt16TableColumn : TableColumn
-    {
-        internal NullableInt16TableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Int16, true, columnMeta) { }
-
-        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableInt16(this);
-
-        public short? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableInt16(this.ColumnName.Name);
-
-        public short? Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableInt16(customColumnName);
-
-        public short? Read(ISqDataRecordReader recordReader, int ordinal)
-            => !recordReader.IsDBNull(ordinal) ? recordReader.GetInt16(ordinal) : null;
-
-        public new NullableInt16TableColumn WithSource(IExprColumnSource? source) => new NullableInt16TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
-
-        public new NullableInt16TableColumn WithColumnName(ExprColumnName columnName) => new NullableInt16TableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
-
-        public new NullableInt16TableColumn WithTable(ExprTable table) => new NullableInt16TableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
-
-        public new NullableInt16TableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableInt16TableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
-
-        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
-
-        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
-
-        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
-
-        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
-
-        public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString();
-
-        public override ExprLiteral FromString(string? value) =>
-            value == null
-                ? SqQueryBuilder.Literal((short?)null)
-                : short.TryParse(value, out var result)
-                    ? SqQueryBuilder.Literal(result)
-                    : throw new SqExpressException($"Could not parse '{value}' as short for column '{this.ColumnName.Name}'.");
-
-        public NullableInt16CustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableInt16CustomColumn(this.ColumnName, columnSource);
-
-        public NullableInt16CustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableInt16CustomColumn(this.ColumnName, derivedTable.Alias));
-    }
-
-    /// <summary>Models a required 32-bit integer descriptor column with typed arithmetic, comparison, and CLR reads.</summary>
-    public class Int32TableColumn : TableColumn
-    {
-        internal Int32TableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Int32, false, columnMeta) { }
-
-        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitInt32(this);
-
-        public int Read(ISqDataRecordReader recordReader) => recordReader.GetInt32(this.ColumnName.Name);
-
-        public int? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableInt32(this.ColumnName.Name);
-
-        public int Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetInt32(customColumnName);
-
-        public int? ReadNullable(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableInt32(customColumnName);
-
-        public int Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetInt32(ordinal);
-
-        public int? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
-            => !recordReader.IsDBNull(ordinal) ? recordReader.GetInt32(ordinal) : null;
-
-        public new Int32TableColumn WithSource(IExprColumnSource? source) => new Int32TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
-
-        public new Int32TableColumn WithColumnName(ExprColumnName columnName) => new Int32TableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
-
-        public new Int32TableColumn WithTable(ExprTable table) => new Int32TableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
-
-        public new Int32TableColumn WithColumnMeta(ColumnMeta? columnMeta) => new Int32TableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
-
-        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
-
-        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
-
-        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
-
-        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
-
-        public override string ReadAsString(ISqDataRecordReader recordReader)
-            => this.ReadNullable(recordReader)?.ToString()
-               ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
-
-        public override ExprLiteral FromString(string? value) =>
-            value == null
-                ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
-                : int.TryParse(value, out var result)
-                    ? SqQueryBuilder.Literal(result)
-                    : throw new SqExpressException($"Could not parse '{value}' as int for column '{this.ColumnName.Name}'.");
-
-        public Int32CustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new Int32CustomColumn(this.ColumnName, columnSource);
-
-        public Int32CustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new Int32CustomColumn(this.ColumnName, derivedTable.Alias));
-    }
-
-    /// <summary>Models an optional 32-bit integer descriptor column whose typed readers preserve database null.</summary>
-    public class NullableInt32TableColumn : TableColumn
-    {
-        internal NullableInt32TableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Int32, true, columnMeta) { }
-
-        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableInt32(this);
-
-        public int? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableInt32(this.ColumnName.Name);
-
-        public int? Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableInt32(customColumnName);
-
-        public int? Read(ISqDataRecordReader recordReader, int ordinal)
-            => !recordReader.IsDBNull(ordinal) ? recordReader.GetInt32(ordinal) : null;
-
-        public new NullableInt32TableColumn WithSource(IExprColumnSource? source) => new NullableInt32TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
-
-        public new NullableInt32TableColumn WithColumnName(ExprColumnName columnName) => new NullableInt32TableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
-
-        public new NullableInt32TableColumn WithTable(ExprTable table) => new NullableInt32TableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
-
-        public new NullableInt32TableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableInt32TableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
-
-        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
-
-        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
-
-        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
-
-        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
-
-        public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString();
-
-        public override ExprLiteral FromString(string? value) =>
-            value == null
-                ? SqQueryBuilder.Literal((int?)null)
-                : int.TryParse(value, out var result)
-                    ? SqQueryBuilder.Literal(result)
-                    : throw new SqExpressException($"Could not parse '{value}' as int for column '{this.ColumnName.Name}'.");
-
-        public NullableInt32CustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableInt32CustomColumn(this.ColumnName, columnSource);
-
-        public NullableInt32CustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableInt32CustomColumn(this.ColumnName, derivedTable.Alias));
-    }
-
-    /// <summary>Models a required 64-bit integer descriptor column with typed arithmetic, comparison, and CLR reads.</summary>
-    public class Int64TableColumn : TableColumn
-    {
-        internal Int64TableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Int64, false, columnMeta) { }
-
-        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitInt64(this);
-
-        public long Read(ISqDataRecordReader recordReader) => recordReader.GetInt64(this.ColumnName.Name);
-
-        public long? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableInt64(this.ColumnName.Name);
-
-        public long Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetInt64(customColumnName);
-
-        public long? ReadNullable(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableInt64(customColumnName);
-
-        public long Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetInt64(ordinal);
-
-        public long? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
-            => !recordReader.IsDBNull(ordinal) ? recordReader.GetInt64(ordinal) : null;
-
-        public new Int64TableColumn WithSource(IExprColumnSource? source) => new Int64TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
-
-        public new Int64TableColumn WithColumnName(ExprColumnName columnName) => new Int64TableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
-
-        public new Int64TableColumn WithTable(ExprTable table) => new Int64TableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
-
-        public new Int64TableColumn WithColumnMeta(ColumnMeta? columnMeta) => new Int64TableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
-
-        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
-
-        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
-
-        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
-
-        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
-
-        public override string ReadAsString(ISqDataRecordReader recordReader)
-            => this.ReadNullable(recordReader)?.ToString()
-               ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
-
-        public override ExprLiteral FromString(string? value) =>
-            value == null
-                ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
-                : long.TryParse(value, out var result)
-                    ? SqQueryBuilder.Literal(result)
-                    : throw new SqExpressException($"Could not parse '{value}' as long for column '{this.ColumnName.Name}'.");
-
-        public Int64CustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new Int64CustomColumn(this.ColumnName, columnSource);
-
-        public Int64CustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new Int64CustomColumn(this.ColumnName, derivedTable.Alias));
-    }
-
-    /// <summary>Models an optional 64-bit integer descriptor column whose typed readers preserve database null.</summary>
-    public class NullableInt64TableColumn : TableColumn
-    {
-        internal NullableInt64TableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Int64, true, columnMeta) { }
-
-        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableInt64(this);
-
-        public long? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableInt64(this.ColumnName.Name);
-
-        public long? Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableInt64(customColumnName);
-
-        public long? Read(ISqDataRecordReader recordReader, int ordinal)
-            => !recordReader.IsDBNull(ordinal) ? recordReader.GetInt64(ordinal) : null;
-
-        public new NullableInt64TableColumn WithSource(IExprColumnSource? source) => new NullableInt64TableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
-
-        public new NullableInt64TableColumn WithColumnName(ExprColumnName columnName) => new NullableInt64TableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
-
-        public new NullableInt64TableColumn WithTable(ExprTable table) => new NullableInt64TableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
-
-        public new NullableInt64TableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableInt64TableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
-
-        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
-
-        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
-
-        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
-
-        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
-
-        public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString();
-
-        public override ExprLiteral FromString(string? value) =>
-            value == null
-                ? SqQueryBuilder.Literal((long?)null)
-                : long.TryParse(value, out var result)
-                    ? SqQueryBuilder.Literal(result)
-                    : throw new SqExpressException($"Could not parse '{value}' as long for column '{this.ColumnName.Name}'.");
-
-        public NullableInt64CustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableInt64CustomColumn(this.ColumnName, columnSource);
-
-        public NullableInt64CustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableInt64CustomColumn(this.ColumnName, derivedTable.Alias));
-    }
-
-    /// <summary>Models a required exact-numeric descriptor column, retaining precision/scale metadata and decimal reads.</summary>
-    public class DecimalTableColumn : TableColumn
-    {
-        internal DecimalTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, DecimalPrecisionScale? precisionScale, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Decimal(precisionScale), false, columnMeta)
-        {
-            this.PrecisionScale = precisionScale;
-        }
-
-        public DecimalPrecisionScale? PrecisionScale { get; }
-
-        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitDecimal(this);
-
-        public decimal Read(ISqDataRecordReader recordReader) => recordReader.GetDecimal(this.ColumnName.Name);
-
-        public decimal? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableDecimal(this.ColumnName.Name);
-
-        public decimal Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetDecimal(customColumnName);
-
-        public decimal? ReadNullable(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableDecimal(customColumnName);
-
-        public decimal Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetDecimal(ordinal);
-
-        public decimal? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
-            => !recordReader.IsDBNull(ordinal) ? recordReader.GetDecimal(ordinal) : null;
-
-        public new DecimalTableColumn WithSource(IExprColumnSource? source) => new DecimalTableColumn(source, this.ColumnName, this.Table, this.PrecisionScale, this.ColumnMeta);
-
-        public new DecimalTableColumn WithColumnName(ExprColumnName columnName) => new DecimalTableColumn(this.Source, columnName, this.Table, this.PrecisionScale, this.ColumnMeta);
-
-        public new DecimalTableColumn WithTable(ExprTable table) => new DecimalTableColumn(this.Source, this.ColumnName, table, this.PrecisionScale, this.ColumnMeta);
-
-        public new DecimalTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new DecimalTableColumn(this.Source, this.ColumnName, this.Table, this.PrecisionScale, columnMeta);
-
-        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
-
-        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
-
-        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
-
-        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
-
-        public override string ReadAsString(ISqDataRecordReader recordReader)
-            => this.ReadNullable(recordReader)?.ToString("F", CultureInfo.InvariantCulture)
-               ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
-
-        public override ExprLiteral FromString(string? value) =>
-            value == null
-                ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
-                : decimal.TryParse(value, NumberStyles.AllowDecimalPoint|NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var result)
-                    ? SqQueryBuilder.Literal(result)
-                    : throw new SqExpressException($"Could not parse '{value}' as decimal for column '{this.ColumnName.Name}'.");
-
-        public DecimalCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new DecimalCustomColumn(this.ColumnName, columnSource, new ExprTypeDecimal(this.PrecisionScale));
-
-        public DecimalCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new DecimalCustomColumn(this.ColumnName, derivedTable.Alias, new ExprTypeDecimal(this.PrecisionScale)));
-    }
-
-    /// <summary>Models an optional exact-numeric descriptor column with precision metadata and null-aware decimal reads.</summary>
-    public class NullableDecimalTableColumn : TableColumn
-    {
-        internal NullableDecimalTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, DecimalPrecisionScale? precisionScale, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Decimal(precisionScale), true, columnMeta)
-        {
-            this.PrecisionScale = precisionScale;
-        }
-
-        public DecimalPrecisionScale? PrecisionScale { get; }
-
-        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableDecimal(this);
-
-        public decimal? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableDecimal(this.ColumnName.Name);
-
-        public decimal? Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableDecimal(customColumnName);
-
-        public decimal? Read(ISqDataRecordReader recordReader, int ordinal)
-            => !recordReader.IsDBNull(ordinal) ? recordReader.GetDecimal(ordinal) : null;
-
-        public new NullableDecimalTableColumn WithSource(IExprColumnSource? source) => new NullableDecimalTableColumn(source, this.ColumnName, this.Table, this.PrecisionScale, this.ColumnMeta);
-
-        public new NullableDecimalTableColumn WithColumnName(ExprColumnName columnName) => new NullableDecimalTableColumn(this.Source, columnName, this.Table, this.PrecisionScale, this.ColumnMeta);
-
-        public new NullableDecimalTableColumn WithTable(ExprTable table) => new NullableDecimalTableColumn(this.Source, this.ColumnName, table, this.PrecisionScale, this.ColumnMeta);
-
-        public new NullableDecimalTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableDecimalTableColumn(this.Source, this.ColumnName, this.Table, this.PrecisionScale, columnMeta);
-
-        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
-
-        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
-
-        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
-
-        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
-
-        public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString("F", CultureInfo.InvariantCulture);
-
-        public override ExprLiteral FromString(string? value) =>
-            value == null
-                ? SqQueryBuilder.Literal((decimal?)null)
-                : decimal.TryParse(value, NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var result)
-                    ? SqQueryBuilder.Literal(result)
-                    : throw new SqExpressException($"Could not parse '{value}' as decimal for column '{this.ColumnName.Name}'.");
-        public NullableDecimalCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableDecimalCustomColumn(this.ColumnName, columnSource, new ExprTypeDecimal(this.PrecisionScale));
-
-        public NullableDecimalCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableDecimalCustomColumn(this.ColumnName, derivedTable.Alias, new ExprTypeDecimal(this.PrecisionScale)));
-    }
-
-    /// <summary>Models a required approximate-numeric descriptor column with typed expressions and double reads.</summary>
-    public class DoubleTableColumn : TableColumn
-    {
-        internal DoubleTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Double, false, columnMeta) { }
-
-        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitDouble(this);
-
-        public double Read(ISqDataRecordReader recordReader) => recordReader.GetDouble(this.ColumnName.Name);
-
-        public double? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableDouble(this.ColumnName.Name);
-
-        public double Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetDouble(customColumnName);
-
-        public double? ReadNullable(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableDouble(customColumnName);
-
-        public double Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetDouble(ordinal);
-
-        public double? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
-            => !recordReader.IsDBNull(ordinal) ? recordReader.GetDouble(ordinal) : null;
-
-        public new DoubleTableColumn WithSource(IExprColumnSource? source) => new DoubleTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
-
-        public new DoubleTableColumn WithColumnName(ExprColumnName columnName) => new DoubleTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
-
-        public new DoubleTableColumn WithTable(ExprTable table) => new DoubleTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
-
-        public new DoubleTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new DoubleTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
-
-        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
-
-        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
-
-        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
-
-        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
-
-        public override string ReadAsString(ISqDataRecordReader recordReader)
-            => this.ReadNullable(recordReader)?.ToString("F", CultureInfo.InvariantCulture)
-               ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
-
-        public override ExprLiteral FromString(string? value) =>
-            value == null
-                ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
-                : double.TryParse(value, NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var result)
-                    ? SqQueryBuilder.Literal(result)
-                    : throw new SqExpressException($"Could not parse '{value}' as double for column '{this.ColumnName.Name}'.");
-
-        public DoubleCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new DoubleCustomColumn(this.ColumnName, columnSource);
-
-        public DoubleCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new DoubleCustomColumn(this.ColumnName, derivedTable.Alias));
-    }
-
-    /// <summary>Models an optional approximate-numeric descriptor column with null-aware double reads.</summary>
-    public class NullableDoubleTableColumn : TableColumn
-    {
-        internal NullableDoubleTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Double, true, columnMeta) { }
-
-        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableDouble(this);
-
-        public double? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableDouble(this.ColumnName.Name);
-
-        public double? Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableDouble(customColumnName);
-
-        public double? Read(ISqDataRecordReader recordReader, int ordinal)
-            => !recordReader.IsDBNull(ordinal) ? recordReader.GetDouble(ordinal) : null;
-
-        public new NullableDoubleTableColumn WithSource(IExprColumnSource? source) => new NullableDoubleTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
-
-        public new NullableDoubleTableColumn WithColumnName(ExprColumnName columnName) => new NullableDoubleTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
-
-        public new NullableDoubleTableColumn WithTable(ExprTable table) => new NullableDoubleTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
-
-        public new NullableDoubleTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableDoubleTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
-
-        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
-
-        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
-
-        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
-
-        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
-
-        public override string? ReadAsString(ISqDataRecordReader recordReader)
-            => this.Read(recordReader)?.ToString("F", CultureInfo.InvariantCulture);
-
-        public override ExprLiteral FromString(string? value) =>
-            value == null
-                ? SqQueryBuilder.Literal((double?)null)
-                : double.TryParse(value, NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var result)
-                    ? SqQueryBuilder.Literal(result)
-                    : throw new SqExpressException($"Could not parse '{value}' as double for column '{this.ColumnName.Name}'.");
-
-        public NullableDoubleCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableDoubleCustomColumn(this.ColumnName, columnSource);
-
-        public NullableDoubleCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableDoubleCustomColumn(this.ColumnName, derivedTable.Alias));
-    }
-
-    /// <summary>Models a required date-only or date/time descriptor column with typed temporal comparisons and reads.</summary>
-    public class DateTimeTableColumn : TableColumn
-    {
-        internal DateTimeTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, bool isDate, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.DateTime(isDate), false, columnMeta)
-        {
-            this.IsDate = isDate;
-        }
-
-        /// <summary>Gets whether this column represents a date without a time component.</summary>
-        public bool IsDate { get; }
-
-        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitDateTime(this);
-
-        public DateTime Read(ISqDataRecordReader recordReader) => recordReader.GetDateTime(this.ColumnName.Name);
-
-        public DateTime? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableDateTime(this.ColumnName.Name);
-
-        public DateTime Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetDateTime(customColumnName);
-
-        public DateTime? ReadNullable(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableDateTime(customColumnName);
-
-        public DateTime Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetDateTime(ordinal);
-
-        public DateTime? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
-            => !recordReader.IsDBNull(ordinal) ? recordReader.GetDateTime(ordinal) : null;
-
-        public new DateTimeTableColumn WithSource(IExprColumnSource? source) => new DateTimeTableColumn(source, this.ColumnName, this.Table, this.IsDate, this.ColumnMeta);
-
-        public new DateTimeTableColumn WithColumnName(ExprColumnName columnName) => new DateTimeTableColumn(this.Source, columnName, this.Table, this.IsDate, this.ColumnMeta);
-
-        public new DateTimeTableColumn WithTable(ExprTable table) => new DateTimeTableColumn(this.Source, this.ColumnName, table, this.IsDate, this.ColumnMeta);
-
-        public new DateTimeTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new DateTimeTableColumn(this.Source, this.ColumnName, this.Table, this.IsDate, columnMeta);
-
-        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
-
-        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
-
-        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
-
-        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
-
-        public override string ReadAsString(ISqDataRecordReader recordReader)
-        {
-            var value = this.ReadNullable(recordReader);
-            if (value == null)
-            {
-                throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
-            }
-
-            return this.IsDate ? value.Value.ToString("yyyy-MM-dd") : value.Value.ToString("yyyy-MM-ddTHH:mm:ss.fff");
-        }
-
-        public override ExprLiteral FromString(string? value) =>
-            value == null
-                ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
-                : DateTime.TryParse(value, null, DateTimeStyles.RoundtripKind, out var result)
-                    ? SqQueryBuilder.Literal(result)
-                    : throw new SqExpressException($"Could not parse '{value}' as date(time) for column '{this.ColumnName.Name}'.");
-
-        public DateTimeCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new DateTimeCustomColumn(this.ColumnName, columnSource, new ExprTypeDateTime(this.IsDate));
-
-        public DateTimeCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new DateTimeCustomColumn(this.ColumnName, derivedTable.Alias, new ExprTypeDateTime(this.IsDate)));
-    }
-
-    /// <summary>Models an optional date-only or date/time descriptor column whose readers preserve database null.</summary>
-    public class NullableDateTimeTableColumn : TableColumn
-    {
-        internal NullableDateTimeTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, bool isDate, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.DateTime(isDate), true, columnMeta)
-        {
-            this.IsDate = isDate;
-        }
-
-        /// <summary>Gets whether this column represents a date without a time component.</summary>
-        public bool IsDate { get; }
-
-        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableDateTime(this);
-
-        public DateTime? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableDateTime(this.ColumnName.Name);
-
-        public DateTime? Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableDateTime(customColumnName);
-
-        public DateTime? Read(ISqDataRecordReader recordReader, int ordinal)
-            => !recordReader.IsDBNull(ordinal) ? recordReader.GetDateTime(ordinal) : null;
-
-        public new NullableDateTimeTableColumn WithSource(IExprColumnSource? source) => new NullableDateTimeTableColumn(source, this.ColumnName, this.Table, this.IsDate, this.ColumnMeta);
-
-        public new NullableDateTimeTableColumn WithColumnName(ExprColumnName columnName) => new NullableDateTimeTableColumn(this.Source, columnName, this.Table, this.IsDate, this.ColumnMeta);
-
-        public new NullableDateTimeTableColumn WithTable(ExprTable table) => new NullableDateTimeTableColumn(this.Source, this.ColumnName, table, this.IsDate, this.ColumnMeta);
-
-        public new NullableDateTimeTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableDateTimeTableColumn(this.Source, this.ColumnName, this.Table, this.IsDate, columnMeta);
-
-        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
-
-        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
-
-        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
-
-        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
-
-        public override string? ReadAsString(ISqDataRecordReader recordReader)
-        {
-            var value = this.Read(recordReader);
-            return value == null ? null : this.IsDate ? value.Value.ToString("yyyy-MM-dd") : value.Value.ToString("yyyy-MM-ddTHH:mm:ss.fff");
-        }
-
-        public override ExprLiteral FromString(string? value) =>
-            value == null
-                ? SqQueryBuilder.Literal((DateTime?)null)
-                : DateTime.TryParse(value, null, DateTimeStyles.RoundtripKind, out var result)
-                    ? SqQueryBuilder.Literal(result)
-                    : throw new SqExpressException($"Could not parse '{value}' as date(time) for column '{this.ColumnName.Name}'.");
-
-        public NullableDateTimeCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableDateTimeCustomColumn(this.ColumnName, columnSource, new ExprTypeDateTime(this.IsDate));
-
-        public NullableDateTimeCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableDateTimeCustomColumn(this.ColumnName, derivedTable.Alias, new ExprTypeDateTime(this.IsDate)));
-    }
-
-    /// <summary>Models a required GUID/UUID descriptor column with dialect-portable comparison and CLR reads.</summary>
-    public class GuidTableColumn : TableColumn
-    {
-        internal GuidTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Guid, false, columnMeta) { }
-
-        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitGuid(this);
-
-        public Guid Read(ISqDataRecordReader recordReader) => recordReader.GetGuid(this.ColumnName.Name);
-
-        public Guid? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableGuid(this.ColumnName.Name);
-
-        public Guid Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetGuid(customColumnName);
-
-        public Guid? ReadNullable(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableGuid(customColumnName);
-
-        public Guid Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetGuid(ordinal);
-
-        public Guid? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
-            => !recordReader.IsDBNull(ordinal) ? recordReader.GetGuid(ordinal) : null;
-
-        public new GuidTableColumn WithSource(IExprColumnSource? source) => new GuidTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
-
-        public new GuidTableColumn WithColumnName(ExprColumnName columnName) => new GuidTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
-
-        public new GuidTableColumn WithTable(ExprTable table) => new GuidTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
-
-        public new GuidTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new GuidTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
-
-        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
-
-        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
-
-        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
-
-        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
-
-        public override string ReadAsString(ISqDataRecordReader recordReader)
-            => this.ReadNullable(recordReader)?.ToString("D")
-               ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
-
-        public override ExprLiteral FromString(string? value) =>
-            value == null
-                ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
-                : Guid.TryParse(value, out var result)
-                    ? SqQueryBuilder.Literal(result)
-                    : throw new SqExpressException($"Could not parse '{value}' as GUID for column '{this.ColumnName.Name}'.");
-
-        public GuidCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new GuidCustomColumn(this.ColumnName, columnSource);
-
-        public GuidCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new GuidCustomColumn(this.ColumnName, derivedTable.Alias));
-    }
-
-    /// <summary>Models an optional GUID/UUID descriptor column whose readers preserve database null.</summary>
-    public class NullableGuidTableColumn : TableColumn
-    {
-        internal NullableGuidTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.Guid, true, columnMeta) { }
-
-        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableGuid(this);
-
-        public Guid? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableGuid(this.ColumnName.Name);
-
-        public Guid? Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableGuid(customColumnName);
-
-        public Guid? Read(ISqDataRecordReader recordReader, int ordinal)
-            => !recordReader.IsDBNull(ordinal) ? recordReader.GetGuid(ordinal) : null;
-
-        public new NullableGuidTableColumn WithSource(IExprColumnSource? source) => new NullableGuidTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
-
-        public new NullableGuidTableColumn WithColumnName(ExprColumnName columnName) => new NullableGuidTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
-
-        public new NullableGuidTableColumn WithTable(ExprTable table) => new NullableGuidTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
-
-        public new NullableGuidTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableGuidTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
-
-        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
-
-        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
-
-        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
-
-        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
-
-        public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString("D");
-
-        public override ExprLiteral FromString(string? value) =>
-            value == null
-                ? SqQueryBuilder.Literal((Guid?)null)
-                : Guid.TryParse(value, out var result)
-                    ? SqQueryBuilder.Literal(result)
-                    : throw new SqExpressException($"Could not parse '{value}' as GUID for column '{this.ColumnName.Name}'.");
-
-        public NullableGuidCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableGuidCustomColumn(this.ColumnName, columnSource);
-
-        public NullableGuidCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableGuidCustomColumn(this.ColumnName, derivedTable.Alias));
-    }
-
-    /// <summary>Models a required character descriptor column with typed comparison, concatenation, and CLR reads.</summary>
-    public class StringTableColumn : TableColumn
-    {
-        internal StringTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ExprTypeStringBase stringType, ColumnMeta? columnMeta) : base(source, columnName, table, stringType, false, columnMeta)
-        {
-            this.SqlType = stringType;
-        }
-
-        /// <summary>Gets the fixed-, variable-, or large-text SQL string type.</summary>
-        public new ExprTypeStringBase SqlType { get; }
-
-        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitString(this);
-
-        public string Read(ISqDataRecordReader recordReader) => recordReader.GetString(this.ColumnName.Name);
-
-        public string? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableString(this.ColumnName.Name);
-
-        public string Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetString(customColumnName);
-
-        public string? ReadNullable(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableString(customColumnName);
-
-        public string Read(ISqDataRecordReader recordReader, int ordinal) => recordReader.GetString(ordinal);
-
-        public string? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
-            => !recordReader.IsDBNull(ordinal) ? recordReader.GetString(ordinal) : null;
-
-        public new StringTableColumn WithSource(IExprColumnSource? source) => new StringTableColumn(source, this.ColumnName, this.Table, this.SqlType, this.ColumnMeta);
-
-        public new StringTableColumn WithColumnName(ExprColumnName columnName) => new StringTableColumn(this.Source, columnName, this.Table, this.SqlType, this.ColumnMeta);
-
-        public new StringTableColumn WithTable(ExprTable table) => new StringTableColumn(this.Source, this.ColumnName, table, this.SqlType, this.ColumnMeta);
-
-        public new StringTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new StringTableColumn(this.Source, this.ColumnName, this.Table, this.SqlType, columnMeta);
-
-        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
-
-        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
-
-        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
-
-        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
-
-        public override string ReadAsString(ISqDataRecordReader recordReader)
-            => this.ReadNullable(recordReader)
-               ?? throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
-
-        public override ExprLiteral FromString(string? value) =>
-            value == null
-                ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
-                : SqQueryBuilder.Literal(value);
-
-        public StringCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new StringCustomColumn(this.ColumnName, columnSource, this.SqlType);
-
-        public StringCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new StringCustomColumn(this.ColumnName, derivedTable.Alias, this.SqlType));
-
-        /// <summary>Appends a column to a SQL string-concatenation AST; the exporter supplies dialect-specific concatenation syntax and null semantics.</summary>
-        /// <param name="a">The existing concatenation.</param>
-        /// <param name="b">The string column appended on the right.</param>
-        /// <returns>A new concatenation expression.</returns>
-        public static ExprStringConcat operator +(ExprStringConcat a, StringTableColumn b)
-            => new ExprStringConcat(a, b);
-
-        /// <summary>Prepends a column to a SQL string-concatenation AST rendered according to the selected dialect.</summary>
-        /// <param name="a">The string column placed on the left.</param>
-        /// <param name="b">The existing concatenation.</param>
-        /// <returns>A new concatenation expression.</returns>
-        public static ExprStringConcat operator +(StringTableColumn a, ExprStringConcat b)
-            => new ExprStringConcat(a, b);
-
-        /// <summary>Combines two string columns using the selected exporter's concatenation operator or function.</summary>
-        /// <param name="a">The left string column.</param>
-        /// <param name="b">The right string column.</param>
-        /// <returns>A dialect-neutral string-concatenation expression.</returns>
-        public static ExprStringConcat operator +(StringTableColumn a, StringTableColumn b)
-            => new ExprStringConcat(a, b);
-    }
-
-    /// <summary>Models an optional character descriptor column whose typed readers preserve database null.</summary>
-    public class NullableStringTableColumn : TableColumn
-    {
-        internal NullableStringTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ExprTypeStringBase stringType, ColumnMeta? columnMeta) : base(source, columnName, table, stringType, true, columnMeta)
-        {
-            this.SqlType = stringType;
-        }
-
-        /// <summary>Gets the fixed-, variable-, or large-text SQL string type.</summary>
-        public new ExprTypeStringBase SqlType { get; }
-
-        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableString(this);
-
-        public string? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableString(this.ColumnName.Name);
-
-        public string? Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableString(customColumnName);
-
-        public string? Read(ISqDataRecordReader recordReader, int ordinal)
-            => !recordReader.IsDBNull(ordinal) ? recordReader.GetString(ordinal) : null;
-
-        public new NullableStringTableColumn WithSource(IExprColumnSource? source) => new NullableStringTableColumn(source, this.ColumnName, this.Table, this.SqlType, this.ColumnMeta);
-
-        public new NullableStringTableColumn WithColumnName(ExprColumnName columnName) => new NullableStringTableColumn(this.Source, columnName, this.Table, this.SqlType, this.ColumnMeta);
-
-        public new NullableStringTableColumn WithTable(ExprTable table) => new NullableStringTableColumn(this.Source, this.ColumnName, table, this.SqlType, this.ColumnMeta);
-
-        public new NullableStringTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableStringTableColumn(this.Source, this.ColumnName, this.Table, this.SqlType, columnMeta);
-
-        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
-
-        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
-
-        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
-
-        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
-
-        public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader);
-
-        public override ExprLiteral FromString(string? value) =>
-            value == null
-                ? SqQueryBuilder.Literal((string?)null)
-                : SqQueryBuilder.Literal(value);
-
-        public NullableStringCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableStringCustomColumn(this.ColumnName, columnSource, this.SqlType);
-
-        public NullableStringCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableStringCustomColumn(this.ColumnName, derivedTable.Alias, this.SqlType));
-    }
-
-    /// <summary>Models a required offset-aware temporal descriptor column with typed comparisons and CLR reads.</summary>
-    public class DateTimeOffsetTableColumn : TableColumn
-    {
-        internal DateTimeOffsetTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.DateTimeOffset, false, columnMeta)
-        {
-        }
-
-        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitDateTimeOffset(this);
-
-        public DateTimeOffset Read(ISqDataRecordReader recordReader) => recordReader.GetDateTimeOffset(this.ColumnName.Name);
-
-        public DateTimeOffset? ReadNullable(ISqDataRecordReader recordReader) => recordReader.GetNullableDateTimeOffset(this.ColumnName.Name);
-
-        public DateTimeOffset Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetDateTimeOffset(customColumnName);
-
-        public DateTimeOffset? ReadNullable(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableDateTimeOffset(customColumnName);
-
-        public DateTimeOffset Read(ISqDataRecordReader recordReader, int ordinal) => (DateTimeOffset)recordReader.GetValue(ordinal);
-
-        public DateTimeOffset? ReadNullable(ISqDataRecordReader recordReader, int ordinal)
-            => !recordReader.IsDBNull(ordinal) ? (DateTimeOffset)recordReader.GetValue(ordinal) : null;
-
-        public new DateTimeOffsetTableColumn WithSource(IExprColumnSource? source) => new DateTimeOffsetTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
-
-        public new DateTimeOffsetTableColumn WithColumnName(ExprColumnName columnName) => new DateTimeOffsetTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
-
-        public new DateTimeOffsetTableColumn WithTable(ExprTable table) => new DateTimeOffsetTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
-
-        public new DateTimeOffsetTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new DateTimeOffsetTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
-
-        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
-
-        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
-
-        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
-
-        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
-
-        public override string ReadAsString(ISqDataRecordReader recordReader)
-        {
-            var value = this.ReadNullable(recordReader);
-            if (value == null)
-            {
-                throw new SqExpressException($"Null value is not expected in non nullable column '{this.ColumnName.Name}'");
-            }
-
-            return value.Value.ToString("O");
-        }
-
-        public override ExprLiteral FromString(string? value) =>
-            value == null
-                ? throw new SqExpressException($"Value cannot be null for '{this.ColumnName.Name}' non nullable column")
-                : DateTimeOffset.TryParse(value, null, DateTimeStyles.RoundtripKind, out var result)
-                    ? SqQueryBuilder.Literal(result)
-                    : throw new SqExpressException($"Could not parse '{value}' as datetimeoffset for column '{this.ColumnName.Name}'.");
-
-        public DateTimeOffsetCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new DateTimeOffsetCustomColumn(this.ColumnName, columnSource);
-
-        public DateTimeOffsetCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new DateTimeOffsetCustomColumn(this.ColumnName, derivedTable.Alias));
-    }
-
-    /// <summary>Models an optional offset-aware temporal descriptor column whose readers preserve database null.</summary>
-    public class NullableDateTimeOffsetTableColumn : TableColumn
-    {
-        internal NullableDateTimeOffsetTableColumn(IExprColumnSource? source, ExprColumnName columnName, ExprTable table, ColumnMeta? columnMeta) : base(source, columnName, table, SqQueryBuilder.SqlType.DateTimeOffset, true, columnMeta)
-        {
-        }
-
-        public override TRes Accept<TRes>(ITableColumnVisitor<TRes> visitor) => visitor.VisitNullableDateTimeOffset(this);
-
-        public DateTimeOffset? Read(ISqDataRecordReader recordReader) => recordReader.GetNullableDateTimeOffset(this.ColumnName.Name);
-
-        public DateTimeOffset? Read(ISqDataRecordReader recordReader, string customColumnName) => recordReader.GetNullableDateTimeOffset(customColumnName);
-
-        public DateTimeOffset? Read(ISqDataRecordReader recordReader, int ordinal)
-            => !recordReader.IsDBNull(ordinal) ? (DateTimeOffset)recordReader.GetValue(ordinal) : null;
-
-        public new NullableDateTimeOffsetTableColumn WithSource(IExprColumnSource? source) => new NullableDateTimeOffsetTableColumn(source, this.ColumnName, this.Table, this.ColumnMeta);
-
-        public new NullableDateTimeOffsetTableColumn WithColumnName(ExprColumnName columnName) => new NullableDateTimeOffsetTableColumn(this.Source, columnName, this.Table, this.ColumnMeta);
-
-        public new NullableDateTimeOffsetTableColumn WithTable(ExprTable table) => new NullableDateTimeOffsetTableColumn(this.Source, this.ColumnName, table, this.ColumnMeta);
-
-        public new NullableDateTimeOffsetTableColumn WithColumnMeta(ColumnMeta? columnMeta) => new NullableDateTimeOffsetTableColumn(this.Source, this.ColumnName, this.Table, columnMeta);
-
-        protected override TableColumn WithSourceInternal(IExprColumnSource? source) => this.WithSource(source);
-
-        protected override TableColumn WithColumnNameInternal(ExprColumnName columnName) => this.WithColumnName(columnName);
-
-        protected override TableColumn WithTableInternal(ExprTable table) => this.WithTable(table);
-
-        protected override TableColumn WithColumnMetaInternal(ColumnMeta? columnMeta) => this.WithColumnMeta(columnMeta);
-
-        public override string? ReadAsString(ISqDataRecordReader recordReader) => this.Read(recordReader)?.ToString("O");
-
-        public override ExprLiteral FromString(string? value) =>
-            value == null
-                ? SqQueryBuilder.Literal((DateTimeOffset?)null)
-                : DateTimeOffset.TryParse(value, null, DateTimeStyles.RoundtripKind, out var result)
-                    ? SqQueryBuilder.Literal(result)
-                    : throw new SqExpressException($"Could not parse '{value}' as datetimeoffset for column '{this.ColumnName.Name}'.");
-
-        public NullableDateTimeOffsetCustomColumn ToCustomColumn(IExprColumnSource? columnSource) => new NullableDateTimeOffsetCustomColumn(this.ColumnName, columnSource);
-
-        public NullableDateTimeOffsetCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableDateTimeOffsetCustomColumn(this.ColumnName, derivedTable.Alias));
-    }
+    public NullableDateTimeOffsetCustomColumn AddToDerivedTable(DerivedTableBase derivedTable) => derivedTable.RegisterColumn(new NullableDateTimeOffsetCustomColumn(this.ColumnName, derivedTable.Alias));
 }

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using SqExpress;
 using SqExpress.DbMetadata;
 using SqExpress.SqlParser.Internal.Mapping;
 using SqExpress.SqlParser.Internal.Parsing;
@@ -10,349 +9,348 @@ using SqExpress.Syntax;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Update;
 
-namespace SqExpress.SqlParser
+namespace SqExpress.SqlParser;
+
+/// <summary>
+/// Parses the supported, fail-closed subset of T-SQL into SqExpress syntax-tree expressions.
+/// </summary>
+/// <remarks>
+/// This parser intentionally is not a full SQL Server parser. Unsupported, ambiguous, and invalid input is
+/// rejected instead of being interpreted best-effort. The supported surface is documented in the repository's
+/// <c>SqExpress/SqlParser/TSqlParserSupportedSubset.md</c> file. When table descriptors are supplied, parsed table
+/// references are validated against them.
+/// </remarks>
+/// <example>
+/// <code>
+/// var query = SqTSqlParser.Parse("SELECT 'Hi'", []).AsQuery();
+/// var sql = query.ToSql(TSqlExporter.Default);
+/// </code>
+/// </example>
+public static class SqTSqlParser
 {
+    private static readonly SqTSqlParserOptions DefaultOptions = new SqTSqlParserOptions();
+
     /// <summary>
-    /// Parses the supported, fail-closed subset of T-SQL into SqExpress syntax-tree expressions.
+    /// Parses one supported T-SQL statement and throws when parsing or optional table validation fails.
+    /// </summary>
+    /// <param name="sql">The statement text. Input outside the documented supported subset is rejected.</param>
+    /// <param name="existingTables">Optional table descriptors used to resolve and validate table/column references.</param>
+    /// <returns>The parsed SqExpress statement or query syntax tree.</returns>
+    /// <exception cref="SqExpressTSqlParserException">The text is invalid, unsupported, ambiguous, or inconsistent with the supplied descriptors.</exception>
+    public static IExpr Parse(string sql, IReadOnlyList<TableBase>? existingTables = null)
+        => Parse(sql, existingTables, options: null);
+
+    /// <summary>
+    /// Parses one supported T-SQL statement using explicit parser options.
+    /// </summary>
+    /// <param name="sql">The statement text. Input outside the documented supported subset is rejected.</param>
+    /// <param name="existingTables">Optional table descriptors used to resolve and validate table/column references.</param>
+    /// <param name="options">Parser and binding behavior, or <see langword="null"/> for defaults.</param>
+    /// <returns>The parsed SqExpress statement or query syntax tree.</returns>
+    /// <exception cref="SqExpressTSqlParserException">
+    /// The text is invalid, unsupported, or cannot be resolved against the supplied table descriptors.
+    /// </exception>
+    public static IExpr Parse(string sql, IReadOnlyList<TableBase>? existingTables, SqTSqlParserOptions? options)
+    {
+        if (TryParse(sql, existingTables, options, out IExpr? expr, out var error))
+        {
+            return expr;
+        }
+
+        throw new SqExpressTSqlParserException(error ?? "Could not parse SQL.");
+    }
+
+    /// <summary>
+    /// Attempts to parse one supported T-SQL statement without throwing for parse or validation failures.
+    /// </summary>
+    /// <param name="sql">The statement text to parse.</param>
+    /// <param name="existingTables">Optional descriptors used for fail-closed reference validation.</param>
+    /// <param name="result">Receives the syntax tree on success; otherwise <see langword="null"/>.</param>
+    /// <param name="error">Receives a diagnostic on failure; otherwise <see langword="null"/>.</param>
+    /// <returns><see langword="true"/> only when the complete input is supported, parsed, and validated.</returns>
+    public static bool TryParse(
+        string sql,
+        IReadOnlyList<TableBase>? existingTables,
+        [NotNullWhen(true)] out IExpr? result,
+        [NotNullWhen(false)] out string? error)
+        => TryParse(sql, existingTables, options: null, out result, out error);
+
+    /// <summary>
+    /// Attempts to parse one supported T-SQL statement with explicit parser options.
     /// </summary>
     /// <remarks>
-    /// This parser intentionally is not a full SQL Server parser. Unsupported, ambiguous, and invalid input is
-    /// rejected instead of being interpreted best-effort. The supported surface is documented in the repository's
-    /// <c>SqExpress/SqlParser/TSqlParserSupportedSubset.md</c> file. When table descriptors are supplied, parsed table
-    /// references are validated against them.
+    /// On failure, <paramref name="result"/> is <see langword="null"/> and <paramref name="error"/>
+    /// contains the parser or binding diagnostic.
     /// </remarks>
-    /// <example>
-    /// <code>
-    /// var query = SqTSqlParser.Parse("SELECT 'Hi'", []).AsQuery();
-    /// var sql = query.ToSql(TSqlExporter.Default);
-    /// </code>
-    /// </example>
-    public static class SqTSqlParser
+    /// <param name="sql">The statement text to parse.</param>
+    /// <param name="existingTables">Optional descriptors used for fail-closed reference validation.</param>
+    /// <param name="options">Parser and binding behavior, or <see langword="null"/> for defaults.</param>
+    /// <param name="result">Receives the syntax tree on success; otherwise <see langword="null"/>.</param>
+    /// <param name="error">Receives a diagnostic on failure; otherwise <see langword="null"/>.</param>
+    /// <returns><see langword="true"/> only when the complete input is supported, parsed, and validated.</returns>
+    public static bool TryParse(
+        string sql,
+        IReadOnlyList<TableBase>? existingTables,
+        SqTSqlParserOptions? options,
+        [NotNullWhen(true)] out IExpr? result,
+        [NotNullWhen(false)] out string? error)
     {
-        private static readonly SqTSqlParserOptions DefaultOptions = new SqTSqlParserOptions();
-
-        /// <summary>
-        /// Parses one supported T-SQL statement and throws when parsing or optional table validation fails.
-        /// </summary>
-        /// <param name="sql">The statement text. Input outside the documented supported subset is rejected.</param>
-        /// <param name="existingTables">Optional table descriptors used to resolve and validate table/column references.</param>
-        /// <returns>The parsed SqExpress statement or query syntax tree.</returns>
-        /// <exception cref="SqExpressTSqlParserException">The text is invalid, unsupported, ambiguous, or inconsistent with the supplied descriptors.</exception>
-        public static IExpr Parse(string sql, IReadOnlyList<TableBase>? existingTables = null)
-            => Parse(sql, existingTables, options: null);
-
-        /// <summary>
-        /// Parses one supported T-SQL statement using explicit parser options.
-        /// </summary>
-        /// <param name="sql">The statement text. Input outside the documented supported subset is rejected.</param>
-        /// <param name="existingTables">Optional table descriptors used to resolve and validate table/column references.</param>
-        /// <param name="options">Parser and binding behavior, or <see langword="null"/> for defaults.</param>
-        /// <returns>The parsed SqExpress statement or query syntax tree.</returns>
-        /// <exception cref="SqExpressTSqlParserException">
-        /// The text is invalid, unsupported, or cannot be resolved against the supplied table descriptors.
-        /// </exception>
-        public static IExpr Parse(string sql, IReadOnlyList<TableBase>? existingTables, SqTSqlParserOptions? options)
+        var effectiveOptions = NormalizeOptions(options);
+        if (TryParseCore(sql, effectiveOptions, existingTables, out result, out var tables, out var errors))
         {
-            if (TryParse(sql, existingTables, options, out IExpr? expr, out var error))
-            {
-                return expr;
-            }
-
-            throw new SqExpressTSqlParserException(error ?? "Could not parse SQL.");
-        }
-
-        /// <summary>
-        /// Attempts to parse one supported T-SQL statement without throwing for parse or validation failures.
-        /// </summary>
-        /// <param name="sql">The statement text to parse.</param>
-        /// <param name="existingTables">Optional descriptors used for fail-closed reference validation.</param>
-        /// <param name="result">Receives the syntax tree on success; otherwise <see langword="null"/>.</param>
-        /// <param name="error">Receives a diagnostic on failure; otherwise <see langword="null"/>.</param>
-        /// <returns><see langword="true"/> only when the complete input is supported, parsed, and validated.</returns>
-        public static bool TryParse(
-            string sql,
-            IReadOnlyList<TableBase>? existingTables,
-            [NotNullWhen(true)] out IExpr? result,
-            [NotNullWhen(false)] out string? error)
-            => TryParse(sql, existingTables, options: null, out result, out error);
-
-        /// <summary>
-        /// Attempts to parse one supported T-SQL statement with explicit parser options.
-        /// </summary>
-        /// <remarks>
-        /// On failure, <paramref name="result"/> is <see langword="null"/> and <paramref name="error"/>
-        /// contains the parser or binding diagnostic.
-        /// </remarks>
-        /// <param name="sql">The statement text to parse.</param>
-        /// <param name="existingTables">Optional descriptors used for fail-closed reference validation.</param>
-        /// <param name="options">Parser and binding behavior, or <see langword="null"/> for defaults.</param>
-        /// <param name="result">Receives the syntax tree on success; otherwise <see langword="null"/>.</param>
-        /// <param name="error">Receives a diagnostic on failure; otherwise <see langword="null"/>.</param>
-        /// <returns><see langword="true"/> only when the complete input is supported, parsed, and validated.</returns>
-        public static bool TryParse(
-            string sql,
-            IReadOnlyList<TableBase>? existingTables,
-            SqTSqlParserOptions? options,
-            [NotNullWhen(true)] out IExpr? result,
-            [NotNullWhen(false)] out string? error)
-        {
-            var effectiveOptions = NormalizeOptions(options);
-            if (TryParseCore(sql, effectiveOptions, existingTables, out result, out var tables, out var errors))
-            {
-                if (existingTables != null
-                    && !TryValidateParsedTables(existingTables, tables!, effectiveOptions.DefaultSchema, out error))
-                {
-                    result = null;
-                    return false;
-                }
-
-                error = null;
-                return true;
-            }
-
-            result = null;
-            error = string.Join(Environment.NewLine, errors);
-            return false;
-        }
-
-        public static bool TryParse(
-            string sql,
-            [NotNullWhen(true)] out IExpr? result,
-            [NotNullWhen(false)] out string? error)
-            => TryParse(sql, options: null, out result, out error);
-
-        public static bool TryParse(
-            string sql,
-            SqTSqlParserOptions? options,
-            [NotNullWhen(true)] out IExpr? result,
-            [NotNullWhen(false)] out string? error)
-            => TryParse(sql, options, out result, out _, out error);
-
-        public static bool TryParse(
-            string sql,
-            [NotNullWhen(true)] out IExpr? result,
-            [NotNullWhen(true)] out IReadOnlyList<SqTable>? tables,
-            [NotNullWhen(false)] out string? error)
-            => TryParse(sql, options: null, out result, out tables, out error);
-
-        public static bool TryParse(
-            string sql,
-            SqTSqlParserOptions? options,
-            [NotNullWhen(true)] out IExpr? result,
-            [NotNullWhen(true)] out IReadOnlyList<SqTable>? tables,
-            [NotNullWhen(false)] out string? error)
-        {
-            if (TryParseCore(sql, NormalizeOptions(options), existingTables: null, out result, out tables, out var errors))
-            {
-                error = null;
-                return true;
-            }
-
-            result = null;
-            error = string.Join(Environment.NewLine, errors);
-            return false;
-        }
-
-        private static bool TryParseCore(
-            string sql,
-            SqTSqlParserOptions options,
-            IReadOnlyList<TableBase>? existingTables,
-            [NotNullWhen(true)] out IExpr? result,
-            [NotNullWhen(true)] out IReadOnlyList<SqTable>? tables,
-            [NotNullWhen(false)] out IReadOnlyList<string>? errors)
-        {
-            if (!SqlDomParser.TryParseSingleStatement(sql, out var statement, out errors))
+            if (existingTables != null
+                && !TryValidateParsedTables(existingTables, tables!, effectiveOptions.DefaultSchema, out error))
             {
                 result = null;
-                tables = null;
                 return false;
             }
 
-            var extractedTables = SqlDomTableArtifactExtractor.ExtractTables(statement!, options.DefaultSchema);
+            error = null;
+            return true;
+        }
 
-            if (SqlDomToSqExprMapper.TryMap(statement!, options.DefaultSchema, existingTables, out result, out _, out var mappingError))
-            {
-                if (extractedTables.Count < 1 && result is ExprUpdate update)
-                {
-                    extractedTables = EnsureUpdateTargetTable(update, options.DefaultSchema);
-                }
+        result = null;
+        error = string.Join(Environment.NewLine, errors);
+        return false;
+    }
 
-                tables = extractedTables;
-                errors = null;
-                return true;
-            }
+    public static bool TryParse(
+        string sql,
+        [NotNullWhen(true)] out IExpr? result,
+        [NotNullWhen(false)] out string? error)
+        => TryParse(sql, options: null, out result, out error);
 
+    public static bool TryParse(
+        string sql,
+        SqTSqlParserOptions? options,
+        [NotNullWhen(true)] out IExpr? result,
+        [NotNullWhen(false)] out string? error)
+        => TryParse(sql, options, out result, out _, out error);
+
+    public static bool TryParse(
+        string sql,
+        [NotNullWhen(true)] out IExpr? result,
+        [NotNullWhen(true)] out IReadOnlyList<SqTable>? tables,
+        [NotNullWhen(false)] out string? error)
+        => TryParse(sql, options: null, out result, out tables, out error);
+
+    public static bool TryParse(
+        string sql,
+        SqTSqlParserOptions? options,
+        [NotNullWhen(true)] out IExpr? result,
+        [NotNullWhen(true)] out IReadOnlyList<SqTable>? tables,
+        [NotNullWhen(false)] out string? error)
+    {
+        if (TryParseCore(sql, NormalizeOptions(options), existingTables: null, out result, out tables, out var errors))
+        {
+            error = null;
+            return true;
+        }
+
+        result = null;
+        error = string.Join(Environment.NewLine, errors);
+        return false;
+    }
+
+    private static bool TryParseCore(
+        string sql,
+        SqTSqlParserOptions options,
+        IReadOnlyList<TableBase>? existingTables,
+        [NotNullWhen(true)] out IExpr? result,
+        [NotNullWhen(true)] out IReadOnlyList<SqTable>? tables,
+        [NotNullWhen(false)] out IReadOnlyList<string>? errors)
+    {
+        if (!SqlDomParser.TryParseSingleStatement(sql, out var statement, out errors))
+        {
             result = null;
+            tables = null;
+            return false;
+        }
+
+        var extractedTables = SqlDomTableArtifactExtractor.ExtractTables(statement!, options.DefaultSchema);
+
+        if (SqlDomToSqExprMapper.TryMap(statement!, options.DefaultSchema, existingTables, out result, out _, out var mappingError))
+        {
+            if (extractedTables.Count < 1 && result is ExprUpdate update)
+            {
+                extractedTables = EnsureUpdateTargetTable(update, options.DefaultSchema);
+            }
+
             tables = extractedTables;
-            errors = new[] { mappingError ?? "Could not map SQL DOM to SqExpress AST." };
-            return false;
+            errors = null;
+            return true;
         }
 
-        private static SqTSqlParserOptions NormalizeOptions(SqTSqlParserOptions? options)
-            => options ?? DefaultOptions;
+        result = null;
+        tables = extractedTables;
+        errors = new[] { mappingError ?? "Could not map SQL DOM to SqExpress AST." };
+        return false;
+    }
 
-        private static IReadOnlyList<SqTable> EnsureUpdateTargetTable(ExprUpdate update, string? defaultSchema)
+    private static SqTSqlParserOptions NormalizeOptions(SqTSqlParserOptions? options)
+        => options ?? DefaultOptions;
+
+    private static IReadOnlyList<SqTable> EnsureUpdateTargetTable(ExprUpdate update, string? defaultSchema)
+    {
+        var fullName = update.Target.FullName.AsExprTableFullName();
+        var schema = fullName.DbSchema?.Schema.Name ?? defaultSchema;
+        var table = fullName.TableName.Name;
+        return new[] { SqTable.Create(schema, table, a => a) };
+    }
+
+    private static bool TryValidateParsedTables(
+        IReadOnlyList<TableBase> existingTables,
+        IReadOnlyList<SqTable> parsedTables,
+        string? defaultSchema,
+        [NotNullWhen(false)] out string? error)
+    {
+        const TableComparisonFlags comparisonFlags =
+            TableComparisonFlags.IgnoreExtraColumns
+            | TableComparisonFlags.IgnoreIndexes
+            | TableComparisonFlags.IgnoreColumnShape
+            | TableComparisonFlags.IgnoreColumnMeta;
+
+        if (parsedTables.Count < 1)
         {
-            var fullName = update.Target.FullName.AsExprTableFullName();
-            var schema = fullName.DbSchema?.Schema.Name ?? defaultSchema;
-            var table = fullName.TableName.Name;
-            return new[] { SqTable.Create(schema, table, a => a) };
+            error = null;
+            return true;
         }
 
-        private static bool TryValidateParsedTables(
-            IReadOnlyList<TableBase> existingTables,
-            IReadOnlyList<SqTable> parsedTables,
-            string? defaultSchema,
-            [NotNullWhen(false)] out string? error)
+        var comparison = parsedTables.CompareWith(
+            existingTables,
+            comparisonFlags,
+            i => BuildTableComparisonKey(i, defaultSchema));
+        if (comparison == null)
         {
-            const TableComparisonFlags comparisonFlags =
-                TableComparisonFlags.IgnoreExtraColumns
-                | TableComparisonFlags.IgnoreIndexes
-                | TableComparisonFlags.IgnoreColumnShape
-                | TableComparisonFlags.IgnoreColumnMeta;
-
-            if (parsedTables.Count < 1)
-            {
-                error = null;
-                return true;
-            }
-
-            var comparison = parsedTables.CompareWith(
-                existingTables,
-                comparisonFlags,
-                i => BuildTableComparisonKey(i, defaultSchema));
-            if (comparison == null)
-            {
-                error = null;
-                return true;
-            }
-
-            var unexpectedTables = comparison.MissedTables
-                .Select(i => FormatTableName(i.FullName, defaultSchema))
-                .OrderBy(i => i, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            var tableDifferences = new List<string>();
-            foreach (var tableDifference in comparison.DifferentTables.OrderBy(i => BuildTableComparisonKey(i.Table.FullName, defaultSchema), StringComparer.Ordinal))
-            {
-                var tableDiff = BuildTableDifferenceMessage(tableDifference.OtherTable, tableDifference.TableComparison, defaultSchema);
-                if (!string.IsNullOrEmpty(tableDiff))
-                {
-                    tableDifferences.Add(tableDiff!);
-                }
-            }
-
-            if (unexpectedTables.Count < 1 && tableDifferences.Count < 1)
-            {
-                error = null;
-                return true;
-            }
-
-            var parts = new List<string>
-            {
-                "Parsed SQL table artifacts do not match provided existing tables."
-            };
-
-            if (unexpectedTables.Count > 0)
-            {
-                parts.Add("Unexpected tables: " + string.Join(", ", unexpectedTables));
-            }
-
-            if (tableDifferences.Count > 0)
-            {
-                parts.Add("Table differences: " + string.Join("; ", tableDifferences));
-            }
-
-            error = string.Join(Environment.NewLine, parts);
-            return false;
+            error = null;
+            return true;
         }
 
-        private static string? BuildTableDifferenceMessage(TableBase expected, TableComparison comparison, string? defaultSchema)
+        var unexpectedTables = comparison.MissedTables
+            .Select(i => FormatTableName(i.FullName, defaultSchema))
+            .OrderBy(i => i, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var tableDifferences = new List<string>();
+        foreach (var tableDifference in comparison.DifferentTables.OrderBy(i => BuildTableComparisonKey(i.Table.FullName, defaultSchema), StringComparer.Ordinal))
         {
-            var parsedOnlyColumns = comparison.MissedColumns.ToList();
-
-            var changedColumns = new List<string>();
-            foreach (var differentColumn in comparison.DifferentColumns.OrderBy(i => i.Column.ColumnName.Name, StringComparer.OrdinalIgnoreCase))
+            var tableDiff = BuildTableDifferenceMessage(tableDifference.OtherTable, tableDifference.TableComparison, defaultSchema);
+            if (!string.IsNullOrEmpty(tableDiff))
             {
-                var relevantComparison = differentColumn.ColumnComparison & TableColumnComparison.DifferentName;
-                if (relevantComparison != TableColumnComparison.Equal)
-                {
-                    changedColumns.Add($"[{differentColumn.Column.ColumnName.Name}] ({relevantComparison})");
-                }
+                tableDifferences.Add(tableDiff!);
             }
-
-            var matchedParsedOnlyIndexes = new HashSet<int>();
-            var expectedColumnsByLowerName = expected.Columns
-                .GroupBy(i => i.ColumnName.Name.ToLowerInvariant(), StringComparer.Ordinal)
-                .ToDictionary(i => i.Key, i => i.First(), StringComparer.Ordinal);
-            for (var m = 0; m < parsedOnlyColumns.Count; m++)
-            {
-                var parsedOnly = parsedOnlyColumns[m];
-                var parsedOnlyLower = parsedOnly.ColumnName.Name.ToLowerInvariant();
-
-                if (!expectedColumnsByLowerName.TryGetValue(parsedOnlyLower, out var expectedColumn))
-                {
-                    continue;
-                }
-
-                if (!string.Equals(expectedColumn.ColumnName.Name, parsedOnly.ColumnName.Name, StringComparison.Ordinal))
-                {
-                    changedColumns.Add($"[{parsedOnly.ColumnName.Name}] ({TableColumnComparison.DifferentName})");
-                }
-
-                matchedParsedOnlyIndexes.Add(m);
-            }
-
-            var extraColumns = parsedOnlyColumns
-                .Where((_, i) => !matchedParsedOnlyIndexes.Contains(i))
-                .Select(i => $"[{i.ColumnName.Name}]")
-                .OrderBy(i => i, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            changedColumns = changedColumns
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(i => i, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            if (extraColumns.Count < 1 && changedColumns.Count < 1)
-            {
-                return null;
-            }
-
-            var parts = new List<string>
-            {
-                FormatTableName(expected.FullName, defaultSchema)
-            };
-
-            if (extraColumns.Count > 0)
-            {
-                parts.Add("extra columns: " + string.Join(", ", extraColumns));
-            }
-
-            if (changedColumns.Count > 0)
-            {
-                parts.Add("changed columns: " + string.Join(", ", changedColumns));
-            }
-
-            return string.Join(", ", parts);
         }
 
-        private static string BuildTableComparisonKey(IExprTableFullName fullName, string? defaultSchema)
+        if (unexpectedTables.Count < 1 && tableDifferences.Count < 1)
         {
-            var table = fullName.AsExprTableFullName();
-            var schema = table.DbSchema?.Schema.Name ?? defaultSchema;
-            return string.IsNullOrWhiteSpace(schema)
-                ? table.TableName.Name.ToUpperInvariant()
-                : (schema + "." + table.TableName.Name).ToUpperInvariant();
+            error = null;
+            return true;
         }
 
-        private static string FormatTableName(IExprTableFullName fullName, string? defaultSchema)
+        var parts = new List<string>
         {
-            var table = fullName.AsExprTableFullName();
-            var schema = table.DbSchema?.Schema.Name ?? defaultSchema;
-            return string.IsNullOrWhiteSpace(schema)
-                ? $"[{table.TableName.Name}]"
-                : $"[{schema}].[{table.TableName.Name}]";
+            "Parsed SQL table artifacts do not match provided existing tables."
+        };
+
+        if (unexpectedTables.Count > 0)
+        {
+            parts.Add("Unexpected tables: " + string.Join(", ", unexpectedTables));
         }
+
+        if (tableDifferences.Count > 0)
+        {
+            parts.Add("Table differences: " + string.Join("; ", tableDifferences));
+        }
+
+        error = string.Join(Environment.NewLine, parts);
+        return false;
+    }
+
+    private static string? BuildTableDifferenceMessage(TableBase expected, TableComparison comparison, string? defaultSchema)
+    {
+        var parsedOnlyColumns = comparison.MissedColumns.ToList();
+
+        var changedColumns = new List<string>();
+        foreach (var differentColumn in comparison.DifferentColumns.OrderBy(i => i.Column.ColumnName.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            var relevantComparison = differentColumn.ColumnComparison & TableColumnComparison.DifferentName;
+            if (relevantComparison != TableColumnComparison.Equal)
+            {
+                changedColumns.Add($"[{differentColumn.Column.ColumnName.Name}] ({relevantComparison})");
+            }
+        }
+
+        var matchedParsedOnlyIndexes = new HashSet<int>();
+        var expectedColumnsByLowerName = expected.Columns
+            .GroupBy(i => i.ColumnName.Name.ToLowerInvariant(), StringComparer.Ordinal)
+            .ToDictionary(i => i.Key, i => i.First(), StringComparer.Ordinal);
+        for (var m = 0; m < parsedOnlyColumns.Count; m++)
+        {
+            var parsedOnly = parsedOnlyColumns[m];
+            var parsedOnlyLower = parsedOnly.ColumnName.Name.ToLowerInvariant();
+
+            if (!expectedColumnsByLowerName.TryGetValue(parsedOnlyLower, out var expectedColumn))
+            {
+                continue;
+            }
+
+            if (!string.Equals(expectedColumn.ColumnName.Name, parsedOnly.ColumnName.Name, StringComparison.Ordinal))
+            {
+                changedColumns.Add($"[{parsedOnly.ColumnName.Name}] ({TableColumnComparison.DifferentName})");
+            }
+
+            matchedParsedOnlyIndexes.Add(m);
+        }
+
+        var extraColumns = parsedOnlyColumns
+            .Where((_, i) => !matchedParsedOnlyIndexes.Contains(i))
+            .Select(i => $"[{i.ColumnName.Name}]")
+            .OrderBy(i => i, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        changedColumns = changedColumns
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(i => i, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (extraColumns.Count < 1 && changedColumns.Count < 1)
+        {
+            return null;
+        }
+
+        var parts = new List<string>
+        {
+            FormatTableName(expected.FullName, defaultSchema)
+        };
+
+        if (extraColumns.Count > 0)
+        {
+            parts.Add("extra columns: " + string.Join(", ", extraColumns));
+        }
+
+        if (changedColumns.Count > 0)
+        {
+            parts.Add("changed columns: " + string.Join(", ", changedColumns));
+        }
+
+        return string.Join(", ", parts);
+    }
+
+    private static string BuildTableComparisonKey(IExprTableFullName fullName, string? defaultSchema)
+    {
+        var table = fullName.AsExprTableFullName();
+        var schema = table.DbSchema?.Schema.Name ?? defaultSchema;
+        return string.IsNullOrWhiteSpace(schema)
+            ? table.TableName.Name.ToUpperInvariant()
+            : (schema + "." + table.TableName.Name).ToUpperInvariant();
+    }
+
+    private static string FormatTableName(IExprTableFullName fullName, string? defaultSchema)
+    {
+        var table = fullName.AsExprTableFullName();
+        var schema = table.DbSchema?.Schema.Name ?? defaultSchema;
+        return string.IsNullOrWhiteSpace(schema)
+            ? $"[{table.TableName.Name}]"
+            : $"[{schema}].[{table.TableName.Name}]";
     }
 }

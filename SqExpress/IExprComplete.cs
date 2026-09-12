@@ -1,9 +1,8 @@
 ﻿using SqExpress.Syntax;
 
-namespace SqExpress
-{
-    public interface IExprComplete : IExpr
-    {
+namespace SqExpress;
 
-    }
+public interface IExprComplete : IExpr
+{
+
 }

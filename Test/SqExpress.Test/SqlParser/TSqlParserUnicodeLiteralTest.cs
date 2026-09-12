@@ -2,19 +2,18 @@ using NUnit.Framework;
 using SqExpress.SqlParser;
 using SqExpress.Syntax;
 
-namespace SqExpress.Test.SqlParser
+namespace SqExpress.Test.SqlParser;
+
+public class TSqlParserUnicodeLiteralTest
 {
-    public class TSqlParserUnicodeLiteralTest
+    [Test]
+    public void UnicodePrefixedStringLiteralParses()
     {
-        [Test]
-        public void UnicodePrefixedStringLiteralParses()
-        {
-            var sql = "SELECT [u].[UserId] FROM [dbo].[Users] [u] WHERE [u].[Name]=N'A'";
+        var sql = "SELECT [u].[UserId] FROM [dbo].[Users] [u] WHERE [u].[Name]=N'A'";
 
-            var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var error);
+        var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var error);
 
-            Assert.That(ok, Is.True, error);
-            Assert.That(expr, Is.Not.Null);
-        }
+        Assert.That(ok, Is.True, error);
+        Assert.That(expr, Is.Not.Null);
     }
 }

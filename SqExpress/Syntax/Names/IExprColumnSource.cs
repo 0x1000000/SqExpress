@@ -1,6 +1,5 @@
-﻿namespace SqExpress.Syntax.Names
+﻿namespace SqExpress.Syntax.Names;
+
+public interface IExprColumnSource : IExpr
 {
-    public interface IExprColumnSource : IExpr
-    {
-    }
 }

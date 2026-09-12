@@ -2,68 +2,67 @@
 using System.Collections.Generic;
 using SqExpress.Syntax.Select;
 
-namespace SqExpress.Syntax.Names
+namespace SqExpress.Syntax.Names;
+
+public class ExprTable : IExprTableSource, IEquatable<ExprTable>
 {
-    public class ExprTable : IExprTableSource, IEquatable<ExprTable>
+    public ExprTable(IExprTableFullName fullName, ExprTableAlias? alias)
     {
-        public ExprTable(IExprTableFullName fullName, ExprTableAlias? alias)
+        this.Alias = alias;
+        this.FullName = fullName;
+    }
+
+    public ExprTableAlias? Alias { get; }
+
+    public IExprTableFullName FullName { get; }
+
+    public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        => visitor.VisitExprTable(this, arg);
+
+    public TableMultiplication ToTableMultiplication()
+    {
+        return new TableMultiplication(new[] {this}, null);
+    }
+
+    public IReadOnlyList<IExprSelecting> ExtractSelecting()
+    {
+        if (this is TableBase tableBase)
         {
-            this.Alias = alias;
-            this.FullName = fullName;
+            return tableBase.Columns;
         }
 
-        public ExprTableAlias? Alias { get; }
+        return [];
+    }
 
-        public IExprTableFullName FullName { get; }
-
-        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
-            => visitor.VisitExprTable(this, arg);
-
-        public TableMultiplication ToTableMultiplication()
+    public IExprSubQuery CreateSubQuery()
+    {
+        if (this is TableBase tableBase)
         {
-            return new TableMultiplication(new[] {this}, null);
+            return SqQueryBuilder.Select(tableBase.Columns).From(tableBase).Done();
         }
+        return SqQueryBuilder.Select(SqQueryBuilder.AllColumns()).From(this).Done();
+    }
 
-        public IReadOnlyList<IExprSelecting> ExtractSelecting()
+    public bool Equals(ExprTable? other)
+    {
+        if (ReferenceEquals(null, other)) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return Equals(this.Alias, other.Alias) && this.FullName.Equals(other.FullName);
+    }
+
+    public override bool Equals(object? obj)
+    {
+        if (ReferenceEquals(null, obj)) return false;
+        if (ReferenceEquals(this, obj)) return true;
+        if (obj.GetType() != this.GetType()) return false;
+        return this.Equals((ExprTable) obj);
+    }
+
+    public override int GetHashCode()
+    {
+        unchecked
         {
-            if (this is TableBase tableBase)
-            {
-                return tableBase.Columns;
-            }
-
-            return [];
-        }
-
-        public IExprSubQuery CreateSubQuery()
-        {
-            if (this is TableBase tableBase)
-            {
-                return SqQueryBuilder.Select(tableBase.Columns).From(tableBase).Done();
-            }
-            return SqQueryBuilder.Select(SqQueryBuilder.AllColumns()).From(this).Done();
-        }
-
-        public bool Equals(ExprTable? other)
-        {
-            if (ReferenceEquals(null, other)) return false;
-            if (ReferenceEquals(this, other)) return true;
-            return Equals(this.Alias, other.Alias) && this.FullName.Equals(other.FullName);
-        }
-
-        public override bool Equals(object? obj)
-        {
-            if (ReferenceEquals(null, obj)) return false;
-            if (ReferenceEquals(this, obj)) return true;
-            if (obj.GetType() != this.GetType()) return false;
-            return this.Equals((ExprTable) obj);
-        }
-
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                return ((this.Alias != null ? this.Alias.GetHashCode() : 0) * 397) ^ this.FullName.GetHashCode();
-            }
+            return ((this.Alias != null ? this.Alias.GetHashCode() : 0) * 397) ^ this.FullName.GetHashCode();
         }
     }
 }

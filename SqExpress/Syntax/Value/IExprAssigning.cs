@@ -1,7 +1,6 @@
-﻿namespace SqExpress.Syntax.Value
+﻿namespace SqExpress.Syntax.Value;
+
+public interface IExprAssigning :IExpr
 {
-    public interface IExprAssigning :IExpr
-    {
         
-    }
 }

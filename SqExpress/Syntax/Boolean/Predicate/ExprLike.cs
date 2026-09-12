@@ -1,20 +1,19 @@
 ﻿using SqExpress.Syntax.Value;
 
-namespace SqExpress.Syntax.Boolean.Predicate
+namespace SqExpress.Syntax.Boolean.Predicate;
+
+public class ExprLike : ExprPredicate
 {
-    public class ExprLike : ExprPredicate
+    public ExprLike(ExprValue test, ExprValue pattern)
     {
-        public ExprLike(ExprValue test, ExprValue pattern)
-        {
-            this.Test = test;
-            this.Pattern = pattern;
-        }
-
-        public ExprValue Test { get; }
-
-        public ExprValue Pattern { get; }
-
-        public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
-            => visitor.VisitExprLike(this, arg);
+        this.Test = test;
+        this.Pattern = pattern;
     }
+
+    public ExprValue Test { get; }
+
+    public ExprValue Pattern { get; }
+
+    public override TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        => visitor.VisitExprLike(this, arg);
 }

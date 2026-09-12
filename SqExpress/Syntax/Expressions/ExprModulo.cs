@@ -1,20 +1,19 @@
 ﻿using SqExpress.Syntax.Value;
 
-namespace SqExpress.Syntax.Expressions
+namespace SqExpress.Syntax.Expressions;
+
+public class ExprModulo : ExprArithmetic
 {
-    public class ExprModulo : ExprArithmetic
+    public ExprModulo(ExprValue left, ExprValue right)
     {
-        public ExprModulo(ExprValue left, ExprValue right)
-        {
-            this.Left = left;
-            this.Right = right;
-        }
-
-        public ExprValue Left { get; }
-
-        public ExprValue Right { get; }
-
-        public override TRes Accept<TRes, TArg>(IExprValueVisitor<TRes, TArg> visitor, TArg arg)
-            => visitor.VisitExprModulo(this, arg);
+        this.Left = left;
+        this.Right = right;
     }
+
+    public ExprValue Left { get; }
+
+    public ExprValue Right { get; }
+
+    public override TRes Accept<TRes, TArg>(IExprValueVisitor<TRes, TArg> visitor, TArg arg)
+        => visitor.VisitExprModulo(this, arg);
 }

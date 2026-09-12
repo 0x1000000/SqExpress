@@ -1,7 +1,6 @@
-﻿namespace SqExpress.Syntax.Names
+﻿namespace SqExpress.Syntax.Names;
+
+public interface IExprAlias : IExpr
 {
-    public interface IExprAlias : IExpr
-    {
         
-    }
 }

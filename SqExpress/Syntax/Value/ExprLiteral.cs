@@ -1,7 +1,6 @@
-﻿namespace SqExpress.Syntax.Value
+﻿namespace SqExpress.Syntax.Value;
+
+public abstract class ExprLiteral : ExprValue
 {
-    public abstract class ExprLiteral : ExprValue
-    {
         
-    }
 }

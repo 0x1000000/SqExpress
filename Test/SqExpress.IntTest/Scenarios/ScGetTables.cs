@@ -1,7 +1,6 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using SqExpress;
 using SqExpress.IntTest.Context;
 using SqExpress.IntTest.Tables;
 using SqExpress.Syntax.Names;

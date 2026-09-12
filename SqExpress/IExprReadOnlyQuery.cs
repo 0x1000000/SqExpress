@@ -1,6 +1,5 @@
-namespace SqExpress
+namespace SqExpress;
+
+public interface IExprReadOnlyQuery : IExprQuery
 {
-    public interface IExprReadOnlyQuery : IExprQuery
-    {
-    }
 }

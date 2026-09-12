@@ -4,127 +4,126 @@ using System.Globalization;
 using System.Linq;
 using SqExpress.Syntax;
 
-namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
+namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal;
+
+public delegate T PlainItemFactory<T>(int id, int parentId, int? arrayIndex, bool isTypeTag, string tag, string? value)
+    where T : IPlainItem;
+
+internal class ExprPlainWriter<T> : IWalkerVisitor<int>
+    where T : IPlainItem
 {
-    public delegate T PlainItemFactory<T>(int id, int parentId, int? arrayIndex, bool isTypeTag, string tag, string? value)
-        where T : IPlainItem;
+    private readonly List<T> _buffer = new List<T>();
 
-    internal class ExprPlainWriter<T> : IWalkerVisitor<int>
-        where T : IPlainItem
+    private readonly PlainItemFactory<T> _factory;
+
+    private int _currentId;
+
+    private int GetNewId() => ++this._currentId;
+
+    public ExprPlainWriter(PlainItemFactory<T> factory)
     {
-        private readonly List<T> _buffer = new List<T>();
+        this._factory = factory;
+    }
 
-        private readonly PlainItemFactory<T> _factory;
+    public IReadOnlyList<T> Result => this._buffer;
 
-        private int _currentId;
+    public VisitorResult<int> VisitExpr(IExpr expr, string typeTag, int ctx)
+    {
+        var newId = this._currentId;
+        this._buffer.Add(this._factory(newId, ctx, null, true, typeTag, null));
+        return VisitorResult<int>.Continue(newId);
+    }
 
-        private int GetNewId() => ++this._currentId;
+    public void EndVisitExpr(IExpr expr, int ctx)
+    {
+    }
 
-        public ExprPlainWriter(PlainItemFactory<T> factory)
+    public void VisitProperty(string name, bool isArray, bool isNull, int ctx)
+    {
+        if (!isNull && !isArray)
         {
-            this._factory = factory;
+            this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, null));
         }
+    }
 
-        public IReadOnlyList<T> Result => this._buffer;
+    public void EndVisitProperty(string name, bool isArray, bool isNull, int ctx)
+    {
+    }
 
-        public VisitorResult<int> VisitExpr(IExpr expr, string typeTag, int ctx)
+    public void VisitArrayItem(string name, int arrayIndex, int ctx)
+    {
+        this._buffer.Add(this._factory(this.GetNewId(), ctx, arrayIndex, false, name, null));
+    }
+
+    public void EndVisitArrayItem(string name, int arrayIndex, int ctx)
+    {
+    }
+
+    public void VisitPlainProperty(string name, string? value, int ctx)
+    {
+        this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value));
+    }
+
+    public void VisitPlainProperty(string name, bool? value, int ctx)
+    {
+        this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
+    }
+
+    public void VisitPlainProperty(string name, byte? value, int ctx)
+    {
+        this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
+    }
+
+    public void VisitPlainProperty(string name, short? value, int ctx)
+    {
+        this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
+    }
+
+    public void VisitPlainProperty(string name, int? value, int ctx)
+    {
+        this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
+    }
+
+    public void VisitPlainProperty(string name, long? value, int ctx)
+    {
+        this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
+    }
+
+    public void VisitPlainProperty(string name, decimal? value, int ctx)
+    {
+        this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
+    }
+
+    public void VisitPlainProperty(string name, double? value, int ctx)
+    {
+        this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
+    }
+
+    public void VisitPlainProperty(string name, DateTime? value, int ctx)
+    {
+        if (value != null)
         {
-            var newId = this._currentId;
-            this._buffer.Add(this._factory(newId, ctx, null, true, typeTag, null));
-            return VisitorResult<int>.Continue(newId);
+            string ts = value.Value.ToString("yyyy-MM-ddTHH:mm:ss.fff");
+            this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, ts));
         }
+    }
 
-        public void EndVisitExpr(IExpr expr, int ctx)
+    public void VisitPlainProperty(string name, DateTimeOffset? value, int ctx)
+    {
+        if (value != null)
         {
+            string ts = value.Value.ToString("O");
+            this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, ts));
         }
+    }
 
-        public void VisitProperty(string name, bool isArray, bool isNull, int ctx)
-        {
-            if (!isNull && !isArray)
-            {
-                this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, null));
-            }
-        }
+    public void VisitPlainProperty(string name, Guid? value, int ctx)
+    {
+        this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value?.ToString("D")));
+    }
 
-        public void EndVisitProperty(string name, bool isArray, bool isNull, int ctx)
-        {
-        }
-
-        public void VisitArrayItem(string name, int arrayIndex, int ctx)
-        {
-            this._buffer.Add(this._factory(this.GetNewId(), ctx, arrayIndex, false, name, null));
-        }
-
-        public void EndVisitArrayItem(string name, int arrayIndex, int ctx)
-        {
-        }
-
-        public void VisitPlainProperty(string name, string? value, int ctx)
-        {
-            this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value));
-        }
-
-        public void VisitPlainProperty(string name, bool? value, int ctx)
-        {
-            this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
-        }
-
-        public void VisitPlainProperty(string name, byte? value, int ctx)
-        {
-            this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
-        }
-
-        public void VisitPlainProperty(string name, short? value, int ctx)
-        {
-            this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
-        }
-
-        public void VisitPlainProperty(string name, int? value, int ctx)
-        {
-            this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
-        }
-
-        public void VisitPlainProperty(string name, long? value, int ctx)
-        {
-            this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
-        }
-
-        public void VisitPlainProperty(string name, decimal? value, int ctx)
-        {
-            this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
-        }
-
-        public void VisitPlainProperty(string name, double? value, int ctx)
-        {
-            this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
-        }
-
-        public void VisitPlainProperty(string name, DateTime? value, int ctx)
-        {
-            if (value != null)
-            {
-                string ts = value.Value.ToString("yyyy-MM-ddTHH:mm:ss.fff");
-                this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, ts));
-            }
-        }
-
-        public void VisitPlainProperty(string name, DateTimeOffset? value, int ctx)
-        {
-            if (value != null)
-            {
-                string ts = value.Value.ToString("O");
-                this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, ts));
-            }
-        }
-
-        public void VisitPlainProperty(string name, Guid? value, int ctx)
-        {
-            this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value?.ToString("D")));
-        }
-
-        public void VisitPlainProperty(string name, IReadOnlyList<byte>? value, int ctx)
-        {
-            this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value != null ? Convert.ToBase64String(value.ToArray()) : null));
-        }
+    public void VisitPlainProperty(string name, IReadOnlyList<byte>? value, int ctx)
+    {
+        this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value != null ? Convert.ToBase64String(value.ToArray()) : null));
     }
 }

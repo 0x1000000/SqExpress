@@ -2,46 +2,45 @@ using EnumVisitorGenerator;
 using SqExpress.DataAccess;
 using SqExpress.SqlExport;
 
-namespace SqExpress.IntTest.Context
+namespace SqExpress.IntTest.Context;
+
+public interface IScenarioContext
 {
-    public interface IScenarioContext
-    {
-        ISqDatabase Database { get; }
+    ISqDatabase Database { get; }
 
-        public SqlDialect Dialect { get; }
+    public SqlDialect Dialect { get; }
 
-        public ParametrizationMode ParametrizationMode { get; }
+    public ParametrizationMode ParametrizationMode { get; }
 
-        void Write(string? line);
+    void Write(string? line);
 
-        void WriteLine(string? line);
+    void WriteLine(string? line);
 
-        ISqlExporter SqlExporter { get; }
+    ISqlExporter SqlExporter { get; }
 
-        ISqDatabase CreteConnection();
-    }
+    ISqDatabase CreteConnection();
+}
 
-    [VisitorGenerator]
-    public enum SqlDialect
-    {
-        TSql,
-        PgSql,
-        MariaDb,
-        OracleMySql,
-        Sqlite
-    }
+[VisitorGenerator]
+public enum SqlDialect
+{
+    TSql,
+    PgSql,
+    MariaDb,
+    OracleMySql,
+    Sqlite
+}
 
-    [VisitorToMethod("GetExporter")]
-    public readonly struct ExporterSwitcher: ISqlDialectVisitor<ISqlExporter>
-    {
-        public ISqlExporter CaseTSql() => TSqlExporter.Default;
+[VisitorToMethod("GetExporter")]
+public readonly struct ExporterSwitcher: ISqlDialectVisitor<ISqlExporter>
+{
+    public ISqlExporter CaseTSql() => TSqlExporter.Default;
 
-        public ISqlExporter CasePgSql() => PgSqlExporter.Default;
+    public ISqlExporter CasePgSql() => PgSqlExporter.Default;
 
-        public ISqlExporter CaseMariaDb() => MySqlExporter.MariaDbDefault;
+    public ISqlExporter CaseMariaDb() => MySqlExporter.MariaDbDefault;
 
-        public ISqlExporter CaseOracleMySql() => MySqlExporter.OracleDefault;
+    public ISqlExporter CaseOracleMySql() => MySqlExporter.OracleDefault;
 
-        public ISqlExporter CaseSqlite() => SqliteExporter.Default;
-    }
+    public ISqlExporter CaseSqlite() => SqliteExporter.Default;
 }

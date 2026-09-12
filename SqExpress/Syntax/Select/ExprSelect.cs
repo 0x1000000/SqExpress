@@ -1,24 +1,23 @@
 ﻿using System.Collections.Generic;
 
-namespace SqExpress.Syntax.Select
+namespace SqExpress.Syntax.Select;
+
+public class ExprSelect : IExprReadOnlyQuery
 {
-    public class ExprSelect : IExprReadOnlyQuery
+    public ExprSelect(IExprSubQuery selectQuery, ExprOrderBy orderBy)
     {
-        public ExprSelect(IExprSubQuery selectQuery, ExprOrderBy orderBy)
-        {
-            this.SelectQuery = selectQuery;
-            this.OrderBy = orderBy;
-        }
-
-        public IExprSubQuery SelectQuery { get; }
-
-        public ExprOrderBy OrderBy { get; }
-
-        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
-            => visitor.VisitExprSelect(this, arg);
-
-        public IReadOnlyList<IExprSelecting> ExtractSelecting() => this.SelectQuery.ExtractSelecting();
-
-        public IReadOnlyList<string?> GetOutputColumnNames() => this.SelectQuery.GetOutputColumnNames();
+        this.SelectQuery = selectQuery;
+        this.OrderBy = orderBy;
     }
+
+    public IExprSubQuery SelectQuery { get; }
+
+    public ExprOrderBy OrderBy { get; }
+
+    public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        => visitor.VisitExprSelect(this, arg);
+
+    public IReadOnlyList<IExprSelecting> ExtractSelecting() => this.SelectQuery.ExtractSelecting();
+
+    public IReadOnlyList<string?> GetOutputColumnNames() => this.SelectQuery.GetOutputColumnNames();
 }

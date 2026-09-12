@@ -4,48 +4,47 @@ using SqExpress.IntTest.Context;
 using SqExpress.IntTest.Tables;
 using static SqExpress.SqQueryBuilder;
 
-namespace SqExpress.IntTest.Scenarios
+namespace SqExpress.IntTest.Scenarios;
+
+public class ScUpdateUsers : IScenario
 {
-    public class ScUpdateUsers : IScenario
+    public async Task Exec(IScenarioContext context)
     {
-        public async Task Exec(IScenarioContext context)
+        var tUser = AllTables.GetItUser(context.Dialect);
+        var tCustomer = AllTables.GetItCustomer();
+
+        var maxVersionObj = await Select(Max(tUser.Version))
+            .From(tUser)
+            .QueryScalar(context.Database);
+
+        var maxVersion = maxVersionObj == null
+            ? (int?)null
+            : Convert.ToInt32(maxVersionObj);
+
+        var countBefore = (long?)await Select(Cast(CountOne(), SqlType.Int64))
+            .From(tUser)
+            .Where(tUser.Version == maxVersion & Exists(SelectOne().From(tCustomer).Where(tCustomer.UserId == tUser.UserId)))
+            .QueryScalar(context.Database);
+
+        await Update(tUser)
+            .Set(tUser.Version, tUser.Version + 1)
+            .From(tUser)
+            .InnerJoin(tCustomer, on: tCustomer.UserId == tUser.UserId)
+            .All()
+            .Exec(context.Database);
+
+        var countAfter = (long?)await Select(Cast(CountOne(), SqlType.Int64))
+            .From(tUser)
+            .Where(tUser.Version == maxVersion + 1)
+            .QueryScalar(context.Database);
+
+        if (countBefore != countAfter)
         {
-            var tUser = AllTables.GetItUser(context.Dialect);
-            var tCustomer = AllTables.GetItCustomer();
-
-            var maxVersionObj = await Select(Max(tUser.Version))
-                .From(tUser)
-                .QueryScalar(context.Database);
-
-            var maxVersion = maxVersionObj == null
-                ? (int?)null
-                : Convert.ToInt32(maxVersionObj);
-
-            var countBefore = (long?)await Select(Cast(CountOne(), SqlType.Int64))
-                .From(tUser)
-                .Where(tUser.Version == maxVersion & Exists(SelectOne().From(tCustomer).Where(tCustomer.UserId == tUser.UserId)))
-                .QueryScalar(context.Database);
-
-            await Update(tUser)
-                .Set(tUser.Version, tUser.Version + 1)
-                .From(tUser)
-                .InnerJoin(tCustomer, on: tCustomer.UserId == tUser.UserId)
-                .All()
-                .Exec(context.Database);
-
-            var countAfter = (long?)await Select(Cast(CountOne(), SqlType.Int64))
-                .From(tUser)
-                .Where(tUser.Version == maxVersion + 1)
-                .QueryScalar(context.Database);
-
-            if (countBefore != countAfter)
-            {
-                throw new Exception($"Something went wrong: count before {countBefore}, count after {countAfter}");
-            }
-
-            Console.WriteLine();
-            Console.WriteLine($"{countAfter} items were updated.");
-            Console.WriteLine();
+            throw new Exception($"Something went wrong: count before {countBefore}, count after {countAfter}");
         }
+
+        Console.WriteLine();
+        Console.WriteLine($"{countAfter} items were updated.");
+        Console.WriteLine();
     }
 }

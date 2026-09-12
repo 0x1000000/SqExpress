@@ -1,9 +1,7 @@
-﻿using System.Collections.Generic;
-using SqExpress.Syntax.Select;
+﻿using SqExpress.Syntax.Select;
 
-namespace SqExpress
+namespace SqExpress;
+
+public interface IExprSubQuery : IExprReadOnlyQuery, ISubQuerySource
 {
-    public interface IExprSubQuery : IExprReadOnlyQuery, ISubQuerySource
-    {
-    }
 }

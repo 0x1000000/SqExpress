@@ -9,121 +9,119 @@ using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Update;
 using SqExpress.Utils;
 
-namespace SqExpress.QueryBuilders.Update.Internal
+namespace SqExpress.QueryBuilders.Update.Internal;
+
+internal class UpdateDataBuilder<TTable, TItem> : IUpdateDataBuilder<TTable, TItem>
+    where TTable : ExprTable
 {
-    internal class UpdateDataBuilder<TTable, TItem> : IUpdateDataBuilder<TTable, TItem>
-        where TTable : ExprTable
+    private readonly TTable _table;
+
+    private readonly IEnumerable<TItem> _data;
+
+    private readonly ExprTableAlias _sourceTableAlias;
+
+    private DataMapping<TTable, TItem>? _dataMapKeys;
+
+    private DataMapping<TTable, TItem>? _dataMap;
+
+    private MergeUpdateMapping<TTable>? _alsoSet;
+
+    public UpdateDataBuilder(TTable table, IEnumerable<TItem> data, IExprAlias sourceTableAlias)
     {
-        private readonly TTable _table;
+        this._table = table;
+        this._data = data;
+        this._sourceTableAlias = new ExprTableAlias(sourceTableAlias);
+    }
 
-        private readonly IEnumerable<TItem> _data;
+    public IUpdateDataBuilderMapData<TTable, TItem> MapDataKeys(DataMapping<TTable, TItem> mapping)
+    {
+        this._dataMapKeys = mapping.AssertArgumentNotNull(nameof(mapping));
+        return this;
+    }
 
-        private readonly ExprTableAlias _sourceTableAlias;
+    public IUpdateDataBuilderAlsoSet<TTable> MapData(DataMapping<TTable, TItem> mapping)
+    {
+        this._dataMap = mapping.AssertArgumentNotNull(nameof(mapping));
+        return this;
+    }
 
-        private DataMapping<TTable, TItem>? _dataMapKeys;
+    public IUpdateDataBuilderFinal AlsoSet(MergeUpdateMapping<TTable> mapping)
+    {
+        this._alsoSet = mapping.AssertArgumentNotNull(nameof(mapping));
+        return this;
+    }
 
-        private DataMapping<TTable, TItem>? _dataMap;
+    public ExprUpdate Done()
+    {
+        var (keys, allColumns, exprValuesTable) = Helpers.AnalyzeUpdateData(
+            data: this._data,
+            targetTable: this._table,
+            dataMapKeys: this._dataMapKeys.AssertNotNull("DataMapKeys should be initialized"),
+            dataMap: this._dataMap.AssertNotNull("DataMap should be initialized"),
+            extraDataMap: null,
+            sourceTableAlias: this._sourceTableAlias);
 
-        private MergeUpdateMapping<TTable>? _alsoSet;
+        var source = new ExprJoinedTable(this._table,
+            ExprJoinedTable.ExprJoinType.Inner,
+            exprValuesTable,
+            this.GetWhere(keys));
 
-        public UpdateDataBuilder(TTable table, IEnumerable<TItem> data, IExprAlias sourceTableAlias)
+        return new ExprUpdate(
+            target: this._table, 
+            setClause: this.GetSets(allColumns: allColumns, keys: keys), 
+            source: source, 
+            filter: null);
+    }
+
+    private ExprColumnSetClause[] GetSets(IReadOnlyList<ExprColumnName> allColumns, List<ExprColumnName> keys)
+    {
+        IReadOnlyList<ColumnValueUpdateMap>? extraMaps = null;
+        if (this._alsoSet != null)
         {
-            this._table = table;
-            this._data = data;
-            this._sourceTableAlias = new ExprTableAlias(sourceTableAlias);
+            var mergeUpdateSetter = new MergerUpdateSetter<TTable>(this._table, this._sourceTableAlias);
+            this._alsoSet.Invoke(mergeUpdateSetter);
+            extraMaps = mergeUpdateSetter.Maps;
         }
 
-        public IUpdateDataBuilderMapData<TTable, TItem> MapDataKeys(DataMapping<TTable, TItem> mapping)
+        var updateColNum = allColumns.Count - keys.Count;
+        ExprColumnSetClause[] sets = new ExprColumnSetClause[updateColNum + (extraMaps?.Count ?? 0)];
+
+        for (int i = keys.Count; i < allColumns.Count; i++)
         {
-            this._dataMapKeys = mapping.AssertArgumentNotNull(nameof(mapping));
-            return this;
+            sets[i - keys.Count] = new ExprColumnSetClause(allColumns[i].WithSource(this._table.Alias),
+                allColumns[i].WithSource(this._sourceTableAlias));
         }
 
-        public IUpdateDataBuilderAlsoSet<TTable> MapData(DataMapping<TTable, TItem> mapping)
+        if (extraMaps != null && extraMaps.Count > 0)
         {
-            this._dataMap = mapping.AssertArgumentNotNull(nameof(mapping));
-            return this;
-        }
-
-        public IUpdateDataBuilderFinal AlsoSet(MergeUpdateMapping<TTable> mapping)
-        {
-            this._alsoSet = mapping.AssertArgumentNotNull(nameof(mapping));
-            return this;
-        }
-
-        public ExprUpdate Done()
-        {
-            var (keys, allColumns, exprValuesTable) = Helpers.AnalyzeUpdateData(
-                data: this._data,
-                targetTable: this._table,
-                dataMapKeys: this._dataMapKeys.AssertNotNull("DataMapKeys should be initialized"),
-                dataMap: this._dataMap.AssertNotNull("DataMap should be initialized"),
-                extraDataMap: null,
-                sourceTableAlias: this._sourceTableAlias);
-
-            var source = new ExprJoinedTable(this._table,
-                ExprJoinedTable.ExprJoinType.Inner,
-                exprValuesTable,
-                this.GetWhere(keys));
-
-            return new ExprUpdate(
-                target: this._table, 
-                setClause: this.GetSets(allColumns: allColumns, keys: keys), 
-                source: source, 
-                filter: null);
-        }
-
-        private ExprColumnSetClause[] GetSets(IReadOnlyList<ExprColumnName> allColumns, List<ExprColumnName> keys)
-        {
-            IReadOnlyList<ColumnValueUpdateMap>? extraMaps = null;
-            if (this._alsoSet != null)
+            for (int i = updateColNum; i < sets.Length; i++)
             {
-                var mergeUpdateSetter = new MergerUpdateSetter<TTable>(this._table, this._sourceTableAlias);
-                this._alsoSet.Invoke(mergeUpdateSetter);
-                extraMaps = mergeUpdateSetter.Maps;
+                var extraMap = extraMaps[i - updateColNum];
+                sets[i] = new ExprColumnSetClause(extraMap.Column.WithSource(this._table.Alias), extraMap.Value);
             }
-
-            var updateColNum = allColumns.Count - keys.Count;
-            ExprColumnSetClause[] sets = new ExprColumnSetClause[updateColNum + (extraMaps?.Count ?? 0)];
-
-            for (int i = keys.Count; i < allColumns.Count; i++)
-            {
-                sets[i - keys.Count] = new ExprColumnSetClause(allColumns[i].WithSource(this._table.Alias),
-                    allColumns[i].WithSource(this._sourceTableAlias));
-            }
-
-            if (extraMaps != null && extraMaps.Count > 0)
-            {
-                for (int i = updateColNum; i < sets.Length; i++)
-                {
-                    var extraMap = extraMaps[i - updateColNum];
-                    sets[i] = new ExprColumnSetClause(extraMap.Column.WithSource(this._table.Alias), extraMap.Value);
-                }
-            }
-
-            HashSet<ExprColumn> duplicateChecker = new HashSet<ExprColumn>();
-            for (int i = 0; i < sets.Length; i++)
-            {
-                if (!duplicateChecker.Add(sets[i].Column))
-                {
-                    throw new SqExpressException(
-                        $"The column name '{sets[i].Column.ColumnName.Name}' is specified more than once in the SET clause");
-                }
-            }
-
-            return sets;
         }
 
-        private ExprBoolean GetWhere(IReadOnlyList<ExprColumnName> keys)
+        HashSet<ExprColumn> duplicateChecker = new HashSet<ExprColumn>();
+        for (int i = 0; i < sets.Length; i++)
         {
-            ExprBoolean? result = null;
-            foreach (var key in keys)
+            if (!duplicateChecker.Add(sets[i].Column))
             {
-                result = result & key.WithSource(this._table.Alias) == key.WithSource(this._sourceTableAlias);
+                throw new SqExpressException(
+                    $"The column name '{sets[i].Column.ColumnName.Name}' is specified more than once in the SET clause");
             }
-            return result.AssertNotNull("Update condition cannot be null");
         }
 
+        return sets;
+    }
+
+    private ExprBoolean GetWhere(IReadOnlyList<ExprColumnName> keys)
+    {
+        ExprBoolean? result = null;
+        foreach (var key in keys)
+        {
+            result = result & key.WithSource(this._table.Alias) == key.WithSource(this._sourceTableAlias);
+        }
+        return result.AssertNotNull("Update condition cannot be null");
     }
 
 }

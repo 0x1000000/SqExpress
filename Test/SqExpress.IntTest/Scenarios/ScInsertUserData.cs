@@ -9,150 +9,149 @@ using SqExpress.IntTest.Context;
 using SqExpress.IntTest.Tables;
 using static SqExpress.SqQueryBuilder;
 
-namespace SqExpress.IntTest.Scenarios
+namespace SqExpress.IntTest.Scenarios;
+
+public class ScInsertUserData : IScenario
 {
-    public class ScInsertUserData : IScenario
+    public async Task Exec(IScenarioContext context)
     {
-        public async Task Exec(IScenarioContext context)
+        var data = this.ReadUserData().ToList();
+
+        var utcNow = DateTime.UtcNow;
+        var userTable = AllTables.GetItUser(context.Dialect);
+
+        List<string> ids;
+        if (context.Dialect.IsOracleMySql())
         {
-            var data = this.ReadUserData().ToList();
-
-            var utcNow = DateTime.UtcNow;
-            var userTable = AllTables.GetItUser(context.Dialect);
-
-            List<string> ids;
-            if (context.Dialect.IsOracleMySql())
-            {
-                await InsertDataInto(userTable, data)
-                    .MapData(s => s
-                        .Set(s.Target.ExternalId, s.Source.ExternalId)
-                        .Set(s.Target.FirstName, s.Source.FirstName)
-                        .Set(s.Target.LastName, s.Source.LastName)
-                        .Set(s.Target.Email, s.Source.Email)
-                    )
-                    .AlsoInsert(s => s
-                        .Set(s.Target.RegDate, utcNow)
-                        .Set(s.Target.Version, 1)
-                        .Set(s.Target.Created, utcNow)
-                        .Set(s.Target.Modified, utcNow)
-                    )
-                    .Exec(context.Database);
-
-                ids = await Select(userTable.UserId, userTable.FirstName, userTable.LastName)
-                    .From(userTable)
-                    .Where(userTable.ExternalId.In(data.Select(d => d.ExternalId).ToArray()))
-                    .OrderBy(userTable.UserId)
-                    .QueryList(context.Database, r => $"{userTable.UserId.Read(r)}, {userTable.FirstName.Read(r)} {userTable.LastName.Read(r)}");
-            }
-            else
-            {
-                ids = await InsertDataInto(userTable, data)
-                    .MapData(s => s
-                        .Set(s.Target.ExternalId, s.Source.ExternalId)
-                        .Set(s.Target.FirstName, s.Source.FirstName)
-                        .Set(s.Target.LastName, s.Source.LastName)
-                        .Set(s.Target.Email, s.Source.Email)
-                    )
-                    .AlsoInsert(s => s
-                        .Set(s.Target.RegDate, utcNow)
-                        .Set(s.Target.Version, 1)
-                        .Set(s.Target.Created, utcNow)
-                        .Set(s.Target.Modified, utcNow)
-                    )
-                    .Output(userTable.UserId, userTable.FirstName, userTable.LastName)
-                    .QueryList(context.Database, r => $"{userTable.UserId.Read(r)}, {userTable.FirstName.Read(r)} {userTable.LastName.Read(r)}");
-            }
-
-            foreach (var id in ids.Take(3))
-            {
-                context.WriteLine(id);    
-            }
-            context.WriteLine("...");
-            context.WriteLine($"Total users inserted: {ids.Count}");
-
-            var count = (long?)await Select(Cast(CountOne(), SqlType.Int64)).From(userTable).QueryScalar(context.Database);
-            context.WriteLine($"Users count: {count}");
-
-            await InsertCustomers(context);
-        }
-
-        private static async Task InsertCustomers(IScenarioContext context)
-        {
-            var userTable = AllTables.GetItUser(context.Dialect);
-            var customerTable = AllTables.GetItCustomer();
-
-            await InsertInto(customerTable, customerTable.UserId)
-                .From(Select(userTable.UserId)
-                    .From(userTable)
-                    .Where(!Exists(SelectOne()
-                        .From(customerTable)
-                        .Where(customerTable.UserId == userTable.UserId))))
+            await InsertDataInto(userTable, data)
+                .MapData(s => s
+                    .Set(s.Target.ExternalId, s.Source.ExternalId)
+                    .Set(s.Target.FirstName, s.Source.FirstName)
+                    .Set(s.Target.LastName, s.Source.LastName)
+                    .Set(s.Target.Email, s.Source.Email)
+                )
+                .AlsoInsert(s => s
+                    .Set(s.Target.RegDate, utcNow)
+                    .Set(s.Target.Version, 1)
+                    .Set(s.Target.Created, utcNow)
+                    .Set(s.Target.Modified, utcNow)
+                )
                 .Exec(context.Database);
 
-            context.WriteLine("Customers inserted:");
-
-            var clCount = CustomColumnFactory.Int64("Count");
-
-            var res = await SelectDistinct(customerTable.CustomerId, userTable.UserId, Cast(CountOne().Over(), SqlType.Int64).As(clCount))
-                .From(customerTable)
-                .InnerJoin(userTable, @on: customerTable.UserId == userTable.UserId)
+            ids = await Select(userTable.UserId, userTable.FirstName, userTable.LastName)
+                .From(userTable)
+                .Where(userTable.ExternalId.In(data.Select(d => d.ExternalId).ToArray()))
                 .OrderBy(userTable.UserId)
-                .OffsetFetch(0, 5)
-                .QueryList(context.Database, r=> (UserId: userTable.UserId.Read(r), CustomerId: customerTable.CustomerId.Read(r), Count: clCount.Read(r)));
-
-            foreach (var tuple in res)
-            {
-                Console.WriteLine(tuple);
-            }
+                .QueryList(context.Database, r => $"{userTable.UserId.Read(r)}, {userTable.FirstName.Read(r)} {userTable.LastName.Read(r)}");
+        }
+        else
+        {
+            ids = await InsertDataInto(userTable, data)
+                .MapData(s => s
+                    .Set(s.Target.ExternalId, s.Source.ExternalId)
+                    .Set(s.Target.FirstName, s.Source.FirstName)
+                    .Set(s.Target.LastName, s.Source.LastName)
+                    .Set(s.Target.Email, s.Source.Email)
+                )
+                .AlsoInsert(s => s
+                    .Set(s.Target.RegDate, utcNow)
+                    .Set(s.Target.Version, 1)
+                    .Set(s.Target.Created, utcNow)
+                    .Set(s.Target.Modified, utcNow)
+                )
+                .Output(userTable.UserId, userTable.FirstName, userTable.LastName)
+                .QueryList(context.Database, r => $"{userTable.UserId.Read(r)}, {userTable.FirstName.Read(r)} {userTable.LastName.Read(r)}");
         }
 
-        private IEnumerable<JsonUserData> ReadUserData()
+        foreach (var id in ids.Take(3))
         {
-            var assembly = typeof(Program).GetTypeInfo().Assembly;
+            context.WriteLine(id);    
+        }
+        context.WriteLine("...");
+        context.WriteLine($"Total users inserted: {ids.Count}");
 
-            const string resourceName = "SqExpress.IntTest.TestData.users.json";
+        var count = (long?)await Select(Cast(CountOne(), SqlType.Int64)).From(userTable).QueryScalar(context.Database);
+        context.WriteLine($"Users count: {count}");
 
-            using Stream? resourceStream = assembly.GetManifestResourceStream(resourceName);
-            if (resourceStream == null)
+        await InsertCustomers(context);
+    }
+
+    private static async Task InsertCustomers(IScenarioContext context)
+    {
+        var userTable = AllTables.GetItUser(context.Dialect);
+        var customerTable = AllTables.GetItCustomer();
+
+        await InsertInto(customerTable, customerTable.UserId)
+            .From(Select(userTable.UserId)
+                .From(userTable)
+                .Where(!Exists(SelectOne()
+                    .From(customerTable)
+                    .Where(customerTable.UserId == userTable.UserId))))
+            .Exec(context.Database);
+
+        context.WriteLine("Customers inserted:");
+
+        var clCount = CustomColumnFactory.Int64("Count");
+
+        var res = await SelectDistinct(customerTable.CustomerId, userTable.UserId, Cast(CountOne().Over(), SqlType.Int64).As(clCount))
+            .From(customerTable)
+            .InnerJoin(userTable, @on: customerTable.UserId == userTable.UserId)
+            .OrderBy(userTable.UserId)
+            .OffsetFetch(0, 5)
+            .QueryList(context.Database, r=> (UserId: userTable.UserId.Read(r), CustomerId: customerTable.CustomerId.Read(r), Count: clCount.Read(r)));
+
+        foreach (var tuple in res)
+        {
+            Console.WriteLine(tuple);
+        }
+    }
+
+    private IEnumerable<JsonUserData> ReadUserData()
+    {
+        var assembly = typeof(Program).GetTypeInfo().Assembly;
+
+        const string resourceName = "SqExpress.IntTest.TestData.users.json";
+
+        using Stream? resourceStream = assembly.GetManifestResourceStream(resourceName);
+        if (resourceStream == null)
+        {
+            throw new Exception($"Could not find find resource \"{resourceName}\"");
+        }
+
+        var document = JsonDocument.Parse(resourceStream);
+
+        foreach (var user in document.RootElement.EnumerateArray())
+        {
+            JsonUserData buffer = default;
+            foreach (var userProperty in user.EnumerateObject())
             {
-                throw new Exception($"Could not find find resource \"{resourceName}\"");
-            }
-
-            var document = JsonDocument.Parse(resourceStream);
-
-            foreach (var user in document.RootElement.EnumerateArray())
-            {
-                JsonUserData buffer = default;
-                foreach (var userProperty in user.EnumerateObject())
+                if (userProperty.Name == "external_id")
                 {
-                    if (userProperty.Name == "external_id")
-                    {
-                        buffer.ExternalId = userProperty.Value.GetGuid();
-                    }
-                    if (userProperty.Name == "first_name")
-                    {
-                        buffer.FirstName = userProperty.Value.GetString() ?? string.Empty;
-                    }
-                    if (userProperty.Name == "last_name")
-                    {
-                        buffer.LastName = userProperty.Value.GetString() ?? string.Empty;
-                    }
-                    if (userProperty.Name == "email")
-                    {
-                        buffer.Email = userProperty.Value.GetString() ?? string.Empty;
-                    }
-
+                    buffer.ExternalId = userProperty.Value.GetGuid();
                 }
-                yield return buffer;
-            }
-        }
+                if (userProperty.Name == "first_name")
+                {
+                    buffer.FirstName = userProperty.Value.GetString() ?? string.Empty;
+                }
+                if (userProperty.Name == "last_name")
+                {
+                    buffer.LastName = userProperty.Value.GetString() ?? string.Empty;
+                }
+                if (userProperty.Name == "email")
+                {
+                    buffer.Email = userProperty.Value.GetString() ?? string.Empty;
+                }
 
-        private struct JsonUserData
-        {
-            public Guid ExternalId;
-            public string FirstName;
-            public string LastName;
-            public string Email;
+            }
+            yield return buffer;
         }
+    }
+
+    private struct JsonUserData
+    {
+        public Guid ExternalId;
+        public string FirstName;
+        public string LastName;
+        public string Email;
     }
 }

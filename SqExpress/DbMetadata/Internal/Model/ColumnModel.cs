@@ -1,73 +1,72 @@
 ﻿using System.Collections.Generic;
 
-namespace SqExpress.DbMetadata.Internal.Model
+namespace SqExpress.DbMetadata.Internal.Model;
+
+internal class ColumnModel
 {
-    internal class ColumnModel
+    public ColumnModel(string name, ColumnRef dbName, int ordinalPosition, ColumnType columnType, PkInfo? pk, bool identity, DefaultValue? defaultValue, List<ColumnRef>? fk)
     {
-        public ColumnModel(string name, ColumnRef dbName, int ordinalPosition, ColumnType columnType, PkInfo? pk, bool identity, DefaultValue? defaultValue, List<ColumnRef>? fk)
-        {
-            this.Name = name;
-            this.DbName = dbName;
-            this.OrdinalPosition = ordinalPosition;
-            this.ColumnType = columnType;
-            this.Pk = pk;
-            this.Identity = identity;
-            this.DefaultValue = defaultValue;
-            this.Fk = fk;
-        }
-
-        public string Name { get; }
-        public ColumnRef DbName { get; }
-        public int OrdinalPosition { get; }
-        public ColumnType ColumnType { get; }
-        public PkInfo? Pk { get; }
-        public bool Identity { get; }
-        public DefaultValue? DefaultValue { get; }
-        public List<ColumnRef>? Fk { get; }
-
-        public ColumnModel WithName(string newName) =>
-            new ColumnModel(
-                name: newName,
-                dbName: this.DbName,
-                ordinalPosition: this.OrdinalPosition,
-                columnType: this.ColumnType,
-                pk: this.Pk,
-                identity: this.Identity,
-                defaultValue: this.DefaultValue,
-                fk: this.Fk);
+        this.Name = name;
+        this.DbName = dbName;
+        this.OrdinalPosition = ordinalPosition;
+        this.ColumnType = columnType;
+        this.Pk = pk;
+        this.Identity = identity;
+        this.DefaultValue = defaultValue;
+        this.Fk = fk;
     }
 
-    internal readonly struct PkInfo
-    {
-        public PkInfo(int index, bool descending)
-        {
-            this.Index = index;
-            this.Descending = descending;
-        }
+    public string Name { get; }
+    public ColumnRef DbName { get; }
+    public int OrdinalPosition { get; }
+    public ColumnType ColumnType { get; }
+    public PkInfo? Pk { get; }
+    public bool Identity { get; }
+    public DefaultValue? DefaultValue { get; }
+    public List<ColumnRef>? Fk { get; }
 
-        public readonly int Index;
-        public readonly bool Descending;
+    public ColumnModel WithName(string newName) =>
+        new ColumnModel(
+            name: newName,
+            dbName: this.DbName,
+            ordinalPosition: this.OrdinalPosition,
+            columnType: this.ColumnType,
+            pk: this.Pk,
+            identity: this.Identity,
+            defaultValue: this.DefaultValue,
+            fk: this.Fk);
+}
+
+internal readonly struct PkInfo
+{
+    public PkInfo(int index, bool descending)
+    {
+        this.Index = index;
+        this.Descending = descending;
     }
 
-    internal readonly struct DefaultValue
-    {
-        public DefaultValue(DefaultValueType type, string? rawValue)
-        {
-            this.Type = type;
-            this.RawValue = rawValue;
-        }
+    public readonly int Index;
+    public readonly bool Descending;
+}
 
-        public readonly DefaultValueType Type;
-        public readonly string? RawValue;
+internal readonly struct DefaultValue
+{
+    public DefaultValue(DefaultValueType type, string? rawValue)
+    {
+        this.Type = type;
+        this.RawValue = rawValue;
     }
 
-    internal enum DefaultValueType
-    {
-        Raw,
-        Null,
-        Integer,
-        Bool,
-        String,
-        GetUtcDate
-    }
+    public readonly DefaultValueType Type;
+    public readonly string? RawValue;
+}
+
+internal enum DefaultValueType
+{
+    Raw,
+    Null,
+    Integer,
+    Bool,
+    String,
+    GetUtcDate
 }

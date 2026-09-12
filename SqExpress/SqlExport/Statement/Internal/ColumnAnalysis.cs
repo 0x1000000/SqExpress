@@ -1,57 +1,56 @@
 ﻿using System.Collections.Generic;
 using SqExpress.Syntax.Names;
 
-namespace SqExpress.SqlExport.Statement.Internal
+namespace SqExpress.SqlExport.Statement.Internal;
+
+internal readonly struct ColumnAnalysis
 {
-    internal readonly struct ColumnAnalysis
+    public readonly List<ExprColumnName> Pk;
+
+    public readonly Dictionary<IExprTableFullName, List<ColumnRelationship>> Fks;
+
+    public static ColumnAnalysis Build() => new ColumnAnalysis(new List<ExprColumnName>(4), new Dictionary<IExprTableFullName, List<ColumnRelationship>>(4));
+
+    private ColumnAnalysis(List<ExprColumnName> pk, Dictionary<IExprTableFullName, List<ColumnRelationship>> fks)
     {
-        public readonly List<ExprColumnName> Pk;
+        this.Pk = pk;
+        this.Fks = fks;
+    }
 
-        public readonly Dictionary<IExprTableFullName, List<ColumnRelationship>> Fks;
-
-        public static ColumnAnalysis Build() => new ColumnAnalysis(new List<ExprColumnName>(4), new Dictionary<IExprTableFullName, List<ColumnRelationship>>(4));
-
-        private ColumnAnalysis(List<ExprColumnName> pk, Dictionary<IExprTableFullName, List<ColumnRelationship>> fks)
+    public void Analyze(TableColumn column)
+    {
+        if (column.ColumnMeta != null)
         {
-            this.Pk = pk;
-            this.Fks = fks;
-        }
-
-        public void Analyze(TableColumn column)
-        {
-            if (column.ColumnMeta != null)
+            if (column.ColumnMeta.IsPrimaryKey)
             {
-                if (column.ColumnMeta.IsPrimaryKey)
-                {
-                    this.Pk.Add(column);
-                }
+                this.Pk.Add(column);
+            }
 
-                if (column.ColumnMeta.ForeignKeyColumns != null)
+            if (column.ColumnMeta.ForeignKeyColumns != null)
+            {
+                foreach (var foreignKeyColumn in column.ColumnMeta.ForeignKeyColumns)
                 {
-                    foreach (var foreignKeyColumn in column.ColumnMeta.ForeignKeyColumns)
+                    var foreignTable = foreignKeyColumn.Table.FullName;
+
+                    if (!this.Fks.ContainsKey(foreignTable))
                     {
-                        var foreignTable = foreignKeyColumn.Table.FullName;
-
-                        if (!this.Fks.ContainsKey(foreignTable))
-                        {
-                            this.Fks.Add(foreignTable, new List<ColumnRelationship>(4));
-                        }
-                        this.Fks[foreignTable].Add(new ColumnRelationship(@internal: column.ColumnName, external: foreignKeyColumn.ColumnName));
+                        this.Fks.Add(foreignTable, new List<ColumnRelationship>(4));
                     }
+                    this.Fks[foreignTable].Add(new ColumnRelationship(@internal: column.ColumnName, external: foreignKeyColumn.ColumnName));
                 }
             }
         }
+    }
 
-        public readonly struct ColumnRelationship
+    public readonly struct ColumnRelationship
+    {
+        public readonly ExprColumnName Internal;
+        public readonly ExprColumnName External;
+
+        public ColumnRelationship(ExprColumnName @internal, ExprColumnName external)
         {
-            public readonly ExprColumnName Internal;
-            public readonly ExprColumnName External;
-
-            public ColumnRelationship(ExprColumnName @internal, ExprColumnName external)
-            {
-                this.Internal = @internal;
-                this.External = external;
-            }
+            this.Internal = @internal;
+            this.External = external;
         }
     }
 }

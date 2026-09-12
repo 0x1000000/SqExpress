@@ -1,7 +1,6 @@
-﻿namespace SqExpress.QueryBuilders
+﻿namespace SqExpress.QueryBuilders;
+
+public interface IExprSubQueryFinal : IExprQueryFinal
 {
-    public interface IExprSubQueryFinal : IExprQueryFinal
-    {
-        new IExprSubQuery Done();
-    }
+    new IExprSubQuery Done();
 }

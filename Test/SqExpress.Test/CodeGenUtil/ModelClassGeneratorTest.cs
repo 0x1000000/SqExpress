@@ -10,76 +10,75 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.VisualStudio.TestPlatform.PlatformAbstractions;
 using NUnit.Framework;
 using SqExpress.CodeGen.Shared;
-using SqExpress.CodeGenUtil;
 
-namespace SqExpress.Test.CodeGenUtil
+namespace SqExpress.Test.CodeGenUtil;
+
+[TestFixture]
+public class ModelClassGeneratorTest
 {
-    [TestFixture]
-    public class ModelClassGeneratorTest
+    [Test]
+    public void BasicTest()
     {
-        [Test]
-        public void BasicTest()
+        TestFileSystem fileSystem = new TestFileSystem();
+
+        fileSystem.AddFile("A\\table1.cs", TestTable1Text);
+
+        var generated = CodeGenLegacySqModelSupport
+            .AnalyzeLegacySqModels("A", fileSystem, true)
+            .Select(meta => CodeGenModelSupport.Generate(meta, "Org", "", true, true, CodeGenModelType.ImmutableClass, fileSystem, out _).SyntaxTree)
+            .ToList();
+
+        var trees = new List<SyntaxTree>();
+
+        foreach (var syntaxTree in generated)
         {
-            TestFileSystem fileSystem = new TestFileSystem();
-
-            fileSystem.AddFile("A\\table1.cs", TestTable1Text);
-
-            var generated = CodeGenLegacySqModelSupport
-                .AnalyzeLegacySqModels("A", fileSystem, true)
-                .Select(meta => CodeGenModelSupport.Generate(meta, "Org", "", true, true, CodeGenModelType.ImmutableClass, fileSystem, out _).SyntaxTree)
-                .ToList();
-
-            var trees = new List<SyntaxTree>();
-
-            foreach (var syntaxTree in generated)
-            {
-                trees.Add(CSharpSyntaxTree.ParseText(syntaxTree.ToString()));
-            }
-
-            trees.Add(CSharpSyntaxTree.ParseText(TestTable1Text));
-
-            var compilation = CSharpCompilation.Create("SqModels",
-                trees,
-                options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable)); 
-
-            compilation = compilation.AddReferences(
-                MetadataReference.CreateFromFile(Assembly.Load("netstandard, Version=2.0.0.0").Location),
-                MetadataReference.CreateFromFile(typeof(object).Assembly.GetAssemblyLocation()),
-                MetadataReference.CreateFromFile(typeof(IDataRecord).Assembly.GetAssemblyLocation()),
-                MetadataReference.CreateFromFile(Assembly
-                    .Load("System.Runtime, Version=4.2.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a")
-                    .Location),
-                MetadataReference.CreateFromFile(typeof(SqQueryBuilder).Assembly.GetAssemblyLocation()));
-
-            MemoryStream ms = new MemoryStream();
-
-            var emitResult = compilation.Emit(ms);
-            if (!emitResult.Success)
-            {
-                Diagnostic first = emitResult.Diagnostics.First();
-
-                var sourceCode = first.Location.SourceTree?.ToString();
-                var s = sourceCode?.Substring(first.Location.SourceSpan.Start, first.Location.SourceSpan.Length);
-                Console.WriteLine(sourceCode);
-                Assert.Fail(first.GetMessage()+ (string.IsNullOrEmpty(s)?null:$" \"{s}\""));
-            }
-
-            var assembly = Assembly.Load(ms.ToArray());
-
-            var allTypes = assembly.GetTypes();
-            var typeNames = allTypes.Select(t => t.Name).ToList();
-
-            Assert.That(typeNames, Does.Contain("TestTable1"));
-            Assert.That(typeNames, Does.Contain("TestTable2"));
-            Assert.That(typeNames, Does.Contain("TestMergeTmpTable"));
-            Assert.That(typeNames.Any(n => n.Contains("Table1Data", StringComparison.Ordinal)), Is.True);
-            Assert.That(typeNames.Any(n => n.Contains("Table1Name", StringComparison.Ordinal)), Is.True);
-            Assert.That(typeNames.Any(n => n.Contains("Table2Data", StringComparison.Ordinal)), Is.True);
-            Assert.That(typeNames.Any(n => n.Contains("Table2Name", StringComparison.Ordinal)), Is.True);
-            Assert.That(typeNames.Any(n => n.Contains("TestMergeData", StringComparison.Ordinal)), Is.True);
+            trees.Add(CSharpSyntaxTree.ParseText(syntaxTree.ToString()));
         }
 
-        private static readonly string TestTable1Text = @"
+        trees.Add(CSharpSyntaxTree.ParseText(TestTable1Text));
+
+        var compilation = CSharpCompilation.Create("SqModels",
+            trees,
+            options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable)); 
+
+        compilation = compilation.AddReferences(
+            MetadataReference.CreateFromFile(Assembly.Load("netstandard, Version=2.0.0.0").Location),
+            MetadataReference.CreateFromFile(typeof(object).Assembly.GetAssemblyLocation()),
+            MetadataReference.CreateFromFile(typeof(IDataRecord).Assembly.GetAssemblyLocation()),
+            MetadataReference.CreateFromFile(Assembly
+                .Load("System.Runtime, Version=4.2.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a")
+                .Location),
+            MetadataReference.CreateFromFile(typeof(SqQueryBuilder).Assembly.GetAssemblyLocation()));
+
+        MemoryStream ms = new MemoryStream();
+
+        var emitResult = compilation.Emit(ms);
+        if (!emitResult.Success)
+        {
+            Diagnostic first = emitResult.Diagnostics.First();
+
+            var sourceCode = first.Location.SourceTree?.ToString();
+            var s = sourceCode?.Substring(first.Location.SourceSpan.Start, first.Location.SourceSpan.Length);
+            Console.WriteLine(sourceCode);
+            Assert.Fail(first.GetMessage()+ (string.IsNullOrEmpty(s)?null:$" \"{s}\""));
+        }
+
+        var assembly = Assembly.Load(ms.ToArray());
+
+        var allTypes = assembly.GetTypes();
+        var typeNames = allTypes.Select(t => t.Name).ToList();
+
+        Assert.That(typeNames, Does.Contain("TestTable1"));
+        Assert.That(typeNames, Does.Contain("TestTable2"));
+        Assert.That(typeNames, Does.Contain("TestMergeTmpTable"));
+        Assert.That(typeNames.Any(n => n.Contains("Table1Data", StringComparison.Ordinal)), Is.True);
+        Assert.That(typeNames.Any(n => n.Contains("Table1Name", StringComparison.Ordinal)), Is.True);
+        Assert.That(typeNames.Any(n => n.Contains("Table2Data", StringComparison.Ordinal)), Is.True);
+        Assert.That(typeNames.Any(n => n.Contains("Table2Name", StringComparison.Ordinal)), Is.True);
+        Assert.That(typeNames.Any(n => n.Contains("TestMergeData", StringComparison.Ordinal)), Is.True);
+    }
+
+    private static readonly string TestTable1Text = @"
 using SqExpress;
 namespace Org{
     public class TestTable1 : TableBase
@@ -143,6 +142,5 @@ namespace Org{
     }
 }
 ";
-    }
 }
 #endif

@@ -1,10 +1,9 @@
 ﻿using SqExpress.Syntax.Value;
 
-namespace SqExpress.Syntax.Boolean.Predicate
+namespace SqExpress.Syntax.Boolean.Predicate;
+
+public abstract class ExprPredicateLeftRight: ExprPredicate
 {
-    public abstract class ExprPredicateLeftRight: ExprPredicate
-    {
-        public abstract ExprValue Left { get; }
-        public abstract ExprValue Right { get; }
-    }
+    public abstract ExprValue Left { get; }
+    public abstract ExprValue Right { get; }
 }

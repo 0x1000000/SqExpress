@@ -1,31 +1,30 @@
-﻿namespace SqExpress.Syntax.Names
+﻿namespace SqExpress.Syntax.Names;
+
+public interface IExprTableFullName : IExprColumnSource
 {
-    public interface IExprTableFullName : IExprColumnSource
+    ExprTableFullName AsExprTableFullName();
+
+    IExprTableFullName WithTableName(string tableName);
+
+    IExprTableFullName WithSchemaName(string? schemaName);
+
+    string? SchemaName
     {
-        ExprTableFullName AsExprTableFullName();
+        get;
+    }
 
-        IExprTableFullName WithTableName(string tableName);
+    string? LowerInvariantSchemaName
+    {
+        get;
+    }
 
-        IExprTableFullName WithSchemaName(string? schemaName);
+    string TableName
+    {
+        get;
+    }
 
-        string? SchemaName
-        {
-            get;
-        }
-
-        string? LowerInvariantSchemaName
-        {
-            get;
-        }
-
-        string TableName
-        {
-            get;
-        }
-
-        string LowerInvariantTableName
-        {
-            get;
-        }
+    string LowerInvariantTableName
+    {
+        get;
     }
 }

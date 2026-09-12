@@ -1,6 +1,5 @@
 using System;
 using NUnit.Framework;
-using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Type;
 using SqExpress.SyntaxTreeOperations.Internal;
 using SqExpress.Utils;

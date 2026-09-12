@@ -3,140 +3,139 @@ using System.Collections.Generic;
 using System.Linq;
 using SqExpress.DbMetadata.Internal.Model;
 
-namespace SqExpress.CodeGen.Shared
+namespace SqExpress.CodeGen.Shared;
+
+internal enum CodeGenModelType
 {
-    internal enum CodeGenModelType
+    ImmutableClass = 1,
+    Record = 2
+}
+
+internal sealed class CodeGenSqModelMeta
+{
+    private readonly List<CodeGenSqModelPropertyMeta> _properties = new List<CodeGenSqModelPropertyMeta>();
+
+    public CodeGenSqModelMeta(string name)
     {
-        ImmutableClass = 1,
-        Record = 2
+        this.Name = name;
     }
 
-    internal sealed class CodeGenSqModelMeta
+    public string Name { get; }
+
+    public IReadOnlyList<CodeGenSqModelPropertyMeta> Properties => this._properties;
+
+    public CodeGenSqModelPropertyMeta AddPropertyCheckExistence(CodeGenSqModelPropertyMeta candidate)
     {
-        private readonly List<CodeGenSqModelPropertyMeta> _properties = new List<CodeGenSqModelPropertyMeta>();
-
-        public CodeGenSqModelMeta(string name)
+        var result = this._properties.Find(p => p.Name == candidate.Name);
+        if (result != null)
         {
-            this.Name = name;
-        }
-
-        public string Name { get; }
-
-        public IReadOnlyList<CodeGenSqModelPropertyMeta> Properties => this._properties;
-
-        public CodeGenSqModelPropertyMeta AddPropertyCheckExistence(CodeGenSqModelPropertyMeta candidate)
-        {
-            var result = this._properties.Find(p => p.Name == candidate.Name);
-            if (result != null)
+            if (result.Type != candidate.Type || result.CastType != candidate.CastType)
             {
-                if (result.Type != candidate.Type || result.CastType != candidate.CastType)
-                {
-                    throw new InvalidOperationException($"Property \"{this.Name}.{candidate.Name}\" was declared several times with different types.");
-                }
-
-                return result;
+                throw new InvalidOperationException($"Property \"{this.Name}.{candidate.Name}\" was declared several times with different types.");
             }
 
-            this._properties.Add(candidate);
-            return candidate;
+            return result;
         }
 
-        public bool HasPk()
-        {
-            var pkCount = this.Properties.Count(i => i.IsPrimaryKey);
-            return pkCount > 0 && pkCount < this.Properties.Count;
-        }
+        this._properties.Add(candidate);
+        return candidate;
     }
 
-    internal sealed class CodeGenSqModelPropertyMeta
+    public bool HasPk()
     {
-        private readonly List<CodeGenSqModelPropertyTableColMeta> _column = new List<CodeGenSqModelPropertyTableColMeta>();
+        var pkCount = this.Properties.Count(i => i.IsPrimaryKey);
+        return pkCount > 0 && pkCount < this.Properties.Count;
+    }
+}
 
-        public CodeGenSqModelPropertyMeta(string name, string type, string? castType, bool isPrimaryKey, bool isIdentity)
+internal sealed class CodeGenSqModelPropertyMeta
+{
+    private readonly List<CodeGenSqModelPropertyTableColMeta> _column = new List<CodeGenSqModelPropertyTableColMeta>();
+
+    public CodeGenSqModelPropertyMeta(string name, string type, string? castType, bool isPrimaryKey, bool isIdentity)
+    {
+        this.Name = name;
+        this.Type = type;
+        this.CastType = castType;
+        this.IsPrimaryKey = isPrimaryKey;
+        this.IsIdentity = isIdentity;
+    }
+
+    public string Name { get; }
+
+    public string Type { get; }
+
+    public string? CastType { get; }
+
+    public string FinalType => this.CastType ?? this.Type;
+
+    public bool IsPrimaryKey { get; }
+
+    public bool IsIdentity { get; }
+
+    public IReadOnlyList<CodeGenSqModelPropertyTableColMeta> Column => this._column;
+
+    public void AddColumnCheckExistence(string modelName, CodeGenSqModelPropertyTableColMeta candidate)
+    {
+        foreach (var c in this._column)
         {
-            this.Name = name;
-            this.Type = type;
-            this.CastType = castType;
-            this.IsPrimaryKey = isPrimaryKey;
-            this.IsIdentity = isIdentity;
-        }
-
-        public string Name { get; }
-
-        public string Type { get; }
-
-        public string? CastType { get; }
-
-        public string FinalType => this.CastType ?? this.Type;
-
-        public bool IsPrimaryKey { get; }
-
-        public bool IsIdentity { get; }
-
-        public IReadOnlyList<CodeGenSqModelPropertyTableColMeta> Column => this._column;
-
-        public void AddColumnCheckExistence(string modelName, CodeGenSqModelPropertyTableColMeta candidate)
-        {
-            foreach (var c in this._column)
+            if (c.TableRef.Equals(candidate.TableRef))
             {
-                if (c.TableRef.Equals(candidate.TableRef))
-                {
-                    throw new InvalidOperationException($"Property \"{modelName}.{this.Name}\" was declared several times in one table descriptor.");
-                }
+                throw new InvalidOperationException($"Property \"{modelName}.{this.Name}\" was declared several times in one table descriptor.");
             }
-
-            this._column.Add(candidate);
         }
+
+        this._column.Add(candidate);
+    }
+}
+
+internal readonly struct CodeGenSqModelTableRef : IEquatable<CodeGenSqModelTableRef>
+{
+    public CodeGenSqModelTableRef(string tableTypeName, string tableTypeNameSpace, BaseTypeKindTag baseTypeKindTag)
+    {
+        this.TableTypeName = tableTypeName;
+        this.TableTypeNameSpace = tableTypeNameSpace;
+        this.BaseTypeKindTag = baseTypeKindTag;
     }
 
-    internal readonly struct CodeGenSqModelTableRef : IEquatable<CodeGenSqModelTableRef>
+    public string TableTypeName { get; }
+
+    public string TableTypeNameSpace { get; }
+
+    public BaseTypeKindTag BaseTypeKindTag { get; }
+
+    public bool Equals(CodeGenSqModelTableRef other)
     {
-        public CodeGenSqModelTableRef(string tableTypeName, string tableTypeNameSpace, BaseTypeKindTag baseTypeKindTag)
-        {
-            this.TableTypeName = tableTypeName;
-            this.TableTypeNameSpace = tableTypeNameSpace;
-            this.BaseTypeKindTag = baseTypeKindTag;
-        }
+        return this.TableTypeName == other.TableTypeName && this.TableTypeNameSpace == other.TableTypeNameSpace;
+    }
 
-        public string TableTypeName { get; }
+    public override bool Equals(object? obj)
+    {
+        return obj is CodeGenSqModelTableRef other && this.Equals(other);
+    }
 
-        public string TableTypeNameSpace { get; }
-
-        public BaseTypeKindTag BaseTypeKindTag { get; }
-
-        public bool Equals(CodeGenSqModelTableRef other)
-        {
-            return this.TableTypeName == other.TableTypeName && this.TableTypeNameSpace == other.TableTypeNameSpace;
-        }
-
-        public override bool Equals(object? obj)
-        {
-            return obj is CodeGenSqModelTableRef other && this.Equals(other);
-        }
-
-        public override int GetHashCode()
-        {
+    public override int GetHashCode()
+    {
 #if NETSTANDARD
-            unchecked
-            {
-                return this.TableTypeName.GetHashCode() * 397 ^ this.TableTypeNameSpace.GetHashCode();
-            }
+        unchecked
+        {
+            return this.TableTypeName.GetHashCode() * 397 ^ this.TableTypeNameSpace.GetHashCode();
+        }
 #else
             return HashCode.Combine(this.TableTypeName, this.TableTypeNameSpace);
 #endif
-        }
     }
+}
 
-    internal sealed class CodeGenSqModelPropertyTableColMeta
+internal sealed class CodeGenSqModelPropertyTableColMeta
+{
+    public CodeGenSqModelPropertyTableColMeta(CodeGenSqModelTableRef tableRef, string columnName)
     {
-        public CodeGenSqModelPropertyTableColMeta(CodeGenSqModelTableRef tableRef, string columnName)
-        {
-            this.TableRef = tableRef;
-            this.ColumnName = columnName;
-        }
-
-        public CodeGenSqModelTableRef TableRef { get; }
-
-        public string ColumnName { get; }
+        this.TableRef = tableRef;
+        this.ColumnName = columnName;
     }
+
+    public CodeGenSqModelTableRef TableRef { get; }
+
+    public string ColumnName { get; }
 }

@@ -1,7 +1,6 @@
-﻿namespace SqExpress.Syntax.Boolean.Predicate
-{
-    public abstract class ExprPredicate : ExprBoolean
-    {
+﻿namespace SqExpress.Syntax.Boolean.Predicate;
 
-    }
+public abstract class ExprPredicate : ExprBoolean
+{
+
 }

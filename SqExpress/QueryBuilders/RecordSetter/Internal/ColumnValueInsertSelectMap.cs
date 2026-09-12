@@ -1,17 +1,16 @@
 ﻿using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Value;
 
-namespace SqExpress.QueryBuilders.RecordSetter.Internal
-{
-    internal readonly struct ColumnValueInsertSelectMap
-    {
-        public readonly ExprColumnName Column;
-        public readonly ExprValue Value;
+namespace SqExpress.QueryBuilders.RecordSetter.Internal;
 
-        public ColumnValueInsertSelectMap(ExprColumnName column, ExprValue value)
-        {
-            this.Column = column;
-            this.Value = value;
-        }
+internal readonly struct ColumnValueInsertSelectMap
+{
+    public readonly ExprColumnName Column;
+    public readonly ExprValue Value;
+
+    public ColumnValueInsertSelectMap(ExprColumnName column, ExprValue value)
+    {
+        this.Column = column;
+        this.Value = value;
     }
 }

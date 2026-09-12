@@ -5,50 +5,49 @@ using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Select.SelectItems;
 using SqExpress.Utils;
 
-namespace SqExpress.Syntax.Update
+namespace SqExpress.Syntax.Update;
+
+public class ExprDelete : IExprExec
 {
-    public class ExprDelete : IExprExec
+    public ExprDelete(ExprTable target, IExprTableSource? source, ExprBoolean? filter)
     {
-        public ExprDelete(ExprTable target, IExprTableSource? source, ExprBoolean? filter)
-        {
-            this.Target = target;
-            this.Source = source;
-            this.Filter = filter;
-        }
-
-        public ExprTable Target { get; }
-
-        public IExprTableSource? Source { get; }
-
-        public ExprBoolean? Filter { get; }
-
-        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
-            => visitor.VisitExprDelete(this, arg);
+        this.Target = target;
+        this.Source = source;
+        this.Filter = filter;
     }
 
-    public class ExprDeleteOutput : IExprQuery
+    public ExprTable Target { get; }
+
+    public IExprTableSource? Source { get; }
+
+    public ExprBoolean? Filter { get; }
+
+    public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        => visitor.VisitExprDelete(this, arg);
+}
+
+public class ExprDeleteOutput : IExprQuery
+{
+    public ExprDeleteOutput(ExprDelete delete, IReadOnlyList<ExprAliasedColumn> outputColumns)
     {
-        public ExprDeleteOutput(ExprDelete delete, IReadOnlyList<ExprAliasedColumn> outputColumns)
-        {
-            this.Delete = delete;
-            this.OutputColumns = outputColumns;
-        }
+        this.Delete = delete;
+        this.OutputColumns = outputColumns;
+    }
 
-        public ExprDelete Delete { get; } 
+    public ExprDelete Delete { get; } 
 
-        public IReadOnlyList<ExprAliasedColumn> OutputColumns { get; }
+    public IReadOnlyList<ExprAliasedColumn> OutputColumns { get; }
 
-        public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
-            => visitor.VisitExprDeleteOutput(this, arg);
+    public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg)
+        => visitor.VisitExprDeleteOutput(this, arg);
 
-        public IReadOnlyList<IExprSelecting> ExtractSelecting()
-        {
-            return this.OutputColumns;
-        }
+    public IReadOnlyList<IExprSelecting> ExtractSelecting()
+    {
+        return this.OutputColumns;
+    }
 
-        public IReadOnlyList<string?> GetOutputColumnNames()
-        {
-            return this.OutputColumns.SelectToReadOnlyList(i => ((IExprNamedSelecting) i).OutputName);
-        }
+    public IReadOnlyList<string?> GetOutputColumnNames()
+    {
+        return this.OutputColumns.SelectToReadOnlyList(i => ((IExprNamedSelecting) i).OutputName);
     }
 }

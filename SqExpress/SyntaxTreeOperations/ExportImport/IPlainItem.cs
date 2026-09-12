@@ -1,12 +1,11 @@
-﻿namespace SqExpress.SyntaxTreeOperations.ExportImport
+﻿namespace SqExpress.SyntaxTreeOperations.ExportImport;
+
+public interface IPlainItem
 {
-    public interface IPlainItem
-    {
-        int Id { get; }
-        int ParentId { get; }
-        int? ArrayIndex { get; }
-        bool IsTypeTag { get; }
-        string Tag { get; }
-        string? Value { get; }
-    }
+    int Id { get; }
+    int ParentId { get; }
+    int? ArrayIndex { get; }
+    bool IsTypeTag { get; }
+    string Tag { get; }
+    string? Value { get; }
 }

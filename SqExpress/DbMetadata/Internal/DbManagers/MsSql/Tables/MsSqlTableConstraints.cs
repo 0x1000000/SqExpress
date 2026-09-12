@@ -1,43 +1,42 @@
-﻿namespace SqExpress.DbMetadata.Internal.DbManagers.MsSql.Tables
+﻿namespace SqExpress.DbMetadata.Internal.DbManagers.MsSql.Tables;
+
+internal class MsSqlTableConstraints : TableBase, IMsSqlTableColumns
 {
-    internal class MsSqlTableConstraints : TableBase, IMsSqlTableColumns
+    public StringTableColumn ConstraintCatalog { get; set; }
+
+    public StringTableColumn ConstraintSchema { get; set; }
+
+    public StringTableColumn ConstraintName { get; set; }
+
+    public StringTableColumn TableCatalog { get; }
+
+    public StringTableColumn TableSchema { get; }
+
+    public StringTableColumn TableName { get; }
+
+    public StringTableColumn TableType { get; }
+
+    public StringTableColumn InitiallyDeferred { get; }
+
+    public StringTableColumn IsDeferrable { get; }
+
+    public StringTableColumn ConstraintType { get; }
+
+    public MsSqlTableConstraints(Alias alias = default)
+        : base("INFORMATION_SCHEMA", "TABLE_CONSTRAINTS", alias)
     {
-        public StringTableColumn ConstraintCatalog { get; set; }
 
-        public StringTableColumn ConstraintSchema { get; set; }
+        ConstraintCatalog = CreateStringColumn("CONSTRAINT_CATALOG", 128, true);
+        ConstraintSchema = CreateStringColumn("CONSTRAINT_SCHEMA", 128, true);
+        ConstraintName = CreateStringColumn("CONSTRAINT_NAME", 128, true);
 
-        public StringTableColumn ConstraintName { get; set; }
+        TableCatalog = CreateStringColumn("TABLE_CATALOG", null, true);
+        TableSchema = CreateStringColumn("TABLE_SCHEMA", null, true);
+        TableName = CreateStringColumn("TABLE_NAME", null, true);
+        TableType = CreateStringColumn("TABLE_TYPE", null, true);
 
-        public StringTableColumn TableCatalog { get; }
-
-        public StringTableColumn TableSchema { get; }
-
-        public StringTableColumn TableName { get; }
-
-        public StringTableColumn TableType { get; }
-
-        public StringTableColumn InitiallyDeferred { get; }
-
-        public StringTableColumn IsDeferrable { get; }
-
-        public StringTableColumn ConstraintType { get; }
-
-        public MsSqlTableConstraints(Alias alias = default)
-            : base("INFORMATION_SCHEMA", "TABLE_CONSTRAINTS", alias)
-        {
-
-            ConstraintCatalog = CreateStringColumn("CONSTRAINT_CATALOG", 128, true);
-            ConstraintSchema = CreateStringColumn("CONSTRAINT_SCHEMA", 128, true);
-            ConstraintName = CreateStringColumn("CONSTRAINT_NAME", 128, true);
-
-            TableCatalog = CreateStringColumn("TABLE_CATALOG", null, true);
-            TableSchema = CreateStringColumn("TABLE_SCHEMA", null, true);
-            TableName = CreateStringColumn("TABLE_NAME", null, true);
-            TableType = CreateStringColumn("TABLE_TYPE", null, true);
-
-            ConstraintType = CreateStringColumn("CONSTRAINT_TYPE", 11);
-            IsDeferrable = CreateStringColumn("IS_DEFERRABLE", 2);
-            InitiallyDeferred = CreateStringColumn("INITIALLY_DEFERRED", 2);
-        }
+        ConstraintType = CreateStringColumn("CONSTRAINT_TYPE", 11);
+        IsDeferrable = CreateStringColumn("IS_DEFERRABLE", 2);
+        InitiallyDeferred = CreateStringColumn("INITIALLY_DEFERRED", 2);
     }
 }

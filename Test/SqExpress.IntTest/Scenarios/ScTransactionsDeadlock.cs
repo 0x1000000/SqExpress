@@ -1,13 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Data;
 using System.Threading.Tasks;
-using System.Transactions;
 using SqExpress.DataAccess;
 using SqExpress.IntTest.Context;
 using SqExpress.IntTest.Tables;
 using static SqExpress.SqQueryBuilder;
-using IsolationLevel = System.Data.IsolationLevel;
 
 namespace SqExpress.IntTest.Scenarios;
 
