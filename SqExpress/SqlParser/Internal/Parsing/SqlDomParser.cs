@@ -20,16 +20,27 @@ namespace SqExpress.SqlParser.Internal.Parsing
             }
 
             var rawSql = sql.Trim();
+            var forJson = false;
+            var forJsonWithoutArrayWrapper = false;
+            var forJsonIncludeNullValues = false;
             IReadOnlyList<SqlToken> tokens;
             try
             {
                 tokens = SqlLexer.Tokenize(rawSql);
             }
+
             catch (InvalidOperationException ex)
             {
                 statement = null;
                 errors = new[] { ex.Message };
                 return false;
+            }
+
+            if (TryStripPortableForJson(rawSql, tokens, out var sqlWithoutForJson, out forJsonWithoutArrayWrapper, out forJsonIncludeNullValues))
+            {
+                forJson = true;
+                rawSql = sqlWithoutForJson;
+                tokens = SqlLexer.Tokenize(rawSql);
             }
 
             if (HasMultipleStatements(tokens))
@@ -77,8 +88,42 @@ namespace SqExpress.SqlParser.Internal.Parsing
                 withClause,
                 topLevelSelect,
                 tableReferences,
-                columnReferences);
+                columnReferences,
+                forJson,
+                forJsonWithoutArrayWrapper,
+                forJsonIncludeNullValues);
             errors = null;
+            return true;
+        }
+
+        private static bool TryStripPortableForJson(string sql, IReadOnlyList<SqlToken> tokens, out string querySql, out bool withoutArrayWrapper, out bool includeNullValues)
+        {
+            querySql = sql;
+            withoutArrayWrapper = false;
+            includeNullValues = false;
+            var depth = 0;
+            var forIndex = -1;
+            for (var i = 0; i < tokens.Count; i++)
+            {
+                if (tokens[i].Type == SqlTokenType.OpenParen) depth++;
+                else if (tokens[i].Type == SqlTokenType.CloseParen) depth--;
+                else if (depth == 0 && tokens[i].IsKeyword("FOR")) forIndex = i;
+            }
+            if (forIndex < 0 || forIndex + 2 >= tokens.Count || !tokens[forIndex + 1].IsKeyword("JSON")) return false;
+            if (!tokens[forIndex + 2].IsKeyword("PATH")) return false;
+            var optionIndex = forIndex + 3;
+            while (optionIndex < tokens.Count && tokens[optionIndex].Type is not (SqlTokenType.EndOfFile or SqlTokenType.Semicolon))
+            {
+                if (tokens[optionIndex].Type != SqlTokenType.Comma || optionIndex + 1 >= tokens.Count) return false;
+                optionIndex++;
+                if (tokens[optionIndex].IsKeyword("INCLUDE_NULL_VALUES") && !includeNullValues) includeNullValues = true;
+                else if (tokens[optionIndex].IsKeyword("WITHOUT_ARRAY_WRAPPER") && !withoutArrayWrapper) withoutArrayWrapper = true;
+                else return false;
+                optionIndex++;
+            }
+            for (; optionIndex < tokens.Count; optionIndex++)
+                if (tokens[optionIndex].Type is not (SqlTokenType.EndOfFile or SqlTokenType.Semicolon)) return false;
+            querySql = sql.Substring(0, tokens[forIndex].Start).TrimEnd();
             return true;
         }
 
@@ -2451,8 +2496,19 @@ namespace SqExpress.SqlParser.Internal.Parsing
 
                 var argsSql = sql.Substring(tokens[openIndex].End, tokens[closeIndex].Start - tokens[openIndex].End).Trim();
                 index = closeIndex + 1;
+                string? withSql = null;
+                if (nameParts.Count == 1 && string.Equals(nameParts[0], "OPENJSON", StringComparison.OrdinalIgnoreCase)
+                    && index < endExclusive && tokens[index].IsKeyword("WITH"))
+                {
+                    index++;
+                    if (index >= endExclusive || tokens[index].Type != SqlTokenType.OpenParen) return null;
+                    var withClose = FindMatchingCloseParen(tokens, index);
+                    if (withClose < 0 || withClose >= endExclusive) return null;
+                    withSql = sql.Substring(tokens[index].End, tokens[withClose].Start - tokens[index].End).Trim();
+                    index = withClose + 1;
+                }
                 var alias = ParseOptionalAlias(tokens, ref index, endExclusive);
-                return new SqlDomFunctionTableSource(string.Join(".", nameParts), argsSql, alias);
+                return new SqlDomFunctionTableSource(string.Join(".", nameParts), argsSql, alias, withSql);
             }
 
             var table = nameParts[nameParts.Count - 1];

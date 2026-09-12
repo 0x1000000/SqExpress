@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using SqExpress.DbMetadata;
+using SqExpress.Internal;
 using SqExpress.SqlExport;
 using SqExpress.SqlParser.Internal.Dom;
 using SqExpress.SqlParser.Internal.Parsing;
@@ -14,6 +15,7 @@ using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
 using SqExpress.Syntax.Internal;
+using SqExpress.Syntax.Json;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Select.SelectItems;
@@ -528,6 +530,14 @@ namespace SqExpress.SqlParser.Internal.Mapping
 
         private static IExpr MapSelect(SqlDomStatement statement, MappingContext context)
         {
+            var result = MapSelectCore(statement, context);
+            if (!statement.ForJson) return result;
+            if (result is not IExprQuery query) throw new MapException("FOR JSON requires a read-only query.");
+            return new ExprQueryAsJson(query, statement.ForJsonWithoutArrayWrapper, statement.ForJsonIncludeNullValues);
+        }
+
+        private static IExpr MapSelectCore(SqlDomStatement statement, MappingContext context)
+        {
             var top = statement.TopLevelSelect;
             if (top == null)
             {
@@ -544,6 +554,22 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 .WithVisibleTableReferences(GetVisibleTableReferences(from))
                 .WithVisibleTableBindings(BuildVisibleTableBindings(from, context.DefaultSchema, context.ExistingTables));
             var selectList = top.Items.Select(i => ParseSelectItem(i, scopedContext)).ToList();
+            if (statement.ForJson)
+            {
+                for (var i = 0; i < selectList.Count; i++)
+                {
+                    var outputName = (selectList[i] as IExprNamedSelecting)?.OutputName;
+                    if (outputName == null || outputName.IndexOf('.') < 0) continue;
+                    IExprSelecting value = selectList[i] switch
+                    {
+                        ExprAliasedColumn column => column.Column,
+                        ExprAliasedSelecting selecting => selecting.Value,
+                        _ => selectList[i]
+                    };
+                    var jsonPath = "$" + string.Concat(outputName.Split('.').Select(p => ".\"" + p.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\""));
+                selectList[i] = new ExprJsonOutputColumn(value, jsonPath);
+                }
+            }
             var selectAliases = BuildSelectAliasLookup(selectList);
             ExprBoolean? where = string.IsNullOrWhiteSpace(top.WhereSql) ? null : ParseBoolean(top.WhereSql!, scopedContext);
             IReadOnlyList<ExprValue>? groupBy = null;
@@ -2118,6 +2144,9 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 case ExprAliasedTableFunction function:
                     yield return ((ExprAlias)function.Alias.Alias).Name;
                     yield break;
+                case ExprJsonTable jsonTable:
+                    yield return ((ExprAlias)jsonTable.Alias.Alias).Name;
+                    yield break;
                 case ExprJoinedTable join:
                     foreach (var visibleTableReference in GetVisibleTableReferences(join.Left))
                     {
@@ -2825,6 +2854,8 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     {
                         throw new MapException("Function table source must have an alias.");
                     }
+                    if (string.Equals(fn.Name, "OPENJSON", StringComparison.OrdinalIgnoreCase))
+                        return ParseOpenJson(fn, context);
                     return new ExprAliasedTableFunction(ParseTableFunction(fn.Name, fn.ArgumentsSql, context), new ExprTableAlias(new ExprAlias(fn.Alias)));
                 default:
                     throw new MapException("Table source is not supported.");
@@ -2866,6 +2897,45 @@ namespace SqExpress.SqlParser.Internal.Mapping
                 new ExprDbSchema(new ExprDatabaseName(nameParts[nameParts.Count - 3]), new ExprSchemaName(nameParts[nameParts.Count - 2])),
                 new ExprFunctionName(false, nameParts[nameParts.Count - 1]),
                 args);
+        }
+
+        private static ExprJsonTable ParseOpenJson(SqlDomFunctionTableSource fn, MappingContext context)
+        {
+            if (fn.WithSql == null) throw new MapException("Bare OPENJSON is not supported; a WITH clause is required.");
+            var args = SplitComma(fn.ArgumentsSql).Select(i => ParseValue(i, context)).ToList();
+            if (args.Count is < 1 or > 2 || args.Count == 2 && args[1] is not ExprStringLiteral { Value: not null })
+                throw new MapException("OPENJSON requires a document and an optional literal path.");
+            var rootPath = args.Count == 2 ? ((ExprStringLiteral)args[1]).Value! : "$";
+            SqJsonPathParser.Parse(rootPath);
+            var columns = new List<ExprJsonTableColumn>();
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var columnSql in SplitComma(fn.WithSql))
+            {
+                var tokens = SqlLexer.Tokenize(columnSql).Where(i => i.Type != SqlTokenType.EndOfFile).ToList();
+                if (tokens.Count < 2 || !tokens[0].IsIdentifierLike || !names.Add(tokens[0].IdentifierValue))
+                    throw new MapException("OPENJSON WITH contains an invalid or duplicate column.");
+                var asJson = tokens.Count >= 2 && tokens[tokens.Count - 2].IsKeyword("AS") && tokens[tokens.Count - 1].IsKeyword("JSON");
+                if (asJson) tokens.RemoveRange(tokens.Count - 2, 2);
+                string path = "$.\"" + tokens[0].IdentifierValue.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
+                if (tokens.Count > 1 && tokens[tokens.Count - 1].Type == SqlTokenType.StringLiteral)
+                {
+                    var pathExpr = ParseValue(tokens[tokens.Count - 1].Text, context) as ExprStringLiteral;
+                    path = pathExpr?.Value ?? throw new MapException("OPENJSON column path must be a literal.");
+                    tokens.RemoveAt(tokens.Count - 1);
+                }
+                SqJsonPathParser.Parse(path);
+                if (asJson)
+                {
+                    columns.Add(new ExprJsonTableQueryColumn(new ExprColumnName(tokens[0].IdentifierValue), path));
+                    continue;
+                }
+                var typeSql = string.Join(" ", tokens.Skip(1).Select(i => i.Text));
+                var type = (ParseValue("CAST(NULL AS " + typeSql + ")", context) as ExprCast)?.SqlType
+                           ?? throw new MapException("OPENJSON column type is not supported.");
+                QueryBuilders.Json.JsonTableBuilder.ValidateType(type);
+                columns.Add(new ExprJsonTableValueColumn(new ExprColumnName(tokens[0].IdentifierValue), path, type));
+            }
+            return new ExprJsonTable(args[0], rootPath, columns, new ExprTableAlias(new ExprAlias(fn.Alias!)));
         }
 
         private static ExprTableFunction ParseTableFunction(string name, string argsSql)
@@ -4246,9 +4316,81 @@ namespace SqExpress.SqlParser.Internal.Mapping
                     case "IIF":
                         return TryMapIif(argSegments, context, out result);
 
+                    case "JSON_VALUE":
+                    case "JSON_QUERY":
+                    {
+                        var args = ParseFunctionArgs(argSegments, context, name);
+                        if (args == null || args.Count != 2 || args[1] is not ExprStringLiteral { Value: not null } path)
+                            throw new MapException("Function '" + name + "' requires a literal JSON path.");
+                        result = name.Equals("JSON_VALUE", StringComparison.OrdinalIgnoreCase)
+                            ? new ExprJsonValue(args[0], path.Value, null)
+                            : new ExprJsonQuery(args[0], path.Value);
+                        return true;
+                    }
+
+                    case "JSON_MODIFY":
+                    {
+                        var args = ParseFunctionArgs(argSegments, context, name);
+                        if (args == null || args.Count != 3 || args[1] is not ExprStringLiteral { Value: not null } path)
+                            throw new MapException("JSON_MODIFY requires a literal portable JSON path and three arguments.");
+                        if (path.Value.StartsWith("append ", StringComparison.OrdinalIgnoreCase) || path.Value.StartsWith("strict ", StringComparison.OrdinalIgnoreCase))
+                            throw new MapException("JSON_MODIFY append and strict paths are not supported.");
+                        result = args[2] is ExprNull
+                            ? new ExprJsonRemove(args[0], path.Value)
+                            : new ExprJsonSet(args[0], path.Value, args[2]);
+                        return true;
+                    }
+
+                    case "JSON_ARRAY":
+                    {
+                        if (ContainsJsonNullClause(argSegments, "ABSENT"))
+                            throw new MapException("JSON_ARRAY ABSENT ON NULL is not supported.");
+                        var normalized = RemoveJsonNullClause(argSegments);
+                        var args = ParseFunctionArgs(normalized, context, name) ?? Array.Empty<ExprValue>();
+                        result = new ExprJsonArray(args);
+                        return true;
+                    }
+
+                    case "JSON_OBJECT":
+                    {
+                        if (ContainsJsonNullClause(argSegments, "ABSENT"))
+                            throw new MapException("JSON_OBJECT ABSENT ON NULL is not supported.");
+                        var normalized = RemoveJsonNullClause(argSegments);
+                        var members = new List<ExprJsonMember>();
+                        var names = new HashSet<string>(StringComparer.Ordinal);
+                        foreach (var segment in normalized)
+                        {
+                            var colon = segment.ToList().FindIndex(i => i.Type == SqlTokenType.Symbol && i.Text == ":");
+                            if (colon != 1 || segment[0].Type != SqlTokenType.StringLiteral || colon == segment.Count - 1)
+                                throw new MapException("JSON_OBJECT requires static string keys followed by ':'.");
+                            var keyExpr = SqlDomToSqExprMapper.ParseValue(segment[0].Text, context) as ExprStringLiteral;
+                            if (keyExpr?.Value == null || !names.Add(keyExpr.Value))
+                                throw new MapException("JSON_OBJECT keys must be unique static strings.");
+                            var value = SqlDomToSqExprMapper.ParseValue(string.Join(" ", segment.Skip(colon + 1).Select(i => i.Text)), context);
+                            members.Add(new ExprJsonMember(keyExpr.Value, value));
+                        }
+                        result = new ExprJsonObject(members);
+                        return true;
+                    }
+
                     default:
                         return false;
                 }
+            }
+
+            private static bool ContainsJsonNullClause(IReadOnlyList<IReadOnlyList<SqlToken>> segments, string first)
+                => segments.Count > 0 && segments[segments.Count - 1].Count >= 3
+                   && segments[segments.Count - 1][segments[segments.Count - 1].Count - 3].IsKeyword(first)
+                   && segments[segments.Count - 1][segments[segments.Count - 1].Count - 2].IsKeyword("ON")
+                   && segments[segments.Count - 1][segments[segments.Count - 1].Count - 1].IsKeyword("NULL");
+
+            private static IReadOnlyList<IReadOnlyList<SqlToken>> RemoveJsonNullClause(IReadOnlyList<IReadOnlyList<SqlToken>> segments)
+            {
+                if (!ContainsJsonNullClause(segments, "NULL") && !ContainsJsonNullClause(segments, "ABSENT")) return segments;
+                var result = segments.Select(i => (IReadOnlyList<SqlToken>)i.ToList()).ToList();
+                result[result.Count - 1] = result[result.Count - 1].Take(result[result.Count - 1].Count - 3).ToList();
+                if (result[result.Count - 1].Count == 0) result.RemoveAt(result.Count - 1);
+                return result;
             }
 
             private static bool TryMapIif(

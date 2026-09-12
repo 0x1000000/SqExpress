@@ -61,42 +61,42 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
 
         public void VisitPlainProperty(string name, string? value, int ctx)
         {
-            this._buffer.Add(this._factory(ctx, ctx, null, false, name, value));
+            this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value));
         }
 
         public void VisitPlainProperty(string name, bool? value, int ctx)
         {
-            this._buffer.Add(this._factory(ctx, ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
+            this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
         }
 
         public void VisitPlainProperty(string name, byte? value, int ctx)
         {
-            this._buffer.Add(this._factory(ctx, ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
+            this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
         }
 
         public void VisitPlainProperty(string name, short? value, int ctx)
         {
-            this._buffer.Add(this._factory(ctx, ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
+            this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
         }
 
         public void VisitPlainProperty(string name, int? value, int ctx)
         {
-            this._buffer.Add(this._factory(ctx, ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
+            this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
         }
 
         public void VisitPlainProperty(string name, long? value, int ctx)
         {
-            this._buffer.Add(this._factory(ctx, ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
+            this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
         }
 
         public void VisitPlainProperty(string name, decimal? value, int ctx)
         {
-            this._buffer.Add(this._factory(ctx, ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
+            this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
         }
 
         public void VisitPlainProperty(string name, double? value, int ctx)
         {
-            this._buffer.Add(this._factory(ctx, ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
+            this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value?.ToString(CultureInfo.InvariantCulture)));
         }
 
         public void VisitPlainProperty(string name, DateTime? value, int ctx)
@@ -104,7 +104,7 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
             if (value != null)
             {
                 string ts = value.Value.ToString("yyyy-MM-ddTHH:mm:ss.fff");
-                this._buffer.Add(this._factory(ctx, ctx, null, false, name, ts));
+                this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, ts));
             }
         }
 
@@ -113,18 +113,18 @@ namespace SqExpress.SyntaxTreeOperations.ExportImport.Internal
             if (value != null)
             {
                 string ts = value.Value.ToString("O");
-                this._buffer.Add(this._factory(ctx, ctx, null, false, name, ts));
+                this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, ts));
             }
         }
 
         public void VisitPlainProperty(string name, Guid? value, int ctx)
         {
-            this._buffer.Add(this._factory(ctx, ctx, null, false, name, value?.ToString("D")));
+            this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value?.ToString("D")));
         }
 
         public void VisitPlainProperty(string name, IReadOnlyList<byte>? value, int ctx)
         {
-            this._buffer.Add(this._factory(ctx, ctx, null, false, name, value != null ? Convert.ToBase64String(value.ToArray()) : null));
+            this._buffer.Add(this._factory(this.GetNewId(), ctx, null, false, name, value != null ? Convert.ToBase64String(value.ToArray()) : null));
         }
     }
 }

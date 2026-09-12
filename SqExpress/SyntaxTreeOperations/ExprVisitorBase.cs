@@ -5,6 +5,7 @@ using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Json;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Output;
 using SqExpress.Syntax.Select;
@@ -494,6 +495,63 @@ namespace SqExpress.SyntaxTreeOperations
             this.Accept(expr.Right);
             this.Accept(expr.SearchCondition);
         }
+        public virtual void VisitExprJsonArray(ExprJsonArray expr)
+        {
+            this.Accept(expr.Items);
+        }
+        public virtual void VisitExprJsonMember(ExprJsonMember expr)
+        {
+            this.Accept(expr.Value);
+        }
+        public virtual void VisitExprJsonNull(ExprJsonNull expr)
+        {
+            
+        }
+        public virtual void VisitExprJsonObject(ExprJsonObject expr)
+        {
+            this.Accept(expr.Members);
+        }
+        public virtual void VisitExprJsonOutputColumn(ExprJsonOutputColumn expr)
+        {
+            this.Accept(expr.Value);
+        }
+        public virtual void VisitExprJsonQuery(ExprJsonQuery expr)
+        {
+            this.Accept(expr.Document);
+        }
+        public virtual void VisitExprJsonRemove(ExprJsonRemove expr)
+        {
+            this.Accept(expr.Document);
+        }
+        public virtual void VisitExprJsonSet(ExprJsonSet expr)
+        {
+            this.Accept(expr.Document);
+            this.Accept(expr.Value);
+        }
+        public virtual void VisitExprJsonTable(ExprJsonTable expr)
+        {
+            this.Accept(expr.Document);
+            this.Accept(expr.Columns);
+            this.Accept(expr.Alias);
+        }
+        public virtual void VisitExprJsonTableOrdinalColumn(ExprJsonTableOrdinalColumn expr)
+        {
+            this.Accept(expr.Name);
+        }
+        public virtual void VisitExprJsonTableQueryColumn(ExprJsonTableQueryColumn expr)
+        {
+            this.Accept(expr.Name);
+        }
+        public virtual void VisitExprJsonTableValueColumn(ExprJsonTableValueColumn expr)
+        {
+            this.Accept(expr.Name);
+            this.Accept(expr.SqlType);
+        }
+        public virtual void VisitExprJsonValue(ExprJsonValue expr)
+        {
+            this.Accept(expr.Document);
+            this.Accept(expr.ReturningType);
+        }
         public virtual void VisitExprLateralCrossedTable(ExprLateralCrossedTable expr)
         {
             this.Accept(expr.Left);
@@ -601,6 +659,10 @@ namespace SqExpress.SyntaxTreeOperations
         public virtual void VisitExprPortableScalarFunction(ExprPortableScalarFunction expr)
         {
             this.Accept(expr.Arguments);
+        }
+        public virtual void VisitExprQueryAsJson(ExprQueryAsJson expr)
+        {
+            this.Accept(expr.Query);
         }
         public virtual void VisitExprQueryExpression(ExprQueryExpression expr)
         {

@@ -9,6 +9,7 @@ using SqExpress.QueryBuilders.Select.Internal;
 using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Json;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Select.SelectItems;
@@ -24,6 +25,13 @@ namespace SqExpress
         /// <returns>The initial fluent stage, from which a source, filter, grouping, ordering, or completion can be selected.</returns>
         public static IQuerySpecificationBuilderInitial Select(IReadOnlyList<IExprSelecting> selection) 
             => new QuerySpecificationBuilder(null, false, selection);
+
+        /// <summary>Begins a <c>SELECT</c> statement whose first item is a terminal JSON output column.</summary>
+        /// <param name="selection">The first JSON output column.</param>
+        /// <param name="selections">Additional selecting nodes.</param>
+        /// <returns>A query specification builder containing the supplied projection.</returns>
+        public static IQuerySpecificationBuilderInitial Select(ExprJsonOutputColumn selection, params IExprSelecting[] selections)
+            => new QuerySpecificationBuilder(null, false, Helpers.Combine(selection, selections));
 
         /// <summary>Begins a <c>SELECT</c> statement and converts the supplied expressions or CLR values into projection items.</summary>
         /// <param name="selection">The first projection item. CLR values are represented by the corresponding SqExpress literal node.</param>
@@ -324,10 +332,30 @@ namespace SqExpress
         /// <returns>A proxy containing the supplied expression.</returns>
         public static implicit operator SelectingProxy(ExprAliasedSelecting value) => new SelectingProxy(value);
 
+        /// <summary>Allows a terminal JSON output column to appear in a projection consumed by <c>ForJson()</c>.</summary>
+        /// <param name="value">The JSON output column.</param>
+        /// <returns>A proxy containing the supplied JSON output column.</returns>
+        public static implicit operator SelectingProxy(ExprJsonOutputColumn value) => new SelectingProxy(value);
+
         /// <summary>Allows a column name to be projected without manually creating a value-column node.</summary>
         /// <param name="value">The unqualified column name to project.</param>
         /// <returns>A proxy containing an unqualified column expression.</returns>
         public static implicit operator SelectingProxy(ExprColumnName value) => new SelectingProxy(value);
+
+        /// <summary>Allows a JSON-producing query to appear as a scalar subquery in a projection.</summary>
+        /// <param name="value">The query that produces one JSON column.</param>
+        /// <returns>A proxy containing the query as a scalar value expression.</returns>
+        public static implicit operator SelectingProxy(ExprQueryAsJson value) => new SelectingProxy(new ExprValueQuery(value));
+
+        /// <summary>Allows a query specification to appear as a scalar subquery in a projection.</summary>
+        /// <param name="value">The query specification to project.</param>
+        /// <returns>A proxy containing the query as a scalar value expression.</returns>
+        public static implicit operator SelectingProxy(ExprQuerySpecification value) => new SelectingProxy(new ExprValueQuery(value));
+
+        /// <summary>Allows a query expression to appear as a scalar subquery in a projection.</summary>
+        /// <param name="value">The query expression to project.</param>
+        /// <returns>A proxy containing the query as a scalar value expression.</returns>
+        public static implicit operator SelectingProxy(ExprQueryExpression value) => new SelectingProxy(new ExprValueQuery(value));
 
         //Types
         /// <summary>Allows a nullable string to be projected as a SQL string or <c>NULL</c> literal.</summary>

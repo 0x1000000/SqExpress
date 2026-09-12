@@ -2,6 +2,7 @@
 using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Internal;
+using SqExpress.Syntax.Json;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Output;
 using SqExpress.Syntax.Select;
@@ -186,5 +187,30 @@ namespace SqExpress.Syntax
         TRes VisitExprList(ExprList exprList, TArg arg);
 
         TRes VisitExprQueryList(ExprQueryList exprList, TArg arg);
+
+        // JSON
+        /// <summary>Visits a JSON object member.</summary>
+        /// <param name="exprJsonMember">The node to visit.</param><param name="arg">The visitor argument.</param><returns>The visitor result.</returns>
+        TRes VisitExprJsonMember(ExprJsonMember exprJsonMember, TArg arg);
+
+        /// <summary>Visits a typed JSON table scalar column.</summary>
+        /// <param name="exprJsonTableValueColumn">The node to visit.</param><param name="arg">The visitor argument.</param><returns>The visitor result.</returns>
+        TRes VisitExprJsonTableValueColumn(ExprJsonTableValueColumn exprJsonTableValueColumn, TArg arg);
+
+        /// <summary>Visits a JSON table fragment column.</summary>
+        /// <param name="exprJsonTableQueryColumn">The node to visit.</param><param name="arg">The visitor argument.</param><returns>The visitor result.</returns>
+        TRes VisitExprJsonTableQueryColumn(ExprJsonTableQueryColumn exprJsonTableQueryColumn, TArg arg);
+
+        /// <summary>Visits a JSON table ordinal column.</summary>
+        /// <param name="exprJsonTableOrdinalColumn">The node to visit.</param><param name="arg">The visitor argument.</param><returns>The visitor result.</returns>
+        TRes VisitExprJsonTableOrdinalColumn(ExprJsonTableOrdinalColumn exprJsonTableOrdinalColumn, TArg arg);
+
+        /// <summary>Visits a JSON table source.</summary>
+        /// <param name="exprJsonTable">The node to visit.</param><param name="arg">The visitor argument.</param><returns>The visitor result.</returns>
+        TRes VisitExprJsonTable(ExprJsonTable exprJsonTable, TArg arg);
+
+        /// <summary>Visits a relational query serialized as JSON.</summary>
+        /// <param name="exprQueryAsJson">The node to visit.</param><param name="arg">The visitor argument.</param><returns>The visitor result.</returns>
+        TRes VisitExprQueryAsJson(ExprQueryAsJson exprQueryAsJson, TArg arg);
     }
 }

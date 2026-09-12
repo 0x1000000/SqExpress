@@ -32,6 +32,11 @@ This document is generated from the current `IExpr` hierarchy in the SqExpress s
     - [ExprValueFrameBorder](#exprvalueframeborder)
   - [ExprFrameClause](#exprframeclause)
   - [ExprInsertValueRow](#exprinsertvaluerow)
+  - [ExprJsonMember](#exprjsonmember)
+  - [ExprJsonTableColumn](#exprjsontablecolumn) _(abstract)_
+    - [ExprJsonTableOrdinalColumn](#exprjsontableordinalcolumn)
+    - [ExprJsonTableQueryColumn](#exprjsontablequerycolumn)
+    - [ExprJsonTableValueColumn](#exprjsontablevaluecolumn)
   - [ExprOffsetFetch](#exproffsetfetch)
   - [ExprOrderBy](#exprorderby)
   - [ExprOrderByItem](#exprorderbyitem)
@@ -83,6 +88,7 @@ This document is generated from the current `IExpr` hierarchy in the SqExpress s
       - [IExprReadOnlyQuery](#iexprreadonlyquery) _(interface)_
         - [ExprSelect](#exprselect)
         - [IExprSubQuery](#iexprsubquery) _(interface)_
+          - [ExprQueryAsJson](#exprqueryasjson)
           - [ExprSelectOffsetFetch](#exprselectoffsetfetch)
           - [IExprQueryExpression](#iexprqueryexpression) _(interface)_
             - [ExprQueryExpression](#exprqueryexpression)
@@ -114,6 +120,7 @@ This document is generated from the current `IExpr` hierarchy in the SqExpress s
     - [ExprAggregateOverFunction](#expraggregateoverfunction)
     - [ExprAllColumns](#exprallcolumns)
     - [ExprAnalyticFunction](#expranalyticfunction)
+    - [ExprJsonOutputColumn](#exprjsonoutputcolumn)
     - [ExprSelecting](#exprselecting) _(abstract)_
       - [ExprValue](#exprvalue) _(abstract)_
         - [ExprArithmetic](#exprarithmetic) _(abstract)_
@@ -137,6 +144,14 @@ This document is generated from the current `IExpr` hierarchy in the SqExpress s
         - [ExprFuncIsNull](#exprfuncisnull)
         - [ExprGetDate](#exprgetdate) _(singleton)_
         - [ExprGetUtcDate](#exprgetutcdate) _(singleton)_
+        - [ExprJson](#exprjson) _(abstract)_
+          - [ExprJsonArray](#exprjsonarray)
+          - [ExprJsonNull](#exprjsonnull) _(singleton)_
+          - [ExprJsonObject](#exprjsonobject)
+          - [ExprJsonQuery](#exprjsonquery)
+          - [ExprJsonRemove](#exprjsonremove)
+          - [ExprJsonSet](#exprjsonset)
+        - [ExprJsonValue](#exprjsonvalue)
         - [ExprLiteral](#exprliteral) _(abstract)_
           - [ExprBoolLiteral](#exprboolliteral)
           - [ExprByteArrayLiteral](#exprbytearrayliteral)
@@ -174,6 +189,7 @@ This document is generated from the current `IExpr` hierarchy in the SqExpress s
           - [ExprDerivedTableQuery](#exprderivedtablequery)
           - [ExprDerivedTableValues](#exprderivedtablevalues)
         - [ExprJoinedTable](#exprjoinedtable)
+        - [ExprJsonTable](#exprjsontable)
         - [ExprLateralCrossedTable](#exprlateralcrossedtable)
         - [ExprTable](#exprtable)
         - [ExprTableFunction](#exprtablefunction)
@@ -183,7 +199,7 @@ This document is generated from the current `IExpr` hierarchy in the SqExpress s
 ### IExpr
 
 - Kind: interface root
-- Direct descendants: [ExprBoolean](#exprboolean), [ExprColumnSetClause](#exprcolumnsetclause), [ExprDbSchema](#exprdbschema), [ExprFrameBorder](#exprframeborder), [ExprFrameClause](#exprframeclause), [ExprInsertValueRow](#exprinsertvaluerow), [ExprOffsetFetch](#exproffsetfetch), [ExprOrderBy](#exprorderby), [ExprOrderByItem](#exprorderbyitem), [ExprOrderByOffsetFetch](#exprorderbyoffsetfetch), [ExprOutput](#exproutput), [ExprOver](#exprover), [ExprTableValueConstructor](#exprtablevalueconstructor), [ExprType](#exprtype), [ExprValueRow](#exprvaluerow), [IExprAlias](#iexpralias), [IExprAssigning](#iexprassigning), [IExprColumnSource](#iexprcolumnsource), [IExprComplete](#iexprcomplete), [IExprInsertSource](#iexprinsertsource), [IExprMergeMatched](#iexprmergematched), [IExprMergeNotMatched](#iexprmergenotmatched), [IExprName](#iexprname), [IExprOutputColumn](#iexproutputcolumn), [IExprSelecting](#iexprselecting), [IExprSelectingSource](#iexprselectingsource)
+- Direct descendants: [ExprBoolean](#exprboolean), [ExprColumnSetClause](#exprcolumnsetclause), [ExprDbSchema](#exprdbschema), [ExprFrameBorder](#exprframeborder), [ExprFrameClause](#exprframeclause), [ExprInsertValueRow](#exprinsertvaluerow), [ExprJsonMember](#exprjsonmember), [ExprJsonTableColumn](#exprjsontablecolumn), [ExprOffsetFetch](#exproffsetfetch), [ExprOrderBy](#exprorderby), [ExprOrderByItem](#exprorderbyitem), [ExprOrderByOffsetFetch](#exprorderbyoffsetfetch), [ExprOutput](#exproutput), [ExprOver](#exprover), [ExprTableValueConstructor](#exprtablevalueconstructor), [ExprType](#exprtype), [ExprValueRow](#exprvaluerow), [IExprAlias](#iexpralias), [IExprAssigning](#iexprassigning), [IExprColumnSource](#iexprcolumnsource), [IExprComplete](#iexprcomplete), [IExprInsertSource](#iexprinsertsource), [IExprMergeMatched](#iexprmergematched), [IExprMergeNotMatched](#iexprmergenotmatched), [IExprName](#iexprname), [IExprOutputColumn](#iexproutputcolumn), [IExprSelecting](#iexprselecting), [IExprSelectingSource](#iexprselectingsource)
 
 ### ExprAggregateFunction
 
@@ -803,6 +819,132 @@ This document is generated from the current `IExpr` hierarchy in the SqExpress s
 - Plain properties:
   - `JoinType`: ExprJoinedTable.ExprJoinType
 
+### ExprJson
+
+- Kind: abstract class
+- Base: [ExprValue](#exprvalue)
+- Direct descendants: [ExprJsonArray](#exprjsonarray), [ExprJsonNull](#exprjsonnull), [ExprJsonObject](#exprjsonobject), [ExprJsonQuery](#exprjsonquery), [ExprJsonRemove](#exprjsonremove), [ExprJsonSet](#exprjsonset)
+
+### ExprJsonArray
+
+- Kind: class
+- Base: [ExprJson](#exprjson)
+- Subnodes:
+  - `Items`: IReadOnlyList<[ExprValue](#exprvalue)>
+
+### ExprJsonMember
+
+- Kind: class
+- Base: [IExpr](#iexpr)
+- Subnodes:
+  - `Value`: [ExprValue](#exprvalue)
+- Plain properties:
+  - `Name`: String
+
+### ExprJsonNull
+
+- Kind: class, singleton
+- Base: [ExprJson](#exprjson)
+
+### ExprJsonObject
+
+- Kind: class
+- Base: [ExprJson](#exprjson)
+- Subnodes:
+  - `Members`: IReadOnlyList<[ExprJsonMember](#exprjsonmember)>
+
+### ExprJsonOutputColumn
+
+- Kind: class
+- Base: [IExprSelecting](#iexprselecting)
+- Subnodes:
+  - `Value`: [IExprSelecting](#iexprselecting)
+- Plain properties:
+  - `JsonPath`: String
+
+### ExprJsonQuery
+
+- Kind: class
+- Base: [ExprJson](#exprjson)
+- Subnodes:
+  - `Document`: [ExprValue](#exprvalue)
+- Plain properties:
+  - `Path`: String
+
+### ExprJsonRemove
+
+- Kind: class
+- Base: [ExprJson](#exprjson)
+- Subnodes:
+  - `Document`: [ExprValue](#exprvalue)
+- Plain properties:
+  - `Path`: String
+
+### ExprJsonSet
+
+- Kind: class
+- Base: [ExprJson](#exprjson)
+- Subnodes:
+  - `Document`: [ExprValue](#exprvalue)
+  - `Value`: [ExprValue](#exprvalue)
+- Plain properties:
+  - `Path`: String
+
+### ExprJsonTable
+
+- Kind: class
+- Base: [IExprTableSource](#iexprtablesource)
+- Subnodes:
+  - `Alias`: [ExprTableAlias](#exprtablealias)
+  - `Columns`: IReadOnlyList<[ExprJsonTableColumn](#exprjsontablecolumn)>
+  - `Document`: [ExprValue](#exprvalue)
+- Plain properties:
+  - `Path`: String
+
+### ExprJsonTableColumn
+
+- Kind: abstract class
+- Base: [IExpr](#iexpr)
+- Direct descendants: [ExprJsonTableOrdinalColumn](#exprjsontableordinalcolumn), [ExprJsonTableQueryColumn](#exprjsontablequerycolumn), [ExprJsonTableValueColumn](#exprjsontablevaluecolumn)
+- Subnodes:
+  - `Name`: [ExprColumnName](#exprcolumnname)
+
+### ExprJsonTableOrdinalColumn
+
+- Kind: class
+- Base: [ExprJsonTableColumn](#exprjsontablecolumn)
+- Subnodes:
+  - `Name`: [ExprColumnName](#exprcolumnname)
+
+### ExprJsonTableQueryColumn
+
+- Kind: class
+- Base: [ExprJsonTableColumn](#exprjsontablecolumn)
+- Subnodes:
+  - `Name`: [ExprColumnName](#exprcolumnname)
+- Plain properties:
+  - `Path`: String
+
+### ExprJsonTableValueColumn
+
+- Kind: class
+- Base: [ExprJsonTableColumn](#exprjsontablecolumn)
+- Subnodes:
+  - `Name`: [ExprColumnName](#exprcolumnname)
+  - `SqlType`: [ExprType](#exprtype)
+- Plain properties:
+  - `Path`: String
+
+### ExprJsonValue
+
+- Kind: class
+- Base: [ExprValue](#exprvalue)
+- Subnodes:
+  - `Document`: [ExprValue](#exprvalue)
+  - `ReturningType`: [ExprType](#exprtype)?
+- Plain properties:
+  - `Path`: String
+
 ### ExprLateralCrossedTable
 
 - Kind: class
@@ -1001,6 +1143,16 @@ This document is generated from the current `IExpr` hierarchy in the SqExpress s
 - Kind: abstract class
 - Base: [ExprPredicate](#exprpredicate)
 - Direct descendants: [ExprBooleanEq](#exprbooleaneq), [ExprBooleanGt](#exprbooleangt), [ExprBooleanGtEq](#exprbooleangteq), [ExprBooleanLt](#exprbooleanlt), [ExprBooleanLtEq](#exprbooleanlteq), [ExprBooleanNotEq](#exprbooleannoteq)
+
+### ExprQueryAsJson
+
+- Kind: class
+- Base: [IExprSubQuery](#iexprsubquery)
+- Subnodes:
+  - `Query`: [IExprQuery](#iexprquery)
+- Plain properties:
+  - `IncludeNullValues`: Boolean
+  - `WithoutArrayWrapper`: Boolean
 
 ### ExprQueryExpression
 
@@ -1306,7 +1458,7 @@ This document is generated from the current `IExpr` hierarchy in the SqExpress s
 
 - Kind: abstract class
 - Base: [ExprSelecting](#exprselecting)
-- Direct descendants: [ExprArithmetic](#exprarithmetic), [ExprBitwise](#exprbitwise), [ExprCase](#exprcase), [ExprCaseWhenThen](#exprcasewhenthen), [ExprCast](#exprcast), [ExprColumn](#exprcolumn), [ExprDateAdd](#exprdateadd), [ExprDateDiff](#exprdatediff), [ExprFuncCoalesce](#exprfunccoalesce), [ExprFuncIsNull](#exprfuncisnull), [ExprGetDate](#exprgetdate), [ExprGetUtcDate](#exprgetutcdate), [ExprLiteral](#exprliteral), [ExprNull](#exprnull), [ExprParameter](#exprparameter), [ExprPortableScalarFunction](#exprportablescalarfunction), [ExprScalarFunction](#exprscalarfunction), [ExprSelectingValue](#exprselectingvalue), [ExprStringConcat](#exprstringconcat), [ExprUnsafeValue](#exprunsafevalue), [ExprValueQuery](#exprvaluequery)
+- Direct descendants: [ExprArithmetic](#exprarithmetic), [ExprBitwise](#exprbitwise), [ExprCase](#exprcase), [ExprCaseWhenThen](#exprcasewhenthen), [ExprCast](#exprcast), [ExprColumn](#exprcolumn), [ExprDateAdd](#exprdateadd), [ExprDateDiff](#exprdatediff), [ExprFuncCoalesce](#exprfunccoalesce), [ExprFuncIsNull](#exprfuncisnull), [ExprGetDate](#exprgetdate), [ExprGetUtcDate](#exprgetutcdate), [ExprJson](#exprjson), [ExprJsonValue](#exprjsonvalue), [ExprLiteral](#exprliteral), [ExprNull](#exprnull), [ExprParameter](#exprparameter), [ExprPortableScalarFunction](#exprportablescalarfunction), [ExprScalarFunction](#exprscalarfunction), [ExprSelectingValue](#exprselectingvalue), [ExprStringConcat](#exprstringconcat), [ExprUnsafeValue](#exprunsafevalue), [ExprValueQuery](#exprvaluequery)
 
 ### ExprValueFrameBorder
 
@@ -1419,7 +1571,7 @@ This document is generated from the current `IExpr` hierarchy in the SqExpress s
 
 - Kind: interface
 - Base: [IExpr](#iexpr)
-- Direct descendants: [ExprAggregateFunction](#expraggregatefunction), [ExprAggregateOverFunction](#expraggregateoverfunction), [ExprAllColumns](#exprallcolumns), [ExprAnalyticFunction](#expranalyticfunction), [ExprSelecting](#exprselecting), [ExprStringAgg](#exprstringagg), [IExprNamedSelecting](#iexprnamedselecting)
+- Direct descendants: [ExprAggregateFunction](#expraggregatefunction), [ExprAggregateOverFunction](#expraggregateoverfunction), [ExprAllColumns](#exprallcolumns), [ExprAnalyticFunction](#expranalyticfunction), [ExprJsonOutputColumn](#exprjsonoutputcolumn), [ExprSelecting](#exprselecting), [ExprStringAgg](#exprstringagg), [IExprNamedSelecting](#iexprnamedselecting)
 
 ### IExprSelectingSource
 
@@ -1431,7 +1583,7 @@ This document is generated from the current `IExpr` hierarchy in the SqExpress s
 
 - Kind: interface
 - Base: [IExprReadOnlyQuery](#iexprreadonlyquery)
-- Direct descendants: [ExprSelectOffsetFetch](#exprselectoffsetfetch), [IExprQueryExpression](#iexprqueryexpression)
+- Direct descendants: [ExprQueryAsJson](#exprqueryasjson), [ExprSelectOffsetFetch](#exprselectoffsetfetch), [IExprQueryExpression](#iexprqueryexpression)
 
 ### IExprTableFullName
 
@@ -1443,7 +1595,7 @@ This document is generated from the current `IExpr` hierarchy in the SqExpress s
 
 - Kind: interface
 - Base: [ISubQuerySource](#isubquerysource)
-- Direct descendants: [ExprAliasedTableFunction](#expraliasedtablefunction), [ExprCrossedTable](#exprcrossedtable), [ExprCte](#exprcte), [ExprDerivedTable](#exprderivedtable), [ExprJoinedTable](#exprjoinedtable), [ExprLateralCrossedTable](#exprlateralcrossedtable), [ExprTable](#exprtable), [ExprTableFunction](#exprtablefunction)
+- Direct descendants: [ExprAliasedTableFunction](#expraliasedtablefunction), [ExprCrossedTable](#exprcrossedtable), [ExprCte](#exprcte), [ExprDerivedTable](#exprderivedtable), [ExprJoinedTable](#exprjoinedtable), [ExprJsonTable](#exprjsontable), [ExprLateralCrossedTable](#exprlateralcrossedtable), [ExprTable](#exprtable), [ExprTableFunction](#exprtablefunction)
 
 ### ISubQuerySource
 

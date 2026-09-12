@@ -4,7 +4,7 @@
 
 *For those who like SQL but hate raw strings.*
 
-The library provides a generic SQL syntax tree with export to MS T-SQL, PostgreSQL, MySQL, and SQLite text. It includes polyfills to compensate for features lacking in certain databases, such as the "MERGE" command. It also provides a set of builders and operators that will help you build complex SQL expressions. It also includes a T-SQL parser (`SqTSqlParser`) for converting existing SQL text into SqExpress AST.
+The library provides a generic SQL syntax tree with export to MS T-SQL, PostgreSQL, MySQL, and SQLite text. It includes polyfills to compensate for features lacking in certain databases, such as the "MERGE" command, and unifies functionality that differs substantially between dialects, such as working with JSON. It also provides a set of builders and operators that will help you build complex SQL expressions. It also includes a T-SQL parser (`SqTSqlParser`) for converting existing SQL text into SqExpress AST.
 
 It does not use LINQ, and your C# code will be as close to real SQL as possible. This makes it ideal when you need full SQL flexibility to create efficient DB requests.
 
@@ -45,6 +45,7 @@ SqExpress is also a strong fit when SQL is produced dynamically, including by AI
 12. [CTE](#cte)
 13. [Analytic And Window Functions](#analytic-and-window-functions)
 14. [Set Operators](#set-operators)
+15. [Cross-Dialect JSON](#cross-dialect-json)
 
 ### Advanced Data Modification
 
@@ -1128,6 +1129,49 @@ INTERSECT
     SELECT 2
 )
 ```
+
+## Cross-Dialect JSON
+
+SqExpress provides portable JSON reading, construction, mutation, array expansion, and relational output for SQL Server 2022+, PostgreSQL 12+, MySQL 8.0+, MariaDB 10.6+, and SQLite with JSON1.
+
+Read scalar values and object/array fragments from a JSON document column:
+
+```csharp
+// customer is a table descriptor; Profile contains JSON text
+// (the physical PostgreSQL column may be jsonb).
+var query = Select(
+        JsonValue(customer.Profile, "$.name").As("Name"),
+        JsonValue(customer.Profile, "$.active", SqlType.Boolean).As("Active"),
+        JsonQuery(customer.Profile, "$.orders").As("Orders"))
+    .From(customer)
+    .Done();
+```
+
+Expand an array into typed relational rows:
+
+```csharp
+var numbers = JsonTable("[10,20,30]", "$")
+    .Value("Number", "$", SqlType.Int32)
+    .Ordinal("Index")
+    .As("numbers");
+
+var query = Select(numbers.Column("Index"), numbers.Column("Number"))
+    .From(numbers)
+    .Done();
+```
+
+Construct values with `JsonObject`, `JsonArray`, and `JsonProperty`; modify documents with `JsonSet` and `JsonRemove`. Use `ForJson` to serialize relational rows as one JSON document:
+
+```csharp
+var jsonQuery = Select(
+        customer.Id.As("id"),
+        customer.Name.As("name"),
+        customer.City.AsJson("$.address.city"))
+    .From(customer)
+    .ForJson();
+```
+
+See the [complete cross-dialect JSON guide](Documentation/cross_dialect_json.md) for the helper reference, path grammar, strict conversions, complex and nested examples, dialect mappings, parser support, integration-test references, and known limitations.
 
 ## Merge
 

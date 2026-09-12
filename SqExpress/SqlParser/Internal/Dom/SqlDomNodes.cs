@@ -25,7 +25,10 @@ namespace SqExpress.SqlParser.Internal.Dom
             SqlDomWithClause? withClause,
             SqlDomSelectClause? topLevelSelect,
             IReadOnlyList<SqlDomTableReference> tableReferences,
-            IReadOnlyList<SqlDomColumnReference> columnReferences)
+            IReadOnlyList<SqlDomColumnReference> columnReferences,
+            bool forJson = false,
+            bool forJsonWithoutArrayWrapper = false,
+            bool forJsonIncludeNullValues = false)
         {
             this.Kind = kind;
             this.RawSql = rawSql;
@@ -34,6 +37,9 @@ namespace SqExpress.SqlParser.Internal.Dom
             this.TopLevelSelect = topLevelSelect;
             this.TableReferences = tableReferences;
             this.ColumnReferences = columnReferences;
+            this.ForJson = forJson;
+            this.ForJsonWithoutArrayWrapper = forJsonWithoutArrayWrapper;
+            this.ForJsonIncludeNullValues = forJsonIncludeNullValues;
         }
 
         public SqlDomStatementKind Kind { get; }
@@ -49,6 +55,10 @@ namespace SqExpress.SqlParser.Internal.Dom
         public IReadOnlyList<SqlDomTableReference> TableReferences { get; }
 
         public IReadOnlyList<SqlDomColumnReference> ColumnReferences { get; }
+
+        public bool ForJson { get; }
+        public bool ForJsonWithoutArrayWrapper { get; }
+        public bool ForJsonIncludeNullValues { get; }
     }
 
     internal sealed class SqlDomWithClause
@@ -197,11 +207,12 @@ namespace SqExpress.SqlParser.Internal.Dom
 
     internal sealed class SqlDomFunctionTableSource : SqlDomTableSource
     {
-        public SqlDomFunctionTableSource(string name, string argumentsSql, string? alias)
+        public SqlDomFunctionTableSource(string name, string argumentsSql, string? alias, string? withSql = null)
         {
             this.Name = name;
             this.ArgumentsSql = argumentsSql;
             this.Alias = alias;
+            this.WithSql = withSql;
         }
 
         public string Name { get; }
@@ -209,6 +220,8 @@ namespace SqExpress.SqlParser.Internal.Dom
         public string ArgumentsSql { get; }
 
         public string? Alias { get; }
+
+        public string? WithSql { get; }
     }
 
     internal enum SqlDomJoinType

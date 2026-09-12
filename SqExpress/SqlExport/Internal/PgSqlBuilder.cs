@@ -18,7 +18,7 @@ using SqExpress.Utils;
 
 namespace SqExpress.SqlExport.Internal
 {
-    internal class PgSqlBuilder : SqlBuilderBase, IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>
+    internal partial class PgSqlBuilder : SqlBuilderBase, IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>
     {
         private const string InformationSchemaLowerInvariant = "information_schema";
 
@@ -204,6 +204,10 @@ namespace SqExpress.SqlExport.Internal
                 SqlRenderSite.Join,
                 compactTrailingSpaces: exprCrossedTable.Outer ? 0 : 1);
             exprCrossedTable.Right.Accept(this, exprCrossedTable);
+            if (exprCrossedTable.Outer)
+            {
+                this.FormattingWriter.Append(" ON TRUE");
+            }
             return true;
         }
 

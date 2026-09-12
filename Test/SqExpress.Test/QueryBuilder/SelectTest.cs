@@ -482,9 +482,9 @@ namespace SqExpress.Test.QueryBuilder
         }
 
         [Test]
-        public void TestValueQuery()
+        public void Query_CanBeProjectedAsScalarSubQuery()
         {
-            var actual = Select(ValueQuery(Select(1))).Done().ToSql();
+            var actual = Select(Select(1).Done()).Done().ToSql();
 
             Assert.AreEqual("SELECT (SELECT 1)", actual);
         }

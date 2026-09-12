@@ -2,6 +2,7 @@ using System;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Json;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Select.SelectItems;
@@ -55,6 +56,16 @@ internal sealed class ExprSelectingToColumnInfo : IExprSelectingVisitor<ExprSele
         => FromValue(byteArrayLiteral);
 
     public ExprSelectingAsColumnInfo? VisitExprNull(ExprNull exprNull, object? arg)
+        => null;
+
+    public ExprSelectingAsColumnInfo? VisitExprJsonValue(ExprJsonValue expr, object? arg) => FromValue(expr);
+    public ExprSelectingAsColumnInfo? VisitExprJsonQuery(ExprJsonQuery expr, object? arg) => FromValue(expr);
+    public ExprSelectingAsColumnInfo? VisitExprJsonNull(ExprJsonNull expr, object? arg) => FromValue(expr);
+    public ExprSelectingAsColumnInfo? VisitExprJsonSet(ExprJsonSet expr, object? arg) => FromValue(expr);
+    public ExprSelectingAsColumnInfo? VisitExprJsonRemove(ExprJsonRemove expr, object? arg) => FromValue(expr);
+    public ExprSelectingAsColumnInfo? VisitExprJsonObject(ExprJsonObject expr, object? arg) => FromValue(expr);
+    public ExprSelectingAsColumnInfo? VisitExprJsonArray(ExprJsonArray expr, object? arg) => FromValue(expr);
+    public ExprSelectingAsColumnInfo? VisitExprJsonOutputColumn(ExprJsonOutputColumn expr, object? arg)
         => null;
 
     public ExprSelectingAsColumnInfo? VisitExprUnsafeValue(ExprUnsafeValue exprUnsafeValue, object? arg)

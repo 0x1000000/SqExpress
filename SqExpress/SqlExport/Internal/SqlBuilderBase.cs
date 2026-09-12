@@ -10,6 +10,7 @@ using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
 using SqExpress.Syntax.Internal;
+using SqExpress.Syntax.Json;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Output;
 using SqExpress.Syntax.Select;
@@ -34,6 +35,8 @@ namespace SqExpress.SqlExport.Internal
         private List<DbParameterValue>? _parameters;
         private int _parameterNumberOffset;
         private string? _cachedFinalSql;
+        private bool _renderingForJson;
+        private Dictionary<string, string>? _jsonOutputAliases;
 
         protected SqlBuilderBase(SqlBuilderOptions? options, SqlAliasGenerator aliasGenerator, bool dismissCteInject)
             : this(
@@ -60,6 +63,41 @@ namespace SqExpress.SqlExport.Internal
         protected SqlBuilderOptions Options { get; }
 
         protected SqlFormattingWriter FormattingWriter { get; }
+
+        protected bool RenderingForJson => this._renderingForJson;
+
+        protected void RenderForJsonSource(IExprQuery query, IExpr parent)
+        {
+            var previous = this._renderingForJson;
+            var previousAliases = this._jsonOutputAliases;
+            var aliases = new Dictionary<string, string>(StringComparer.Ordinal);
+            var jsonColumnIndex = 0;
+            foreach (var selecting in query.ExtractSelecting())
+            {
+                if (selecting is ExprJsonOutputColumn json)
+                {
+                    aliases.Add(json.JsonPath, JsonOutputShape.InternalColumnName(jsonColumnIndex++));
+                }
+            }
+            this._renderingForJson = true;
+            this._jsonOutputAliases = aliases;
+            try
+            {
+                query.Accept(this, parent);
+            }
+            finally
+            {
+                this._renderingForJson = previous;
+                this._jsonOutputAliases = previousAliases;
+            }
+        }
+
+        protected void AppendJsonOutputAlias(ExprJsonOutputColumn expression)
+        {
+            if (this._jsonOutputAliases == null || !this._jsonOutputAliases.TryGetValue(expression.JsonPath, out var alias))
+                throw new SqExpressException("AsJson() output column is not part of the ForJson() projection.");
+            this.AppendName(alias);
+        }
 
         public IReadOnlyList<DbParameterValue>? ParameterValues => this._parameters;
 
@@ -923,6 +961,21 @@ namespace SqExpress.SqlExport.Internal
         }
 
         public abstract bool VisitExprPortableScalarFunction(ExprPortableScalarFunction exprPortableScalarFunction, IExpr? arg);
+
+        public abstract bool VisitExprJsonValue(ExprJsonValue expr, IExpr? parent);
+        public abstract bool VisitExprJsonQuery(ExprJsonQuery expr, IExpr? parent);
+        public abstract bool VisitExprJsonNull(ExprJsonNull expr, IExpr? parent);
+        public abstract bool VisitExprJsonSet(ExprJsonSet expr, IExpr? parent);
+        public abstract bool VisitExprJsonRemove(ExprJsonRemove expr, IExpr? parent);
+        public abstract bool VisitExprJsonObject(ExprJsonObject expr, IExpr? parent);
+        public abstract bool VisitExprJsonArray(ExprJsonArray expr, IExpr? parent);
+        public abstract bool VisitExprJsonMember(ExprJsonMember expr, IExpr? parent);
+        public abstract bool VisitExprJsonTableValueColumn(ExprJsonTableValueColumn expr, IExpr? parent);
+        public abstract bool VisitExprJsonTableQueryColumn(ExprJsonTableQueryColumn expr, IExpr? parent);
+        public abstract bool VisitExprJsonTableOrdinalColumn(ExprJsonTableOrdinalColumn expr, IExpr? parent);
+        public abstract bool VisitExprJsonTable(ExprJsonTable expr, IExpr? parent);
+        public abstract bool VisitExprJsonOutputColumn(ExprJsonOutputColumn expr, IExpr? parent);
+        public abstract bool VisitExprQueryAsJson(ExprQueryAsJson expr, IExpr? parent);
 
         public virtual bool VisitExprTableFunction(ExprTableFunction exprTableFunction, IExpr? arg)
         {

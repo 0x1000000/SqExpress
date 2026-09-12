@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
+using SqExpress.Internal;
 using SqExpress.SqlExport.Statement.Internal;
 using SqExpress.StatementSyntax;
 using SqExpress.Syntax;
@@ -8,6 +10,7 @@ using SqExpress.Syntax.Boolean;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Json;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Select.SelectItems;
@@ -985,6 +988,190 @@ namespace SqExpress.SqlExport.Internal
 
         public override bool VisitExprColumnName(ExprColumnName columnName, IExpr? parent)
             => this.VisitExprColumnNameCommon(columnName);
+
+        public override bool VisitExprJsonValue(ExprJsonValue expr, IExpr? parent)
+        {
+            if (expr.ReturningType == null)
+            {
+                this.FormattingWriter.Append("JSON_VALUE(");
+                expr.Document.Accept(this, expr);
+                this.FormattingWriter.Append(',');
+                new ExprStringLiteral(expr.Path).Accept(this, expr);
+                this.FormattingWriter.Append(')');
+                return true;
+            }
+
+            this.FormattingWriter.Append("(SELECT ");
+            if (expr.ReturningType is ExprTypeBoolean)
+            {
+                this.FormattingWriter.Append("CASE [value] WHEN 'true' THEN CAST(1 AS bit) WHEN 'false' THEN CAST(0 AS bit) END");
+            }
+            else
+            {
+                this.FormattingWriter.Append("TRY_CONVERT(");
+                this.RenderJsonScalarType(expr.ReturningType, expr);
+                this.FormattingWriter.Append(",[value])");
+            }
+            var path = SqJsonPathParser.Parse(expr.Path);
+            this.FormattingWriter.Append(" FROM OPENJSON(");
+            if (path.Segments.Count == 0)
+            {
+                this.FormattingWriter.Append("CONCAT('[',");
+                expr.Document.Accept(this, expr);
+                this.FormattingWriter.Append(",']')) WHERE [key]='0' AND [type]=");
+            }
+            else
+            {
+                expr.Document.Accept(this, expr);
+                this.FormattingWriter.Append(',');
+                new ExprStringLiteral(BuildJsonParentPath(path.Segments)).Accept(this, expr);
+                this.FormattingWriter.Append(") WHERE [key]=");
+                var last = path.Segments[path.Segments.Count - 1];
+                new ExprStringLiteral(last.Kind == SqJsonPathSegmentKind.Property
+                    ? last.Property!
+                    : last.Index.ToString(System.Globalization.CultureInfo.InvariantCulture)).Accept(this, expr);
+                this.FormattingWriter.Append(" AND [type]=");
+            }
+            this.FormattingWriter.Append(expr.ReturningType is ExprTypeString ? "1" : expr.ReturningType is ExprTypeBoolean ? "3" : "2");
+            this.FormattingWriter.Append(')');
+            return true;
+        }
+
+        private static string BuildJsonParentPath(IReadOnlyList<SqJsonPathSegment> segments)
+        {
+            var result = new StringBuilder("$");
+            for (var i = 0; i + 1 < segments.Count; i++)
+            {
+                var segment = segments[i];
+                if (segment.Kind == SqJsonPathSegmentKind.Index)
+                {
+                    result.Append('[').Append(segment.Index).Append(']');
+                    continue;
+                }
+
+                result.Append(".\"");
+                foreach (var ch in segment.Property!)
+                {
+                    if (ch is '\\' or '"') result.Append('\\');
+                    result.Append(ch);
+                }
+                result.Append('"');
+            }
+            return result.ToString();
+        }
+
+        public override bool VisitExprJsonQuery(ExprJsonQuery expr, IExpr? parent)
+        {
+            this.FormattingWriter.Append("JSON_QUERY("); expr.Document.Accept(this, expr); this.FormattingWriter.Append(',');
+            new ExprStringLiteral(expr.Path).Accept(this, expr); this.FormattingWriter.Append(')'); return true;
+        }
+
+        public override bool VisitExprJsonNull(ExprJsonNull expr, IExpr? parent)
+        { this.FormattingWriter.Append("NULL"); return true; }
+
+        public override bool VisitExprJsonSet(ExprJsonSet expr, IExpr? parent)
+        {
+            if (expr.Value is ExprJsonNull)
+            {
+                this.FormattingWriter.Append("JSON_MODIFY(JSON_MODIFY("); expr.Document.Accept(this, expr); this.FormattingWriter.Append(',');
+                new ExprStringLiteral(expr.Path).Accept(this, expr); this.FormattingWriter.Append(",0),'strict ");
+                this.FormattingWriter.AppendEscapedSingleQuote(expr.Path); this.FormattingWriter.Append("',NULL)");
+                return true;
+            }
+            this.FormattingWriter.Append("JSON_MODIFY("); expr.Document.Accept(this, expr); this.FormattingWriter.Append(',');
+            new ExprStringLiteral(expr.Path).Accept(this, expr); this.FormattingWriter.Append(','); expr.Value.Accept(this, expr); this.FormattingWriter.Append(')'); return true;
+        }
+
+        public override bool VisitExprJsonRemove(ExprJsonRemove expr, IExpr? parent)
+        { this.FormattingWriter.Append("JSON_MODIFY("); expr.Document.Accept(this, expr); this.FormattingWriter.Append(','); new ExprStringLiteral(expr.Path).Accept(this, expr); this.FormattingWriter.Append(",NULL)"); return true; }
+
+        public override bool VisitExprJsonObject(ExprJsonObject expr, IExpr? parent)
+        {
+            this.FormattingWriter.Append("JSON_OBJECT(");
+            for (var i = 0; i < expr.Members.Count; i++) { if (i > 0) this.FormattingWriter.Append(','); expr.Members[i].Accept(this, expr); }
+            this.FormattingWriter.Append(" NULL ON NULL)"); return true;
+        }
+
+        public override bool VisitExprJsonMember(ExprJsonMember expr, IExpr? parent)
+        { new ExprStringLiteral(expr.Name).Accept(this, expr); this.FormattingWriter.Append(':'); expr.Value.Accept(this, expr); return true; }
+
+        public override bool VisitExprJsonArray(ExprJsonArray expr, IExpr? parent)
+        {
+            this.FormattingWriter.Append("JSON_ARRAY(");
+            for (var i = 0; i < expr.Items.Count; i++) { if (i > 0) this.FormattingWriter.Append(','); expr.Items[i].Accept(this, expr); }
+            this.FormattingWriter.Append(" NULL ON NULL)"); return true;
+        }
+
+        public override bool VisitExprJsonTable(ExprJsonTable expr, IExpr? parent)
+        {
+            if (!expr.Columns.Any(c => c is ExprJsonTableOrdinalColumn))
+            {
+                this.FormattingWriter.Append("OPENJSON("); expr.Document.Accept(this, expr); this.FormattingWriter.Append(',');
+                new ExprStringLiteral(expr.Path).Accept(this, expr); this.FormattingWriter.Append(") WITH (");
+                for (var i = 0; i < expr.Columns.Count; i++)
+                {
+                    if (i > 0) this.FormattingWriter.Append(',');
+                    var column = expr.Columns[i]; column.Name.Accept(this, expr); this.FormattingWriter.Append(' ');
+                    if (column is ExprJsonTableValueColumn value)
+                    { value.SqlType.Accept(this, value); this.FormattingWriter.Append(' '); new ExprStringLiteral(value.Path).Accept(this, value); }
+                    else if (column is ExprJsonTableQueryColumn query)
+                    { this.FormattingWriter.Append("nvarchar(max) "); new ExprStringLiteral(query.Path).Accept(this, query); this.FormattingWriter.Append(" AS JSON"); }
+                }
+                this.FormattingWriter.Append(") "); expr.Alias.Accept(this, expr); return true;
+            }
+            this.FormattingWriter.Append("(SELECT ");
+            for (var i = 0; i < expr.Columns.Count; i++)
+            {
+                if (i > 0) this.FormattingWriter.Append(',');
+                var column = expr.Columns[i];
+                column.Accept(this, expr);
+                this.FormattingWriter.Append(' '); column.Name.Accept(this, expr);
+            }
+            this.FormattingWriter.Append(" FROM OPENJSON("); expr.Document.Accept(this, expr); this.FormattingWriter.Append(',');
+            new ExprStringLiteral(expr.Path).Accept(this, expr); this.FormattingWriter.Append(") [J]) "); expr.Alias.Accept(this, expr); return true;
+        }
+
+        public override bool VisitExprJsonTableValueColumn(ExprJsonTableValueColumn expr, IExpr? parent)
+        {
+            this.FormattingWriter.Append("TRY_CONVERT("); this.RenderJsonScalarType(expr.SqlType, expr); this.FormattingWriter.Append(",JSON_VALUE([J].[value],");
+            new ExprStringLiteral(expr.Path).Accept(this, expr); this.FormattingWriter.Append("))"); return true;
+        }
+
+        private void RenderJsonScalarType(ExprType type, IExpr parent)
+        {
+            if (type is ExprTypeDecimal { PrecisionScale: null })
+            {
+                this.FormattingWriter.Append("decimal(38,18)");
+                return;
+            }
+            type.Accept(this, parent);
+        }
+
+        public override bool VisitExprJsonTableQueryColumn(ExprJsonTableQueryColumn expr, IExpr? parent)
+        { this.FormattingWriter.Append("JSON_QUERY([J].[value],"); new ExprStringLiteral(expr.Path).Accept(this, expr); this.FormattingWriter.Append(')'); return true; }
+
+        public override bool VisitExprJsonTableOrdinalColumn(ExprJsonTableOrdinalColumn expr, IExpr? parent)
+        { this.FormattingWriter.Append("TRY_CONVERT(int,[J].[key])"); return true; }
+
+        public override bool VisitExprJsonOutputColumn(ExprJsonOutputColumn expr, IExpr? parent)
+        {
+            if (!this.RenderingForJson) throw new SqExpressException("AsJson() output columns can only be exported inside ForJson().");
+            expr.Value.Accept(this, expr); this.FormattingWriter.Append(' ');
+            var alias = expr.JsonPath.Substring(2).Replace(".\"", ".").Replace("\"", string.Empty);
+            this.AppendName(alias); return true;
+        }
+
+        public override bool VisitExprQueryAsJson(ExprQueryAsJson expr, IExpr? parent)
+        {
+            JsonOutputShape.Build(expr.Query);
+            if (expr.WithoutArrayWrapper)
+                this.FormattingWriter.Append("SELECT CASE WHEN JSON_QUERY(J1.Json,'$[0]') IS NULL THEN NULL WHEN JSON_QUERY(J1.Json,'$[1]') IS NOT NULL THEN SUBSTRING(J1.Json,1,-1) ELSE JSON_QUERY(J1.Json,'$[0]') END Json FROM (SELECT (");
+            this.RenderForJsonSource(expr.Query, expr);
+            this.FormattingWriter.Append(" FOR JSON PATH");
+            if (expr.IncludeNullValues) this.FormattingWriter.Append(", INCLUDE_NULL_VALUES");
+            if (expr.WithoutArrayWrapper) this.FormattingWriter.Append(") Json) J1");
+            return true;
+        }
 
         public override bool VisitExprTableFullName(ExprTableFullName exprTableFullName, IExpr? parent) 
             => this.VisitExprTableFullNameCommon(exprTableFullName, parent);

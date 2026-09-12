@@ -6,6 +6,7 @@ using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Json;
 using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Output;
@@ -766,6 +767,123 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             }
             return modifier.Invoke(exprIn);
         }
+        public IExpr? VisitExprJsonArray(ExprJsonArray exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newItems = this.AcceptNotNullCollection(exprIn.Items, modifier);
+            if(!ReferenceEquals(exprIn.Items, newItems))
+            {
+                exprIn = new ExprJsonArray(items: newItems);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprJsonMember(ExprJsonMember exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newValue = this.AcceptItem(exprIn.Value, modifier);
+            if(!ReferenceEquals(exprIn.Value, newValue))
+            {
+                exprIn = new ExprJsonMember(value: newValue, name: exprIn.Name);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprJsonNull(ExprJsonNull exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprJsonObject(ExprJsonObject exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newMembers = this.AcceptNotNullCollection(exprIn.Members, modifier);
+            if(!ReferenceEquals(exprIn.Members, newMembers))
+            {
+                exprIn = new ExprJsonObject(members: newMembers);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprJsonOutputColumn(ExprJsonOutputColumn exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newValue = this.AcceptItem(exprIn.Value, modifier);
+            if(!ReferenceEquals(exprIn.Value, newValue))
+            {
+                exprIn = new ExprJsonOutputColumn(value: newValue, jsonPath: exprIn.JsonPath);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprJsonQuery(ExprJsonQuery exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newDocument = this.AcceptItem(exprIn.Document, modifier);
+            if(!ReferenceEquals(exprIn.Document, newDocument))
+            {
+                exprIn = new ExprJsonQuery(document: newDocument, path: exprIn.Path);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprJsonRemove(ExprJsonRemove exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newDocument = this.AcceptItem(exprIn.Document, modifier);
+            if(!ReferenceEquals(exprIn.Document, newDocument))
+            {
+                exprIn = new ExprJsonRemove(document: newDocument, path: exprIn.Path);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprJsonSet(ExprJsonSet exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newDocument = this.AcceptItem(exprIn.Document, modifier);
+            var newValue = this.AcceptItem(exprIn.Value, modifier);
+            if(!ReferenceEquals(exprIn.Document, newDocument) || !ReferenceEquals(exprIn.Value, newValue))
+            {
+                exprIn = new ExprJsonSet(document: newDocument, value: newValue, path: exprIn.Path);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprJsonTable(ExprJsonTable exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newDocument = this.AcceptItem(exprIn.Document, modifier);
+            var newColumns = this.AcceptNotNullCollection(exprIn.Columns, modifier);
+            var newAlias = this.AcceptItem(exprIn.Alias, modifier);
+            if(!ReferenceEquals(exprIn.Document, newDocument) || !ReferenceEquals(exprIn.Columns, newColumns) || !ReferenceEquals(exprIn.Alias, newAlias))
+            {
+                exprIn = new ExprJsonTable(document: newDocument, columns: newColumns, alias: newAlias, path: exprIn.Path);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprJsonTableOrdinalColumn(ExprJsonTableOrdinalColumn exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newName = this.AcceptItem(exprIn.Name, modifier);
+            if(!ReferenceEquals(exprIn.Name, newName))
+            {
+                exprIn = new ExprJsonTableOrdinalColumn(name: newName);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprJsonTableQueryColumn(ExprJsonTableQueryColumn exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newName = this.AcceptItem(exprIn.Name, modifier);
+            if(!ReferenceEquals(exprIn.Name, newName))
+            {
+                exprIn = new ExprJsonTableQueryColumn(name: newName, path: exprIn.Path);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprJsonTableValueColumn(ExprJsonTableValueColumn exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newName = this.AcceptItem(exprIn.Name, modifier);
+            var newSqlType = this.AcceptItem(exprIn.SqlType, modifier);
+            if(!ReferenceEquals(exprIn.Name, newName) || !ReferenceEquals(exprIn.SqlType, newSqlType))
+            {
+                exprIn = new ExprJsonTableValueColumn(name: newName, sqlType: newSqlType, path: exprIn.Path);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprJsonValue(ExprJsonValue exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newDocument = this.AcceptItem(exprIn.Document, modifier);
+            var newReturningType = this.AcceptNullableItem(exprIn.ReturningType, modifier);
+            if(!ReferenceEquals(exprIn.Document, newDocument) || !ReferenceEquals(exprIn.ReturningType, newReturningType))
+            {
+                exprIn = new ExprJsonValue(document: newDocument, returningType: newReturningType, path: exprIn.Path);
+            }
+            return modifier.Invoke(exprIn);
+        }
         public IExpr? VisitExprLateralCrossedTable(ExprLateralCrossedTable exprIn, Func<IExpr, IExpr?> modifier)
         {
             var newLeft = this.AcceptItem(exprIn.Left, modifier);
@@ -976,6 +1094,15 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             if(!ReferenceEquals(exprIn.Arguments, newArguments))
             {
                 exprIn = new ExprPortableScalarFunction(arguments: newArguments, PortableFunction: exprIn.PortableFunction);
+            }
+            return modifier.Invoke(exprIn);
+        }
+        public IExpr? VisitExprQueryAsJson(ExprQueryAsJson exprIn, Func<IExpr, IExpr?> modifier)
+        {
+            var newQuery = this.AcceptItem(exprIn.Query, modifier);
+            if(!ReferenceEquals(exprIn.Query, newQuery))
+            {
+                exprIn = new ExprQueryAsJson(query: newQuery, withoutArrayWrapper: exprIn.WithoutArrayWrapper, includeNullValues: exprIn.IncludeNullValues);
             }
             return modifier.Invoke(exprIn);
         }

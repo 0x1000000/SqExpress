@@ -3,6 +3,7 @@ using SqExpress.Syntax;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Json;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Value;
@@ -102,6 +103,18 @@ namespace SqExpress.SyntaxTreeOperations.Internal
         {
             return ctx.ValueVisitor.VisitAny(ctx.Ctx, true);
         }
+
+        public TRes VisitExprJsonValue(ExprJsonValue expr, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
+            => expr.ReturningType == null
+                ? ctx.ValueVisitor.VisitString(ctx.Ctx, true, null, false)
+                : expr.ReturningType.Accept(this, ctx);
+
+        public TRes VisitExprJsonQuery(ExprJsonQuery expr, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx) => ctx.ValueVisitor.VisitString(ctx.Ctx, true, null, false);
+        public TRes VisitExprJsonNull(ExprJsonNull expr, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx) => ctx.ValueVisitor.VisitString(ctx.Ctx, false, 4, false);
+        public TRes VisitExprJsonSet(ExprJsonSet expr, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx) => ctx.ValueVisitor.VisitString(ctx.Ctx, true, null, false);
+        public TRes VisitExprJsonRemove(ExprJsonRemove expr, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx) => ctx.ValueVisitor.VisitString(ctx.Ctx, true, null, false);
+        public TRes VisitExprJsonObject(ExprJsonObject expr, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx) => ctx.ValueVisitor.VisitString(ctx.Ctx, false, null, false);
+        public TRes VisitExprJsonArray(ExprJsonArray expr, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx) => ctx.ValueVisitor.VisitString(ctx.Ctx, false, null, false);
 
         public TRes VisitExprUnsafeValue(ExprUnsafeValue exprUnsafeValue, ExprValueTypeAnalyzerCtx<TRes, TCtx> ctx)
         {

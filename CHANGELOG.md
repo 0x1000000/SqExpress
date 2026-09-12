@@ -1,3 +1,12 @@
+# 1.4.0
+### New Features
+- Added portable JSON reading, construction, mutation, array expansion, and `ForJson()` output across all supported dialects.
+- Added portable `StringAgg(...)` with aggregate-local ordering and T-SQL parser support.
+- Added configurable SQL formatting profiles shared by exporters and the SQL transpiler formatter.
+
+### Bugfix
+- Fixed PostgreSQL `OuterApply` export by adding the required `ON TRUE` lateral-join condition.
+
 # 1.3.0
 ### New Features
 - Added SQLite support, including SQL export, DDL generation, runtime integration, and integration-test coverage.
@@ -12,6 +21,7 @@
 - Added fluent `Offset(...)` support without requiring an explicit `OrderBy(...)`. PostgreSQL emits a native unordered offset, while SQL Server uses `ORDER BY (SELECT NULL)` and converts an accompanying `SelectTop(...)` limit to `FETCH NEXT`.
 
 ### Breaking Changes
+- Expanded the public generic and no-argument visitor contracts with explicit JSON-node methods; custom visitor implementations must add the new handlers.
 - `SqTSqlParser.Parse(...)` / `TryParse(...)` with an existing table list now return canonical `SqTable` and `TableColumn` nodes for resolved physical references instead of neutral `ExprTable` and `ExprColumn` nodes. Parsing without an existing table list is unchanged.
 - `IQuerySpecificationBuilderFinal` and `IQueryExpressionBuilderFinal` now include `Offset(int)`; custom implementations of these public builder interfaces must implement the new member.
 

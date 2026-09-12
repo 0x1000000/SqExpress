@@ -25,11 +25,6 @@ namespace SqExpress.Test.SqlParser
                 .SetName("Unsupported_Select_Pivot");
 
             yield return new TestCaseData(
-                    "SELECT [u].[UserId] FROM [dbo].[Users] [u] FOR JSON PATH",
-                    "Feature 'FOR JSON/XML' is not supported by SqExpress parser.")
-                .SetName("Unsupported_Select_ForJson");
-
-            yield return new TestCaseData(
                     "SELECT [u].[UserId] FROM [dbo].[Users] [u] OPTION(RECOMPILE)",
                     "Feature 'OPTION(...)' is not supported by SqExpress parser.")
                 .SetName("Unsupported_Select_OptionHint");

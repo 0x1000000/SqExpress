@@ -3,6 +3,7 @@ using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Json;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Output;
 using SqExpress.Syntax.Select;
@@ -980,6 +981,175 @@ namespace SqExpress.Syntax
                 this._nodeHandler?.OnLeaveNode();
             }
         }
+        public object? VisitExprJsonArray(ExprJsonArray expr, object? arg)
+        {
+            this._nodeHandler?.OnEnterNode(expr);
+            try
+            {
+                this._visitor.VisitExprJsonArray(expr);
+                return null;
+            }
+            finally
+            {
+                this._nodeHandler?.OnLeaveNode();
+            }
+        }
+        public object? VisitExprJsonMember(ExprJsonMember expr, object? arg)
+        {
+            this._nodeHandler?.OnEnterNode(expr);
+            try
+            {
+                this._visitor.VisitExprJsonMember(expr);
+                return null;
+            }
+            finally
+            {
+                this._nodeHandler?.OnLeaveNode();
+            }
+        }
+        public object? VisitExprJsonNull(ExprJsonNull expr, object? arg)
+        {
+            this._nodeHandler?.OnEnterNode(expr);
+            try
+            {
+                this._visitor.VisitExprJsonNull(expr);
+                return null;
+            }
+            finally
+            {
+                this._nodeHandler?.OnLeaveNode();
+            }
+        }
+        public object? VisitExprJsonObject(ExprJsonObject expr, object? arg)
+        {
+            this._nodeHandler?.OnEnterNode(expr);
+            try
+            {
+                this._visitor.VisitExprJsonObject(expr);
+                return null;
+            }
+            finally
+            {
+                this._nodeHandler?.OnLeaveNode();
+            }
+        }
+        public object? VisitExprJsonOutputColumn(ExprJsonOutputColumn expr, object? arg)
+        {
+            this._nodeHandler?.OnEnterNode(expr);
+            try
+            {
+                this._visitor.VisitExprJsonOutputColumn(expr);
+                return null;
+            }
+            finally
+            {
+                this._nodeHandler?.OnLeaveNode();
+            }
+        }
+        public object? VisitExprJsonQuery(ExprJsonQuery expr, object? arg)
+        {
+            this._nodeHandler?.OnEnterNode(expr);
+            try
+            {
+                this._visitor.VisitExprJsonQuery(expr);
+                return null;
+            }
+            finally
+            {
+                this._nodeHandler?.OnLeaveNode();
+            }
+        }
+        public object? VisitExprJsonRemove(ExprJsonRemove expr, object? arg)
+        {
+            this._nodeHandler?.OnEnterNode(expr);
+            try
+            {
+                this._visitor.VisitExprJsonRemove(expr);
+                return null;
+            }
+            finally
+            {
+                this._nodeHandler?.OnLeaveNode();
+            }
+        }
+        public object? VisitExprJsonSet(ExprJsonSet expr, object? arg)
+        {
+            this._nodeHandler?.OnEnterNode(expr);
+            try
+            {
+                this._visitor.VisitExprJsonSet(expr);
+                return null;
+            }
+            finally
+            {
+                this._nodeHandler?.OnLeaveNode();
+            }
+        }
+        public object? VisitExprJsonTable(ExprJsonTable expr, object? arg)
+        {
+            this._nodeHandler?.OnEnterNode(expr);
+            try
+            {
+                this._visitor.VisitExprJsonTable(expr);
+                return null;
+            }
+            finally
+            {
+                this._nodeHandler?.OnLeaveNode();
+            }
+        }
+        public object? VisitExprJsonTableOrdinalColumn(ExprJsonTableOrdinalColumn expr, object? arg)
+        {
+            this._nodeHandler?.OnEnterNode(expr);
+            try
+            {
+                this._visitor.VisitExprJsonTableOrdinalColumn(expr);
+                return null;
+            }
+            finally
+            {
+                this._nodeHandler?.OnLeaveNode();
+            }
+        }
+        public object? VisitExprJsonTableQueryColumn(ExprJsonTableQueryColumn expr, object? arg)
+        {
+            this._nodeHandler?.OnEnterNode(expr);
+            try
+            {
+                this._visitor.VisitExprJsonTableQueryColumn(expr);
+                return null;
+            }
+            finally
+            {
+                this._nodeHandler?.OnLeaveNode();
+            }
+        }
+        public object? VisitExprJsonTableValueColumn(ExprJsonTableValueColumn expr, object? arg)
+        {
+            this._nodeHandler?.OnEnterNode(expr);
+            try
+            {
+                this._visitor.VisitExprJsonTableValueColumn(expr);
+                return null;
+            }
+            finally
+            {
+                this._nodeHandler?.OnLeaveNode();
+            }
+        }
+        public object? VisitExprJsonValue(ExprJsonValue expr, object? arg)
+        {
+            this._nodeHandler?.OnEnterNode(expr);
+            try
+            {
+                this._visitor.VisitExprJsonValue(expr);
+                return null;
+            }
+            finally
+            {
+                this._nodeHandler?.OnLeaveNode();
+            }
+        }
         public object? VisitExprLateralCrossedTable(ExprLateralCrossedTable expr, object? arg)
         {
             this._nodeHandler?.OnEnterNode(expr);
@@ -1259,6 +1429,19 @@ namespace SqExpress.Syntax
             try
             {
                 this._visitor.VisitExprPortableScalarFunction(expr);
+                return null;
+            }
+            finally
+            {
+                this._nodeHandler?.OnLeaveNode();
+            }
+        }
+        public object? VisitExprQueryAsJson(ExprQueryAsJson expr, object? arg)
+        {
+            this._nodeHandler?.OnEnterNode(expr);
+            try
+            {
+                this._visitor.VisitExprQueryAsJson(expr);
                 return null;
             }
             finally

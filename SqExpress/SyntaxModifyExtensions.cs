@@ -7,6 +7,7 @@ using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Json;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Output;
 using SqExpress.Syntax.Select;
@@ -496,6 +497,84 @@ namespace SqExpress
         public static ExprJoinedTable WithJoinType(this ExprJoinedTable original, ExprJoinedTable.ExprJoinType newJoinType) 
             => new ExprJoinedTable(left: original.Left, right: original.Right, searchCondition: original.SearchCondition, joinType: newJoinType);
 
+        public static ExprJsonArray WithItems(this ExprJsonArray original, IReadOnlyList<ExprValue> newItems) 
+            => new ExprJsonArray(items: newItems);
+
+        public static ExprJsonMember WithValue(this ExprJsonMember original, ExprValue newValue) 
+            => new ExprJsonMember(value: newValue, name: original.Name);
+
+        public static ExprJsonMember WithName(this ExprJsonMember original, String newName) 
+            => new ExprJsonMember(value: original.Value, name: newName);
+
+        public static ExprJsonObject WithMembers(this ExprJsonObject original, IReadOnlyList<ExprJsonMember> newMembers) 
+            => new ExprJsonObject(members: newMembers);
+
+        public static ExprJsonOutputColumn WithValue(this ExprJsonOutputColumn original, IExprSelecting newValue) 
+            => new ExprJsonOutputColumn(value: newValue, jsonPath: original.JsonPath);
+
+        public static ExprJsonOutputColumn WithJsonPath(this ExprJsonOutputColumn original, String newJsonPath) 
+            => new ExprJsonOutputColumn(value: original.Value, jsonPath: newJsonPath);
+
+        public static ExprJsonQuery WithDocument(this ExprJsonQuery original, ExprValue newDocument) 
+            => new ExprJsonQuery(document: newDocument, path: original.Path);
+
+        public static ExprJsonQuery WithPath(this ExprJsonQuery original, String newPath) 
+            => new ExprJsonQuery(document: original.Document, path: newPath);
+
+        public static ExprJsonRemove WithDocument(this ExprJsonRemove original, ExprValue newDocument) 
+            => new ExprJsonRemove(document: newDocument, path: original.Path);
+
+        public static ExprJsonRemove WithPath(this ExprJsonRemove original, String newPath) 
+            => new ExprJsonRemove(document: original.Document, path: newPath);
+
+        public static ExprJsonSet WithDocument(this ExprJsonSet original, ExprValue newDocument) 
+            => new ExprJsonSet(document: newDocument, value: original.Value, path: original.Path);
+
+        public static ExprJsonSet WithValue(this ExprJsonSet original, ExprValue newValue) 
+            => new ExprJsonSet(document: original.Document, value: newValue, path: original.Path);
+
+        public static ExprJsonSet WithPath(this ExprJsonSet original, String newPath) 
+            => new ExprJsonSet(document: original.Document, value: original.Value, path: newPath);
+
+        public static ExprJsonTable WithDocument(this ExprJsonTable original, ExprValue newDocument) 
+            => new ExprJsonTable(document: newDocument, columns: original.Columns, alias: original.Alias, path: original.Path);
+
+        public static ExprJsonTable WithColumns(this ExprJsonTable original, IReadOnlyList<ExprJsonTableColumn> newColumns) 
+            => new ExprJsonTable(document: original.Document, columns: newColumns, alias: original.Alias, path: original.Path);
+
+        public static ExprJsonTable WithAlias(this ExprJsonTable original, ExprTableAlias newAlias) 
+            => new ExprJsonTable(document: original.Document, columns: original.Columns, alias: newAlias, path: original.Path);
+
+        public static ExprJsonTable WithPath(this ExprJsonTable original, String newPath) 
+            => new ExprJsonTable(document: original.Document, columns: original.Columns, alias: original.Alias, path: newPath);
+
+        public static ExprJsonTableOrdinalColumn WithName(this ExprJsonTableOrdinalColumn original, ExprColumnName newName) 
+            => new ExprJsonTableOrdinalColumn(name: newName);
+
+        public static ExprJsonTableQueryColumn WithName(this ExprJsonTableQueryColumn original, ExprColumnName newName) 
+            => new ExprJsonTableQueryColumn(name: newName, path: original.Path);
+
+        public static ExprJsonTableQueryColumn WithPath(this ExprJsonTableQueryColumn original, String newPath) 
+            => new ExprJsonTableQueryColumn(name: original.Name, path: newPath);
+
+        public static ExprJsonTableValueColumn WithName(this ExprJsonTableValueColumn original, ExprColumnName newName) 
+            => new ExprJsonTableValueColumn(name: newName, sqlType: original.SqlType, path: original.Path);
+
+        public static ExprJsonTableValueColumn WithSqlType(this ExprJsonTableValueColumn original, ExprType newSqlType) 
+            => new ExprJsonTableValueColumn(name: original.Name, sqlType: newSqlType, path: original.Path);
+
+        public static ExprJsonTableValueColumn WithPath(this ExprJsonTableValueColumn original, String newPath) 
+            => new ExprJsonTableValueColumn(name: original.Name, sqlType: original.SqlType, path: newPath);
+
+        public static ExprJsonValue WithDocument(this ExprJsonValue original, ExprValue newDocument) 
+            => new ExprJsonValue(document: newDocument, returningType: original.ReturningType, path: original.Path);
+
+        public static ExprJsonValue WithReturningType(this ExprJsonValue original, ExprType? newReturningType) 
+            => new ExprJsonValue(document: original.Document, returningType: newReturningType, path: original.Path);
+
+        public static ExprJsonValue WithPath(this ExprJsonValue original, String newPath) 
+            => new ExprJsonValue(document: original.Document, returningType: original.ReturningType, path: newPath);
+
         public static ExprLateralCrossedTable WithLeft(this ExprLateralCrossedTable original, IExprTableSource newLeft) 
             => new ExprLateralCrossedTable(left: newLeft, right: original.Right, outer: original.Outer);
 
@@ -630,6 +709,15 @@ namespace SqExpress
 
         public static ExprPortableScalarFunction WithPortableFunction(this ExprPortableScalarFunction original, PortableScalarFunction newPortableFunction) 
             => new ExprPortableScalarFunction(arguments: original.Arguments, PortableFunction: newPortableFunction);
+
+        public static ExprQueryAsJson WithQuery(this ExprQueryAsJson original, IExprQuery newQuery) 
+            => new ExprQueryAsJson(query: newQuery, withoutArrayWrapper: original.WithoutArrayWrapper, includeNullValues: original.IncludeNullValues);
+
+        public static ExprQueryAsJson WithWithoutArrayWrapper(this ExprQueryAsJson original, Boolean newWithoutArrayWrapper) 
+            => new ExprQueryAsJson(query: original.Query, withoutArrayWrapper: newWithoutArrayWrapper, includeNullValues: original.IncludeNullValues);
+
+        public static ExprQueryAsJson WithIncludeNullValues(this ExprQueryAsJson original, Boolean newIncludeNullValues) 
+            => new ExprQueryAsJson(query: original.Query, withoutArrayWrapper: original.WithoutArrayWrapper, includeNullValues: newIncludeNullValues);
 
         public static ExprQueryExpression WithLeft(this ExprQueryExpression original, IExprSubQuery newLeft) 
             => new ExprQueryExpression(left: newLeft, right: original.Right, queryExpressionType: original.QueryExpressionType);

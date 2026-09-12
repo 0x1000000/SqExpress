@@ -317,6 +317,18 @@ namespace SqExpress.SqlTranspiler.Blazor.Pages
                        SUM(r.Revenue) OVER() - r.Revenue AS RemainingRevenue
                 FROM revenue_by_customer r
                 ORDER BY r.Revenue DESC;
+                """),
+            new ShowcaseSample(
+                "portable-json",
+                "21. Portable JSON Projection",
+                "JSON_VALUE, typed OPENJSON WITH, a dotted output alias, and portable FOR JSON output.",
+                """
+                SELECT JSON_VALUE(j.Payload, '$.name') AS [customer.name],
+                       j.Id AS [id],
+                       j.Payload AS [payload]
+                FROM OPENJSON('[{\"id\":1,\"payload\":{\"name\":\"Ada\"}}]')
+                WITH (Id int '$.id', Payload nvarchar(max) '$.payload' AS JSON) j
+                FOR JSON PATH, INCLUDE_NULL_VALUES;
                 """)
         };
     }

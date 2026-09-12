@@ -10,6 +10,7 @@ using SqExpress.Syntax;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Json;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Value;
@@ -399,6 +400,14 @@ namespace SqExpress.CodeGen.Shared
 
             public (CodeGenDefaultValueKind Kind, string? Value) VisitExprNull(ExprNull exprNull, object? arg)
                 => (CodeGenDefaultValueKind.Null, null);
+
+            public (CodeGenDefaultValueKind Kind, string? Value) VisitExprJsonValue(ExprJsonValue expr, object? arg) => Unsupported();
+            public (CodeGenDefaultValueKind Kind, string? Value) VisitExprJsonQuery(ExprJsonQuery expr, object? arg) => Unsupported();
+            public (CodeGenDefaultValueKind Kind, string? Value) VisitExprJsonNull(ExprJsonNull expr, object? arg) => Unsupported();
+            public (CodeGenDefaultValueKind Kind, string? Value) VisitExprJsonSet(ExprJsonSet expr, object? arg) => Unsupported();
+            public (CodeGenDefaultValueKind Kind, string? Value) VisitExprJsonRemove(ExprJsonRemove expr, object? arg) => Unsupported();
+            public (CodeGenDefaultValueKind Kind, string? Value) VisitExprJsonObject(ExprJsonObject expr, object? arg) => Unsupported();
+            public (CodeGenDefaultValueKind Kind, string? Value) VisitExprJsonArray(ExprJsonArray expr, object? arg) => Unsupported();
 
             public (CodeGenDefaultValueKind Kind, string? Value) VisitExprUnsafeValue(
                 ExprUnsafeValue exprUnsafeValue,

@@ -287,6 +287,42 @@ namespace SqExpress.Test.Syntax
             Assert.That(restored.ToSql(), Is.EqualTo(modified.ToSql()));
         }
 
+        [Test]
+        public void JsonAst_TraversesModifiesAndRoundTripsEveryFormat()
+        {
+            var expression = Select(
+                JsonValue("{\"old\":1}", "$.old", SqlType.Int32).AsJson("$.nested.value"),
+                JsonObject(JsonProperty("fragment", JsonQuery("[1,null]"))).As("Payload"))
+                .ForJson();
+
+            var names = expression.SyntaxTree().DescendantsAndSelf().Select(i => i.GetType().Name).ToArray();
+            Assert.That(names, Contains.Item("ExprQueryAsJson"));
+            Assert.That(names, Contains.Item("ExprJsonOutputColumn"));
+            Assert.That(names, Contains.Item("ExprJsonValue"));
+            Assert.That(names, Contains.Item("ExprJsonObject"));
+
+            var modified = expression.SyntaxTree().Modify(node =>
+                node is ExprStringLiteral { Value: "[1,null]" } ? Literal("[2,null]") : node)!;
+
+            using var jsonWriter = new MemoryStream();
+            modified.SyntaxTree().ExportToJson(new System.Text.Json.Utf8JsonWriter(jsonWriter));
+            var fromJson = ExprDeserializer.DeserializeFormJson(System.Text.Json.JsonDocument.Parse(jsonWriter.ToArray()).RootElement);
+
+            var plain = modified.SyntaxTree().ExportToPlainList(PlainItem.Create!);
+            var fromPlain = ExprDeserializer.DeserializeFormPlainList(plain);
+
+            var xmlText = new StringBuilder();
+            using (var xmlWriter = XmlWriter.Create(xmlText)) modified.SyntaxTree().ExportToXml(xmlWriter);
+            var xml = new XmlDocument();
+            xml.LoadXml(xmlText.ToString());
+            var fromXml = ExprDeserializer.DeserializeFormXml(xml.DocumentElement!);
+
+            var expected = modified.ToSql();
+            Assert.That(fromJson.ToSql(), Is.EqualTo(expected));
+            Assert.That(fromPlain.ToSql(), Is.EqualTo(expected));
+            Assert.That(fromXml.ToSql(), Is.EqualTo(expected));
+        }
+
 #endif
 
 #if NETCOREAPP

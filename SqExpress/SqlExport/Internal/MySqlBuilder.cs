@@ -9,6 +9,7 @@ using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Json;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Select.SelectItems;
@@ -20,7 +21,7 @@ using SqExpress.Utils;
 
 namespace SqExpress.SqlExport.Internal
 {
-    internal class MySqlBuilder : SqlBuilderBase, IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>
+    internal partial class MySqlBuilder : SqlBuilderBase, IPortableScalarFunctionVisitor<bool, ExprPortableScalarFunction>
     {
         public MySqlBuilder(SqlBuilderOptions? options = null, MySqlFlavor flavor = MySqlFlavor.MariaDb) : base(options, new SqlAliasGenerator(), false)
         {
@@ -213,11 +214,26 @@ namespace SqExpress.SqlExport.Internal
         public override bool VisitExprLateralCrossedTable(ExprLateralCrossedTable exprCrossedTable, IExpr? parent)
         {
             exprCrossedTable.Left.Accept(this, exprCrossedTable);
+            if (this.Flavor == MySqlFlavor.MariaDb && exprCrossedTable.Right is ExprJsonTable jsonTable)
+            {
+                this.FormattingWriter.AppendClause(
+                    exprCrossedTable.Outer ? "LEFT JOIN" : "JOIN",
+                    SqlRenderSite.Join,
+                    compactTrailingSpaces: 0);
+                this.FormattingWriter.Append(' ');
+                this.AppendMariaDbCorrelatedJsonTable(jsonTable);
+                this.FormattingWriter.Append(" ON TRUE");
+                return true;
+            }
             this.FormattingWriter.AppendClause(
                 exprCrossedTable.Outer ? "LEFT JOIN LATERAL" : "CROSS JOIN LATERAL",
                 SqlRenderSite.Join,
                 compactTrailingSpaces: exprCrossedTable.Outer ? 0 : 1);
             exprCrossedTable.Right.Accept(this, exprCrossedTable);
+            if (exprCrossedTable.Outer)
+            {
+                this.FormattingWriter.Append(" ON TRUE");
+            }
             return true;
         }
 

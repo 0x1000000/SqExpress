@@ -7,6 +7,7 @@ using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Json;
 using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Output;
@@ -1223,6 +1224,170 @@ namespace SqExpress.SyntaxTreeOperations.Internal
                     throw new SqExpressException("Incorrect enumerator visitor state");
             }
         }
+        public bool VisitExprJsonArray(ExprJsonArray expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.Items);
+                case 2:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
+        public bool VisitExprJsonMember(ExprJsonMember expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.Value);
+                case 2:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
+        public bool VisitExprJsonNull(ExprJsonNull expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
+        public bool VisitExprJsonObject(ExprJsonObject expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.Members);
+                case 2:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
+        public bool VisitExprJsonOutputColumn(ExprJsonOutputColumn expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.Value);
+                case 2:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
+        public bool VisitExprJsonQuery(ExprJsonQuery expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.Document);
+                case 2:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
+        public bool VisitExprJsonRemove(ExprJsonRemove expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.Document);
+                case 2:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
+        public bool VisitExprJsonSet(ExprJsonSet expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.Document);
+                case 2:
+                    return this.SetCurrent(expr.Value);
+                case 3:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
+        public bool VisitExprJsonTable(ExprJsonTable expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.Document);
+                case 2:
+                    return this.SetCurrent(expr.Columns);
+                case 3:
+                    return this.SetCurrent(expr.Alias);
+                case 4:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
+        public bool VisitExprJsonTableOrdinalColumn(ExprJsonTableOrdinalColumn expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.Name);
+                case 2:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
+        public bool VisitExprJsonTableQueryColumn(ExprJsonTableQueryColumn expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.Name);
+                case 2:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
+        public bool VisitExprJsonTableValueColumn(ExprJsonTableValueColumn expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.Name);
+                case 2:
+                    return this.SetCurrent(expr.SqlType);
+                case 3:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
+        public bool VisitExprJsonValue(ExprJsonValue expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.Document);
+                case 2:
+                    return this.SetCurrent(expr.ReturningType);
+                case 3:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
         public bool VisitExprLateralCrossedTable(ExprLateralCrossedTable expr, object? arg)
         {
             switch (this.Peek().State)
@@ -1519,6 +1684,18 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             {
                 case 1:
                     return this.SetCurrent(expr.Arguments);
+                case 2:
+                    return this.Pop();
+                default:
+                    throw new SqExpressException("Incorrect enumerator visitor state");
+            }
+        }
+        public bool VisitExprQueryAsJson(ExprQueryAsJson expr, object? arg)
+        {
+            switch (this.Peek().State)
+            {
+                case 1:
+                    return this.SetCurrent(expr.Query);
                 case 2:
                     return this.Pop();
                 default:

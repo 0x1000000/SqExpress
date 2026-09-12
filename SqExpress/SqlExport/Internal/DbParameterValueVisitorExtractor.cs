@@ -3,6 +3,7 @@ using SqExpress.Syntax;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Json;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Value;
@@ -157,6 +158,20 @@ internal class DbParameterValueVisitorExtractor: IExprValueVisitor<DbParameterVa
     {
         return null;
     }
+
+    public virtual DbParameterValue? VisitExprJsonValue(ExprJsonValue expr, string? name) => null;
+
+    public virtual DbParameterValue? VisitExprJsonQuery(ExprJsonQuery expr, string? name) => null;
+
+    public virtual DbParameterValue? VisitExprJsonNull(ExprJsonNull expr, string? name) => null;
+
+    public virtual DbParameterValue? VisitExprJsonSet(ExprJsonSet expr, string? name) => null;
+
+    public virtual DbParameterValue? VisitExprJsonRemove(ExprJsonRemove expr, string? name) => null;
+
+    public virtual DbParameterValue? VisitExprJsonObject(ExprJsonObject expr, string? name) => null;
+
+    public virtual DbParameterValue? VisitExprJsonArray(ExprJsonArray expr, string? name) => null;
 
     public virtual DbParameterValue? VisitExprCase(ExprCase exprCase, string? name)
     {

@@ -38,13 +38,14 @@ namespace SqExpress.SqlTranspiler.Test
                 ["datepart-rollup"] = "WITH [order_calendar] AS(SELECT YEAR([o].[OrderDate]) [OrderYear],MONTH([o].[OrderDate]) [OrderMonth] FROM [dbo].[Orders] [o])SELECT [oc].[OrderYear],[oc].[OrderMonth],COUNT(1) [OrdersCount] FROM [order_calendar] [oc] GROUP BY [oc].[OrderYear],[oc].[OrderMonth] ORDER BY [oc].[OrderYear] DESC,[oc].[OrderMonth] DESC",
                 ["dense-rank-team"] = "SELECT [u].[UserId],[u].[TeamId],[u].[Name],[u].[Score],DENSE_RANK()OVER(PARTITION BY [u].[TeamId] ORDER BY [u].[Score] DESC) [TeamRank] FROM [dbo].[Users] [u] WHERE [u].[TeamId] IN(0) ORDER BY [u].[TeamId],[u].[Score] DESC,[u].[Name]",
                 ["multi-cte-balance"] = "WITH [tx] AS(SELECT [t].[AccountId],[t].[Amount],[t].[PostedAt] FROM [dbo].[AccountTransactions] [t] WHERE [t].[PostedAt]>='0001-01-01'),[balance] AS(SELECT [balanceSource].[AccountId],SUM([balanceSource].[Amount]) [Balance] FROM [tx] [balanceSource] GROUP BY [balanceSource].[AccountId])SELECT [a].[AccountId],[a].[AccountName],[b].[Balance] FROM [dbo].[Accounts] [a] JOIN [balance] [b] ON [b].[AccountId]=[a].[AccountId] WHERE [b].[Balance]!=0 ORDER BY [b].[Balance] DESC",
-                ["windowed-order-share"] = "WITH [revenue_by_customer] AS(SELECT [c].[CustomerId],[c].[CustomerName],SUM([o].[TotalAmount]) [Revenue] FROM [dbo].[Customers] [c] JOIN [dbo].[Orders] [o] ON [o].[CustomerId]=[c].[CustomerId] WHERE [o].[OrderDate]>='0001-01-01' GROUP BY [c].[CustomerId],[c].[CustomerName])SELECT [r].[CustomerId],[r].[CustomerName],[r].[Revenue],SUM([r].[Revenue])OVER() [TotalRevenue],SUM([r].[Revenue])OVER()-[r].[Revenue] [RemainingRevenue] FROM [revenue_by_customer] [r] ORDER BY [r].[Revenue] DESC"
+                ["windowed-order-share"] = "WITH [revenue_by_customer] AS(SELECT [c].[CustomerId],[c].[CustomerName],SUM([o].[TotalAmount]) [Revenue] FROM [dbo].[Customers] [c] JOIN [dbo].[Orders] [o] ON [o].[CustomerId]=[c].[CustomerId] WHERE [o].[OrderDate]>='0001-01-01' GROUP BY [c].[CustomerId],[c].[CustomerName])SELECT [r].[CustomerId],[r].[CustomerName],[r].[Revenue],SUM([r].[Revenue])OVER() [TotalRevenue],SUM([r].[Revenue])OVER()-[r].[Revenue] [RemainingRevenue] FROM [revenue_by_customer] [r] ORDER BY [r].[Revenue] DESC",
+                ["portable-json"] = "SELECT JSON_VALUE([j].[Payload],'$.name') [customer.name],[j].[Id],[j].[Payload] FROM OPENJSON('[{\\\"id\\\":1,\\\"payload\\\":{\\\"name\\\":\\\"Ada\\\"}}]','$') WITH ([Id] int '$.id',[Payload] nvarchar(max) '$.payload' AS JSON) [j] FOR JSON PATH, INCLUDE_NULL_VALUES"
             };
 
         [Test]
-        public void ShowcaseCatalog_ContainsTwentySamples()
+        public void ShowcaseCatalog_ContainsTwentyOneSamples()
         {
-            Assert.That(GetShowcaseSamples().Count, Is.EqualTo(20));
+            Assert.That(GetShowcaseSamples().Count, Is.EqualTo(21));
         }
 
         [Test]

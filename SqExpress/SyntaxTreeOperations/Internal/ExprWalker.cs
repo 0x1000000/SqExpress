@@ -6,6 +6,7 @@ using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Json;
 using SqExpress.Syntax.Internal;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Output;
@@ -927,6 +928,153 @@ namespace SqExpress.SyntaxTreeOperations.Internal
             this.EndVisit(expr, argOut.Context);
             return res && walkResult != WalkResult.Stop;
         }
+        public bool VisitExprJsonArray(ExprJsonArray expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "JsonArray", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("Items",expr.Items, argOut);
+            }
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
+        public bool VisitExprJsonMember(ExprJsonMember expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "JsonMember", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("Value",expr.Value, argOut);
+            }
+            this.VisitPlainProperty("Name",expr.Name, argOut.Context);
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
+        public bool VisitExprJsonNull(ExprJsonNull expr, WalkerContext<TCtx> arg)
+        {
+            var walkResult = this.Visit(expr, "JsonNull", arg, out var argOut);
+            this.EndVisit(expr, argOut.Context);
+            return walkResult != WalkResult.Stop;
+        }
+        public bool VisitExprJsonObject(ExprJsonObject expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "JsonObject", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("Members",expr.Members, argOut);
+            }
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
+        public bool VisitExprJsonOutputColumn(ExprJsonOutputColumn expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "JsonOutputColumn", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("Value",expr.Value, argOut);
+            }
+            this.VisitPlainProperty("JsonPath",expr.JsonPath, argOut.Context);
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
+        public bool VisitExprJsonQuery(ExprJsonQuery expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "JsonQuery", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("Document",expr.Document, argOut);
+            }
+            this.VisitPlainProperty("Path",expr.Path, argOut.Context);
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
+        public bool VisitExprJsonRemove(ExprJsonRemove expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "JsonRemove", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("Document",expr.Document, argOut);
+            }
+            this.VisitPlainProperty("Path",expr.Path, argOut.Context);
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
+        public bool VisitExprJsonSet(ExprJsonSet expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "JsonSet", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("Document",expr.Document, argOut) && this.Accept("Value",expr.Value, argOut);
+            }
+            this.VisitPlainProperty("Path",expr.Path, argOut.Context);
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
+        public bool VisitExprJsonTable(ExprJsonTable expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "JsonTable", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("Document",expr.Document, argOut) && this.Accept("Columns",expr.Columns, argOut) && this.Accept("Alias",expr.Alias, argOut);
+            }
+            this.VisitPlainProperty("Path",expr.Path, argOut.Context);
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
+        public bool VisitExprJsonTableOrdinalColumn(ExprJsonTableOrdinalColumn expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "JsonTableOrdinalColumn", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("Name",expr.Name, argOut);
+            }
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
+        public bool VisitExprJsonTableQueryColumn(ExprJsonTableQueryColumn expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "JsonTableQueryColumn", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("Name",expr.Name, argOut);
+            }
+            this.VisitPlainProperty("Path",expr.Path, argOut.Context);
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
+        public bool VisitExprJsonTableValueColumn(ExprJsonTableValueColumn expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "JsonTableValueColumn", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("Name",expr.Name, argOut) && this.Accept("SqlType",expr.SqlType, argOut);
+            }
+            this.VisitPlainProperty("Path",expr.Path, argOut.Context);
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
+        public bool VisitExprJsonValue(ExprJsonValue expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "JsonValue", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("Document",expr.Document, argOut) && this.Accept("ReturningType",expr.ReturningType, argOut);
+            }
+            this.VisitPlainProperty("Path",expr.Path, argOut.Context);
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
         public bool VisitExprLateralCrossedTable(ExprLateralCrossedTable expr, WalkerContext<TCtx> arg)
         {
             var res = true;
@@ -1165,6 +1313,19 @@ namespace SqExpress.SyntaxTreeOperations.Internal
                 res = this.Accept("Arguments",expr.Arguments, argOut);
             }
             this.VisitPlainProperty("PortableFunction",expr.PortableFunction, argOut.Context);
+            this.EndVisit(expr, argOut.Context);
+            return res && walkResult != WalkResult.Stop;
+        }
+        public bool VisitExprQueryAsJson(ExprQueryAsJson expr, WalkerContext<TCtx> arg)
+        {
+            var res = true;
+            var walkResult = this.Visit(expr, "QueryAsJson", arg, out var argOut);
+            if(walkResult == WalkResult.Continue)
+            {
+                res = this.Accept("Query",expr.Query, argOut);
+            }
+            this.VisitPlainProperty("WithoutArrayWrapper",expr.WithoutArrayWrapper, argOut.Context);
+            this.VisitPlainProperty("IncludeNullValues",expr.IncludeNullValues, argOut.Context);
             this.EndVisit(expr, argOut.Context);
             return res && walkResult != WalkResult.Stop;
         }

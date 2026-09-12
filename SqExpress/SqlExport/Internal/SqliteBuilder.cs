@@ -15,7 +15,7 @@ using SqExpress.Utils;
 
 namespace SqExpress.SqlExport.Internal
 {
-    internal class SqliteBuilder : PgSqlBuilder
+    internal partial class SqliteBuilder : PgSqlBuilder
     {
         public SqliteBuilder(SqlBuilderOptions? options = null)
             : base(options)

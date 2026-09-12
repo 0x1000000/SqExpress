@@ -18,6 +18,7 @@ using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Json;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Select;
 using SqExpress.Syntax.Select.SelectItems;
@@ -980,6 +981,15 @@ namespace SqExpress.SqlTranspiler
 
             private string RenderQuery(IExprQuery query, RenderContext context)
             {
+                if (query is ExprQueryAsJson asJson)
+                {
+                    var arguments = asJson.WithoutArrayWrapper || !asJson.IncludeNullValues
+                        ? "withoutArrayWrapper: " + (asJson.WithoutArrayWrapper ? "true" : "false")
+                          + ", includeNullValues: " + (asJson.IncludeNullValues ? "true" : "false")
+                        : string.Empty;
+                    return this.RenderQuery(asJson.Query, context) + ".ForJson(" + arguments + ")";
+                }
+
                 if (query is ExprSelect select)
                 {
                     var builder = ParseExpression(this.RenderSubQueryBuilder(select.SelectQuery, context, useDerivedPropertyAliases: false, derivedPropertyMap: null));
@@ -1553,6 +1563,9 @@ namespace SqExpress.SqlTranspiler
             {
                 switch (selecting)
                 {
+                    case ExprJsonOutputColumn jsonOutput:
+                        return this.RenderSelecting(jsonOutput.Value, context, useDerivedPropertyAliases, derivedPropertyMap)
+                    + ".AsJson(" + ToCSharpStringLiteral(jsonOutput.JsonPath) + ")";
                     case ExprAliasedColumn aliasedColumn:
                     {
                         var value = this.RenderColumn(aliasedColumn.Column, context);
@@ -1637,6 +1650,21 @@ namespace SqExpress.SqlTranspiler
             {
                 switch (source)
                 {
+                    case ExprJsonTable jsonTable:
+                    {
+                        var result = "JsonTable(" + this.RenderValue(jsonTable.Document, context) + ", " + ToCSharpStringLiteral(jsonTable.Path) + ")";
+                        foreach (var column in jsonTable.Columns)
+                        {
+                            result += column switch
+                            {
+                                ExprJsonTableValueColumn valueColumn => ".Value(" + ToCSharpStringLiteral(valueColumn.Name.Name) + ", " + ToCSharpStringLiteral(valueColumn.Path) + ", " + this.RenderSqlType(valueColumn.SqlType) + ")",
+                                ExprJsonTableQueryColumn queryColumn => ".Query(" + ToCSharpStringLiteral(queryColumn.Name.Name) + ", " + ToCSharpStringLiteral(queryColumn.Path) + ")",
+                                ExprJsonTableOrdinalColumn ordinalColumn => ".Ordinal(" + ToCSharpStringLiteral(ordinalColumn.Name.Name) + ")",
+                                _ => string.Empty
+                            };
+                        }
+                        return result + ".As(" + ToCSharpStringLiteral(this.GetAliasName(jsonTable.Alias.Alias) ?? "j") + ")";
+                    }
                     case ExprTable table:
                     {
                         if (table.Alias == null)
@@ -2150,6 +2178,21 @@ namespace SqExpress.SqlTranspiler
             {
                 switch (value)
                 {
+                    case ExprJsonValue jsonValue:
+                        return "JsonValue(" + this.RenderValue(jsonValue.Document, context) + ", " + ToCSharpStringLiteral(jsonValue.Path)
+                               + (jsonValue.ReturningType == null ? ")" : ", " + this.RenderSqlType(jsonValue.ReturningType) + ")");
+                    case ExprJsonQuery jsonQuery:
+                        return "JsonQuery(" + this.RenderValue(jsonQuery.Document, context) + ", " + ToCSharpStringLiteral(jsonQuery.Path) + ")";
+                    case ExprJsonNull:
+                        return "JsonNull()";
+                    case ExprJsonSet jsonSet:
+                        return "JsonSet(" + this.RenderValue(jsonSet.Document, context) + ", " + ToCSharpStringLiteral(jsonSet.Path) + ", " + this.RenderValue(jsonSet.Value, context) + ")";
+                    case ExprJsonRemove jsonRemove:
+                        return "JsonRemove(" + this.RenderValue(jsonRemove.Document, context) + ", " + ToCSharpStringLiteral(jsonRemove.Path) + ")";
+                    case ExprJsonObject jsonObject:
+                        return "JsonObject(" + string.Join(", ", jsonObject.Members.Select(i => "JsonProperty(" + ToCSharpStringLiteral(i.Name) + ", " + this.RenderValue(i.Value, context) + ")")) + ")";
+                    case ExprJsonArray jsonArray:
+                        return "JsonArray(" + string.Join(", ", jsonArray.Items.Select(i => this.RenderValue(i, context))) + ")";
                     case ExprColumn column:
                         return this.RenderColumn(column, context);
                     case ExprStringLiteral stringLiteral:

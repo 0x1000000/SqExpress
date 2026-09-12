@@ -8,6 +8,7 @@ SQEX001 | Migration | Info | `SqTSqlParser.Parse/TryParse` call with compile-tim
 SQEX010 | Correctness | Error | `SqTSqlParser.Parse` SQL text cannot be parsed by `SqTSqlParser`.
 SQEX011 | Correctness | Warning | Referenced SQL tables cannot be resolved to discovered SqExpress table classes.
 SQEX012 | Correctness | Warning | Referenced SQL columns cannot be resolved to discovered SqExpress table members.
+SQEX020 | Correctness | Error | Invalid constant portable JSON path.
 SQEX100 | SourceGeneration | Error | `[TableDescriptor]` target must be a class.
 SQEX101 | SourceGeneration | Error | `[TableDescriptor]` class must be partial.
 SQEX102 | SourceGeneration | Error | `[TableDescriptor]` class must be top-level.

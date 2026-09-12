@@ -40,6 +40,15 @@ namespace SqExpress.Analyzers.Diagnostics
             isEnabledByDefault: true,
             description: "Reports SqTSqlParser.Parse calls whose referenced SQL columns cannot be resolved to discovered SqExpress table descriptor members.");
 
+        public static readonly DiagnosticDescriptor InvalidJsonPath = new DiagnosticDescriptor(
+            id: "SQEX020",
+            title: "JSON path is invalid",
+            messageFormat: "Invalid JSON path at position {0}: {1}",
+            category: "Correctness",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            description: "Reports invalid constant SqJsonPath arguments before SQL export.");
+
         public static readonly DiagnosticDescriptor TableDescriptorMustBeClass = new DiagnosticDescriptor(
             id: "SQEX100",
             title: "Table descriptor target must be a class",

@@ -320,7 +320,7 @@ namespace SqExpress.Test.SqlParser
             new PgSample(
                 "Select_OuterApply",
                 @"SELECT [u].[UserId],[oa].[OrderId] FROM [dbo].[Users] [u] OUTER APPLY (SELECT [o].[OrderId] FROM [dbo].[Orders] [o] ORDER BY [o].[OrderId] DESC OFFSET 0 ROW FETCH NEXT 1 ROW ONLY)[oa]",
-                @"SELECT ""u"".""UserId"",""oa"".""OrderId"" FROM ""dbo"".""Users"" ""u"" LEFT JOIN LATERAL(SELECT ""o"".""OrderId"" FROM ""dbo"".""Orders"" ""o"" ORDER BY ""o"".""OrderId"" DESC OFFSET 0 ROW FETCH NEXT 1 ROW ONLY)""oa""",
+            @"SELECT ""u"".""UserId"",""oa"".""OrderId"" FROM ""dbo"".""Users"" ""u"" LEFT JOIN LATERAL(SELECT ""o"".""OrderId"" FROM ""dbo"".""Orders"" ""o"" ORDER BY ""o"".""OrderId"" DESC OFFSET 0 ROW FETCH NEXT 1 ROW ONLY)""oa"" ON TRUE",
                 null
             ),
             new PgSample(

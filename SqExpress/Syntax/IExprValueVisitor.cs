@@ -1,6 +1,7 @@
 using SqExpress.Syntax.Expressions;
 using SqExpress.Syntax.Functions;
 using SqExpress.Syntax.Functions.Known;
+using SqExpress.Syntax.Json;
 using SqExpress.Syntax.Names;
 using SqExpress.Syntax.Type;
 using SqExpress.Syntax.Value;
@@ -69,6 +70,34 @@ public interface IExprValueVisitor<out TRes, in TArg>
     TRes VisitExprScalarFunction(ExprScalarFunction exprScalarFunction, TArg arg);
 
     TRes VisitExprPortableScalarFunction(ExprPortableScalarFunction exprPortableScalarFunction, TArg arg);
+
+    /// <summary>Visits a JSON scalar extraction expression.</summary>
+    /// <param name="exprJsonValue">The expression to visit.</param><param name="arg">The visitor argument.</param><returns>The visitor result.</returns>
+    TRes VisitExprJsonValue(ExprJsonValue exprJsonValue, TArg arg);
+
+    /// <summary>Visits a JSON fragment extraction expression.</summary>
+    /// <param name="exprJsonQuery">The expression to visit.</param><param name="arg">The visitor argument.</param><returns>The visitor result.</returns>
+    TRes VisitExprJsonQuery(ExprJsonQuery exprJsonQuery, TArg arg);
+
+    /// <summary>Visits a JSON null expression.</summary>
+    /// <param name="exprJsonNull">The expression to visit.</param><param name="arg">The visitor argument.</param><returns>The visitor result.</returns>
+    TRes VisitExprJsonNull(ExprJsonNull exprJsonNull, TArg arg);
+
+    /// <summary>Visits a JSON set expression.</summary>
+    /// <param name="exprJsonSet">The expression to visit.</param><param name="arg">The visitor argument.</param><returns>The visitor result.</returns>
+    TRes VisitExprJsonSet(ExprJsonSet exprJsonSet, TArg arg);
+
+    /// <summary>Visits a JSON removal expression.</summary>
+    /// <param name="exprJsonRemove">The expression to visit.</param><param name="arg">The visitor argument.</param><returns>The visitor result.</returns>
+    TRes VisitExprJsonRemove(ExprJsonRemove exprJsonRemove, TArg arg);
+
+    /// <summary>Visits a JSON object construction expression.</summary>
+    /// <param name="exprJsonObject">The expression to visit.</param><param name="arg">The visitor argument.</param><returns>The visitor result.</returns>
+    TRes VisitExprJsonObject(ExprJsonObject exprJsonObject, TArg arg);
+
+    /// <summary>Visits a JSON array construction expression.</summary>
+    /// <param name="exprJsonArray">The expression to visit.</param><param name="arg">The visitor argument.</param><returns>The visitor result.</returns>
+    TRes VisitExprJsonArray(ExprJsonArray exprJsonArray, TArg arg);
 
     TRes VisitExprCase(ExprCase exprCase, TArg arg);
 

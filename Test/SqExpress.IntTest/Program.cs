@@ -51,7 +51,7 @@ namespace SqExpress.IntTest
 
             try
             {
-                var scenario = customScenario ?? BuildScenario();
+                var scenario = customScenario ?? BuildScenario(options.Scenario);
 
                 await ExecScenarioSelected(
                     scenario: scenario,
@@ -86,8 +86,18 @@ namespace SqExpress.IntTest
             }
         }
 
-        private static IScenario BuildScenario()
+        private static IScenario BuildScenario(string? scenario)
         {
+            if (scenario != null)
+            {
+                return scenario.Trim().ToLowerInvariant() switch
+                {
+                    "for-json-nested-books" => new ScForJsonNestedBooks(),
+                    "get-tables-complex" => new ScGetTablesComplex(),
+                    _ => throw new ArgumentException($"Unknown scenario '{scenario}'.")
+                };
+            }
+
             return new ScCreateTables()
                 .Then(new ScInsertUserData())
                 .Then(new ScSqlInjections())
@@ -127,8 +137,13 @@ namespace SqExpress.IntTest
                 .Then(new ScCteCross())
                 .Then(new ScTreeClosure())
                 .Then(new ScBitwise())
-                .Then(new ScJsonTableFunction())
+                .Then(new ScJsonRead())
+                .Then(new ScJsonMutationAndConstruction())
+                .Then(new ScJsonTable())
+                .Then(new ScForJson())
+                .Then(new ScForJsonNestedBooks())
                 .Then(new ScGetTables())
+                .Then(new ScGetTablesComplex())
                 .Then(new ScDateDiff())
                 .Then(new ScCreateDynamicTable())
                 .Then(new ScPortableScalarFunctions());
@@ -321,6 +336,7 @@ namespace SqExpress.IntTest
             public IReadOnlyList<SqlDialect> Dialects { get; init; } = Array.Empty<SqlDialect>();
             public IReadOnlyList<ParametrizationMode> Parametrizations { get; init; } = Array.Empty<ParametrizationMode>();
             public bool ShouldRunCrossDbCompare { get; init; }
+            public string? Scenario { get; init; }
 
             public static RunnerOptions Parse(string[] args)
             {
@@ -328,12 +344,14 @@ namespace SqExpress.IntTest
                 var parametrizations = ParseParametrizations(GetOptionValue(args, "--parametrization")) ?? DefaultParametrizations();
                 var crossDbCompare = ParseBool(GetOptionValue(args, "--cross-db-compare"))
                     ?? (dialects.Contains(SqlDialect.TSql) && dialects.Contains(SqlDialect.PgSql));
+                var scenario = GetOptionValue(args, "--scenario");
 
                 return new RunnerOptions
                 {
                     Dialects = dialects,
                     Parametrizations = parametrizations,
-                    ShouldRunCrossDbCompare = crossDbCompare
+                    ShouldRunCrossDbCompare = crossDbCompare,
+                    Scenario = scenario
                 };
             }
 
