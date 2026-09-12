@@ -40,7 +40,7 @@ internal class TempTableData : TempTableBase, IExprValueTypeVisitor<TableColumn?
 
         var insert = SqQueryBuilder.InsertInto(tempTable, derivedTableValues.Columns).Values(new ExprInsertValues(insertData));
 
-        return new ExprList(new IExprExec[] {new ExprStatement(tempTable.Script.Create()), insert});
+        return new ExprList([new ExprStatement(tempTable.Script.Create()), insert]);
     }
 
     public static TempTableData FromDerivedTableValues(ExprDerivedTableValues derivedTableValues, IReadOnlyList<ExprColumnName>? keys, Alias alias = default, string? name = null, IReadOnlyDictionary<ExprColumnName, TableColumn>? hints = null)
@@ -63,7 +63,7 @@ internal class TempTableData : TempTableBase, IExprValueTypeVisitor<TableColumn?
                         .WithColumnName(derivedTableColumnName)
                         .WithTable(result)
                         .WithColumnMeta(null);
-                    hintedColumns ??= new HashSet<ExprColumnName>();
+                    hintedColumns ??= [];
                     hintedColumns.Add(derivedTableColumnName);
                 }
             }
@@ -152,7 +152,7 @@ internal class TempTableData : TempTableBase, IExprValueTypeVisitor<TableColumn?
         var insert = SqQueryBuilder.InsertInto((ExprTable)tempTable, ((TableBase)tempTable).Columns)
             .From(tableSource.CreateSubQuery());
 
-        return new ExprList(new IExprExec[] { new ExprStatement(tempTable.Script.Create()), insert });
+        return new ExprList([new ExprStatement(tempTable.Script.Create()), insert]);
     }
 
     public static TempTableData FromTableSource(IExprTableSource tableSource, IReadOnlyList<ExprColumnName>? keys, Alias alias = default, string? name = null, IReadOnlyDictionary<ExprColumnName, TableColumn>? hints = null)

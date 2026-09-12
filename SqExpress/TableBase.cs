@@ -45,9 +45,9 @@ public class TableBase : ExprTable
     {
     }
 
-    private readonly List<TableColumn> _columns = new();
+    private readonly List<TableColumn> _columns = [];
         
-    private readonly List<IndexMeta> _indexes = new();
+    private readonly List<IndexMeta> _indexes = [];
 
     /// <summary>Gets the columns registered by this descriptor.</summary>
     public IReadOnlyList<TableColumn> Columns => this._columns;

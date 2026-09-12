@@ -144,7 +144,7 @@ public sealed partial class SqExpressSqlTranspiler
         private const string MExcept = nameof(IQueryExpressionBuilder.Except);
         private const string MIntersect = nameof(IQueryExpressionBuilder.Intersect);
         private static readonly string[] StaticSqQueryBuilderFunctionNames =
-        {
+        [
             nameof(SqQueryBuilder.Select),
             nameof(SqQueryBuilder.SelectOne),
             nameof(SqQueryBuilder.SelectDistinct),
@@ -202,7 +202,7 @@ public sealed partial class SqExpressSqlTranspiler
             nameof(SqQueryBuilder.Desc),
             nameof(SqQueryBuilder.TableFunctionSys),
             nameof(SqQueryBuilder.TableFunctionCustom)
-        };
+        ];
 
         private enum SourceKind
         {
@@ -240,8 +240,8 @@ public sealed partial class SqExpressSqlTranspiler
             {
                 this.BindingsByAlias = new Dictionary<string, SourceBinding>(StringComparer.OrdinalIgnoreCase);
                 this.UsedVariableNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                this.OutSources = new List<QueryPreviewBuildSource>();
-                this.LocalSources = new List<QueryPreviewBuildSource>();
+                this.OutSources = [];
+                this.LocalSources = [];
             }
 
             public Dictionary<string, SourceBinding> BindingsByAlias { get; }
@@ -282,7 +282,7 @@ public sealed partial class SqExpressSqlTranspiler
         private readonly Dictionary<string, IReadOnlyList<CapturedParameterSpec>> _derivedParametersByAlias = new Dictionary<string, IReadOnlyList<CapturedParameterSpec>>(StringComparer.OrdinalIgnoreCase);
 
         private readonly HashSet<string> _usedNestedTypeNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        private readonly List<MemberDeclarationSyntax> _nestedTypes = new List<MemberDeclarationSyntax>();
+        private readonly List<MemberDeclarationSyntax> _nestedTypes = [];
         private readonly bool _reuseProvidedTopLevelSources;
 
         public QueryPreviewEmitter(
@@ -588,13 +588,13 @@ public sealed partial class SqExpressSqlTranspiler
 
             if (topSelect is null)
             {
-                return Array.Empty<RoslynStatementSyntax>();
+                return [];
             }
 
             var list = GetTopSelectList(topSelect);
             if (list == null)
             {
-                return Array.Empty<RoslynStatementSyntax>();
+                return [];
             }
 
             var result = new List<RoslynStatementSyntax>(list.Count);
@@ -854,14 +854,15 @@ public sealed partial class SqExpressSqlTranspiler
 
             return readCall.WithArgumentList(
                 ArgumentList(
-                    SeparatedList(new[]
-                    {
+                    SeparatedList(
+                    [
                         Argument(IdentifierName("row")),
                         Argument(
                             LiteralExpression(
                                 SyntaxKind.StringLiteralExpression,
                                 Literal(aliasedName!)))
-                    })));
+                    ]
+                    )));
         }
 
         private bool TryGetColumnType(ExprColumn column, RenderContext context, out string columnType)
@@ -1065,7 +1066,7 @@ public sealed partial class SqExpressSqlTranspiler
         private string RenderInsert(ExprInsert expr, RenderContext context)
         {
             var targetVariable = this.EnsureTableVariable(expr.Target, context);
-            var targetColumns = (expr.TargetColumns ?? Array.Empty<ExprColumnName>())
+            var targetColumns = (expr.TargetColumns ?? [])
                 .Select(i => this.RenderTargetColumn(expr.Target, targetVariable, i))
                 .ToList();
 
@@ -1098,7 +1099,7 @@ public sealed partial class SqExpressSqlTranspiler
         private string RenderIdentityInsert(ExprIdentityInsert expr, RenderContext context)
         {
             var targetVariable = this.EnsureTableVariable(expr.Insert.Target, context);
-            var targetColumns = (expr.Insert.TargetColumns ?? Array.Empty<ExprColumnName>())
+            var targetColumns = (expr.Insert.TargetColumns ?? [])
                 .Select(i => this.RenderTargetColumn(expr.Insert.Target, targetVariable, i))
                 .ToList();
 
@@ -2336,7 +2337,7 @@ public sealed partial class SqExpressSqlTranspiler
         private string RenderPortableScalarFunction(ExprPortableScalarFunction function, RenderContext context)
         {
             var args = function.Arguments == null
-                ? Array.Empty<string>()
+                ? []
                 : function.Arguments.Select(i => this.RenderValue(i, context)).ToArray();
 
             string functionName = function.PortableFunction switch
@@ -2421,7 +2422,7 @@ public sealed partial class SqExpressSqlTranspiler
         {
             var upper = function.Name.Name.ToUpperInvariant();
             var args = function.Arguments == null
-                ? Array.Empty<string>()
+                ? []
                 : function.Arguments.Select(i => this.RenderValue(i, context)).ToArray();
 
             string baseBuilder = upper switch
@@ -2611,7 +2612,7 @@ public sealed partial class SqExpressSqlTranspiler
             var className = this.MakeUniqueNestedTypeName(ToPascalCaseIdentifier(cte.Name, "Cte") + "Cte");
             this._cteClassByName[cte.Name] = className;
 
-            var outputColumns = (cte.Query.GetOutputColumnNames() ?? Array.Empty<string?>())
+            var outputColumns = (cte.Query.GetOutputColumnNames() ?? [])
                 .Select((name, index) => string.IsNullOrWhiteSpace(name) ? "Col" + (index + 1).ToString(CultureInfo.InvariantCulture) : name!)
                 .ToList();
             var usageNames = this.GetCteUsageColumnNames(cte.Name);
@@ -2703,7 +2704,7 @@ public sealed partial class SqExpressSqlTranspiler
 
             if (aliases.Count < 1)
             {
-                return Array.Empty<string>();
+                return [];
             }
 
             var result = new List<string>();
@@ -2740,7 +2741,7 @@ public sealed partial class SqExpressSqlTranspiler
             var className = this.MakeUniqueNestedTypeName(ToPascalCaseIdentifier(alias, "Sq") + "SubQuery");
             this._derivedClassByAlias[alias] = className;
 
-            var outputColumns = (derived.Query.GetOutputColumnNames() ?? Array.Empty<string?>()).Select((name, index) => string.IsNullOrWhiteSpace(name) ? "Col" + (index + 1).ToString(CultureInfo.InvariantCulture) : name!).ToList();
+            var outputColumns = (derived.Query.GetOutputColumnNames() ?? []).Select((name, index) => string.IsNullOrWhiteSpace(name) ? "Col" + (index + 1).ToString(CultureInfo.InvariantCulture) : name!).ToList();
             var usageNames = this.GetDerivedUsageColumnNames(alias);
             if (usageNames.Count > 0)
             {
@@ -2854,7 +2855,7 @@ public sealed partial class SqExpressSqlTranspiler
         {
             if (string.IsNullOrWhiteSpace(derivedAlias))
             {
-                return Array.Empty<string>();
+                return [];
             }
 
             var result = new List<string>();
@@ -3436,7 +3437,7 @@ public sealed partial class SqExpressSqlTranspiler
                 return aliasExpression;
             }
 
-            return string.Join(", ", parameters.Select(i => i.VariableName).Concat(new[] { aliasExpression }));
+            return string.Join(", ", parameters.Select(i => i.VariableName).Concat([aliasExpression]));
         }
 
         private IReadOnlyList<CapturedParameterSpec> CollectCapturedParameters(IExpr expr)

@@ -117,7 +117,7 @@ internal class DbManager : IDisposable
 
                     var tableIndexes = indexes.Indexes.TryGetValue(key: t, value: out var tIndexes)
                         ? tIndexes
-                        : new List<IndexModel>(capacity: 0);
+                        : [];
 
                     if (skipUnknownColumnTypes && skippedColumns.Count > 0)
                     {
@@ -310,7 +310,7 @@ internal class DbManager : IDisposable
 
                 result[duplicateRes.origIndex] = newTable;
 
-                dic.Add(newTable.Name, new List<(TableModel table, int origIndex)>(1) { (newTable, duplicateRes.origIndex) });
+                dic.Add(newTable.Name, [(newTable, duplicateRes.origIndex)]);
 
                 pair.Value.RemoveAt(duplicateIndex.Value);
             }
@@ -336,7 +336,7 @@ internal class DbManager : IDisposable
                 var newColumn = duplicate.column.WithName(newName);
                 result.Columns[duplicate.originalIndex] = newColumn;
 
-                dict.Add(newColumn.Name, new List<(ColumnModel, int)>(1) { (newColumn, duplicate.originalIndex) });
+                dict.Add(newColumn.Name, [(newColumn, duplicate.originalIndex)]);
 
                 pair.Value.RemoveAt(duplicateIndex);
             }

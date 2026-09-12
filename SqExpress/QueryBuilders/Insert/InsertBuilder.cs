@@ -57,7 +57,7 @@ public readonly struct InsertBuilder
     /// <returns>A values accumulator that accepts more rows or completes the insert.</returns>
     public ValuesBuilder Values(params ExprValue[] values)
     {
-        return new ValuesBuilder(this, new List<ExprValue[]>()).Values(values);
+        return new ValuesBuilder(this, []).Values(values);
     }
 
     internal static List<ExprInsertValueRow> BuildInsertValues(IEnumerable<IReadOnlyList<ExprValue>> values)
@@ -70,7 +70,7 @@ public readonly struct InsertBuilder
 
         List<ExprInsertValueRow> rows = capacity.HasValue
             ? new List<ExprInsertValueRow>(capacity.Value)
-            : new List<ExprInsertValueRow>();
+            : [];
         int? colCount = null;
         foreach (var row in values)
         {
@@ -178,7 +178,7 @@ public readonly struct IdentityInsertBuilder
     /// <returns>An accumulator that accepts more rows or completes the statement.</returns>
     public ValuesBuilder Values(params ExprValue[] values)
     {
-        return new ValuesBuilder(this, new List<ExprValue[]>()).Values(values);
+        return new ValuesBuilder(this, []).Values(values);
     }
 
     private IReadOnlyList<ExprColumnName> IdentityColumns()

@@ -69,7 +69,7 @@ public class ScAnalyticFunctionsOrders : IScenario
             throw new Exception("Something went wrong");
         }
 
-        int[] expected = {1, 2, 3, 4, 5, 1, 2, 3, 4, 1, 2, 3, 4, 1};
+        int[] expected = [1, 2, 3, 4, 5, 1, 2, 3, 4, 1, 2, 3, 4, 1];
 
         for (var index = 0; index < result.Count; index++)
         {
@@ -103,8 +103,8 @@ public class ScAnalyticFunctionsOrders : IScenario
             throw new Exception("Something went wrong");
         }
 
-        int[] expectedFirst = {1, 1, 1, 1, 1, 6, 6, 6, 6, 10, 10, 10, 10, 14};
-        int[] expectedLast =  {5, 5, 5, 5, 5, 9, 9, 9, 9, 13, 13, 13, 13, 14};
+        int[] expectedFirst = [1, 1, 1, 1, 1, 6, 6, 6, 6, 10, 10, 10, 10, 14];
+        int[] expectedLast = [5, 5, 5, 5, 5, 9, 9, 9, 9, 13, 13, 13, 13, 14];
 
         for (var index = 0; index < result.Count; index++)
         {
@@ -199,7 +199,7 @@ public class ScAnalyticFunctionsOrders : IScenario
             throw new Exception("Something went wrong");
         }
 
-        int[] expected = {1, 2, 3, 4, 5, 1, 2, 3, 4, 1, 2, 3, 4, 1};
+        int[] expected = [1, 2, 3, 4, 5, 1, 2, 3, 4, 1, 2, 3, 4, 1];
 
         for (var index = 0; index < result.Count; index++)
         {

@@ -101,7 +101,7 @@ partial class Program
                        commandFactory: NpgsqlCommandFactory,
                        sqlExporter: new PgSqlExporter(
                            builderOptions: SqlBuilderOptions.Default
-                               .WithSchemaMap(schemaMap: new[] { new SchemaMap(@from: "dbo", to: "public") })
+                               .WithSchemaMap(schemaMap: [new SchemaMap(@from: "dbo", to: "public")])
                        ),
                        parametrizationMode: ParametrizationMode.LiteralFallback
                    ))
@@ -290,7 +290,7 @@ partial class Program
         var tCompany = new TableCompany();
 
         Console.WriteLine("Companies:");
-        await InsertDataInto(tCompany, new[] { "Microsoft", "Google" })
+        await InsertDataInto(tCompany, ["Microsoft", "Google"])
             .MapData(s => s.Set(s.Target.CompanyName, s.Source))
             .AlsoInsert(s => s
                 .Set(s.Target.Version, 1)
@@ -781,7 +781,7 @@ partial class Program
         var tableFavoriteFilter = new TableFavoriteFilter();
         var tableFavoriteFilterItem = new TableFavoriteFilterItem();
 
-        var filterIds = await InsertDataInto(tableFavoriteFilter, new[] { "Filter 1", "Filter 2" })
+        var filterIds = await InsertDataInto(tableFavoriteFilter, ["Filter 1", "Filter 2"])
             .MapData(s => s.Set(s.Target.Name, s.Source))
             .Output(tableFavoriteFilter.FavoriteFilterId)
             .QueryList(database, tableFavoriteFilterItem.FavoriteFilterId.Read);

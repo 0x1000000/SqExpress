@@ -11,11 +11,11 @@ public class ScLike : IScenario
     public async Task Exec(IScenarioContext context)
     {
         string[] values =
-        {
+        [
             "Some simple text",
             "a%b%c",
             "aabcc"
-        };
+        ];
 
         var table = new TmpStr();
         await context.Database.Statement(table.Script.Create());

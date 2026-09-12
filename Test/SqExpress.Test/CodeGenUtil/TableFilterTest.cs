@@ -23,8 +23,9 @@ public class TableFilterTest
 
         var result = TableFilter.Apply(
             tables,
-            new[] { "sales.*", "Customer" },
-            new[] { "*.OrderArchive?" });
+            ["sales.*", "Customer"],
+            ["*.OrderArchive?"]
+        );
 
         Assert.That(result.Select(static table => table.DbName.ToString()),
             Is.EqualTo(new[] { "sales.Order", "dbo.Customer" }));
@@ -39,7 +40,7 @@ public class TableFilterTest
             Table("dbo", "AuditXLog")
         };
 
-        var result = TableFilter.Apply(tables, new[] { "DBO.AUDIT.LOG" }, new string[0]);
+        var result = TableFilter.Apply(tables, ["DBO.AUDIT.LOG"], new string[0]);
 
         Assert.That(result.Single().DbName.Name, Is.EqualTo("Audit.Log"));
     }
@@ -48,9 +49,10 @@ public class TableFilterTest
     public void ExcludeWinsOverInclude()
     {
         var result = TableFilter.Apply(
-            new[] { Table("dbo", "Customer") },
-            new[] { "Customer" },
-            new[] { "Cust*" });
+            [Table("dbo", "Customer")],
+            ["Customer"],
+            ["Cust*"]
+        );
 
         Assert.That(result, Is.Empty);
     }
@@ -70,9 +72,10 @@ public class TableFilterTest
                 null,
                 false,
                 null,
-                new List<ColumnRef> { new ColumnRef("dbo", "Customer", "Id") }));
+                [new ColumnRef("dbo", "Customer", "Id")]
+            ));
 
-        var result = TableFilter.Apply(new[] { customer, order }, new[] { "Order" }, new string[0]);
+        var result = TableFilter.Apply([customer, order], ["Order"], new string[0]);
 
         Assert.That(result.Single().Columns.Single().Fk, Is.Null);
         Assert.That(order.Columns.Single().Fk, Has.Count.EqualTo(1), "Source metadata must not be mutated.");
@@ -93,9 +96,10 @@ public class TableFilterTest
                 null,
                 false,
                 null,
-                new List<ColumnRef> { new ColumnRef("dbo", "Customer", "Id") }));
+                [new ColumnRef("dbo", "Customer", "Id")]
+            ));
 
-        var result = TableFilter.Apply(new[] { customer, order }, new[] { "dbo.*" }, new string[0]);
+        var result = TableFilter.Apply([customer, order], ["dbo.*"], new string[0]);
 
         Assert.That(result.Single(table => table.DbName.Name == "Order").Columns.Single().Fk, Has.Count.EqualTo(1));
     }
@@ -104,10 +108,10 @@ public class TableFilterTest
     public void EmptyPatternIsRejected()
     {
         Assert.Throws<SqExpressCodeGenException>(() =>
-            TableFilter.Apply(new[] { Table("dbo", "Customer") }, new[] { " " }, new string[0]));
+            TableFilter.Apply([Table("dbo", "Customer")], [" "], new string[0]));
     }
 
     private static TableModel Table(string schema, string name, params ColumnModel[] columns) =>
-        new TableModel("Table" + name, new TableRef(schema, name), columns.ToList(), new List<IndexModel>());
+        new TableModel("Table" + name, new TableRef(schema, name), columns.ToList(), []);
 }
 #endif

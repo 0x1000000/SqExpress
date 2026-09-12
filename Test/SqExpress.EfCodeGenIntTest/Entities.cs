@@ -33,13 +33,13 @@ public sealed class Customer
 
     public byte[]? BinaryCode { get; set; }
 
-    public byte[] FixedBinaryCode { get; set; } = Array.Empty<byte>();
+    public byte[] FixedBinaryCode { get; set; } = [];
 
     public string? MetadataXml { get; set; }
 
     public TimeSpan? SessionTimeout { get; set; }
 
-    public List<Order> Orders { get; } = new List<Order>();
+    public List<Order> Orders { get; } = [];
 }
 
 public sealed class Category
@@ -48,7 +48,7 @@ public sealed class Category
 
     public string Name { get; set; } = "";
 
-    public List<Product> Products { get; } = new List<Product>();
+    public List<Product> Products { get; } = [];
 }
 
 public sealed class Product
@@ -67,7 +67,7 @@ public sealed class Product
 
     public Category Category { get; set; } = null!;
 
-    public List<OrderLine> OrderLines { get; } = new List<OrderLine>();
+    public List<OrderLine> OrderLines { get; } = [];
 }
 
 public sealed class Order
@@ -84,7 +84,7 @@ public sealed class Order
 
     public Customer Customer { get; set; } = null!;
 
-    public List<OrderLine> Lines { get; } = new List<OrderLine>();
+    public List<OrderLine> Lines { get; } = [];
 }
 
 public sealed class OrderLine

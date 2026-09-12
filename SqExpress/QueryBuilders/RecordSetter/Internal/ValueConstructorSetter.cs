@@ -8,7 +8,7 @@ namespace SqExpress.QueryBuilders.RecordSetter.Internal;
 
 internal class ValueConstructorSetter<TItem> : IValueConstructorSetter<TItem>
 {
-    private readonly List<ExprColumnName> _columns = new List<ExprColumnName>();
+    private readonly List<ExprColumnName> _columns = [];
 
     private int? _capacity;
 
@@ -32,7 +32,7 @@ internal class ValueConstructorSetter<TItem> : IValueConstructorSetter<TItem>
         this.Index++;
         this.Item = item;
         this._capacity = length;
-        this._record = length.HasValue ? new List<ExprValue>(length.Value) : new List<ExprValue>();
+        this._record = length.HasValue ? new List<ExprValue>(length.Value) : [];
     }
 
     public void EnsureRecordLength()

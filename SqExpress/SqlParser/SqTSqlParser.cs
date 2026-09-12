@@ -183,7 +183,7 @@ public static class SqTSqlParser
 
         result = null;
         tables = extractedTables;
-        errors = new[] { mappingError ?? "Could not map SQL DOM to SqExpress AST." };
+        errors = [mappingError ?? "Could not map SQL DOM to SqExpress AST."];
         return false;
     }
 
@@ -195,7 +195,7 @@ public static class SqTSqlParser
         var fullName = update.Target.FullName.AsExprTableFullName();
         var schema = fullName.DbSchema?.Schema.Name ?? defaultSchema;
         var table = fullName.TableName.Name;
-        return new[] { SqTable.Create(schema, table, a => a) };
+        return [SqTable.Create(schema, table, a => a)];
     }
 
     private static bool TryValidateParsedTables(

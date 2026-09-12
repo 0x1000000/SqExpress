@@ -259,7 +259,7 @@ public static partial class SqQueryBuilder
     /// <param name="target">The table to update and the source of columns accepted by subsequent <c>Set</c> calls.</param>
     /// <returns>The stage that collects one or more assignments.</returns>
     public static UpdateBuilder Update(ExprTable target)
-        => new UpdateBuilder(target, new List<ExprColumnSetClause>());
+        => new UpdateBuilder(target, []);
 
     /// <summary>
     /// Starts a set-based update that maps application records to a generated source value table and matches them to target rows.

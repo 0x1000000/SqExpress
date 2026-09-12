@@ -249,12 +249,14 @@ public static partial class SqQueryBuilder
     /// <param name="partitions">Optional expressions defining independent window partitions.</param>
     /// <returns>A complete analytic <c>COUNT</c> expression.</returns>
     [Obsolete($"Use {nameof(Count)}().{nameof(Over)}() instead.")]
-    public static ExprAnalyticFunction CountOver(ExprValue expression,params ExprValue[] partitions) => AnalyticFunction("COUNT", new []{ expression }, new ExprOver(partitions.Length == 0 ? null : partitions, null, null));
+    public static ExprAnalyticFunction CountOver(ExprValue expression,params ExprValue[] partitions) => AnalyticFunction("COUNT",
+        [expression], new ExprOver(partitions.Length == 0 ? null : partitions, null, null));
     /// <summary>Builds the legacy partition-only analytic <c>COUNT(1)</c> form.</summary>
     /// <param name="partitions">Optional expressions defining independent window partitions.</param>
     /// <returns>A complete analytic <c>COUNT(1)</c> expression.</returns>
     [Obsolete($"Use {nameof(CountOne)}().{nameof(Over)}() instead.")]
-    public static ExprAnalyticFunction CountOneOver(params ExprValue[] partitions) => AnalyticFunction("COUNT", new []{ Literal(1) }, new ExprOver(partitions.Length == 0 ? null : partitions, null, null));
+    public static ExprAnalyticFunction CountOneOver(params ExprValue[] partitions) => AnalyticFunction("COUNT", [Literal(1)
+    ], new ExprOver(partitions.Length == 0 ? null : partitions, null, null));
 
     /// <summary>Selects the minimum non-<c>NULL</c> value in each SQL group.</summary>
     /// <param name="expression">The expression to compare.</param>
@@ -404,43 +406,43 @@ public static partial class SqQueryBuilder
     /// <param name="right">The value compared with <paramref name="left"/>.</param>
     /// <returns>A portable <c>NULLIF</c> expression rendered for the selected database dialect.</returns>
     public static ExprPortableScalarFunction NullIf(ExprValue left, ExprValue right)
-        => new ExprPortableScalarFunction(PortableScalarFunction.NullIf, new[] { left, right });
+        => new ExprPortableScalarFunction(PortableScalarFunction.NullIf, [left, right]);
 
     /// <summary>Calculates the absolute value using the selected database dialect's scalar function.</summary>
     /// <param name="value">The numeric expression whose magnitude is required.</param>
     /// <returns>A portable absolute-value expression.</returns>
     public static ExprPortableScalarFunction Abs(ExprValue value)
-        => new ExprPortableScalarFunction(PortableScalarFunction.Abs, new[] { value });
+        => new ExprPortableScalarFunction(PortableScalarFunction.Abs, [value]);
 
     /// <summary>Converts text to lowercase using the selected database dialect's scalar function.</summary>
     /// <param name="value">The string expression to convert.</param>
     /// <returns>A portable lowercase expression.</returns>
     public static ExprPortableScalarFunction Lower(ExprValue value)
-        => new ExprPortableScalarFunction(PortableScalarFunction.Lower, new[] { value });
+        => new ExprPortableScalarFunction(PortableScalarFunction.Lower, [value]);
 
     /// <summary>Converts text to uppercase using the selected database dialect's scalar function.</summary>
     /// <param name="value">The string expression to convert.</param>
     /// <returns>A portable uppercase expression.</returns>
     public static ExprPortableScalarFunction Upper(ExprValue value)
-        => new ExprPortableScalarFunction(PortableScalarFunction.Upper, new[] { value });
+        => new ExprPortableScalarFunction(PortableScalarFunction.Upper, [value]);
 
     /// <summary>Removes leading and trailing whitespace using the selected database dialect's scalar function or polyfill.</summary>
     /// <param name="value">The string expression to trim.</param>
     /// <returns>A portable trim expression.</returns>
     public static ExprPortableScalarFunction Trim(ExprValue value)
-        => new ExprPortableScalarFunction(PortableScalarFunction.Trim, new[] { value });
+        => new ExprPortableScalarFunction(PortableScalarFunction.Trim, [value]);
 
     /// <summary>Removes leading whitespace using the selected database dialect's scalar function.</summary>
     /// <param name="value">The string expression to trim.</param>
     /// <returns>A portable leading-trim expression.</returns>
     public static ExprPortableScalarFunction LTrim(ExprValue value)
-        => new ExprPortableScalarFunction(PortableScalarFunction.LTrim, new[] { value });
+        => new ExprPortableScalarFunction(PortableScalarFunction.LTrim, [value]);
 
     /// <summary>Removes trailing whitespace using the selected database dialect's scalar function.</summary>
     /// <param name="value">The string expression to trim.</param>
     /// <returns>A portable trailing-trim expression.</returns>
     public static ExprPortableScalarFunction RTrim(ExprValue value)
-        => new ExprPortableScalarFunction(PortableScalarFunction.RTrim, new[] { value });
+        => new ExprPortableScalarFunction(PortableScalarFunction.RTrim, [value]);
 
     /// <summary>Replaces occurrences of a search value using the selected database dialect's string function.</summary>
     /// <param name="value">The string expression to search.</param>
@@ -448,7 +450,7 @@ public static partial class SqQueryBuilder
     /// <param name="replacement">The replacement text.</param>
     /// <returns>A portable string-replacement expression.</returns>
     public static ExprPortableScalarFunction Replace(ExprValue value, ExprValue search, ExprValue replacement)
-        => new ExprPortableScalarFunction(PortableScalarFunction.Replace, new[] { value, search, replacement });
+        => new ExprPortableScalarFunction(PortableScalarFunction.Replace, [value, search, replacement]);
 
     /// <summary>Extracts a substring using the selected database dialect's indexing and function syntax.</summary>
     /// <param name="value">The string expression from which to extract characters.</param>
@@ -456,26 +458,26 @@ public static partial class SqQueryBuilder
     /// <param name="length">The number of characters to return.</param>
     /// <returns>A portable substring expression.</returns>
     public static ExprPortableScalarFunction Substring(ExprValue value, ExprValue start, ExprValue length)
-        => new ExprPortableScalarFunction(PortableScalarFunction.Substring, new[] { value, start, length });
+        => new ExprPortableScalarFunction(PortableScalarFunction.Substring, [value, start, length]);
 
     /// <summary>Rounds a numeric expression to the requested precision using the selected database dialect.</summary>
     /// <param name="value">The numeric expression to round.</param>
     /// <param name="precision">The number of fractional decimal places; database rules govern negative values.</param>
     /// <returns>A portable numeric-rounding expression.</returns>
     public static ExprPortableScalarFunction Round(ExprValue value, ExprValue precision)
-        => new ExprPortableScalarFunction(PortableScalarFunction.Round, new[] { value, precision });
+        => new ExprPortableScalarFunction(PortableScalarFunction.Round, [value, precision]);
 
     /// <summary>Returns the greatest integral value not greater than the supplied numeric expression.</summary>
     /// <param name="value">The numeric expression to round downward.</param>
     /// <returns>A portable floor expression rendered for the selected database dialect.</returns>
     public static ExprPortableScalarFunction Floor(ExprValue value)
-        => new ExprPortableScalarFunction(PortableScalarFunction.Floor, new[] { value });
+        => new ExprPortableScalarFunction(PortableScalarFunction.Floor, [value]);
 
     /// <summary>Returns the smallest integral value not less than the supplied numeric expression.</summary>
     /// <param name="value">The numeric expression to round upward.</param>
     /// <returns>A portable ceiling expression rendered for the selected database dialect.</returns>
     public static ExprPortableScalarFunction Ceiling(ExprValue value)
-        => new ExprPortableScalarFunction(PortableScalarFunction.Ceiling, new[] { value });
+        => new ExprPortableScalarFunction(PortableScalarFunction.Ceiling, [value]);
 
     /// <summary>Concatenates one or more expressions through the target database's <c>CONCAT</c> function.</summary>
     /// <param name="first">The first expression to concatenate.</param>
@@ -489,49 +491,49 @@ public static partial class SqQueryBuilder
     /// <param name="value">The string expression to measure.</param>
     /// <returns>A portable character-length expression.</returns>
     public static ExprPortableScalarFunction Len(ExprValue value)
-        => new ExprPortableScalarFunction(PortableScalarFunction.Len, new[] { value });
+        => new ExprPortableScalarFunction(PortableScalarFunction.Len, [value]);
 
     /// <summary>Obtains the storage length of a value using the selected database dialect's byte-length operation.</summary>
     /// <param name="value">The expression whose encoded or binary storage length is required.</param>
     /// <returns>A portable data-length expression.</returns>
     public static ExprPortableScalarFunction DataLength(ExprValue value)
-        => new ExprPortableScalarFunction(PortableScalarFunction.DataLen, new[] { value });
+        => new ExprPortableScalarFunction(PortableScalarFunction.DataLen, [value]);
 
     /// <summary>Extracts the year component using the selected database dialect's date-part expression.</summary>
     /// <param name="value">The date or date/time expression to inspect.</param>
     /// <returns>A portable year-extraction expression.</returns>
     public static ExprPortableScalarFunction Year(ExprValue value)
-        => new ExprPortableScalarFunction(PortableScalarFunction.Year, new[] { value });
+        => new ExprPortableScalarFunction(PortableScalarFunction.Year, [value]);
 
     /// <summary>Extracts the month component using the selected database dialect's date-part expression.</summary>
     /// <param name="value">The date or date/time expression to inspect.</param>
     /// <returns>A portable month-extraction expression.</returns>
     public static ExprPortableScalarFunction Month(ExprValue value)
-        => new ExprPortableScalarFunction(PortableScalarFunction.Month, new[] { value });
+        => new ExprPortableScalarFunction(PortableScalarFunction.Month, [value]);
 
     /// <summary>Extracts the day-of-month component using the selected database dialect's date-part expression.</summary>
     /// <param name="value">The date or date/time expression to inspect.</param>
     /// <returns>A portable day-extraction expression.</returns>
     public static ExprPortableScalarFunction Day(ExprValue value)
-        => new ExprPortableScalarFunction(PortableScalarFunction.Day, new[] { value });
+        => new ExprPortableScalarFunction(PortableScalarFunction.Day, [value]);
 
     /// <summary>Extracts the hour component using the selected database dialect's date-part expression.</summary>
     /// <param name="value">The date/time expression to inspect.</param>
     /// <returns>A portable hour-extraction expression.</returns>
     public static ExprPortableScalarFunction Hour(ExprValue value)
-        => new ExprPortableScalarFunction(PortableScalarFunction.Hour, new[] { value });
+        => new ExprPortableScalarFunction(PortableScalarFunction.Hour, [value]);
 
     /// <summary>Extracts the minute component using the selected database dialect's date-part expression.</summary>
     /// <param name="value">The date/time expression to inspect.</param>
     /// <returns>A portable minute-extraction expression.</returns>
     public static ExprPortableScalarFunction Minute(ExprValue value)
-        => new ExprPortableScalarFunction(PortableScalarFunction.Minute, new[] { value });
+        => new ExprPortableScalarFunction(PortableScalarFunction.Minute, [value]);
 
     /// <summary>Extracts the second component using the selected database dialect's date-part expression.</summary>
     /// <param name="value">The date/time expression to inspect.</param>
     /// <returns>A portable second-extraction expression.</returns>
     public static ExprPortableScalarFunction Second(ExprValue value)
-        => new ExprPortableScalarFunction(PortableScalarFunction.Second, new[] { value });
+        => new ExprPortableScalarFunction(PortableScalarFunction.Second, [value]);
 
     /// <summary>Finds the position of one value within another using the selected database dialect's search function.</summary>
     /// <remarks>The returned position follows SQL/database indexing conventions rather than .NET zero-based indexing.</remarks>
@@ -539,28 +541,28 @@ public static partial class SqQueryBuilder
     /// <param name="value">The expression to search.</param>
     /// <returns>A portable search-position expression.</returns>
     public static ExprPortableScalarFunction IndexOf(ExprValue searchValue, ExprValue value)
-        => new ExprPortableScalarFunction(PortableScalarFunction.IndexOf, new[] { searchValue, value });
+        => new ExprPortableScalarFunction(PortableScalarFunction.IndexOf, [searchValue, value]);
 
     /// <summary>Returns the requested number of leftmost characters using a native function or dialect polyfill.</summary>
     /// <param name="value">The string expression to read.</param>
     /// <param name="length">The number of characters to return.</param>
     /// <returns>A portable left-substring expression.</returns>
     public static ExprPortableScalarFunction Left(ExprValue value, ExprValue length)
-        => new ExprPortableScalarFunction(PortableScalarFunction.Left, new[] { value, length });
+        => new ExprPortableScalarFunction(PortableScalarFunction.Left, [value, length]);
 
     /// <summary>Returns the requested number of rightmost characters using a native function or dialect polyfill.</summary>
     /// <param name="value">The string expression to read.</param>
     /// <param name="length">The number of characters to return.</param>
     /// <returns>A portable right-substring expression.</returns>
     public static ExprPortableScalarFunction Right(ExprValue value, ExprValue length)
-        => new ExprPortableScalarFunction(PortableScalarFunction.Right, new[] { value, length });
+        => new ExprPortableScalarFunction(PortableScalarFunction.Right, [value, length]);
 
     /// <summary>Repeats a value the requested number of times using a native function or dialect polyfill.</summary>
     /// <param name="value">The expression to repeat.</param>
     /// <param name="count">The number of repetitions.</param>
     /// <returns>A portable repetition expression.</returns>
     public static ExprPortableScalarFunction Repeat(ExprValue value, ExprValue count)
-        => new ExprPortableScalarFunction(PortableScalarFunction.Repeat, new[] { value, count });
+        => new ExprPortableScalarFunction(PortableScalarFunction.Repeat, [value, count]);
 
     /// <summary>Adds a calendar or time interval using the selected database dialect's date arithmetic or equivalent polyfill.</summary>
     /// <remarks>Positive values move forward and negative values move backward. Database date range and precision rules still apply.</remarks>

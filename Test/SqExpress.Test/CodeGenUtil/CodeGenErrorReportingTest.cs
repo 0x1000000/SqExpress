@@ -23,8 +23,8 @@ public class CodeGenErrorReportingTest
             Console.SetOut(output);
             Console.SetError(error);
 
-            var exitCode = Program.Main(new[]
-            {
+            var exitCode = Program.Main(
+            [
                 "gentables",
                 "ef",
                 Path.Combine(TestContext.CurrentContext.TestDirectory, "missing.csproj"),
@@ -34,7 +34,8 @@ public class CodeGenErrorReportingTest
                 "Test.Tables",
                 "-v",
                 "quiet"
-            });
+            ]
+            );
 
             Assert.That(exitCode, Is.EqualTo(1));
         }

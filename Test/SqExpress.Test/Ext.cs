@@ -13,7 +13,7 @@ public static class Ext
 
     public static string ToPgSql(this IExpr expr)
     {
-        var pgSqlExporter = new PgSqlExporter(SqlBuilderOptions.Default.WithSchemaMap(new []{new SchemaMap("dbo", "public")}));
+        var pgSqlExporter = new PgSqlExporter(SqlBuilderOptions.Default.WithSchemaMap([new SchemaMap("dbo", "public")]));
         return expr.ToSql(pgSqlExporter);
     }
 

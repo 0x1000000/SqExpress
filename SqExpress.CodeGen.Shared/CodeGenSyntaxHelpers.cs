@@ -132,7 +132,7 @@ internal static class CodeGenSyntaxHelpers
         var genericName = SyntaxFactory.GenericName(
             SyntaxFactory.Identifier(member),
             SyntaxFactory.TypeArgumentList(
-                SyntaxFactory.SeparatedList<TypeSyntax>(new[] { (TypeSyntax)SyntaxFactory.IdentifierName(g1) })));
+                SyntaxFactory.SeparatedList<TypeSyntax>([(TypeSyntax)SyntaxFactory.IdentifierName(g1)])));
 
         return SyntaxFactory.MemberAccessExpression(
             SyntaxKind.SimpleMemberAccessExpression,

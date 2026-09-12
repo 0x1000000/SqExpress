@@ -17,10 +17,10 @@ public class ExprOrderBy : IExpr
         => visitor.VisitExprOrderBy(this, arg);
 
     public static implicit operator ExprOrderBy(ExprOrderByItem item) 
-        => new ExprOrderBy(new []{item});
+        => new ExprOrderBy([item]);
 
     public static implicit operator ExprOrderBy(ExprValue item) 
-        => new ExprOrderBy(new []{new ExprOrderByItem(item, false)});
+        => new ExprOrderBy([new ExprOrderByItem(item, false)]);
 }
 
 public class ExprOrderByOffsetFetch : IExpr

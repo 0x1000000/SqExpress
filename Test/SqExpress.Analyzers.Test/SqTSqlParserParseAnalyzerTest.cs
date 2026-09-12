@@ -903,7 +903,7 @@ public class SqTSqlParserParseAnalyzerTest
         Assert.That(compilation, Is.Not.Null);
 
         var analyzer = new SqTSqlParserParseAnalyzer();
-        var compilationWithAnalyzers = compilation!.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(analyzer));
+        var compilationWithAnalyzers = compilation!.WithAnalyzers([analyzer]);
         return await compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync();
     }
 

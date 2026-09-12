@@ -335,7 +335,7 @@ public sealed partial class SqExpressSqlTranspiler : ISqExpressSqlTranspiler
                 byKey[usage.TableKey] = SqTable.Create(
                     usageSchema,
                     usageTableName,
-                    _ => Array.Empty<TableColumn>());
+                    _ => []);
             }
         }
 
@@ -890,10 +890,11 @@ public sealed partial class SqExpressSqlTranspiler : ISqExpressSqlTranspiler
 
         return MethodDeclaration(ParseTypeName("Task"), Identifier("Query"))
             .AddModifiers(Token(SyntaxKind.PublicKeyword), Token(SyntaxKind.StaticKeyword), Token(SyntaxKind.AsyncKeyword))
-            .WithParameterList(ParameterList(SeparatedList(new[]
-            {
+            .WithParameterList(ParameterList(SeparatedList(
+            [
                 Parameter(Identifier("database")).WithType(ParseTypeName("ISqDatabase"))
-            })))
+            ]
+            )))
             .WithBody(Block(forEachStatement));
     }
 
@@ -911,7 +912,7 @@ public sealed partial class SqExpressSqlTranspiler : ISqExpressSqlTranspiler
             className: className,
             @namespace: null,
             fullyQualifiedTypeName: className,
-            columns: columns.Select(static c => c.Column).ToImmutableArray(),
+            columns: [..columns.Select(static c => c.Column)],
             indexes: ImmutableArray<CodeGenIndexModel>.Empty);
 
         return CodeGenTableDescriptorSupport.GenerateTableDescriptorClass(
@@ -1758,7 +1759,7 @@ public sealed partial class SqExpressSqlTranspiler : ISqExpressSqlTranspiler
             case ParamKind.Guid: return SqQueryBuilder.Literal(default(Guid));
             case ParamKind.DateTime: return SqQueryBuilder.Literal(default(DateTime));
             case ParamKind.DateTimeOffset: return SqQueryBuilder.Literal(default(DateTimeOffset));
-            case ParamKind.ByteArray: return SqQueryBuilder.Literal(Array.Empty<byte>());
+            case ParamKind.ByteArray: return SqQueryBuilder.Literal([]);
             default: return SqQueryBuilder.Literal(string.Empty);
         }
     }
@@ -2120,7 +2121,7 @@ public sealed partial class SqExpressSqlTranspiler : ISqExpressSqlTranspiler
             if (p < cleaned.Length && cleaned[p] == '(') { continue; }
 
             var name = m.Groups["name"].Value;
-            var parts = name.Split(new[] { '.' }, StringSplitOptions.RemoveEmptyEntries).Select(i => i.Trim().Trim('[', ']')).ToArray();
+            var parts = name.Split(['.'], StringSplitOptions.RemoveEmptyEntries).Select(i => i.Trim().Trim('[', ']')).ToArray();
             if (parts.Length == 1) { result.Add(new RawTableRef(null, parts[0])); }
             else if (parts.Length >= 2) { result.Add(new RawTableRef(parts[parts.Length - 2], parts[parts.Length - 1])); }
         }
@@ -2244,7 +2245,7 @@ public sealed partial class SqExpressSqlTranspiler : ISqExpressSqlTranspiler
     private sealed class TableUsageCollectorVisitor : ExprVisitorBase
     {
         private readonly Dictionary<string, HashSet<string>> _aliasToTableKeys = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
-        private readonly List<TableUsage> _tableUsages = new List<TableUsage>();
+        private readonly List<TableUsage> _tableUsages = [];
         private readonly HashSet<string> _seenAliasAndKey = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _tableKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -2584,13 +2585,13 @@ public sealed partial class SqExpressSqlTranspiler : ISqExpressSqlTranspiler
                 var scopedFallback = this._queryFallbackStack.Peek();
                 if (!string.IsNullOrWhiteSpace(scopedFallback))
                 {
-                    return new[] { scopedFallback! };
+                    return [scopedFallback!];
                 }
             }
 
             if (!string.IsNullOrWhiteSpace(this._fallbackTableKey))
             {
-                return new[] { this._fallbackTableKey! };
+                return [this._fallbackTableKey!];
             }
 
             return null;

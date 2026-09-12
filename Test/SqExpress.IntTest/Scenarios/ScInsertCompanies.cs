@@ -76,7 +76,7 @@ public class ScInsertCompanies : IScenario
                 throw new Exception("CheckExistenceBy does not work");
             }
 
-            insertedDuplicates = Array.Empty<int>();
+            insertedDuplicates = [];
         }
         else
         {

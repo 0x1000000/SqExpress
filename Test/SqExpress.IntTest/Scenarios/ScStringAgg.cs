@@ -57,8 +57,8 @@ public class ScStringAgg : IScenario
             AssertEqual("Alpha'|Beta", byGroup[1].Ordered, "ordered group 1");
             AssertEqual("Solo", byGroup[2].Ordered, "ordered group 2");
             AssertEqual(null, byGroup[3].Ordered, "ordered all-null group");
-            AssertUnordered(new[] { "Alpha", "Beta" }, byGroup[1].Unordered, "unordered group 1");
-            AssertUnordered(new[] { "Solo" }, byGroup[2].Unordered, "unordered group 2");
+            AssertUnordered(["Alpha", "Beta"], byGroup[1].Unordered, "unordered group 1");
+            AssertUnordered(["Solo"], byGroup[2].Unordered, "unordered group 2");
             AssertEqual(null, byGroup[3].Unordered, "unordered all-null group");
         }
         finally
@@ -74,7 +74,7 @@ public class ScStringAgg : IScenario
             throw new SqExpressException($"{label}: expected values but got null");
         }
 
-        var actualItems = actual.Split(new[] { Separator }, StringSplitOptions.None).OrderBy(i => i).ToArray();
+        var actualItems = actual.Split([Separator], StringSplitOptions.None).OrderBy(i => i).ToArray();
         var expectedItems = expected.OrderBy(i => i).ToArray();
         if (!actualItems.SequenceEqual(expectedItems))
         {

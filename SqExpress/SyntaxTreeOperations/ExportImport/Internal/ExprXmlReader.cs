@@ -35,7 +35,7 @@ internal class ExprXmlReader : IExprReader<XmlElement>
         var result = this.FindElement(node, propertyName);
         if (result != null)
         {
-            List<IndexXElement> buffer = new List<IndexXElement>();
+            List<IndexXElement> buffer = [];
             foreach (var childNode in result.ChildNodes)
             {
                 if (childNode is XmlElement childElement)

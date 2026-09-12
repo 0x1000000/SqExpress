@@ -272,7 +272,7 @@ internal partial class MySqlBuilder
         IExprSelecting selectingRow = expression.WithoutArrayWrapper
             ? row
             : new ExprAggregateFunction(false, new ExprFunctionName(true, "JSON_ARRAYAGG"), row);
-        var query = specification.WithSelectList(new[] { selectingRow });
+        var query = specification.WithSelectList([selectingRow]);
 
         this.FormattingWriter.Append("SELECT ");
         if (!expression.WithoutArrayWrapper) this.FormattingWriter.Append("COALESCE(");

@@ -8,7 +8,7 @@ internal class TargetUpdateSetter<TTable> : RecordSetterBase<IExprAssignRecordSe
 {
     public TTable Target { get; }
 
-    private readonly List<ColumnValueUpdateMap> _maps = new List<ColumnValueUpdateMap>();
+    private readonly List<ColumnValueUpdateMap> _maps = [];
 
     public IReadOnlyList<ColumnValueUpdateMap> Maps => this._maps;
 

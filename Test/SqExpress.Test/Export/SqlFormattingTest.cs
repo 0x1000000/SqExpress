@@ -93,7 +93,7 @@ public class SqlFormattingTest
         var sql = Select(Literal(1), Literal(2)).Done().ToSql(new TSqlExporter(FormattedOptions));
 
         Assert.That(sql, Does.Not.EndWith(Environment.NewLine));
-        foreach (var line in sql.Split(new[] { Environment.NewLine }, StringSplitOptions.None))
+        foreach (var line in sql.Split([Environment.NewLine], StringSplitOptions.None))
         {
             Assert.That(line, Is.EqualTo(line.TrimEnd()));
         }

@@ -7,7 +7,7 @@ namespace SqExpress.DbMetadata.Internal;
 
 internal class TableIndexAppender : ITableIndexAppender
 {
-    private readonly List<IndexMeta> _trace = new List<IndexMeta>();
+    private readonly List<IndexMeta> _trace = [];
 
     public TableIndexAppender(IReadOnlyList<TableColumn> columns)
     {

@@ -716,9 +716,9 @@ public class TableDescriptorSourceGeneratorTest
         var result = driver.GetRunResult();
 
         return new GeneratorRunResultData(
-            result.Results.SelectMany(static r => r.Diagnostics).Concat(outputDiagnostics).Where(static d => d.Severity == DiagnosticSeverity.Error).ToImmutableArray(),
+            [..result.Results.SelectMany(static r => r.Diagnostics).Concat(outputDiagnostics).Where(static d => d.Severity == DiagnosticSeverity.Error)],
             outputCompilation,
-            result.GeneratedTrees.ToImmutableArray());
+            [..result.GeneratedTrees]);
     }
 
     private static string GetGeneratedSource(GeneratorRunResultData result, string hintContains)

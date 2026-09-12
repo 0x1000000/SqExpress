@@ -21,7 +21,7 @@ public static class ScenarioExt
 
     private class ScenarioList : IScenario
     {
-        private readonly List<IScenario> _scenarios = new List<IScenario>();
+        private readonly List<IScenario> _scenarios = [];
 
         public ScenarioList(IScenario first)
         {

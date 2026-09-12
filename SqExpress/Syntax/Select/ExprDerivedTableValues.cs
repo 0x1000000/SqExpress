@@ -17,7 +17,7 @@ public abstract class ExprDerivedTable : IExprTableSource
     public abstract TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg);
 
     public TableMultiplication ToTableMultiplication() 
-        => new TableMultiplication(new[] {this}, null);
+        => new TableMultiplication([this], null);
 
     public abstract IReadOnlyList<IExprSelecting> ExtractSelecting();
 

@@ -1667,7 +1667,7 @@ internal abstract class SqlBuilderBase: IExprVisitorInternal<bool, IExpr?>
         {
             throw new SqExpressException("Could not process pure parameter");
         }
-        this._parameters ??= new List<DbParameterValue>();
+        this._parameters ??= [];
 
         if (this.VisitExprParameter(
                 exprParameter,
@@ -1923,7 +1923,7 @@ internal abstract class SqlBuilderBase: IExprVisitorInternal<bool, IExpr?>
         cteBuilder.AcceptCteExpressions(list);
         if (cteBuilder.ParameterValues?.Count > 0)
         {
-            this._parameters ??= new List<DbParameterValue>();
+            this._parameters ??= [];
             this._parameters.AddRange(cteBuilder.ParameterValues);
         }
 

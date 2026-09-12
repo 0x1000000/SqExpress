@@ -27,7 +27,7 @@ public static class CodeGenTableDescriptorSupport
     public static string ToIdentifier(string value)
     {
         var parts = value
-            .Split(new[] { ' ', '-', '.', '/', '\\', ':', ';', ',', '(', ')', '[', ']', '{', '}', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+            .Split([' ', '-', '.', '/', '\\', ':', ';', ',', '(', ')', '[', ']', '{', '}', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
             .Select(ToPascalCasePart)
             .Where(static i => i.Length > 0)
             .ToArray();
@@ -372,26 +372,26 @@ public static class CodeGenTableDescriptorSupport
     {
         if (candidate.Kind == CodeGenTableKind.DerivedTable)
         {
-            return new MemberDeclarationSyntax[]
-            {
+            return
+            [
                 RenderMainConstructor(candidate, propertyNamesBySqlName, allTables, options, useOptionalAliasDefault: true)
-            };
+            ];
         }
 
         switch (options.ConstructorStyle)
         {
             case CodeGenTableDescriptorConstructorStyle.OptionalAliasOnly:
-                return new MemberDeclarationSyntax[]
-                {
+                return
+                [
                     RenderMainConstructor(candidate, propertyNamesBySqlName, allTables, options, useOptionalAliasDefault: true)
-                };
+                ];
             case CodeGenTableDescriptorConstructorStyle.EmptyAndAlias:
             default:
-                return new MemberDeclarationSyntax[]
-                {
+                return
+                [
                     RenderEmptyConstructor(candidate),
                     RenderMainConstructor(candidate, propertyNamesBySqlName, allTables, options, useOptionalAliasDefault: false)
-                };
+                ];
         }
     }
 
@@ -449,13 +449,14 @@ public static class CodeGenTableDescriptorSupport
 
         if (useOptionalAliasDefault)
         {
-            constructor = constructor.WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SeparatedList(new[]
-            {
+            constructor = constructor.WithParameterList(SyntaxFactory.ParameterList(SyntaxFactory.SeparatedList(
+            [
                 SyntaxFactory.Parameter(SyntaxFactory.Identifier("alias"))
                     .WithType(SyntaxFactory.IdentifierName("Alias"))
                     .WithDefault(SyntaxFactory.EqualsValueClause(
                         SyntaxFactory.LiteralExpression(SyntaxKind.DefaultLiteralExpression, SyntaxFactory.Token(SyntaxKind.DefaultKeyword))))
-            })));
+            ]
+            )));
         }
 
         return constructor;
@@ -853,7 +854,7 @@ public static class CodeGenTableDescriptorSupport
     {
         if (candidate.Kind == CodeGenTableKind.DerivedTable)
         {
-            return new[] { SyntaxFactory.Argument(Literal(column.SqlName)) };
+            return [SyntaxFactory.Argument(Literal(column.SqlName))];
         }
 
         var columnMeta = RenderColumnMeta(column, candidate, allTables);
@@ -868,59 +869,60 @@ public static class CodeGenTableDescriptorSupport
             case CodeGenColumnKind.NullableString:
                 if (column.IsFixedLength)
                 {
-                    return new[]
-                    {
+                    return
+                    [
                         NamedArgument("name", Literal(column.SqlName)),
                         NamedArgument("size", NullableIntLiteral(column.MaxLength)),
                         NamedArgument("isUnicode", BoolLiteral(column.IsUnicode)),
                         NamedArgument("columnMeta", columnMeta)
-                    };
+                    ];
                 }
 
-                return new[]
-                {
+                return
+                [
                     NamedArgument("name", Literal(column.SqlName)),
                     NamedArgument("size", NullableIntLiteral(column.MaxLength)),
                     NamedArgument("isUnicode", BoolLiteral(column.IsUnicode)),
                     NamedArgument("isText", BoolLiteral(column.IsText)),
                     NamedArgument("columnMeta", columnMeta)
-                };
+                ];
             case CodeGenColumnKind.ByteArray:
             case CodeGenColumnKind.NullableByteArray:
-                return new[]
-                {
+                return
+                [
                     SyntaxFactory.Argument(Literal(column.SqlName)),
                     SyntaxFactory.Argument(NullableIntLiteral(column.MaxLength)),
                     SyntaxFactory.Argument(columnMeta)
-                };
+                ];
             case CodeGenColumnKind.Decimal:
             case CodeGenColumnKind.NullableDecimal:
-                return new[]
-                {
+                return
+                [
                     SyntaxFactory.Argument(Literal(column.SqlName)),
                     SyntaxFactory.Argument(
                         SyntaxFactory.ObjectCreationExpression(SyntaxFactory.IdentifierName("DecimalPrecisionScale"))
-                            .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(new[]
-                            {
+                            .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(
+                            [
                                 NamedArgument("precision", NumericLiteral(column.Precision)),
                                 NamedArgument("scale", NumericLiteral(column.Scale))
-                            })))),
+                            ]
+                            )))),
                     SyntaxFactory.Argument(columnMeta)
-                };
+                ];
             case CodeGenColumnKind.DateTime:
             case CodeGenColumnKind.NullableDateTime:
-                return new[]
-                {
+                return
+                [
                     SyntaxFactory.Argument(Literal(column.SqlName)),
                     SyntaxFactory.Argument(BoolLiteral(column.IsDate)),
                     SyntaxFactory.Argument(columnMeta)
-                };
+                ];
             default:
-                return new[]
-                {
+                return
+                [
                     SyntaxFactory.Argument(Literal(column.SqlName)),
                     SyntaxFactory.Argument(columnMeta)
-                };
+                ];
         }
     }
 
@@ -1123,21 +1125,23 @@ public static class CodeGenTableDescriptorSupport
             case CodeGenDefaultValueKind.DateTime:
                 return SyntaxFactory.InvocationExpression(
                     MemberAccess(QualifiedName("System.DateTime"), "Parse"),
-                    SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(new[]
-                    {
+                    SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(
+                    [
                         SyntaxFactory.Argument(Literal(column.DefaultValue ?? string.Empty)),
                         SyntaxFactory.Argument(MemberAccess(QualifiedName("System.Globalization.CultureInfo"), "InvariantCulture")),
                         SyntaxFactory.Argument(MemberAccess(QualifiedName("System.Globalization.DateTimeStyles"), "RoundtripKind"))
-                    })));
+                    ]
+                    )));
             case CodeGenDefaultValueKind.DateTimeOffset:
                 return SyntaxFactory.InvocationExpression(
                     MemberAccess(QualifiedName("System.DateTimeOffset"), "Parse"),
-                    SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(new[]
-                    {
+                    SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(
+                    [
                         SyntaxFactory.Argument(Literal(column.DefaultValue ?? string.Empty)),
                         SyntaxFactory.Argument(MemberAccess(QualifiedName("System.Globalization.CultureInfo"), "InvariantCulture")),
                         SyntaxFactory.Argument(MemberAccess(QualifiedName("System.Globalization.DateTimeStyles"), "RoundtripKind"))
-                    })));
+                    ]
+                    )));
             default:
                 return MemberAccess(SyntaxFactory.IdentifierName("SqQueryBuilder"), "Null");
         }
@@ -1364,7 +1368,7 @@ public static class CodeGenTableDescriptorSupport
             global = true;
         }
 
-        var parts = dottedName.Split(new[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
+        var parts = dottedName.Split(['.'], StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length == 0)
         {
             throw new ArgumentException("Qualified name cannot be empty.", nameof(dottedName));
@@ -1765,7 +1769,7 @@ public static class CodeGenTableDescriptorSupport
             if (!string.IsNullOrWhiteSpace(itemSqModels))
             {
                 var nonEmptySqModels = itemSqModels!;
-                foreach (var part in nonEmptySqModels.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+                foreach (var part in nonEmptySqModels.Split([','], StringSplitOptions.RemoveEmptyEntries))
                 {
                     var trimmed = part.Trim();
                     if (trimmed.Length > 0 && sqModelsSet.Add(trimmed))

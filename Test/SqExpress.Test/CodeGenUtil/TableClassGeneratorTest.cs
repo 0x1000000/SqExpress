@@ -218,7 +218,8 @@ public class TableClassGeneratorTest
             className: "TableUsers",
             @namespace: "MyCompany.MyProject.Tables",
             fullyQualifiedTypeName: "global::MyCompany.MyProject.Tables.TableUsers",
-            columns: ImmutableArray.Create(
+            columns:
+            [
                 new CodeGenColumnModel(
                     kind: CodeGenColumnKind.String,
                     sqlName: "FullName",
@@ -237,7 +238,8 @@ public class TableClassGeneratorTest
                     isText: false,
                     precision: 0,
                     scale: 0,
-                    isDate: false)),
+                    isDate: false)
+            ],
             indexes: ImmutableArray<CodeGenIndexModel>.Empty);
 
         var generated = CodeGenTableDescriptorSupport.GenerateTableDescriptor(
@@ -263,7 +265,8 @@ public class TableClassGeneratorTest
             className: "TableAudit",
             @namespace: "MyCompany.MyProject.Tables",
             fullyQualifiedTypeName: "global::MyCompany.MyProject.Tables.TableAudit",
-            columns: ImmutableArray.Create(
+            columns:
+            [
                 new CodeGenColumnModel(
                     kind: CodeGenColumnKind.DateTime,
                     sqlName: "CreatedUtc",
@@ -301,7 +304,8 @@ public class TableClassGeneratorTest
                     isText: false,
                     precision: 0,
                     scale: 0,
-                    isDate: false)),
+                    isDate: false)
+            ],
             indexes: ImmutableArray<CodeGenIndexModel>.Empty);
 
         var generated = CodeGenTableDescriptorSupport.GenerateTableDeclaration(
@@ -450,7 +454,7 @@ public class TableClassGeneratorTest
         Assert.That(normalized, Does.Contain("[StringColumn(\"ValueA\""));
         Assert.That(normalized, Does.Contain("SqModels = \"BranchView.Code,AuditBranch.Code\""));
         Assert.That(normalized, Does.Contain("SqModelCast = typeof(Some.Namespace.BranchCodeValue)"));
-        Assert.That(normalized.Split(new[] { "[StringColumn(\"ValueA\"" }, StringSplitOptions.None).Length - 1, Is.EqualTo(1));
+        Assert.That(normalized.Split(["[StringColumn(\"ValueA\""], StringSplitOptions.None).Length - 1, Is.EqualTo(1));
     }
 
     private static string NormalizeNewLines(string value)
@@ -470,11 +474,32 @@ public class TableClassGeneratorTest
         {
             var table = new TableRef("dbo", "Audit");
             return Task.FromResult(new DbRawModels(
-                new List<ColumnRawModel>
-                {
-                    new ColumnRawModel(new ColumnRef("dbo", "Audit", "Id"), 1, false, false, "int", null, null, null, null, null),
-                    new ColumnRawModel(new ColumnRef("dbo", "Audit", "Aggregatable"), 2, false, false, "bit", "(CONVERT([bit],(0)))", null, null, null, null)
-                },
+                [
+                    new ColumnRawModel(
+                        new ColumnRef("dbo", "Audit", "Id"),
+                        1,
+                        false,
+                        false,
+                        "int",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null
+                    ),
+                    new ColumnRawModel(
+                        new ColumnRef("dbo", "Audit", "Aggregatable"),
+                        2,
+                        false,
+                        false,
+                        "bit",
+                        "(CONVERT([bit],(0)))",
+                        null,
+                        null,
+                        null,
+                        null
+                    )
+                ],
                 new LoadIndexesResult(
                     new Dictionary<TableRef, PrimaryKeyModel>(),
                     new Dictionary<TableRef, List<IndexModel>>()),

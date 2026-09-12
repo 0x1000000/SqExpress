@@ -12,7 +12,7 @@ public class ScSqlInjections : IScenario
     public async Task Exec(IScenarioContext context)
     {
         string[] literalPayloads =
-        {
+        [
             "admin'--",
             "10; DROP TABLE members /*",
             "Line1\r\n\tLine2\\%%\b",
@@ -36,10 +36,10 @@ public class ScSqlInjections : IScenario
             "line1\nline2\n--",
             "'';BEGIN TRAN;ROLLBACK;--",
             "%_[]^"
-        };
+        ];
 
         string[] identifierPayloads =
-        {
+        [
             "alias'--",
             "alias; DROP TABLE members /*",
             "x y",
@@ -60,7 +60,7 @@ public class ScSqlInjections : IScenario
             "a\"b",
             "a,b",
             "a:b"
-        };
+        ];
 
         await AssertLiteralRoundTrip(context, literalPayloads);
         await AssertIdentifierRoundTrip(context, identifierPayloads);

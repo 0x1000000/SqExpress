@@ -76,7 +76,7 @@ internal static class Helpers
     {
         if (rest.Length < 1)
         {
-            return new[] {arg};
+            return [arg];
         }
         var result = new T[rest.Length + 1];
         result[0] = arg;
@@ -88,7 +88,7 @@ internal static class Helpers
     {
         if (source.Length < 1)
         {
-            return new[] {newItem};
+            return [newItem];
         }
         var result = new T[source.Length + 1];
         result[result.Length - 1] = newItem;
@@ -100,7 +100,7 @@ internal static class Helpers
     {
         if (rest.Count < 1)
         {
-            return new[] { mapper(arg) };
+            return [mapper(arg)];
         }
         var result = new TRes[rest.Count + 1];
         result[0] = mapper(arg);
@@ -117,7 +117,7 @@ internal static class Helpers
     {
         if (rest.Length < 1)
         {
-            return new[] {arg1, arg2};
+            return [arg1, arg2];
         }
         var result = new T[rest.Length + 2];
         result[0] = arg1;
@@ -316,7 +316,7 @@ internal static class Helpers
     {
         var records = data.TryToCheckLength(out var capacity)
             ? capacity > 0 ? new List<ExprValueRow>(capacity) : null
-            : new List<ExprValueRow>();
+            : [];
 
         if (records == null)
         {
@@ -335,7 +335,7 @@ internal static class Helpers
             setter.NextItem(item, totalColumns?.Count);
             dataMapKeys(setter);
 
-            keys ??= new List<ExprColumnName>(setter.Columns);
+            keys ??= [..setter.Columns];
 
             keys.AssertNotEmpty("There should be at least one key");
 

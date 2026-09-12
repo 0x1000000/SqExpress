@@ -91,7 +91,7 @@ internal static class SqTSqlParserSourceTableCatalogHelper
             {
                 if (!byKey.TryGetValue(info.TableKey, out var items))
                 {
-                    items = new List<SourceTableInfo>();
+                    items = [];
                     byKey[info.TableKey] = items;
                 }
 
@@ -649,7 +649,7 @@ internal static class SqTSqlParserSourceTableCatalogHelper
     private static string ToIdentifier(string value)
     {
         var parts = value
-            .Split(new[] { ' ', '-', '.', '/', '\\', ':', ';', ',', '(', ')', '[', ']', '{', '}', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+            .Split([' ', '-', '.', '/', '\\', ':', ';', ',', '(', ')', '[', ']', '{', '}', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
             .Select(ToPascalCasePart)
             .Where(static i => i.Length > 0)
             .ToArray();
@@ -732,7 +732,7 @@ internal static class SqTSqlParserSourceTableCatalogHelper
             || string.IsNullOrWhiteSpace(schema)
             || !string.Equals(schema, defaultSchema, StringComparison.OrdinalIgnoreCase))
         {
-            return Array.Empty<SourceTableInfo>();
+            return [];
         }
 
         var unqualifiedKey = BuildTableKey(schema: null, tableName);
@@ -741,7 +741,7 @@ internal static class SqTSqlParserSourceTableCatalogHelper
             return unqualifiedCandidates;
         }
 
-        return Array.Empty<SourceTableInfo>();
+        return [];
     }
 
     private static string BuildTableKey(string? schema, string tableName)
@@ -771,7 +771,7 @@ internal static class SqTSqlParserSourceTableCatalogHelper
         }
 
         var parts = value
-            .Split(new[] { '_', ' ', '-' }, StringSplitOptions.RemoveEmptyEntries)
+            .Split(['_', ' ', '-'], StringSplitOptions.RemoveEmptyEntries)
             .Select(i => i.Trim())
             .Where(i => i.Length > 0)
             .ToList();

@@ -60,7 +60,7 @@ internal static class EfMetadataExtractorRunner
         if (runExitCode != 0)
         {
             var extractorError = runError.Trim();
-            if (extractorError.Length > 0 && extractorError.IndexOfAny(new[] { '\r', '\n' }) < 0)
+            if (extractorError.Length > 0 && extractorError.IndexOfAny(['\r', '\n']) < 0)
             {
                 throw new SqExpressCodeGenException($"EF metadata extractor execution failed: {extractorError}");
             }
@@ -121,7 +121,7 @@ internal static class EfMetadataExtractorRunner
         }
 
         var targetFrameworks = GetProjectProperty(projectPath, "TargetFrameworks", null)
-            .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+            .Split([';'], StringSplitOptions.RemoveEmptyEntries)
             .Select(i => i.Trim())
             .Where(i => i.Length > 0)
             .ToArray();
@@ -149,7 +149,7 @@ internal static class EfMetadataExtractorRunner
                 $"Could not read MSBuild property {propertyName} from \"{projectPath}\".{Environment.NewLine}{output}");
         }
 
-        return output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).LastOrDefault()?.Trim() ?? "";
+        return output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).LastOrDefault()?.Trim() ?? "";
     }
 
     private static string ComputeHash(string value)

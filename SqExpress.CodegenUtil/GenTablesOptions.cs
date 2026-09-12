@@ -23,8 +23,8 @@ public class GenTablesOptions
         this.Framework = framework;
         this.SplitTablesBySchema = splitTablesBySchema;
         this.CleanOutput = cleanOutput;
-        this.Include = include?.ToArray() ?? Array.Empty<string>();
-        this.Exclude = exclude?.ToArray() ?? Array.Empty<string>();
+        this.Include = include?.ToArray() ?? [];
+        this.Exclude = exclude?.ToArray() ?? [];
     }
 
     [Value(1, MetaName = "CONNECTION_TYPE", Required = true, HelpText = "Connection Type: \"mssql\" or \"mysql\" or \"pgsql\" or \"ef\".")]

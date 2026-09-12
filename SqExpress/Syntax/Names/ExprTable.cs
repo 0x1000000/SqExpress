@@ -21,7 +21,7 @@ public class ExprTable : IExprTableSource, IEquatable<ExprTable>
 
     public TableMultiplication ToTableMultiplication()
     {
-        return new TableMultiplication(new[] {this}, null);
+        return new TableMultiplication([this], null);
     }
 
     public IReadOnlyList<IExprSelecting> ExtractSelecting()

@@ -11,7 +11,7 @@ namespace SqExpress.Analyzers;
 public sealed class SqJsonPathAnalyzer : DiagnosticAnalyzer
 {
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics
-        => ImmutableArray.Create(DiagnosticDescriptors.InvalidJsonPath);
+        => [DiagnosticDescriptors.InvalidJsonPath];
 
     public override void Initialize(AnalysisContext context)
     {

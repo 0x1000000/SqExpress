@@ -426,7 +426,7 @@ internal static class SqlDomToSqExprMapper
 
     private sealed class GroupedSelectInspection : ExprVisitorBase
     {
-        private readonly List<ExprColumn> _nonAggregatedColumns = new List<ExprColumn>();
+        private readonly List<ExprColumn> _nonAggregatedColumns = [];
         private int _plainAggregateDepth;
         private int _windowAggregateDepth;
 
@@ -736,7 +736,7 @@ internal static class SqlDomToSqExprMapper
             var (offset, fetch) = ParseOffsetFetch(offsetFetchSql!, context);
             var orderList = !string.IsNullOrWhiteSpace(orderBySql)
                 ? ParseOrderBy(orderBySql!, context).OrderList
-                : Array.Empty<ExprOrderByItem>();
+                : [];
             return new ExprSelectOffsetFetch(setQuery, new ExprOrderByOffsetFetch(orderList, new ExprOffsetFetch(offset, fetch)));
         }
 
@@ -848,7 +848,7 @@ internal static class SqlDomToSqExprMapper
             var (offset, fetch) = ParseOffsetFetch(offsetFetchSql!, context);
             var orderList = !string.IsNullOrWhiteSpace(orderBySql)
                 ? ParseOrderBy(orderBySql!, context).OrderList
-                : Array.Empty<ExprOrderByItem>();
+                : [];
             result = new ExprSelectOffsetFetch(subQuery, new ExprOrderByOffsetFetch(orderList, new ExprOffsetFetch(offset, fetch)));
             return true;
         }
@@ -1676,7 +1676,7 @@ internal static class SqlDomToSqExprMapper
             }
             else
             {
-                columns = Array.Empty<ExprColumnName>();
+                columns = [];
             }
 
             if (actionCursor < clauseEnd
@@ -2493,9 +2493,9 @@ internal static class SqlDomToSqExprMapper
         out IReadOnlyList<SqlToken> argTokens,
         out IReadOnlyList<SqlToken> tailTokens)
     {
-        functionNameParts = Array.Empty<string>();
-        argTokens = Array.Empty<SqlToken>();
-        tailTokens = Array.Empty<SqlToken>();
+        functionNameParts = [];
+        argTokens = [];
+        tailTokens = [];
 
         var idx = 0;
         if (!tokens[idx].IsIdentifierLike)
@@ -2836,7 +2836,7 @@ internal static class SqlDomToSqExprMapper
                         derived.Sql,
                         context.AllowOuterTableReferencesInDerivedTables
                             ? context
-                            : context.WithVisibleTableReferenceScope(Array.Empty<string>())),
+                            : context.WithVisibleTableReferenceScope([])),
                     new ExprTableAlias(new ExprAlias(derived.Alias)),
                     null);
             case SqlDomValuesTableSource values:
@@ -3392,7 +3392,7 @@ internal static class SqlDomToSqExprMapper
             if (depth == 0 && t.Type == SqlTokenType.Comma)
             {
                 result.Add(acc);
-                acc = new List<SqlToken>();
+                acc = [];
                 continue;
             }
 
@@ -4345,7 +4345,7 @@ internal static class SqlDomToSqExprMapper
                     if (ContainsJsonNullClause(argSegments, "ABSENT"))
                         throw new MapException("JSON_ARRAY ABSENT ON NULL is not supported.");
                     var normalized = RemoveJsonNullClause(argSegments);
-                    var args = ParseFunctionArgs(normalized, context, name) ?? Array.Empty<ExprValue>();
+                    var args = ParseFunctionArgs(normalized, context, name) ?? [];
                     result = new ExprJsonArray(args);
                     return true;
                 }
@@ -4406,7 +4406,7 @@ internal static class SqlDomToSqExprMapper
             var condition = new ExprParser(string.Join(" ", argSegments[0].Select(i => i.Text)), context).ParseBoolean();
             var whenTrue = new ExprParser(string.Join(" ", argSegments[1].Select(i => i.Text)), context).ParseValue();
             var whenFalse = new ExprParser(string.Join(" ", argSegments[2].Select(i => i.Text)), context).ParseValue();
-            result = new ExprCase(new[] { new ExprCaseWhenThen(condition, whenTrue) }, whenFalse);
+            result = new ExprCase([new ExprCaseWhenThen(condition, whenTrue)], whenFalse);
             return true;
         }
 
@@ -4734,7 +4734,7 @@ internal static class SqlDomToSqExprMapper
                 case "STRPOS":
                     if (args?.Count == 2)
                     {
-                        result = new ExprPortableScalarFunction(PortableScalarFunction.IndexOf, new[] { args[1], args[0] });
+                        result = new ExprPortableScalarFunction(PortableScalarFunction.IndexOf, [args[1], args[0]]);
                         return true;
                     }
                     return false;

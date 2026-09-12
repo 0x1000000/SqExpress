@@ -101,7 +101,7 @@ internal class UpdateDataBuilder<TTable, TItem> : IUpdateDataBuilder<TTable, TIt
             }
         }
 
-        HashSet<ExprColumn> duplicateChecker = new HashSet<ExprColumn>();
+        HashSet<ExprColumn> duplicateChecker = [];
         for (int i = 0; i < sets.Length; i++)
         {
             if (!duplicateChecker.Add(sets[i].Column))

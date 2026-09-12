@@ -94,7 +94,7 @@ public class ExprTest
                     SqQueryBuilder.Literal(1).As("Id"),
                     SqQueryBuilder.Literal("A").As("Name"))
                 .Done(),
-            new ExprOrderBy(System.Array.Empty<ExprOrderByItem>()));
+            new ExprOrderBy([]));
 
         var outputNames = query.GetOutputColumnNames();
 
@@ -111,7 +111,7 @@ public class ExprTest
                     SqQueryBuilder.Literal("A").As("Name"))
                 .Done(),
             new ExprOrderByOffsetFetch(
-                new[] { new ExprOrderByItem(SqQueryBuilder.Literal(1), false) },
+                [new ExprOrderByItem(SqQueryBuilder.Literal(1), false)],
                 new ExprOffsetFetch(SqQueryBuilder.Literal(0), SqQueryBuilder.Literal(10))));
 
         var outputNames = query.GetOutputColumnNames();
@@ -144,18 +144,19 @@ public class ExprTest
     {
         var insert = new ExprInsert(
             new ExprTableFullName(new ExprDbSchema(null, new ExprSchemaName("dbo")), new ExprTableName("Users")),
-            new[] { new ExprColumnName("Id"), new ExprColumnName("Name") },
-            new ExprInsertValues(new[]
-            {
-                new ExprInsertValueRow(new IExprAssigning[] { SqQueryBuilder.Literal(1), SqQueryBuilder.Literal("A") })
-            }));
+            [new ExprColumnName("Id"), new ExprColumnName("Name")],
+            new ExprInsertValues(
+            [
+                new ExprInsertValueRow([SqQueryBuilder.Literal(1), SqQueryBuilder.Literal("A")])
+            ]
+            ));
         var query = new ExprInsertOutput(
             insert,
-            new[]
-            {
+            [
                 new ExprAliasedColumnName(new ExprColumnName("Id"), new ExprColumnAlias("InsertedId")),
                 new ExprAliasedColumnName(new ExprColumnName("Name"), new ExprColumnAlias("InsertedName"))
-            });
+            ]
+        );
 
         var outputNames = query.GetOutputColumnNames();
 
@@ -172,11 +173,11 @@ public class ExprTest
             null);
         var query = new ExprDeleteOutput(
             delete,
-            new[]
-            {
+            [
                 new ExprAliasedColumn(new ExprColumn(null, new ExprColumnName("Id")), new ExprColumnAlias("DeletedId")),
                 new ExprAliasedColumn(new ExprColumn(null, new ExprColumnName("Name")), new ExprColumnAlias("DeletedName"))
-            });
+            ]
+        );
 
         var outputNames = query.GetOutputColumnNames();
 
@@ -196,11 +197,12 @@ public class ExprTest
             null,
             null,
             null,
-            new ExprOutput(new IExprOutputColumn[]
-            {
+            new ExprOutput(
+            [
                 new ExprOutputColumnInserted(new ExprAliasedColumnName(new ExprColumnName("Id"), new ExprColumnAlias("InsertedId"))),
                 new ExprOutputAction(new ExprColumnAlias("Action"))
-            }));
+            ]
+            ));
 
         var outputNames = query.GetOutputColumnNames();
 
@@ -220,11 +222,12 @@ public class ExprTest
             null,
             null,
             null,
-            new ExprOutput(new IExprOutputColumn[]
-            {
+            new ExprOutput(
+            [
                 new ExprOutputColumnInserted(new ExprAliasedColumnName(new ExprColumnName("Id"), new ExprColumnAlias("InsertedId"))),
                 new ExprOutputAction(null)
-            }));
+            ]
+            ));
 
         var outputNames = query.GetOutputColumnNames();
 
@@ -241,7 +244,7 @@ public class ExprTest
                 SqQueryBuilder.Literal(1).As("Id"),
                 SqQueryBuilder.Literal("A").As("Name"))
             .Done();
-        var list = new ExprQueryList(new IExprComplete[] { query });
+        var list = new ExprQueryList([query]);
 
         var outputNames = list.GetOutputColumnNames();
 
@@ -256,14 +259,15 @@ public class ExprTest
                 SqQueryBuilder.Literal(1).As("Id"),
                 SqQueryBuilder.Literal("A").As("Name"))
             .Done();
-        var list = new ExprQueryList(new IExprComplete[]
-        {
+        var list = new ExprQueryList(
+        [
             new ExprDelete(
                 new ExprTable(new ExprTableFullName(new ExprDbSchema(null, new ExprSchemaName("dbo")), new ExprTableName("Users")), null),
                 null,
                 null),
             query
-        });
+        ]
+        );
 
         var outputNames = list.GetOutputColumnNames();
 
@@ -274,13 +278,14 @@ public class ExprTest
     [Test]
     public void ExprQueryList_GetOutputColumnNames_WhenNoQuery_ReturnsEmpty()
     {
-        var list = new ExprQueryList(new IExprComplete[]
-        {
+        var list = new ExprQueryList(
+        [
             new ExprDelete(
                 new ExprTable(new ExprTableFullName(new ExprDbSchema(null, new ExprSchemaName("dbo")), new ExprTableName("Users")), null),
                 null,
                 null)
-        });
+        ]
+        );
 
         var outputNames = list.GetOutputColumnNames();
 

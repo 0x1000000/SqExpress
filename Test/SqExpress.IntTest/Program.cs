@@ -250,7 +250,7 @@ public class Program
     private static async Task ExecNpgSql(IScenario scenario, string connectionString, ParametrizationMode parametrizationMode)
     {
         var sqlExporter =
-            new PgSqlExporter(SqlBuilderOptions.Default.WithSchemaMap(new[] { new SchemaMap("dbo", "public") }));
+            new PgSqlExporter(SqlBuilderOptions.Default.WithSchemaMap([new SchemaMap("dbo", "public")]));
 
         await using var database = GetPgSqlDatabase(connectionString, sqlExporter, parametrizationMode);
         await scenario.Exec(
@@ -333,8 +333,8 @@ public class Program
 
     private sealed class RunnerOptions
     {
-        public IReadOnlyList<SqlDialect> Dialects { get; init; } = Array.Empty<SqlDialect>();
-        public IReadOnlyList<ParametrizationMode> Parametrizations { get; init; } = Array.Empty<ParametrizationMode>();
+        public IReadOnlyList<SqlDialect> Dialects { get; init; } = [];
+        public IReadOnlyList<ParametrizationMode> Parametrizations { get; init; } = [];
         public bool ShouldRunCrossDbCompare { get; init; }
         public string? Scenario { get; init; }
 
@@ -454,24 +454,24 @@ public class Program
 
         private static IReadOnlyList<SqlDialect> DefaultDialects()
         {
-            return new[]
-            {
+            return
+            [
                 SqlDialect.TSql,
                 SqlDialect.PgSql,
                 SqlDialect.OracleMySql,
                 SqlDialect.MariaDb,
                 SqlDialect.Sqlite
-            };
+            ];
         }
 
         private static IReadOnlyList<ParametrizationMode> DefaultParametrizations()
         {
-            return new[]
-            {
+            return
+            [
                 ParametrizationMode.None,
                 ParametrizationMode.LiteralFallback,
                 ParametrizationMode.ThrowOnLimit
-            };
+            ];
         }
     }
 }

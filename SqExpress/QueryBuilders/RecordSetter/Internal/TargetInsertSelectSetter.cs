@@ -8,7 +8,7 @@ internal class TargetInsertSelectSetter<TTable> : RecordSetterBase<IExprRecordSe
 {
     public TTable Target { get; }
 
-    private readonly List<ColumnValueInsertSelectMap> _maps = new List<ColumnValueInsertSelectMap>();
+    private readonly List<ColumnValueInsertSelectMap> _maps = [];
 
     public IReadOnlyList<ColumnValueInsertSelectMap> Maps => this._maps;
 

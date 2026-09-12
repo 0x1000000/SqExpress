@@ -46,7 +46,7 @@ public class TestFileSystem : IFileSystem
 
         if (!this._directories.TryGetValue(dir, out var list))
         {
-            list = new List<string>();
+            list = [];
             this._directories.Add(dir, list);
         }
         list.Add(path);

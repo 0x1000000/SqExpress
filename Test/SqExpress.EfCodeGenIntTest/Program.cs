@@ -59,7 +59,7 @@ public static class Program
         var buildMethod = allTablesType.GetMethod("BuildAllTableList", BindingFlags.Public | BindingFlags.Static)
             ?? throw new InvalidOperationException("Could not find generated AllTables.BuildAllTableList method.");
 
-        return buildMethod.Invoke(null, Array.Empty<object>()) as IReadOnlyList<TableBase>
+        return buildMethod.Invoke(null, []) as IReadOnlyList<TableBase>
                ?? throw new InvalidOperationException("Generated AllTables.BuildAllTableList did not return table descriptors.");
     }
 
@@ -111,12 +111,12 @@ public static class Program
                 continue;
             }
 
-            foreach (var index in indexComparison.MissedIndexes ?? Array.Empty<IndexMeta>())
+            foreach (var index in indexComparison.MissedIndexes ?? [])
             {
                 Console.WriteLine($"  Missed index {index.Name}");
             }
 
-            foreach (var index in indexComparison.ExtraIndexes ?? Array.Empty<IndexMeta>())
+            foreach (var index in indexComparison.ExtraIndexes ?? [])
             {
                 Console.WriteLine($"  Extra index {index.Name}");
             }

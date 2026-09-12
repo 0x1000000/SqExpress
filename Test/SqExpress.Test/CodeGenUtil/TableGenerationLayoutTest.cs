@@ -22,7 +22,7 @@ public class TableGenerationLayoutTest
         var archive = Table("archive", "Order", "TableOrder");
 
         var layout = TableGenerationLayout.Create(
-            new[] { sales, archive },
+            [sales, archive],
             "Tables",
             "MyApp.Tables",
             splitTablesBySchema: true);
@@ -37,7 +37,7 @@ public class TableGenerationLayoutTest
     public void SplitBySchema_NormalizedSchemaCollisionFails()
     {
         var exception = Assert.Throws<SqExpressCodeGenException>(() => TableGenerationLayout.Create(
-            new[] { Table("sales-data", "One", "TableOne"), Table("sales_data", "Two", "TableTwo") },
+            [Table("sales-data", "One", "TableOne"), Table("sales_data", "Two", "TableTwo")],
             "Tables",
             "MyApp.Tables",
             splitTablesBySchema: true));
@@ -49,7 +49,7 @@ public class TableGenerationLayoutTest
     public void WithoutSchemaSplit_DuplicateFileFailsWithGuidance()
     {
         var exception = Assert.Throws<SqExpressCodeGenException>(() => TableGenerationLayout.Create(
-            new[] { Table("sales", "Order", "TableOrder"), Table("archive", "Order", "TableOrder") },
+            [Table("sales", "Order", "TableOrder"), Table("archive", "Order", "TableOrder")],
             "Tables",
             "MyApp.Tables",
             splitTablesBySchema: false));
@@ -91,7 +91,7 @@ public class TableGenerationLayoutTest
 
         var source = CodeGenAllTablesSupport.Generate(
                 "CustomOutput/AllTables.cs",
-                new[] { Table("sales", "Order", "TableOrder") },
+                [Table("sales", "Order", "TableOrder")],
                 "MyApp.Tables",
                 "Table",
                 fileSystem)
@@ -203,7 +203,7 @@ public class TableGenerationLayoutTest
     }
 
     private static TableModel Table(string schema, string name, string className)
-        => new TableModel(className, new TableRef(schema, name), new List<ColumnModel>(), new List<IndexModel>());
+        => new TableModel(className, new TableRef(schema, name), [], []);
 
     private static CodeGenTableModel CodeGenTable(string schema, string name, string @namespace, string? foreignKeySchema)
     {
@@ -215,7 +215,9 @@ public class TableGenerationLayoutTest
             className: "TableOrder",
             @namespace: @namespace,
             fullyQualifiedTypeName: @namespace + ".TableOrder",
-            columns: ImmutableArray.Create(new CodeGenColumnModel(
+            columns:
+            [
+                new CodeGenColumnModel(
                 CodeGenColumnKind.Int32,
                 "Id",
                 propertyName: null,
@@ -233,7 +235,8 @@ public class TableGenerationLayoutTest
                 isText: false,
                 precision: 0,
                 scale: 0,
-                isDate: false)),
+                isDate: false)
+            ],
             indexes: ImmutableArray<CodeGenIndexModel>.Empty);
     }
 

@@ -44,15 +44,15 @@ public class InPredicateTest
 
         Assert.AreEqual("[a] IN(1)", a.In(Literal(1)).ToSql());
         Assert.AreEqual("[a] IN(1,2,3)", a.In(Literal(1), Literal(2), Literal(3)).ToSql());
-        Assert.AreEqual("[a] IN(1,2)", a.In(new []{ Literal(1), Literal(2) }).ToSql());
+        Assert.AreEqual("[a] IN(1,2)", a.In([Literal(1), Literal(2)]).ToSql());
 
         Assert.AreEqual("[a] IN(1)", a.In(1).ToSql());
         Assert.AreEqual("[a] IN(1,2,3)", a.In(1,2,3).ToSql());
-        Assert.AreEqual("[a] IN(1,2)", a.In(new []{1, 2}).ToSql());
+        Assert.AreEqual("[a] IN(1,2)", a.In([1, 2]).ToSql());
 
         Assert.AreEqual("[a] IN('1')", a.In("1").ToSql());
         Assert.AreEqual("[a] IN('1','2','3')", a.In("1","2","3").ToSql());
-        Assert.AreEqual("[a] IN('1','2')", a.In(new []{"1", "2"}).ToSql());
+        Assert.AreEqual("[a] IN('1','2')", a.In(["1", "2"]).ToSql());
 
         var g1 = Guid.Parse("F46E2EC5-E08F-4CB9-8FD5-62DAC1A90C85");
         var g2 = Guid.Parse("FE716966-74D9-4449-83CE-16371698E8D0");
@@ -60,6 +60,8 @@ public class InPredicateTest
 
         Assert.AreEqual("[a] IN('f46e2ec5-e08f-4cb9-8fd5-62dac1a90c85')", a.In(g1).ToSql());
         Assert.AreEqual("[a] IN('f46e2ec5-e08f-4cb9-8fd5-62dac1a90c85','fe716966-74d9-4449-83ce-16371698e8d0','9614f808-e9ea-4bfe-8432-3711eb7e235c')", a.In(g1,g2,g3).ToSql());
-        Assert.AreEqual("[a] IN('f46e2ec5-e08f-4cb9-8fd5-62dac1a90c85','fe716966-74d9-4449-83ce-16371698e8d0')", a.In(new []{g1, g2}).ToSql());
+        Assert.AreEqual("[a] IN('f46e2ec5-e08f-4cb9-8fd5-62dac1a90c85','fe716966-74d9-4449-83ce-16371698e8d0')", a.In(
+            [g1, g2]
+        ).ToSql());
     }
 }

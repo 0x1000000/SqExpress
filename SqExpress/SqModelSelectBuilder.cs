@@ -25,7 +25,7 @@ public static class ModelEmptyReader
 
         private EmptyModelReaderStorage() { }
 
-        public IReadOnlyList<ExprColumn> GetColumns(TTable table) => Array.Empty<TableColumn>();
+        public IReadOnlyList<ExprColumn> GetColumns(TTable table) => [];
 
         public int GetColumnCount() => 0;
 

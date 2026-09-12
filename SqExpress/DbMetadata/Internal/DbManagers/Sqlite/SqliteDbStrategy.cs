@@ -263,7 +263,7 @@ internal class SqliteDbStrategy : DbStrategyBase
 
                 if (!foreignKeys.TryGetValue(from, out var refs))
                 {
-                    refs = new List<ColumnRef>();
+                    refs = [];
                     foreignKeys[from] = refs;
                 }
 
@@ -368,7 +368,7 @@ internal class SqliteDbStrategy : DbStrategyBase
         }
 
         var parts = rawTypeName.Substring(openParen + 1, closeParen - openParen - 1)
-            .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+            .Split([','], StringSplitOptions.RemoveEmptyEntries)
             .Select(p => p.Trim())
             .ToArray();
 

@@ -108,7 +108,7 @@ internal class MergeDataBuilder<TTable, TItem> : IMergeDataBuilder<TTable, TItem
     public IMergeDataBuilderNotMatchTargetWithMap<TTable> Exclude(Func<TTable, ExprColumnName> column)
     {
         var col = column.AssertArgumentNotNull(nameof(column)).Invoke(this._table).AssertNotNull("Column should not be null");
-        this._whenNotMatchedByTarget = this.AssertNotMatchedByTargetIsSet().WithExclude(new[] {col});
+        this._whenNotMatchedByTarget = this.AssertNotMatchedByTargetIsSet().WithExclude([col]);
         return this;
     }
 
@@ -247,7 +247,7 @@ internal class MergeDataBuilder<TTable, TItem> : IMergeDataBuilder<TTable, TItem
                 }
             }
 
-            HashSet<ExprColumn> duplicateChecker = new HashSet<ExprColumn>();
+            HashSet<ExprColumn> duplicateChecker = [];
             for (int i = 0; i < sets.Length; i++)
             {
                 if (!duplicateChecker.Add(sets[i].Column))
@@ -312,7 +312,7 @@ internal class MergeDataBuilder<TTable, TItem> : IMergeDataBuilder<TTable, TItem
                 }
             }
 
-            HashSet<ExprColumnName> duplicateChecker = new HashSet<ExprColumnName>();
+            HashSet<ExprColumnName> duplicateChecker = [];
             for (int i = 0; i < insertColumns.Count; i++)
             {
                 if (!duplicateChecker.Add(insertColumns[i]))
@@ -345,7 +345,7 @@ internal class MergeDataBuilder<TTable, TItem> : IMergeDataBuilder<TTable, TItem
 
             ExprColumnSetClause[] sets = new ExprColumnSetClause[mergeTargetUpdateSetter.Maps.Count];
 
-            HashSet<ExprColumnName> duplicateChecker = new HashSet<ExprColumnName>();
+            HashSet<ExprColumnName> duplicateChecker = [];
             for (int i = 0; i < sets.Length; i++)
             {
                 if (!duplicateChecker.Add(mergeTargetUpdateSetter.Maps[i].Column))

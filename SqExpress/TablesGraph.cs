@@ -210,7 +210,7 @@ public sealed class TablesGraph
         var key = BuildTableKey(canonical.FullName);
         if (!this._referencesBySourceKey.TryGetValue(key, out var references))
         {
-            return Array.Empty<TableBase>();
+            return [];
         }
 
         return includeSelfRef ? references : FilterSelfReference(canonical, references);
@@ -242,7 +242,7 @@ public sealed class TablesGraph
         var key = BuildTableKey(canonical.FullName);
         if (!this._referencedByTargetKey.TryGetValue(key, out var referencedBy))
         {
-            return Array.Empty<TableBase>();
+            return [];
         }
 
         return includeSelfRef ? referencedBy : FilterSelfReference(canonical, referencedBy);
@@ -479,7 +479,7 @@ public sealed class TablesGraph
         if (intermediateTables == null || intermediateTables.Count == 0)
         {
             var directPath = SelectPath(
-                this.FindShortestPaths(new[] { sourceCanonical }, new HashSet<string>(StringComparer.OrdinalIgnoreCase) { BuildTableKey(targetCanonical.FullName) }, options),
+                this.FindShortestPaths([sourceCanonical], new HashSet<string>(StringComparer.OrdinalIgnoreCase) { BuildTableKey(targetCanonical.FullName) }, options),
                 options);
             return directPath == null ? null : BuildActualPath(directPath, sourceActual, targetActual);
         }
@@ -497,7 +497,7 @@ public sealed class TablesGraph
             }
 
             var segmentPath = SelectPath(
-                this.FindShortestPaths(new[] { segmentSourceCanonical }, new HashSet<string>(StringComparer.OrdinalIgnoreCase) { BuildTableKey(segmentTargetCanonical.FullName) }, options),
+                this.FindShortestPaths([segmentSourceCanonical], new HashSet<string>(StringComparer.OrdinalIgnoreCase) { BuildTableKey(segmentTargetCanonical.FullName) }, options),
                 options);
             if (segmentPath == null || segmentPath.Count == 0)
             {
@@ -604,7 +604,7 @@ public sealed class TablesGraph
                 continue;
             }
             distance.Add(sourceKey, 0);
-            previous.Add(sourceKey, new List<string>());
+            previous.Add(sourceKey, []);
             queue.Enqueue(sourceKey);
         }
 
@@ -632,7 +632,7 @@ public sealed class TablesGraph
                 if (!distance.TryGetValue(neighborKey, out var knownDistance))
                 {
                     distance.Add(neighborKey, neighborDistance);
-                    previous.Add(neighborKey, new List<string> { currentKey });
+                    previous.Add(neighborKey, [currentKey]);
                     queue.Enqueue(neighborKey);
                     continue;
                 }
@@ -645,7 +645,7 @@ public sealed class TablesGraph
 
         if (reachedTargets.Count == 0)
         {
-            return Array.Empty<IReadOnlyList<TableBase>>();
+            return [];
         }
 
         var maxPaths = options.AmbiguousPathBehavior switch
@@ -658,7 +658,7 @@ public sealed class TablesGraph
         var result = new List<IReadOnlyList<TableBase>>();
         foreach (var targetKey in reachedTargets)
         {
-            ReconstructAllPaths(targetKey, previous, this._tablesByKey, new List<TableBase>(), result, maxPaths);
+            ReconstructAllPaths(targetKey, previous, this._tablesByKey, [], result, maxPaths);
             if (result.Count >= maxPaths)
             {
                 break;
@@ -924,7 +924,7 @@ public sealed class TablesGraph
     {
         if (!map.TryGetValue(key, out var list))
         {
-            list = new List<TableBase>();
+            list = [];
             map[key] = list;
         }
 

@@ -304,7 +304,7 @@ internal class MsSqlDbStrategy : DbStrategyBase
                     {
                         if (!acc.Pks.TryGetValue(tableName, out var list))
                         {
-                            list = new PrimaryKeyModel(new List<IndexColumnModel>(), indexName);
+                            list = new PrimaryKeyModel([], indexName);
                             acc.Pks.Add(tableName, list);
                         }
                         list.Columns.Add(new IndexColumnModel(isDescending, columnName));
@@ -313,14 +313,14 @@ internal class MsSqlDbStrategy : DbStrategyBase
                     {
                         if (!acc.Indexes.TryGetValue(tableName, out var indexes))
                         {
-                            indexes = new List<IndexModel>();
+                            indexes = [];
                             acc.Indexes.Add(tableName, indexes);
                         }
 
                         var index = indexes.FirstOrDefault(i => i.Name == indexName);
                         if (index == null)
                         {
-                            index = new IndexModel(new List<IndexColumnModel>(), indexName, isUnique, isClustered);
+                            index = new IndexModel([], indexName, isUnique, isClustered);
                             indexes.Add(index);
                         }
 
@@ -381,7 +381,7 @@ internal class MsSqlDbStrategy : DbStrategyBase
 
                     if (!acc.TryGetValue(columnName, out var colList))
                     {
-                        colList = new List<ColumnRef>();
+                        colList = [];
                         acc.Add(columnName, colList);
                     }
 

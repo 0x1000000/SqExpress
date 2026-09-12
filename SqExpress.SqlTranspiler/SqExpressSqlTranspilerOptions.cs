@@ -22,7 +22,7 @@ public sealed class SqExpressSqlTranspilerOptions
 
     public bool UseStaticSqQueryBuilderUsing { get; set; } = true;
 
-    public IReadOnlyCollection<string> ReservedNestedTypeNames { get; set; } = System.Array.Empty<string>();
+    public IReadOnlyCollection<string> ReservedNestedTypeNames { get; set; } = [];
 
     internal string EffectiveDeclarationsNamespaceName =>
         string.IsNullOrWhiteSpace(this.DeclarationsNamespaceName)

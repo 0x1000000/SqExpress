@@ -218,7 +218,7 @@ public class ScParserParamsExprValues : IScenario
 
     private static bool TryParseHexBytes(string text, out byte[] bytes)
     {
-        bytes = Array.Empty<byte>();
+        bytes = [];
         if (string.IsNullOrEmpty(text))
         {
             return false;

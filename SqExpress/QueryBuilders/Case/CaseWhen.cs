@@ -6,5 +6,5 @@ namespace SqExpress.QueryBuilders.Case;
 
 public readonly struct CaseWhen
 {
-    public CaseThen When(ExprBoolean condition) => new CaseThen(new List<ExprCaseWhenThen>(), condition);
+    public CaseThen When(ExprBoolean condition) => new CaseThen([], condition);
 }

@@ -20,7 +20,7 @@ public abstract class ExprCte : IExprTableSource
     public abstract IExprSubQuery CreateQuery();
 
     public TableMultiplication ToTableMultiplication() 
-        => new TableMultiplication(new[] { this }, null);
+        => new TableMultiplication([this], null);
 
     public IReadOnlyList<IExprSelecting> ExtractSelecting() => this.CreateQuery().ExtractSelecting();
 

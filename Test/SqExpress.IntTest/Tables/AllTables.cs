@@ -4,13 +4,13 @@ namespace SqExpress.IntTest.Tables;
 
 public static class AllTables
 {
-    public static TableBase[] BuildAllTableList(SqlDialect dialect) => new TableBase[]
-    {
+    public static TableBase[] BuildAllTableList(SqlDialect dialect) =>
+    [
         GetFk0(Alias.Empty), GetItAllColumnTypes(dialect, Alias.Empty), GetFk1A(Alias.Empty), GetFk1B(Alias.Empty),
         GetItCompany(dialect, Alias.Empty), GetItUser(dialect, Alias.Empty), GetFk2AB(Alias.Empty),
         GetItCustomer(Alias.Empty),
         GetFk3AB(Alias.Empty), GetItOrder(Alias.Empty)
-    };
+    ];
 
     public static TableFk0 GetFk0(Alias alias) => new TableFk0(alias);
     public static TableFk0 GetFk0() => new TableFk0(Alias.Auto);

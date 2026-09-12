@@ -114,7 +114,7 @@ public class ModificationTest
     {
         var tUser = Tables.User();
 
-        var originalExpr = Select(tUser.UserId).From(tUser).Done().AddOrderBy(new ExprOrderByItem[]{ tUser.FirstName, tUser.LastName });
+        var originalExpr = Select(tUser.UserId).From(tUser).Done().AddOrderBy([tUser.FirstName, tUser.LastName]);
 
         var withOrderBy = originalExpr.AddOffsetFetch(1, 2);
 

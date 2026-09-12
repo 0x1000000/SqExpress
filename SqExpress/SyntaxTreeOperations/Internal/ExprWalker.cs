@@ -152,7 +152,7 @@ internal class ExprWalker<TCtx> : IExprVisitorInternal<bool, WalkerContext<TCtx>
     public bool VisitExprCteQuery(ExprCteQuery expr, WalkerContext<TCtx> arg)
     {
         bool res = true;
-        this._cteChecker ??= new HashSet<string>();
+        this._cteChecker ??= [];
 
 
         ExprCte toVisit;

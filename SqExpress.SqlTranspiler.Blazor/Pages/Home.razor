@@ -166,13 +166,13 @@
     private static readonly MySqlExporter FormattedMySqlMariaDbExporter = new MySqlExporter(
         FormattedSqlBuilderOptions,
         MySqlFlavor.MariaDb);
-    private static readonly IReadOnlyList<DialectOption> Dialects = new[]
-    {
+    private static readonly IReadOnlyList<DialectOption> Dialects =
+    [
         new DialectOption(SqlPreviewDialect.TSql, "T-SQL"),
         new DialectOption(SqlPreviewDialect.PgSql, "PG-SQL"),
         new DialectOption(SqlPreviewDialect.MySqlOracle, "MySQL Oracle"),
         new DialectOption(SqlPreviewDialect.MySqlMariaDb, "MySQL MariaDB")
-    };
+    ];
     private static readonly IReadOnlyList<ShowcaseSample> ShowcaseSamples = ShowcaseCatalog.All;
     private DotNetObjectReference<Home>? _dotNetRef;
     private string _sqlText =

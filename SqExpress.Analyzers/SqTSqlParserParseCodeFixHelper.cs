@@ -23,7 +23,7 @@ internal static partial class SqTSqlParserParseCodeFixHelper
     private const string DefaultParserSchema = "dbo";
 
     private static readonly string[] RequiredNamespaces =
-    {
+    [
         "System",
         "System.Collections.Generic",
         "SqExpress",
@@ -34,7 +34,7 @@ internal static partial class SqTSqlParserParseCodeFixHelper
         "SqExpress.Syntax.Select",
         "SqExpress.Syntax.Type",
         "SqExpress.Syntax.Value"
-    };
+    ];
 
     public static async Task<SqTSqlParserParseCodeFixPlan?> TryCreatePlanAsync(
         Document document,
@@ -200,7 +200,7 @@ internal static partial class SqTSqlParserParseCodeFixHelper
             var containingType = match.Invocation.FirstAncestorOrSelf<TypeDeclarationSyntax>();
             var reservedNestedTypeNames = containingType != null
                 ? GetReservedNestedTypeNames(semanticModel, containingType, cancellationToken)
-                : Array.Empty<string>();
+                : [];
 
             _ = new SqExpressSqlTranspiler().TranspileInline(
                 match.SqlText,
@@ -397,7 +397,7 @@ internal static partial class SqTSqlParserParseCodeFixHelper
     {
         if (semanticModel.GetDeclaredSymbol(containingType, cancellationToken) is not INamedTypeSymbol typeSymbol)
         {
-            return Array.Empty<string>();
+            return [];
         }
 
         return typeSymbol.GetMembers()
@@ -412,7 +412,7 @@ internal static partial class SqTSqlParserParseCodeFixHelper
         out IReadOnlyList<ExpectedTableInfo> expectedTables,
         out string failureMessage)
     {
-        expectedTables = Array.Empty<ExpectedTableInfo>();
+        expectedTables = [];
         failureMessage = string.Empty;
 
         if (!SqTSqlParser.TryParse(sqlText, out IExpr? parsedExpr, out IReadOnlyList<SqExpress.DbMetadata.SqTable>? _, out string? parseError))
@@ -437,9 +437,9 @@ internal static partial class SqTSqlParserParseCodeFixHelper
         out IReadOnlyList<string> requiredNamespaces,
         out string failureMessage)
     {
-        tableDeclarations = Array.Empty<RoslynStatementSyntax>();
-        inlineBindings = Array.Empty<SqExpressSqlInlineTableBinding>();
-        requiredNamespaces = Array.Empty<string>();
+        tableDeclarations = [];
+        inlineBindings = [];
+        requiredNamespaces = [];
         failureMessage = string.Empty;
 
         if (expectedTables.Count < 1)
@@ -641,7 +641,7 @@ internal static partial class SqTSqlParserParseCodeFixHelper
                     .ToList();
                 return tuples.Count > 0;
             default:
-                tuples = Array.Empty<TupleArgumentInfo>();
+                tuples = [];
                 return false;
         }
     }
@@ -733,7 +733,7 @@ internal static partial class SqTSqlParserParseCodeFixHelper
         CancellationToken cancellationToken,
         out IReadOnlyList<ProvidedTableInfo> tables)
     {
-        tables = Array.Empty<ProvidedTableInfo>();
+        tables = [];
 
         if (!TryExtractTableExpressions(tablesExpression, semanticModel, cancellationToken, out var itemExpressions))
         {
@@ -776,7 +776,7 @@ internal static partial class SqTSqlParserParseCodeFixHelper
             case MemberAccessExpressionSyntax:
                 if (!TryResolveSymbolInitializer(expression, semanticModel, cancellationToken, out var initializer))
                 {
-                    itemExpressions = Array.Empty<ExpressionSyntax>();
+                    itemExpressions = [];
                     return false;
                 }
 
@@ -784,13 +784,13 @@ internal static partial class SqTSqlParserParseCodeFixHelper
             case InvocationExpressionSyntax invocation:
                 if (!TryResolveInvocationResultExpression(invocation, semanticModel, cancellationToken, out var returnedExpression))
                 {
-                    itemExpressions = Array.Empty<ExpressionSyntax>();
+                    itemExpressions = [];
                     return false;
                 }
 
                 return TryExtractTableExpressions(returnedExpression, semanticModel, cancellationToken, out itemExpressions);
             default:
-                itemExpressions = Array.Empty<ExpressionSyntax>();
+                itemExpressions = [];
                 return false;
         }
     }
@@ -1117,8 +1117,8 @@ internal static partial class SqTSqlParserParseCodeFixHelper
         out IReadOnlyList<RoslynStatementSyntax> tableDeclarations,
         out IReadOnlyList<SqExpressSqlInlineTableBinding> inlineBindings)
     {
-        tableDeclarations = Array.Empty<RoslynStatementSyntax>();
-        inlineBindings = Array.Empty<SqExpressSqlInlineTableBinding>();
+        tableDeclarations = [];
+        inlineBindings = [];
 
         if (expectedTables.GroupBy(i => i.TableKey, StringComparer.OrdinalIgnoreCase).Any(i => i.Count() > 1))
         {
@@ -1179,9 +1179,9 @@ internal static partial class SqTSqlParserParseCodeFixHelper
         out IReadOnlyList<string> requiredNamespaces,
         out string failureMessage)
     {
-        tableDeclarations = Array.Empty<RoslynStatementSyntax>();
-        inlineBindings = Array.Empty<SqExpressSqlInlineTableBinding>();
-        requiredNamespaces = Array.Empty<string>();
+        tableDeclarations = [];
+        inlineBindings = [];
+        requiredNamespaces = [];
         failureMessage = string.Empty;
 
         var declarations = new List<RoslynStatementSyntax>(expectedTables.Count);
@@ -1194,7 +1194,7 @@ internal static partial class SqTSqlParserParseCodeFixHelper
                         .DescendantNodes()
                         .OfType<VariableDeclaratorSyntax>()
                         .Select(i => i.Identifier.ValueText)
-                    : Enumerable.Empty<string>(),
+                    : [],
                 StringComparer.Ordinal)
             : new HashSet<string>(StringComparer.Ordinal);
 
@@ -1278,7 +1278,7 @@ internal static partial class SqTSqlParserParseCodeFixHelper
             {
                 if (!byKey.TryGetValue(pair.Key, out var items))
                 {
-                    items = new List<SourceTableInfo>();
+                    items = [];
                     byKey[pair.Key] = items;
                 }
 
@@ -1392,7 +1392,7 @@ internal static partial class SqTSqlParserParseCodeFixHelper
 
     private static string FormatTableKey(string tableKey)
     {
-        var parts = tableKey.Split(new[] { '.' }, 2);
+        var parts = tableKey.Split(['.'], 2);
         return parts.Length == 2
             ? "[" + parts[0] + "].[" + parts[1] + "]"
             : "[" + tableKey + "]";
@@ -1406,7 +1406,7 @@ internal static partial class SqTSqlParserParseCodeFixHelper
         }
 
         var parts = value
-            .Split(new[] { '_', ' ', '-' }, StringSplitOptions.RemoveEmptyEntries)
+            .Split(['_', ' ', '-'], StringSplitOptions.RemoveEmptyEntries)
             .Select(i => i.Trim())
             .Where(i => i.Length > 0)
             .ToList();
@@ -1533,7 +1533,7 @@ internal sealed class SqTSqlParserParseCodeFixPlan
         this.ReplacementExpression = replacementExpression;
         this.InsertedStatements = insertedStatements;
         this.NestedTypes = nestedTypes;
-        this.RequiredNamespaces = requiredNamespaces.ToImmutableArray();
+        this.RequiredNamespaces = [..requiredNamespaces];
         this.RequiredStaticUsing = requiredStaticUsing;
     }
 

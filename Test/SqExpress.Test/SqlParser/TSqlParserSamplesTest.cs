@@ -98,8 +98,8 @@ public class TSqlParserSamplesTest
     private static IEnumerable<TestCaseData> PgSqlCases()
         => AllSamples.Select(i => new TestCaseData(i.Name, i.Sql, i.PgSql, i.UnsupportedReason).SetName("Pg_" + i.Name));
 
-    private static readonly IReadOnlyList<PgSample> AllSamples = new[]
-    {
+    private static readonly IReadOnlyList<PgSample> AllSamples =
+    [
         new PgSample(
             "Delete_Output_NotLike",
             @"DELETE [u] OUTPUT DELETED.[UserId] FROM [dbo].[Users] [u] WHERE NOT [u].[Name] LIKE 'A%'",
@@ -567,8 +567,8 @@ public class TSqlParserSamplesTest
             @"SELECT [u].[UserId],[u].[Name] FROM [dbo].[Users] [u] ORDER BY [u].[UserId] OFFSET 0 ROW FETCH NEXT 1 ROW ONLY",
             @"SELECT ""u"".""UserId"",""u"".""Name"" FROM ""dbo"".""Users"" ""u"" ORDER BY ""u"".""UserId"" OFFSET 0 ROW FETCH NEXT 1 ROW ONLY",
             null
-        ),
-    };
+        )
+    ];
 
     private sealed class PgSample
     {

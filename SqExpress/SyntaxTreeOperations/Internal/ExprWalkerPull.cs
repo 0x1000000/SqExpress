@@ -174,7 +174,7 @@ internal class ExprWalkerPull : IExprVisitorInternal<bool, object?>, IEnumerator
     {
         this._stackIndex = -1;
         this._stack = new StackItem[8];
-        this._cteChecker = new HashSet<string>();
+        this._cteChecker = [];
         if (!this._self)
         {
             this.SetCurrent(this._root);
@@ -224,7 +224,7 @@ internal class ExprWalkerPull : IExprVisitorInternal<bool, object?>, IEnumerator
 
     public bool VisitExprCteQuery(ExprCteQuery expr, object? arg)
     {
-        this._cteChecker ??= new HashSet<string>();
+        this._cteChecker ??= [];
         if (!this._cteChecker.Contains(expr.Name))
         {
             bool res;

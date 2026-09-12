@@ -342,7 +342,7 @@ public sealed partial class TableDescriptorSourceGenerator
         }
 
         descriptor = new CodeGenIndexModel(
-            columns.ToImmutableArray(),
+            [..columns],
             GetNamedArray(attribute, nameof(IndexAttribute.DescendingColumns)),
             GetNamedString(attribute, nameof(IndexAttribute.Name)),
             GetNamedBool(attribute, nameof(IndexAttribute.Unique)),
@@ -445,7 +445,7 @@ public sealed partial class TableDescriptorSourceGenerator
             current = current.ContainingType;
         }
 
-        return stack.ToImmutableArray();
+        return [..stack];
     }
 
     private static bool IsPartial(INamedTypeSymbol typeSymbol)
@@ -724,7 +724,7 @@ public sealed partial class TableDescriptorSourceGenerator
             return ImmutableArray<string>.Empty;
         }
 
-        return argument.Values.Select(static i => i.Value as string).Where(static i => !string.IsNullOrWhiteSpace(i)).Cast<string>().ToImmutableArray();
+        return [..argument.Values.Select(static i => i.Value as string).Where(static i => !string.IsNullOrWhiteSpace(i)).Cast<string>()];
     }
 
     private static string? GetNamedTypeName(AttributeData attribute, string name)

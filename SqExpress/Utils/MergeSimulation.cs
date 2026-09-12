@@ -223,7 +223,7 @@ internal static class MergeSimulation
                     .InnerJoin(merge.TargetTable, merge.On)
                     .All();
 
-                return new ExprList(new IExprExec[] { deleteMatchedFromTemp, insert });
+                return new ExprList([deleteMatchedFromTemp, insert]);
             }
 
             if (merge.WhenNotMatchedByTarget is ExprExprMergeNotMatchedInsert insert)

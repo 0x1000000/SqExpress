@@ -67,11 +67,11 @@ public class InsertDataBuilder<TTable, TItem> : IInsertDataBuilder<TTable, TItem
 
         if (useDerivedTable)
         {
-            recordsS = capacity.HasValue ? new List<ExprValueRow>(capacity.Value) : new List<ExprValueRow>();
+            recordsS = capacity.HasValue ? new List<ExprValueRow>(capacity.Value) : [];
         }
         else
         {
-            recordsI = capacity.HasValue ? new List<ExprInsertValueRow>(capacity.Value) : new List<ExprInsertValueRow>();
+            recordsI = capacity.HasValue ? new List<ExprInsertValueRow>(capacity.Value) : [];
         }
 
         DataMapSetter<TTable, TItem>? dataMapSetter = null;

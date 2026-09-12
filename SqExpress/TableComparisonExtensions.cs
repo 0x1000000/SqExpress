@@ -26,7 +26,7 @@ public static class TableComparisonExtensions
         {
             return thisList.Count < 1
                 ? null
-                : new TableListComparison(thisList, Array.Empty<TableBase>(), Array.Empty<DifferentTables>());
+                : new TableListComparison(thisList, [], []);
         }
 
         tableNameKeyExtractor ??= name => BuildTableKey(name, flags);
@@ -47,20 +47,20 @@ public static class TableComparisonExtensions
                 var tableComparison = thisTable.CompareWith(otherTable, flags);
                 if (tableComparison != null)
                 {
-                    differentTables ??= new List<DifferentTables>();
+                    differentTables ??= [];
                     differentTables.Add(new(thisTable, otherTable, tableComparison));
                 }
             }
             else
             {
-                extraTables ??= new List<TableBase>();
+                extraTables ??= [];
                 extraTables.Add(otherTable);
             }
         }
 
         if (sameNameColumns.Count != thisList.Count)
         {
-            missedTables ??= new();
+            missedTables ??= [];
             foreach (var thisTable in thisList)
             {
                 if (!sameNameColumns.Contains(tableNameKeyExtractor(thisTable.FullName)))
@@ -103,20 +103,20 @@ public static class TableComparisonExtensions
                 var tableColumnComparison = thisColumn.CompareWith(otherTableColumn, flags);
                 if (tableColumnComparison != TableColumnComparison.Equal)
                 {
-                    differentColumns ??= new List<DifferentColumns>();
+                    differentColumns ??= [];
                     differentColumns.Add(new(thisColumn, otherTableColumn, tableColumnComparison));
                 }
             }
             else
             {
-                extraColumns ??= new List<TableColumn>();
+                extraColumns ??= [];
                 extraColumns.Add(otherTableColumn);
             }
         }
 
         if (sameNameColumns.Count != thisList.Columns.Count)
         {
-            missedColumns ??= new();
+            missedColumns ??= [];
             foreach (var thisColumn in thisList.Columns)
             {
                 if (!sameNameColumns.Contains(thisColumn.ColumnName))
@@ -193,7 +193,7 @@ public static class TableComparisonExtensions
 
             if (!matched)
             {
-                extraIndexes ??= new();
+                extraIndexes ??= [];
                 extraIndexes.Add(otherIndex);
             }
         }
@@ -205,7 +205,7 @@ public static class TableComparisonExtensions
                 continue;
             }
 
-            missedIndexes ??= new List<IndexMeta>();
+            missedIndexes ??= [];
             missedIndexes.Add(thisIndexes[i]);
         }
 

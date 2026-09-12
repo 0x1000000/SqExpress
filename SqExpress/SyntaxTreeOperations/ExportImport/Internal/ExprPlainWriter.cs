@@ -12,7 +12,7 @@ public delegate T PlainItemFactory<T>(int id, int parentId, int? arrayIndex, boo
 internal class ExprPlainWriter<T> : IWalkerVisitor<int>
     where T : IPlainItem
 {
-    private readonly List<T> _buffer = new List<T>();
+    private readonly List<T> _buffer = [];
 
     private readonly PlainItemFactory<T> _factory;
 

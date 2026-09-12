@@ -21,7 +21,7 @@ internal sealed class JsonOutputShape
 
     public bool IsJson { get; private set; }
 
-    public List<JsonOutputShape> Children { get; } = new();
+    public List<JsonOutputShape> Children { get; } = [];
 
     public static IReadOnlyList<JsonOutputShape> Build(IExprQuery query)
     {
@@ -41,7 +41,7 @@ internal sealed class JsonOutputShape
             else if (selecting is IExprNamedSelecting named && named.OutputName != null)
             {
                 column = named.OutputName;
-                segments = new[] { SqJsonPathSegment.ForProperty(named.OutputName) };
+                segments = [SqJsonPathSegment.ForProperty(named.OutputName)];
                 leafIsJson = IsJsonValue(selecting);
             }
             else

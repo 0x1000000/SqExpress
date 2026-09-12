@@ -154,7 +154,7 @@ public class TableComparisonExtensionsTest
         var users = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"));
         var orders = SqTable.Create("dbo", "Orders", a => a.AppendInt32Column("OrderId"));
 
-        var diff = new TableBase[] { users, orders }.CompareWith(new TableBase[] { users });
+        var diff = new TableBase[] { users, orders }.CompareWith([users]);
 
         Assert.That(diff, Is.Not.Null);
         Assert.That(diff!.MissedTables.Count, Is.EqualTo(1));
@@ -168,7 +168,7 @@ public class TableComparisonExtensionsTest
         var users = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"));
         var orders = SqTable.Create("dbo", "Orders", a => a.AppendInt32Column("OrderId"));
 
-        var diff = new TableBase[] { users }.CompareWith(new TableBase[] { users, orders });
+        var diff = new TableBase[] { users }.CompareWith([users, orders]);
 
         Assert.That(diff, Is.Not.Null);
         Assert.That(diff!.ExtraTables.Count, Is.EqualTo(1));
@@ -182,7 +182,7 @@ public class TableComparisonExtensionsTest
         var users = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"));
         var orders = SqTable.Create("dbo", "Orders", a => a.AppendInt32Column("OrderId"));
 
-        var diff = new TableBase[] { users, orders }.CompareWith(Array.Empty<TableBase>());
+        var diff = new TableBase[] { users, orders }.CompareWith([]);
 
         Assert.That(diff, Is.Not.Null);
         Assert.That(diff!.MissedTables.Count, Is.EqualTo(2));
@@ -195,7 +195,7 @@ public class TableComparisonExtensionsTest
         var users = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"));
         var orders = SqTable.Create("dbo", "Orders", a => a.AppendInt32Column("OrderId"));
 
-        var diff = Array.Empty<TableBase>().CompareWith(new TableBase[] { users, orders });
+        var diff = Array.Empty<TableBase>().CompareWith([users, orders]);
 
         Assert.That(diff, Is.Not.Null);
         Assert.That(diff!.ExtraTables.Count, Is.EqualTo(2));
@@ -244,7 +244,7 @@ public class TableComparisonExtensionsTest
         var users = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"));
         var orders = SqTable.Create("dbo", "Orders", a => a.AppendInt32Column("OrderId"));
 
-        var diff = new TableBase[] { users, orders }.CompareWith(new TableBase[] { users, orders });
+        var diff = new TableBase[] { users, orders }.CompareWith([users, orders]);
 
         Assert.That(diff, Is.Null);
     }

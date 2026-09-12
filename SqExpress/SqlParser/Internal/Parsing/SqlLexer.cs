@@ -17,7 +17,7 @@ internal static class SqlLexer
 
     public static bool TryTokenize(string sql, out List<SqlToken>? result, out string? error)
     {
-        result = new List<SqlToken>();
+        result = [];
         var index = 0;
 
         while (index < sql.Length)

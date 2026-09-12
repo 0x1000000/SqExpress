@@ -69,10 +69,10 @@ public class ScMerge : IScenario
 
         context.WriteLine("Updating (BY SOURCE) using MERGE..");
 
-        testData = new List<TestMergeData>
-        {
-            new TestMergeData(1, 17),
-        };
+        testData =
+        [
+            new TestMergeData(1, 17)
+        ];
 
         await SqQueryBuilder.MergeDataInto(tt, testData)
             .MapDataKeys(TestMergeData.GetUpdateKeyMapping)

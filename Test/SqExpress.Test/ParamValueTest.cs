@@ -39,7 +39,7 @@ public class ParamValueTest
         Guid guid = Guid.NewGuid();
 
         ParamValue[] values =
-        {
+        [
             "A",
             true,
             (bool?)false,
@@ -61,7 +61,7 @@ public class ParamValueTest
             (DateTime?)dateTime,
             dateTimeOffset,
             (DateTimeOffset?)dateTimeOffset
-        };
+        ];
 
         foreach (var value in values)
         {

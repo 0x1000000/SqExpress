@@ -13,7 +13,7 @@ internal enum CodeGenModelType
 
 internal sealed class CodeGenSqModelMeta
 {
-    private readonly List<CodeGenSqModelPropertyMeta> _properties = new List<CodeGenSqModelPropertyMeta>();
+    private readonly List<CodeGenSqModelPropertyMeta> _properties = [];
 
     public CodeGenSqModelMeta(string name)
     {
@@ -50,7 +50,7 @@ internal sealed class CodeGenSqModelMeta
 
 internal sealed class CodeGenSqModelPropertyMeta
 {
-    private readonly List<CodeGenSqModelPropertyTableColMeta> _column = new List<CodeGenSqModelPropertyTableColMeta>();
+    private readonly List<CodeGenSqModelPropertyTableColMeta> _column = [];
 
     public CodeGenSqModelPropertyMeta(string name, string type, string? castType, bool isPrimaryKey, bool isIdentity)
     {

@@ -329,7 +329,7 @@ public static class SqQueryBuilderExtensions
     /// <returns>An ordering containing both keys in precedence order.</returns>
     public static ExprOrderBy ThenBy(this ExprOrderByItem item, ExprOrderByItem thenBy)
     {
-        return new ExprOrderBy(new[] { item, thenBy });
+        return new ExprOrderBy([item, thenBy]);
     }
 
     /// <summary>Appends a lower-priority tie-breaker to an existing ordering.</summary>

@@ -53,21 +53,57 @@ public class DbMetadataTest
             new TableModel(
                 "TableA",
                 tableA,
-                new List<ColumnModel>
-                {
-                    new ColumnModel("Id", new ColumnRef("dbo", "TableA", "Id"), 1, new Int32ColumnType(false), new PkInfo(0, false), false, null, null),
-                    new ColumnModel("BId", new ColumnRef("dbo", "TableA", "BId"), 2, new Int32ColumnType(false), null, false, null, new List<ColumnRef> { new ColumnRef("dbo", "TableB", "Id") })
-                },
-                new List<IndexModel>()),
+                [
+                    new ColumnModel(
+                        "Id",
+                        new ColumnRef("dbo", "TableA", "Id"),
+                        1,
+                        new Int32ColumnType(false),
+                        new PkInfo(0, false),
+                        false,
+                        null,
+                        null
+                    ),
+                    new ColumnModel(
+                        "BId",
+                        new ColumnRef("dbo", "TableA", "BId"),
+                        2,
+                        new Int32ColumnType(false),
+                        null,
+                        false,
+                        null,
+                        [new ColumnRef("dbo", "TableB", "Id")]
+                    )
+                ],
+                []
+            ),
             new TableModel(
                 "TableB",
                 tableB,
-                new List<ColumnModel>
-                {
-                    new ColumnModel("Id", new ColumnRef("dbo", "TableB", "Id"), 1, new Int32ColumnType(false), new PkInfo(0, false), false, null, null),
-                    new ColumnModel("AId", new ColumnRef("dbo", "TableB", "AId"), 2, new Int32ColumnType(false), null, false, null, new List<ColumnRef> { new ColumnRef("dbo", "TableA", "Id") })
-                },
-                new List<IndexModel>())
+                [
+                    new ColumnModel(
+                        "Id",
+                        new ColumnRef("dbo", "TableB", "Id"),
+                        1,
+                        new Int32ColumnType(false),
+                        new PkInfo(0, false),
+                        false,
+                        null,
+                        null
+                    ),
+                    new ColumnModel(
+                        "AId",
+                        new ColumnRef("dbo", "TableB", "AId"),
+                        2,
+                        new Int32ColumnType(false),
+                        null,
+                        false,
+                        null,
+                        [new ColumnRef("dbo", "TableA", "Id")]
+                    )
+                ],
+                []
+            )
         };
 
         var tables = DbModelMapper.ToSqDbTables(tableModels, false);

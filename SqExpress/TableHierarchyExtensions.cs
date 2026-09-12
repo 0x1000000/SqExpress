@@ -30,7 +30,7 @@ public static class TableHierarchyExtensions {
             .Columns
             .SelectMany(
                 c => c.ColumnMeta?.ForeignKeyColumns?.Select(fk => fk.Table.FullName.AsExprTableFullName())
-                    .Where(tn => !Equals(tn, tableBase.FullName.AsExprTableFullName())) ?? Array.Empty<ExprTableFullName>()
+                    .Where(tn => !Equals(tn, tableBase.FullName.AsExprTableFullName())) ?? []
             )
             .Distinct();
     }
@@ -64,7 +64,7 @@ public static class TableHierarchyExtensions {
             {
                 if (!result.TryGetValue(parentTable, out var list))
                 {
-                    list = new List<ExprTableFullName>();
+                    list = [];
                     result.Add(parentTable, list);
                 }
                 list.Add(child.FullName.AsExprTableFullName());

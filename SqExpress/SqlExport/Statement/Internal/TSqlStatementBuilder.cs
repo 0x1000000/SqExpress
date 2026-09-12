@@ -168,7 +168,8 @@ internal class TSqlStatementBuilder : SqlStatementBuilderBase
 
         var condition = SqQueryBuilder.IsNotNull(new ExprScalarFunction(null,
             new ExprFunctionName(true, "OBJECT_ID"),
-            new[] {SqQueryBuilder.Literal(tableName)}));
+            [SqQueryBuilder.Literal(tableName)]
+        ));
 
         new StatementIf(condition, statementIfTempTableExists.Statements, statementIfTempTableExists.ElseStatements).Accept(this);
     }

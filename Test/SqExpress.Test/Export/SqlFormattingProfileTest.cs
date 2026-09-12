@@ -159,7 +159,7 @@ public class SqlFormattingProfileTest
             InsertInto(user, user.FirstName, user.LastName).Values("a", "b").Values("c", "d").DoneWithValues(),
             Update(user).Set(user.FirstName, "x").Set(user.LastName, "y").Where(user.UserId == 1),
             Delete(user).Where(user.UserId == 1),
-            new ExprQueryList(new IExprComplete[] { Delete(user).All(), inner })
+            new ExprQueryList([Delete(user).All(), inner])
         };
         foreach (var query in queries)
         {
@@ -180,7 +180,7 @@ public class SqlFormattingProfileTest
     public void QueryListSeparatesStatementsWithoutFinalNewline()
     {
         var query = Select(Literal(1)).Done();
-        var list = new ExprQueryList(new IExprComplete[] { Delete(Tables.User(Alias.Empty)).All(), query });
+        var list = new ExprQueryList([Delete(Tables.User(Alias.Empty)).All(), query]);
         Assert.AreEqual("DELETE [dbo].[user];\nSELECT\n    1", list.ToSql(Exporter(0, Spacious)));
     }
 

@@ -7,7 +7,7 @@ namespace SqExpress.QueryBuilders.RecordSetter.Internal;
 
 internal class DataMapSetter<TTable, TItem> : RecordSetterBase<IRecordSetterNext>, IDataMapSetter<TTable, TItem>, IRecordSetterNext
 {
-    private readonly List<ExprColumnName> _columns = new List<ExprColumnName>();
+    private readonly List<ExprColumnName> _columns = [];
 
     private int? _capacity;
 
@@ -34,7 +34,7 @@ internal class DataMapSetter<TTable, TItem> : RecordSetterBase<IRecordSetterNext
         this.Index++;
         this.Source = item;
         this._capacity = length;
-        this._record = length.HasValue ? new List<ExprValue>(length.Value) : new List<ExprValue>();
+        this._record = length.HasValue ? new List<ExprValue>(length.Value) : [];
     }
 
     public void EnsureRecordLength()

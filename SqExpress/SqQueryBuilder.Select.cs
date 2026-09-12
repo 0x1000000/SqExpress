@@ -49,7 +49,7 @@ public partial class SqQueryBuilder
     /// <summary>Begins <c>SELECT 1</c>, commonly used as the projection of an <c>EXISTS</c> subquery.</summary>
     /// <returns>The initial fluent stage for composing the query.</returns>
     public static IQuerySpecificationBuilderInitial SelectOne()
-        => new QuerySpecificationBuilder(null, false, new[] { Literal(1) });
+        => new QuerySpecificationBuilder(null, false, [Literal(1)]);
 
     /// <summary>Begins a <c>SELECT DISTINCT</c> statement and converts expressions or CLR values into projection items.</summary>
     /// <param name="selection">The first projection item.</param>
@@ -169,7 +169,7 @@ public partial class SqQueryBuilder
     /// <summary>Begins a one-row <c>SELECT 1</c>, suitable for existence probes and dialect-neutral test queries.</summary>
     /// <returns>The initial fluent stage for composing the query.</returns>
     public static IQuerySpecificationBuilderInitial SelectTopOne()
-        => new QuerySpecificationBuilder(Literal(1), false, new[] { Literal(1) });
+        => new QuerySpecificationBuilder(Literal(1), false, [Literal(1)]);
 
     /// <summary>Marks an expression as an ascending sort key for an <c>ORDER BY</c> clause or window definition.</summary>
     /// <param name="value">The expression whose values determine row order.</param>
@@ -196,13 +196,13 @@ public partial class SqQueryBuilder
     /// <param name="values">The values to place in consecutive rows of the single-column constructor.</param>
     /// <returns>A single-column table value constructor.</returns>
     public static ExprTableValueConstructor Values(IReadOnlyList<ExprValue> values) 
-        => new ExprTableValueConstructor(values.SelectToReadOnlyList(i=> new ExprValueRow(new[]{i})));
+        => new ExprTableValueConstructor(values.SelectToReadOnlyList(i=> new ExprValueRow([i])));
 
     /// <summary>Creates a SQL table value constructor with one column and one row per supplied value.</summary>
     /// <param name="values">The values to place in consecutive rows of the single-column constructor.</param>
     /// <returns>A single-column table value constructor.</returns>
     public static ExprTableValueConstructor Values(params ExprValue[] values) 
-        => new ExprTableValueConstructor(values.SelectToReadOnlyList(i=> new ExprValueRow(new[]{i})));
+        => new ExprTableValueConstructor(values.SelectToReadOnlyList(i=> new ExprValueRow([i])));
 
     /// <summary>Maps an in-memory sequence to a named, column-addressable SQL value table.</summary>
     /// <remarks>The mapping is evaluated for every input item. Its first invocation establishes the column list, and subsequent invocations must assign the same columns.</remarks>
@@ -232,7 +232,7 @@ public partial class SqQueryBuilder
             }
             setter.EnsureRecordLength();
 
-            records ??= new List<ExprValueRow>();
+            records ??= [];
             records.Add(new ExprValueRow(record));
         }
 

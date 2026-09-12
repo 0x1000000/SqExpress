@@ -180,7 +180,7 @@ public class ScTreeClosure : IScenario
 
         public static NodeModel Root(Action<NodeModel> next)
         {
-            var result = new NodeModel(1, null , new List<NodeModel>());
+            var result = new NodeModel(1, null , []);
             result.Trace.Add(result);
             next.Invoke(result);
             return result;

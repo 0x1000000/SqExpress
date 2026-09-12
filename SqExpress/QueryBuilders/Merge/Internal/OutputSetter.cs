@@ -7,7 +7,7 @@ namespace SqExpress.QueryBuilders.Merge.Internal;
 
 public class OutputSetter : IOutputSetter<IOutputSetterNext>, IOutputSetterNext
 {
-    private readonly List<IExprOutputColumn> _columns = new List<IExprOutputColumn>();
+    private readonly List<IExprOutputColumn> _columns = [];
 
     public IReadOnlyList<IExprOutputColumn> Columns => this._columns;
 

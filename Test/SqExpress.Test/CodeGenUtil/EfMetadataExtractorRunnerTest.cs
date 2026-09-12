@@ -145,13 +145,12 @@ public class EfMetadataExtractorRunnerTest
             Console.SetOut(output);
             InvokeEntryPoint(
                 extractorAssembly,
-                new[]
-                {
+                [
                     "--target-assembly",
                     "SqExpress.EfExtractorTarget",
                     "--db-context",
                     "TestDbContext"
-                }
+                ]
             );
 
             using var document = JsonDocument.Parse(output.ToString());
@@ -203,14 +202,14 @@ public class EfMetadataExtractorRunnerTest
         var document = new EfMetadataDocument
         {
             ProviderName = "Microsoft.EntityFrameworkCore.SqlServer",
-            Tables = new List<EfTableMetadata>
-            {
+            Tables =
+            [
                 new EfTableMetadata
                 {
                     Schema = "sales",
                     Name = "Customers",
-                    Columns = new List<EfColumnMetadata>
-                    {
+                    Columns =
+                    [
                         new EfColumnMetadata
                         {
                             Name = "SessionTimeout",
@@ -218,9 +217,9 @@ public class EfMetadataExtractorRunnerTest
                             ClrType = "System.TimeSpan",
                             Nullable = nullable
                         }
-                    }
+                    ]
                 }
-            }
+            ]
         };
 
         var column = EfMetadataTableReader
@@ -240,14 +239,14 @@ public class EfMetadataExtractorRunnerTest
         var document = new EfMetadataDocument
         {
             ProviderName = "Microsoft.EntityFrameworkCore.SqlServer",
-            Tables = new List<EfTableMetadata>
-            {
+            Tables =
+            [
                 new EfTableMetadata
                 {
                     Schema = "dbo",
                     Name = "Items",
-                    Columns = new List<EfColumnMetadata>
-                    {
+                    Columns =
+                    [
                         new EfColumnMetadata
                         {
                             Name = "Version",
@@ -255,9 +254,9 @@ public class EfMetadataExtractorRunnerTest
                             ClrType = "System.Byte[]",
                             Nullable = nullable
                         }
-                    }
+                    ]
                 }
-            }
+            ]
         };
 
         var column = EfMetadataTableReader
@@ -277,14 +276,14 @@ public class EfMetadataExtractorRunnerTest
         var document = new EfMetadataDocument
         {
             ProviderName = "Microsoft.EntityFrameworkCore.SqlServer",
-            Tables = new List<EfTableMetadata>
-            {
+            Tables =
+            [
                 new EfTableMetadata
                 {
                     Schema = "dbo",
                     Name = "Items",
-                    Columns = new List<EfColumnMetadata>
-                    {
+                    Columns =
+                    [
                         new EfColumnMetadata
                         {
                             Name = "TenantId",
@@ -292,6 +291,7 @@ public class EfMetadataExtractorRunnerTest
                             ClrType = "System.Int32",
                             PrimaryKeyIndex = 0
                         },
+
                         new EfColumnMetadata
                         {
                             Name = "Path",
@@ -299,6 +299,7 @@ public class EfMetadataExtractorRunnerTest
                             ClrType = "Microsoft.EntityFrameworkCore.HierarchyId",
                             PrimaryKeyIndex = 1
                         },
+
                         new EfColumnMetadata
                         {
                             Name = "Name",
@@ -306,29 +307,27 @@ public class EfMetadataExtractorRunnerTest
                             ClrType = "System.String",
                             MaxLength = 100
                         }
-                    },
-                    Indexes = new List<EfIndexMetadata>
-                    {
+                    ],
+                    Indexes =
+                    [
                         new EfIndexMetadata
                         {
                             Name = "IX_Items_TenantId_Path",
-                            Columns = new List<EfIndexColumnMetadata>
-                            {
+                            Columns =
+                            [
                                 new EfIndexColumnMetadata { Name = "TenantId" },
                                 new EfIndexColumnMetadata { Name = "Path" }
-                            }
+                            ]
                         },
+
                         new EfIndexMetadata
                         {
                             Name = "IX_Items_Name",
-                            Columns = new List<EfIndexColumnMetadata>
-                            {
-                                new EfIndexColumnMetadata { Name = "Name" }
-                            }
+                            Columns = [new EfIndexColumnMetadata { Name = "Name" }]
                         }
-                    }
+                    ]
                 }
-            }
+            ]
         };
 
         var table = EfMetadataTableReader.SelectTables(document, "Table", skipUnknownColumnTypes: true).Single();
@@ -360,7 +359,7 @@ public class EfMetadataExtractorRunnerTest
         try
         {
             Console.SetError(error);
-            var exitCode = InvokeEntryPointForExitCode(extractorAssembly, Array.Empty<string>());
+            var exitCode = InvokeEntryPointForExitCode(extractorAssembly, []);
             Assert.AreEqual(1, exitCode);
         }
         finally
@@ -382,7 +381,7 @@ public class EfMetadataExtractorRunnerTest
     {
         var compilation = CSharpCompilation.Create(
             assemblyName,
-            new[] { CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.Latest)) },
+            [CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.Latest))],
             references,
             new CSharpCompilationOptions(outputKind, nullableContextOptions: NullableContextOptions.Enable)
         );
@@ -447,8 +446,8 @@ public class EfMetadataExtractorRunnerTest
                              "Compiled extractor assembly does not have an entry point."
                          );
         var result = entryPoint.GetParameters().Length == 0
-            ? entryPoint.Invoke(null, Array.Empty<object>())
-            : entryPoint.Invoke(null, new object[] { args });
+            ? entryPoint.Invoke(null, [])
+            : entryPoint.Invoke(null, [args]);
 
         switch (result)
         {

@@ -117,7 +117,7 @@ internal class MySqlDbStrategy : DbStrategyBase
                     {
                         if (!acc.Pks.TryGetValue(tableRef, out var list))
                         {
-                            list = new PrimaryKeyModel(new List<IndexColumnModel>(), indexName);
+                            list = new PrimaryKeyModel([], indexName);
                             acc.Pks.Add(tableRef, list);
                         }
 
@@ -127,14 +127,14 @@ internal class MySqlDbStrategy : DbStrategyBase
                     {
                         if (!acc.Indexes.TryGetValue(tableRef, out var indexes))
                         {
-                            indexes = new List<IndexModel>();
+                            indexes = [];
                             acc.Indexes.Add(tableRef, indexes);
                         }
 
                         var index = indexes.FirstOrDefault(i => i.Name == indexName);
                         if (index == null)
                         {
-                            index = new IndexModel(new List<IndexColumnModel>(), indexName, isUnique, isClustered);
+                            index = new IndexModel([], indexName, isUnique, isClustered);
                             indexes.Add(index);
                         }
 
@@ -427,7 +427,7 @@ internal class MySqlDbStrategy : DbStrategyBase
 
                         if (!acc.Fks.TryGetValue(columnName, out var colList))
                         {
-                            colList = new List<ColumnRef>();
+                            colList = [];
                             acc.Fks.Add(columnName, colList);
                         }
 
@@ -435,7 +435,7 @@ internal class MySqlDbStrategy : DbStrategyBase
 
                         if (!acc.FkName.TryGetValue(refTableName, out var fkList))
                         {
-                            fkList = new List<string>();
+                            fkList = [];
                             acc.FkName.Add(refTableName, fkList);
                         }
 

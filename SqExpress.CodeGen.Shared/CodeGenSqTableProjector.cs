@@ -64,10 +64,11 @@ internal static class CodeGenSqTableProjector
             className: className,
             @namespace: typeNamespace,
             fullyQualifiedTypeName: fullyQualifiedTypeName,
-            columns: table.Columns
-                .Select(c => ToCodeGenColumnModel(c, propertyNamesByColumn))
-                .ToImmutableArray(),
-            indexes: table.Indexes.Select(ToCodeGenIndexModel).ToImmutableArray()
+            columns: [
+                ..table.Columns
+                    .Select(c => ToCodeGenColumnModel(c, propertyNamesByColumn))
+            ],
+            indexes: [..table.Indexes.Select(ToCodeGenIndexModel)]
         );
     }
 
@@ -108,10 +109,11 @@ internal static class CodeGenSqTableProjector
     private static CodeGenIndexModel ToCodeGenIndexModel(IndexMeta index)
     {
         return new CodeGenIndexModel(
-            columns: index.Columns.Select(static c => c.Column.ColumnName.Name).ToImmutableArray(),
-            descendingColumns: index.Columns.Where(static c => c.Descending)
-                .Select(static c => c.Column.ColumnName.Name)
-                .ToImmutableArray(),
+            columns: [..index.Columns.Select(static c => c.Column.ColumnName.Name)],
+            descendingColumns: [
+                ..index.Columns.Where(static c => c.Descending)
+                    .Select(static c => c.Column.ColumnName.Name)
+            ],
             name: null,
             isUnique: index.Unique,
             isClustered: index.Clustered

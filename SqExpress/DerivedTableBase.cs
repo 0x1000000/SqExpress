@@ -15,7 +15,7 @@ public abstract class DerivedTableBase : ExprDerivedTable
 {
     private ExprDerivedTableQuery? _table;
 
-    private readonly List<ExprColumn> _columns = new List<ExprColumn>();
+    private readonly List<ExprColumn> _columns = [];
 
     /// <summary>Gets the result columns registered by this derived-table descriptor.</summary>
     public IReadOnlyList<ExprColumn> Columns => this._columns;

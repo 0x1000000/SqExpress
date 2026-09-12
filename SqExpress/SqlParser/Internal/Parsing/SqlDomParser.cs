@@ -15,7 +15,7 @@ internal sealed class SqlDomParser
         if (string.IsNullOrWhiteSpace(sql))
         {
             statement = null;
-            errors = new[] { "SQL text cannot be empty." };
+            errors = ["SQL text cannot be empty."];
             return false;
         }
 
@@ -32,7 +32,7 @@ internal sealed class SqlDomParser
         catch (InvalidOperationException ex)
         {
             statement = null;
-            errors = new[] { ex.Message };
+            errors = [ex.Message];
             return false;
         }
 
@@ -46,21 +46,21 @@ internal sealed class SqlDomParser
         if (HasMultipleStatements(tokens))
         {
             statement = null;
-            errors = new[] { "Only one SQL statement is supported." };
+            errors = ["Only one SQL statement is supported."];
             return false;
         }
 
         if (TryDetectUnsupportedFeature(tokens, out var unsupportedFeatureError))
         {
             statement = null;
-            errors = new[] { unsupportedFeatureError };
+            errors = [unsupportedFeatureError];
             return false;
         }
 
         if (ContainsMalformedQuantifiedPredicate(tokens, out var malformedQuantifiedError))
         {
             statement = null;
-            errors = new[] { malformedQuantifiedError };
+            errors = [malformedQuantifiedError];
             return false;
         }
 
@@ -73,7 +73,7 @@ internal sealed class SqlDomParser
         if (TryDetectBasicSyntaxError(rawSql, tokens, cursor.Index, kind, topLevelSelect, out var syntaxError))
         {
             statement = null;
-            errors = new[] { syntaxError };
+            errors = [syntaxError];
             return false;
         }
 
@@ -682,7 +682,7 @@ internal sealed class SqlDomParser
             return false;
         }
 
-        var end = FindFirstTopLevel(tokens, setIndex + 1, new[] { "FROM", "WHERE", "OUTPUT" });
+        var end = FindFirstTopLevel(tokens, setIndex + 1, ["FROM", "WHERE", "OUTPUT"]);
         if (end < 0)
         {
             end = FindStatementEnd(tokens, setIndex + 1);
@@ -822,7 +822,7 @@ internal sealed class SqlDomParser
             return false;
         }
 
-        var boundary = FindFirstTopLevel(tokens, intoIndex + 1, new[] { "OUTPUT", "VALUES", "SELECT", "DEFAULT" });
+        var boundary = FindFirstTopLevel(tokens, intoIndex + 1, ["OUTPUT", "VALUES", "SELECT", "DEFAULT"]);
         if (boundary < 0)
         {
             boundary = FindStatementEnd(tokens, intoIndex + 1);
@@ -910,7 +910,7 @@ internal sealed class SqlDomParser
             return false;
         }
 
-        var boundary = FindFirstTopLevel(tokens, intoIndex + 1, new[] { "OUTPUT", "VALUES", "SELECT", "DEFAULT" });
+        var boundary = FindFirstTopLevel(tokens, intoIndex + 1, ["OUTPUT", "VALUES", "SELECT", "DEFAULT"]);
         if (boundary < 0)
         {
             boundary = FindStatementEnd(tokens, intoIndex + 1);
@@ -1657,7 +1657,9 @@ internal sealed class SqlDomParser
             return false;
         }
 
-        var boundary = FindFirstTopLevel(tokens, fromIndex + 1, new[] { "WHERE", "GROUP", "HAVING", "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT" });
+        var boundary = FindFirstTopLevel(tokens, fromIndex + 1, ["WHERE", "GROUP", "HAVING", "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT"
+            ]
+        );
         if (boundary < 0)
         {
             boundary = FindStatementEnd(tokens, fromIndex + 1);
@@ -2138,7 +2140,9 @@ internal sealed class SqlDomParser
         }
 
         var selectStart = index;
-        var selectEnd = FindFirstTopLevel(tokens, index, new[] { "FROM", "WHERE", "GROUP", "HAVING", "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT" });
+        var selectEnd = FindFirstTopLevel(tokens, index, ["FROM", "WHERE", "GROUP", "HAVING", "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT"
+            ]
+        );
         if (selectEnd < 0)
         {
             selectEnd = FindStatementEnd(tokens, index);
@@ -2162,7 +2166,9 @@ internal sealed class SqlDomParser
         {
             hasFromClause = true;
             var fromStart = current + 1;
-            var fromEnd = FindFirstTopLevel(tokens, fromStart, new[] { "WHERE", "GROUP", "HAVING", "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT" });
+            var fromEnd = FindFirstTopLevel(tokens, fromStart, ["WHERE", "GROUP", "HAVING", "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT"
+                ]
+            );
             if (fromEnd < 0)
             {
                 fromEnd = FindStatementEnd(tokens, fromStart);
@@ -2181,7 +2187,9 @@ internal sealed class SqlDomParser
 
             if (tokens[current].IsKeyword("WHERE"))
             {
-                var end = FindFirstTopLevel(tokens, current + 1, new[] { "GROUP", "HAVING", "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT" });
+                var end = FindFirstTopLevel(tokens, current + 1, ["GROUP", "HAVING", "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT"
+                    ]
+                );
                 if (end < 0)
                 {
                     end = FindStatementEnd(tokens, current + 1);
@@ -2194,7 +2202,9 @@ internal sealed class SqlDomParser
 
             if (tokens[current].IsKeyword("GROUP") && IsKeyword(tokens, current + 1, "BY"))
             {
-                var end = FindFirstTopLevel(tokens, current + 2, new[] { "HAVING", "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT" });
+                var end = FindFirstTopLevel(tokens, current + 2, ["HAVING", "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT"
+                    ]
+                );
                 if (end < 0)
                 {
                     end = FindStatementEnd(tokens, current + 2);
@@ -2208,7 +2218,7 @@ internal sealed class SqlDomParser
             if (tokens[current].IsKeyword("HAVING"))
             {
                 hasHavingClause = true;
-                var end = FindFirstTopLevel(tokens, current + 1, new[] { "ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT" });
+                var end = FindFirstTopLevel(tokens, current + 1, ["ORDER", "OFFSET", "UNION", "INTERSECT", "EXCEPT"]);
                 if (end < 0)
                 {
                     end = FindStatementEnd(tokens, current + 1);
@@ -2221,7 +2231,7 @@ internal sealed class SqlDomParser
 
             if (tokens[current].IsKeyword("ORDER") && IsKeyword(tokens, current + 1, "BY"))
             {
-                var end = FindFirstTopLevel(tokens, current + 2, new[] { "OFFSET", "UNION", "INTERSECT", "EXCEPT" });
+                var end = FindFirstTopLevel(tokens, current + 2, ["OFFSET", "UNION", "INTERSECT", "EXCEPT"]);
                 if (end < 0)
                 {
                     end = FindStatementEnd(tokens, current + 2);
@@ -2234,7 +2244,7 @@ internal sealed class SqlDomParser
 
             if (tokens[current].IsKeyword("OFFSET"))
             {
-                var end = FindFirstTopLevel(tokens, current + 1, new[] { "UNION", "INTERSECT", "EXCEPT" });
+                var end = FindFirstTopLevel(tokens, current + 1, ["UNION", "INTERSECT", "EXCEPT"]);
                 if (end < 0)
                 {
                     end = FindStatementEnd(tokens, current + 1);
@@ -2790,13 +2800,13 @@ internal sealed class SqlDomParser
     {
         if (index >= endExclusive || tokens[index].Type != SqlTokenType.OpenParen)
         {
-            return Array.Empty<string>();
+            return [];
         }
 
         var closeIndex = FindMatchingCloseParen(tokens, index);
         if (closeIndex < 0)
         {
-            return Array.Empty<string>();
+            return [];
         }
 
         var result = new List<string>();

@@ -2,8 +2,8 @@ namespace SqExpress.SqlTranspiler.Blazor.Pages;
 
 internal static class ShowcaseCatalog
 {
-    public static readonly IReadOnlyList<ShowcaseSample> All = new[]
-    {
+    public static readonly IReadOnlyList<ShowcaseSample> All =
+    [
         new ShowcaseSample(
             "ranked-revenue",
             "1. Ranked Customer Revenue",
@@ -328,7 +328,7 @@ internal static class ShowcaseCatalog
             WITH (Id int '$.id', Payload nvarchar(max) '$.payload' AS JSON) j
             FOR JSON PATH, INCLUDE_NULL_VALUES;
             """)
-    };
+    ];
 }
 
 internal sealed class ShowcaseSample

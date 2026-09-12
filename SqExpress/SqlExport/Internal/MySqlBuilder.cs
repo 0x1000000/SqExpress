@@ -508,7 +508,7 @@ internal partial class MySqlBuilder : SqlBuilderBase, IPortableScalarFunctionVis
             {
                 if (query.Where != null && query.From is ExprDerivedTableValues values)
                 {
-                    derivedTables ??= new List<ExprDerivedTableValues>();
+                    derivedTables ??= [];
                     derivedTables.Add(values);
 
                     return query.WithFrom(

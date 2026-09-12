@@ -87,7 +87,7 @@ public class ColumnMeta
             FkFactoriesCache.Clear();
 
             var newFks = this._fks == null
-                ? new [] {fkColumn}
+                ? [fkColumn]
                 : Helpers.Combine(this._fks, fkColumn);
 
             return new ColumnMetaBuilder(this._isPrimaryKey, this._isIdentity, newFks, this._defaultValue);
@@ -96,7 +96,7 @@ public class ColumnMeta
         public ColumnMetaBuilder ForeignKey(TableColumn column)
         {
             var newFks = this._fks == null
-                ? new [] { column }
+                ? [column]
                 : Helpers.Combine(this._fks, column);
 
             return new ColumnMetaBuilder(this._isPrimaryKey, this._isIdentity, newFks, this._defaultValue);

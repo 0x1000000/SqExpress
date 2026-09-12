@@ -18,7 +18,7 @@ public class ScMergeExprEdgeCases : IScenario
 
         try
         {
-            await MergeDataInto(tt, new[] { new TestMergeData(1, -1) })
+            await MergeDataInto(tt, [new TestMergeData(1, -1)])
                 .MapDataKeys(TestMergeData.GetUpdateKeyMapping)
                 .MapData(TestMergeData.GetUpdateMapping)
                 .WhenNotMatchedByTargetThenInsert()

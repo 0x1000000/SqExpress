@@ -49,7 +49,7 @@ public class MergeDataTest
                     .Set(s.Target.Modified, utcNow))
             .WhenNotMatchedByTargetThenInsert()
             .ExcludeKeys()
-            .Exclude(t => new[] { t.Email.ColumnName, t.LastName.ColumnName })
+            .Exclude(t => [t.Email.ColumnName, t.LastName.ColumnName])
             .AlsoInsert(s => s
                 .Set(s.Target.LastName, "Fake")
                 .Set(s.Target.Created, utcNow)

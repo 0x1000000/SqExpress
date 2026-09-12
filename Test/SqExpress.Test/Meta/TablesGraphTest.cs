@@ -441,7 +441,7 @@ public class TablesGraphTest
         var options = new TablesGraphJoinOptions { AmbiguousPathBehavior = AmbiguousJoinPathBehavior.Fail };
 
         Assert.That(
-            graph.TryToJoinTables(source, leaf, new ExprTable[] { target }, out var join, options),
+            graph.TryToJoinTables(source, leaf, [target], out var join, options),
             Is.False);
         Assert.That(join, Is.Null);
     }
@@ -454,13 +454,13 @@ public class TablesGraphTest
         var grandChild = new GrandChildTable().WithAlias(SqQueryBuilder.TableAlias("g"));
         var graph = TablesGraph.Create([new RootTable(), new ChildTable(), new ChildBTable(), new GrandChildTable()]);
 
-        Assert.That(graph.TryToJoinTables(new ExprTable[] { root, childB, grandChild }, out var join), Is.True);
+        Assert.That(graph.TryToJoinTables([root, childB, grandChild], out var join), Is.True);
         var sql = join!.ToSql();
         Assert.That(sql, Does.StartWith("[dbo].[Root] [r]"));
         Assert.That(sql, Does.Contain("[dbo].[ChildB] [b]"));
         Assert.That(sql, Does.Contain("[dbo].[GrandChild] [g]"));
         Assert.That(sql, Does.Contain("[dbo].[Child]"));
-        Assert.That(sql.Split(new[] { "[dbo].[Root]" }, StringSplitOptions.None), Has.Length.EqualTo(2));
+        Assert.That(sql.Split(["[dbo].[Root]"], StringSplitOptions.None), Has.Length.EqualTo(2));
     }
 
     [Test]
@@ -470,14 +470,14 @@ public class TablesGraphTest
         var otherRoot = new OtherRootTable();
         var graph = TablesGraph.Create([root, new ChildTable(), otherRoot]);
 
-        Assert.That(graph.TryToJoinTables(new ExprTable[] { root }, out var singleton), Is.True);
+        Assert.That(graph.TryToJoinTables([root], out var singleton), Is.True);
         Assert.That(singleton, Is.SameAs(root));
         Assert.That(graph.TryToJoinTables(null!, out _), Is.False);
-        Assert.That(graph.TryToJoinTables(Array.Empty<ExprTable>(), out _), Is.False);
-        Assert.That(graph.TryToJoinTables(new ExprTable[] { root, null! }, out _), Is.False);
-        Assert.That(graph.TryToJoinTables(new ExprTable[] { root, new RootTable() }, out _), Is.False);
-        Assert.That(graph.TryToJoinTables(new ExprTable[] { root, new UnknownTable() }, out _), Is.False);
-        Assert.That(graph.TryToJoinTables(new ExprTable[] { root, otherRoot }, out _), Is.False);
+        Assert.That(graph.TryToJoinTables([], out _), Is.False);
+        Assert.That(graph.TryToJoinTables([root, null!], out _), Is.False);
+        Assert.That(graph.TryToJoinTables([root, new RootTable()], out _), Is.False);
+        Assert.That(graph.TryToJoinTables([root, new UnknownTable()], out _), Is.False);
+        Assert.That(graph.TryToJoinTables([root, otherRoot], out _), Is.False);
     }
 
     [Test]
@@ -489,7 +489,7 @@ public class TablesGraphTest
 
         Assert.That(
             graph.TryToJoinTables(
-                new ExprTable[] { source, target },
+                [source, target],
                 new TablesGraphJoinOptions { AmbiguousPathBehavior = AmbiguousJoinPathBehavior.Fail },
                 out _),
             Is.False);
@@ -499,7 +499,7 @@ public class TablesGraphTest
             AmbiguousPathBehavior = AmbiguousJoinPathBehavior.Callback,
             AmbiguousPathResolver = _ => 1
         };
-        Assert.That(graph.TryToJoinTables(new ExprTable[] { source, target }, options, out var join), Is.True);
+        Assert.That(graph.TryToJoinTables([source, target], options, out var join), Is.True);
         Assert.That(join!.ToSql(), Does.Contain("[dbo].[Hub2]"));
     }
 

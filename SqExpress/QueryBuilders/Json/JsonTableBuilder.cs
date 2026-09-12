@@ -13,7 +13,7 @@ public sealed class JsonTableBuilder
 {
     private readonly ExprValue _document;
     private readonly string _path;
-    private readonly List<ExprJsonTableColumn> _columns = new();
+    private readonly List<ExprJsonTableColumn> _columns = [];
 
     internal JsonTableBuilder(ExprValue document, string path) { this._document = document; this._path = path; }
 

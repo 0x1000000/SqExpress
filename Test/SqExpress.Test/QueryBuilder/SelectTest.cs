@@ -240,7 +240,7 @@ public class SelectTest
 
         var actual = Select(u.UserId, u.FirstName)
             .From(u)
-            .OrderBy(new []{ u.FirstName, Desc(u.LastName) })
+            .OrderBy([u.FirstName, Desc(u.LastName)])
             .Done()
             .ToSql();
 
@@ -432,7 +432,7 @@ public class SelectTest
 
         var op = t.UserId == 1;
 
-        var join = ((IEnumerable<ExprBoolean>)new ExprBoolean[] {t.UserId == 1}).JoinAsAnd();
+        var join = ((IEnumerable<ExprBoolean>)[t.UserId == 1]).JoinAsAnd();
 
         Assert.AreEqual(op.ToSql(), join.ToSql());
     }
@@ -456,7 +456,7 @@ public class SelectTest
 
         var op = t.UserId == 1 | t.UserId == 2;
 
-        var join = ((IEnumerable<ExprBoolean>)new ExprBoolean[] {t.UserId == 1, t.UserId == 2}).JoinAsOr();
+        var join = ((IEnumerable<ExprBoolean>)[t.UserId == 1, t.UserId == 2]).JoinAsOr();
 
         Assert.AreEqual(op.ToSql(), join.ToSql());
     }

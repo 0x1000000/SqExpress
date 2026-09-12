@@ -25,7 +25,7 @@ public class ExprTableFunction : IExprTableSource
     public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg) 
         => visitor.VisitExprTableFunction(this, arg);
 
-    public TableMultiplication ToTableMultiplication() => new(new[] { this }, null);
+    public TableMultiplication ToTableMultiplication() => new([this], null);
 
     public IReadOnlyList<IExprSelecting> ExtractSelecting()
     {

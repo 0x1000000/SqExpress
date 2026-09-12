@@ -188,7 +188,7 @@ internal class MergeBuilder : IMergeBuilderCondition, IMergeMatchedBuilder, IMer
 
     private MergeBuilder GenericInsert(ref (List<ExprColumnName>, List<IExprAssigning>)? list, ExprColumnName column, IExprAssigning value)
     {
-        list ??= new (new List<ExprColumnName>(), new List<IExprAssigning>());
+        list ??= new ([], []);
         list.Value.Item1.Add(column);
         list.Value.Item2.Add(value);
         return this;
@@ -196,7 +196,7 @@ internal class MergeBuilder : IMergeBuilderCondition, IMergeMatchedBuilder, IMer
 
     private MergeBuilder GenericSet(ref List<ExprColumnSetClause>? list, ExprColumn column, IExprAssigning value)
     {
-        list ??= new List<ExprColumnSetClause>();
+        list ??= [];
         list.Add(new ExprColumnSetClause(column, value));
         return this;
     }
@@ -277,49 +277,49 @@ internal class MergeBuilder : IMergeBuilderCondition, IMergeMatchedBuilder, IMer
 
     public IOutputDone Inserted(ExprColumn column)
     {
-        this._output ??= new List<IExprOutputColumn>();
+        this._output ??= [];
         this._output.Add(new ExprOutputColumnInserted(column));
         return this;
     }
 
     public IOutputDone Inserted(ExprAliasedColumn column)
     {
-        this._output ??= new List<IExprOutputColumn>();
+        this._output ??= [];
         this._output.Add(new ExprOutputColumnInserted(new ExprAliasedColumnName(column.Column, column.Alias)));
         return this;
     }
 
     public IOutputDone Deleted(ExprColumn column)
     {
-        this._output ??= new List<IExprOutputColumn>();
+        this._output ??= [];
         this._output.Add(new ExprOutputColumnDeleted(column));
         return this;
     }
 
     public IOutputDone Deleted(ExprAliasedColumn column)
     {
-        this._output ??= new List<IExprOutputColumn>();
+        this._output ??= [];
         this._output.Add(new ExprOutputColumnDeleted(new ExprAliasedColumnName(column.Column, column.Alias)));
         return this;
     }
 
     public IOutputDone Column(ExprColumn column)
     {
-        this._output ??= new List<IExprOutputColumn>();
+        this._output ??= [];
         this._output.Add(new ExprOutputColumn(column));
         return this;
     }
 
     public IOutputDone Column(ExprAliasedColumn column)
     {
-        this._output ??= new List<IExprOutputColumn>();
+        this._output ??= [];
         this._output.Add(new ExprOutputColumn(column));
         return this;
     }
 
     public IOutputDone Action(ExprColumnAlias? alias = null)
     {
-        this._output ??= new List<IExprOutputColumn>();
+        this._output ??= [];
         this._output.Add(new ExprOutputAction(alias));
         return this;
     }

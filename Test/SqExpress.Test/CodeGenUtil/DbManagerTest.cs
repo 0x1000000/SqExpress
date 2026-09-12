@@ -99,15 +99,81 @@ public class DbManagerTest : IDbStrategy
 
     private Task<List<ColumnRawModel>> LoadColumns()
     {
-        List<ColumnRawModel> columns = new List<ColumnRawModel>
-        {
-            new ColumnRawModel(new ColumnRef("dbo","TableZ", "Id"), 1, true, false, "int", "((0))", null, null, null, null),
-            new ColumnRawModel(new ColumnRef("dbo","TableZ", "ValueA"), 2, false, false, "nvarchar", "(N'')", 255, null, null, null),
-            new ColumnRawModel(new ColumnRef("dbo","TableZ", "Value_A"), 3, false, true, "decimal", null, null, 2, 6, null),
-            new ColumnRawModel(new ColumnRef("dbo","TableA", "Id"), 4, true, false, "int", "((0))", null, null, null, null),
-            new ColumnRawModel(new ColumnRef("dbo","TableA", "Value"), 5, false, false, "datetime", "(getutcdate())", null, null, null, null),
-            new ColumnRawModel(new ColumnRef("dbo","TableA", "IsActive"), 6, false, false, "bit", "((1))", null, null, null, null)
-        };
+        List<ColumnRawModel> columns =
+        [
+            new ColumnRawModel(
+                new ColumnRef("dbo", "TableZ", "Id"),
+                1,
+                true,
+                false,
+                "int",
+                "((0))",
+                null,
+                null,
+                null,
+                null
+            ),
+            new ColumnRawModel(
+                new ColumnRef("dbo", "TableZ", "ValueA"),
+                2,
+                false,
+                false,
+                "nvarchar",
+                "(N'')",
+                255,
+                null,
+                null,
+                null
+            ),
+            new ColumnRawModel(
+                new ColumnRef("dbo", "TableZ", "Value_A"),
+                3,
+                false,
+                true,
+                "decimal",
+                null,
+                null,
+                2,
+                6,
+                null
+            ),
+            new ColumnRawModel(
+                new ColumnRef("dbo", "TableA", "Id"),
+                4,
+                true,
+                false,
+                "int",
+                "((0))",
+                null,
+                null,
+                null,
+                null
+            ),
+            new ColumnRawModel(
+                new ColumnRef("dbo", "TableA", "Value"),
+                5,
+                false,
+                false,
+                "datetime",
+                "(getutcdate())",
+                null,
+                null,
+                null,
+                null
+            ),
+            new ColumnRawModel(
+                new ColumnRef("dbo", "TableA", "IsActive"),
+                6,
+                false,
+                false,
+                "bit",
+                "((1))",
+                null,
+                null,
+                null,
+                null
+            )
+        ];
 
         return Task.FromResult(columns);
     }
@@ -117,17 +183,21 @@ public class DbManagerTest : IDbStrategy
         Dictionary<TableRef, PrimaryKeyModel> pks = new Dictionary<TableRef, PrimaryKeyModel>();
         Dictionary<TableRef, List<IndexModel>> inds = new Dictionary<TableRef, List<IndexModel>>();
 
-        pks.Add(new TableRef("dbo", "TableA"), new PrimaryKeyModel(new List<IndexColumnModel> { new IndexColumnModel(false, new ColumnRef("dbo", "TableA", "Id")) }, "PK_TableA"));
-        pks.Add(new TableRef("dbo", "TableZ"), new PrimaryKeyModel(new List<IndexColumnModel> { new IndexColumnModel(false, new ColumnRef("dbo", "TableZ", "Id")) }, "PK_TableZ"));
+        pks.Add(new TableRef("dbo", "TableA"), new PrimaryKeyModel(
+            [new IndexColumnModel(false, new ColumnRef("dbo", "TableA", "Id"))], "PK_TableA"));
+        pks.Add(new TableRef("dbo", "TableZ"), new PrimaryKeyModel(
+            [new IndexColumnModel(false, new ColumnRef("dbo", "TableZ", "Id"))], "PK_TableZ"));
 
         inds.Add(new TableRef("dbo", "TableA"),
-            new List<IndexModel>
-            {
-                new IndexModel(new List<IndexColumnModel> {new IndexColumnModel(true, new ColumnRef("dbo", "TableA", "Value"))},
+            [
+                new IndexModel(
+                    [new IndexColumnModel(true, new ColumnRef("dbo", "TableA", "Value"))],
                     "IX_TableA_Value",
                     true,
-                    false)
-            });
+                    false
+                )
+            ]
+        );
 
         LoadIndexesResult result = new LoadIndexesResult(pks, inds);
 
@@ -138,7 +208,7 @@ public class DbManagerTest : IDbStrategy
     {
         Dictionary<ColumnRef, List<ColumnRef>> result = new Dictionary<ColumnRef, List<ColumnRef>>();
 
-        result.Add(new ColumnRef("dbo", "TableA", "Id"), new List<ColumnRef> { new ColumnRef("dbo", "TableZ", "Id") });
+        result.Add(new ColumnRef("dbo", "TableA", "Id"), [new ColumnRef("dbo", "TableZ", "Id")]);
 
         return Task.FromResult(result);
     }
@@ -168,28 +238,55 @@ public class DbManagerTest : IDbStrategy
         public Task<DbRawModels> LoadRawModels()
         {
             return Task.FromResult(new DbRawModels(
-                new List<ColumnRawModel>
-                {
-                    new ColumnRawModel(new ColumnRef("dbo", "TableUnsupported", "Id"), 1, false, false, "int", null, null, null, null, null),
-                    new ColumnRawModel(new ColumnRef("dbo", "TableUnsupported", "UnsupportedValue"), 2, false, false, "unsupported", null, null, null, null, null)
-                },
+                [
+                    new ColumnRawModel(
+                        new ColumnRef("dbo", "TableUnsupported", "Id"),
+                        1,
+                        false,
+                        false,
+                        "int",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null
+                    ),
+                    new ColumnRawModel(
+                        new ColumnRef("dbo", "TableUnsupported", "UnsupportedValue"),
+                        2,
+                        false,
+                        false,
+                        "unsupported",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null
+                    )
+                ],
                 new LoadIndexesResult(
                     new Dictionary<TableRef, PrimaryKeyModel>
                     {
                         [new TableRef("dbo", "TableUnsupported")] = new PrimaryKeyModel(
-                            new List<IndexColumnModel> { new IndexColumnModel(false, new ColumnRef("dbo", "TableUnsupported", "Id")) },
+                            [new IndexColumnModel(false, new ColumnRef("dbo", "TableUnsupported", "Id"))],
                             "PK_TableUnsupported")
                     },
                     new Dictionary<TableRef, List<IndexModel>>
                     {
-                        [new TableRef("dbo", "TableUnsupported")] = new List<IndexModel>
-                        {
+                        [new TableRef("dbo", "TableUnsupported")] =
+                        [
                             new IndexModel(
-                                new List<IndexColumnModel> { new IndexColumnModel(false, new ColumnRef("dbo", "TableUnsupported", "UnsupportedValue")) },
+                                [
+                                    new IndexColumnModel(
+                                        false,
+                                        new ColumnRef("dbo", "TableUnsupported", "UnsupportedValue")
+                                    )
+                                ],
                                 "IX_TableUnsupported_UnsupportedValue",
                                 false,
-                                false)
-                        }
+                                false
+                            )
+                        ]
                     }),
                 new Dictionary<ColumnRef, List<ColumnRef>>()));
         }

@@ -11,7 +11,7 @@ internal class TableColumnAppender : ITableColumnAppender
 
     private readonly ExprTableAlias? _alias;
 
-    private readonly List<TableColumn> _trace = new List<TableColumn>();
+    private readonly List<TableColumn> _trace = [];
 
     public TableColumnAppender(ExprTable table, ExprTableAlias? alias)
     {

@@ -85,7 +85,7 @@ public sealed class SqJsonPathAnalyzerTest
         var document = solution.AddDocument(documentId, "Test.cs", SourceText.From(source)).GetDocument(documentId)!;
         var compilation = await document.Project.GetCompilationAsync();
         Assert.That(compilation, Is.Not.Null);
-        return await compilation!.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(new SqJsonPathAnalyzer()))
+        return await compilation!.WithAnalyzers([new SqJsonPathAnalyzer()])
             .GetAnalyzerDiagnosticsAsync();
     }
 

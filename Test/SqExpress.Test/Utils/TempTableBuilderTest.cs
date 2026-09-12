@@ -65,7 +65,8 @@ public class TempTableBuilderTest
 
         var derivedTable = SqQueryBuilder.Values(dataList).AsColumns("Bool","Byte", "Int16", "Int32", "Int64", "Decimal", "Double", "String", "DateTime", "Guid");
 
-        var q = TempTableData.FromDerivedTableValuesInsert(derivedTable, new []{ derivedTable.Columns[2], derivedTable.Columns[3] }, out var table, name: "TestTmpTable");
+        var q = TempTableData.FromDerivedTableValuesInsert(derivedTable, [derivedTable.Columns[2], derivedTable.Columns[3]
+        ], out var table, name: "TestTmpTable");
 
         var sql = q.ToMySql();
         Assert.AreEqual(sql, "CREATE TEMPORARY TABLE `TestTmpTable`(`Bool` bit,`Byte` tinyint unsigned,`Int16` smallint,`Int32` int,`Int64` bigint,`Decimal` decimal(29,0),`Double` double,`String` varchar(8) character set utf8mb4,`DateTime` datetime,`Guid` binary(16),CONSTRAINT PRIMARY KEY (`Int16`,`Int32`));INSERT INTO `TestTmpTable`(`Bool`,`Byte`,`Int16`,`Int32`,`Int64`,`Decimal`,`Double`,`String`,`DateTime`,`Guid`) VALUES (true,255,32767,2147483647,9223372036854775807,79228162514264337593543950335,123.456,'ABCD','2099-01-01',0x287F1937EDAA0B48BA662C4D67A57E33),(true,0,-32768,-2147483648,-9223372036854775808,-79228162514264337593543950335,-123.456,'ABCDABCD','1900-01-01',0x0B62C3E8CDB87445A074ACE09AA3DA8A)");
@@ -82,7 +83,7 @@ public class TempTableBuilderTest
 
         var derivedTable = SqQueryBuilder.Values(data.Select(SqQueryBuilder.Literal).ToList()).AsColumns("Str");
 
-        var tmpQuery = TempTableData.FromDerivedTableValuesInsert(derivedTable, new[] { derivedTable.Columns[0] }, out _, name: "tmpTable");
+        var tmpQuery = TempTableData.FromDerivedTableValuesInsert(derivedTable, [derivedTable.Columns[0]], out _, name: "tmpTable");
 
         var sql = tmpQuery.ToMySql();
             

@@ -205,16 +205,16 @@ public class PublicApiDocumentationCoverageTest
             BaseMethodDeclarationSyntax method => method.ParameterList.Parameters.Select(static p => p.Identifier.ValueText).ToArray(),
             DelegateDeclarationSyntax @delegate => @delegate.ParameterList.Parameters.Select(static p => p.Identifier.ValueText).ToArray(),
             IndexerDeclarationSyntax indexer => indexer.ParameterList.Parameters.Select(static p => p.Identifier.ValueText).ToArray(),
-            _ => Array.Empty<string>()
+            _ => []
         };
 
     private static IReadOnlyList<string> GetTypeParameters(MemberDeclarationSyntax declaration)
         => declaration switch
         {
-            TypeDeclarationSyntax type => type.TypeParameterList?.Parameters.Select(static p => p.Identifier.ValueText).ToArray() ?? Array.Empty<string>(),
-            MethodDeclarationSyntax method => method.TypeParameterList?.Parameters.Select(static p => p.Identifier.ValueText).ToArray() ?? Array.Empty<string>(),
-            DelegateDeclarationSyntax @delegate => @delegate.TypeParameterList?.Parameters.Select(static p => p.Identifier.ValueText).ToArray() ?? Array.Empty<string>(),
-            _ => Array.Empty<string>()
+            TypeDeclarationSyntax type => type.TypeParameterList?.Parameters.Select(static p => p.Identifier.ValueText).ToArray() ?? [],
+            MethodDeclarationSyntax method => method.TypeParameterList?.Parameters.Select(static p => p.Identifier.ValueText).ToArray() ?? [],
+            DelegateDeclarationSyntax @delegate => @delegate.TypeParameterList?.Parameters.Select(static p => p.Identifier.ValueText).ToArray() ?? [],
+            _ => []
         };
 
     private static bool RequiresReturns(MemberDeclarationSyntax declaration)

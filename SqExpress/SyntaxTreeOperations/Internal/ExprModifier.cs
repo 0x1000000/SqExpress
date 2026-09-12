@@ -118,7 +118,7 @@ internal class ExprModifier : IExprVisitorInternal<IExpr?, Func<IExpr, IExpr?>>
 
     public IExpr? VisitExprCteQuery(ExprCteQuery exprIn, Func<IExpr, IExpr?> modifier)
     {
-        this._cteChecker ??= new HashSet<string>();
+        this._cteChecker ??= [];
 
         var newAlias = this.AcceptNullableItem(exprIn.Alias, modifier);
         var newQuery = exprIn.Query;

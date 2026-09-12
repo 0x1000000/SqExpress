@@ -168,7 +168,7 @@ public sealed class SqTable : TableBase
     internal TableColumn AddColumn(ColumnModel columnModel, Func<ColumnRef, TableColumn> contextStorage)
     {
         var result = this.CreateColumn(columnModel, contextStorage);
-        this.AddColumns(new[] { result });
+        this.AddColumns([result]);
         return result;
     }
 

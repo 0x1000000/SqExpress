@@ -24,8 +24,8 @@ public sealed class ScJsonTable : IScenario
                 Meta: r.GetString(r.GetOrdinal("Meta")),
                 Ordinal: Convert.ToInt32(r.GetValue(r.GetOrdinal("Ordinal")))));
 
-        if (rows.Count != 2 || !rows.Select(i => i.Id).SequenceEqual(new[] { 2, 5 }) ||
-            !rows.Select(i => i.Ordinal).SequenceEqual(new[] { 0, 1 }) || rows.Any(i => string.IsNullOrEmpty(i.Meta)))
+        if (rows.Count != 2 || !rows.Select(i => i.Id).SequenceEqual([2, 5]) ||
+            !rows.Select(i => i.Ordinal).SequenceEqual([0, 1]) || rows.Any(i => string.IsNullOrEmpty(i.Meta)))
             throw new Exception("Portable JSON table expansion returned an unexpected result.");
     }
 }

@@ -225,7 +225,7 @@ public static class ExprExtension
             selectQuery.WithSelectList(selectQuery.SelectList.Combine(SqQueryBuilder.CountOne().Over().As(countColumn))));
 
         var res = await query.Query(database,
-            new KeyValuePair<List<T>, int?>(new List<T>(), null),
+            new KeyValuePair<List<T>, int?>([], null),
             (acc, r) =>
             {
                 acc.Key.Add(reader(r));

@@ -11,11 +11,13 @@ namespace SqExpress.Analyzers;
 public sealed class SqTSqlParserParseAnalyzer : DiagnosticAnalyzer
 {
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics
-        => ImmutableArray.Create(
+        =>
+        [
             DiagnosticDescriptors.ConvertSqTSqlParserParseCall,
             DiagnosticDescriptors.SqTSqlParserParseHasInvalidSql,
             DiagnosticDescriptors.SqTSqlParserParseExistingTablesMismatch,
-            DiagnosticDescriptors.SqTSqlParserParseExistingColumnsMismatch);
+            DiagnosticDescriptors.SqTSqlParserParseExistingColumnsMismatch
+        ];
 
     public override void Initialize(AnalysisContext context)
     {

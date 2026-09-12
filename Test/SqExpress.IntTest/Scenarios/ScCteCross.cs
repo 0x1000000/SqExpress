@@ -18,7 +18,7 @@ public class ScCteCross : IScenario
             .OrderBy(cte12.Val, cte34.Val34)
             .QueryList(context.Database, r => (V1: cte12.Val.Read(r), V2: cte34.Val34.Read(r)));
 
-        (int V1, int V2)[] expected = { (1, 3), (1, 4), (2, 3), (2, 4) };
+        (int V1, int V2)[] expected = [(1, 3), (1, 4), (2, 3), (2, 4)];
 
         if (result.Count != 4)
         {

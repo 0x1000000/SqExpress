@@ -399,8 +399,8 @@ public class SyntaxTreeOperationsTest
 
     private class PathTrackingVisitor : ExprVisitorBase
     {
-        public readonly List<string> Paths = new List<string>();
-        public readonly List<int> Depths = new List<int>();
+        public readonly List<string> Paths = [];
+        public readonly List<int> Depths = [];
 
         public override void VisitExprInt32Literal(ExprInt32Literal expr)
         {

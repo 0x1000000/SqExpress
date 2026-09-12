@@ -10,7 +10,8 @@ namespace SqExpress.Test.Export;
 [TestFixture]
 public class TSqlInjectionCheckerTest
 {
-    private static readonly ISqlExporter[] Exporters = { TSqlExporter.Default, PgSqlExporter.Default, MySqlExporter.MariaDbDefault };
+    private static readonly ISqlExporter[] Exporters = [TSqlExporter.Default, PgSqlExporter.Default, MySqlExporter.MariaDbDefault
+    ];
 
     [Test]
     public void AppendStringEscape_Basic()
@@ -64,7 +65,7 @@ public class TSqlInjectionCheckerTest
     public void CheckTSqlBuildInFunctionName_Valid()
     {
         string[] values =
-        {
+        [
             "GETDATE",
             "DATEADD",
             "Coalesce",
@@ -73,7 +74,7 @@ public class TSqlInjectionCheckerTest
             "A",
             "@a",
             "@@a"
-        };
+        ];
 
         foreach (var value in values)
         {
@@ -86,7 +87,7 @@ public class TSqlInjectionCheckerTest
     public void CheckTSqlBuildInFunctionName_RejectsInjectionVectors()
     {
         string[] values =
-        {
+        [
             "",
             "GETDATE;DROP TABLE T",
             "GETDATE --comment",
@@ -96,7 +97,7 @@ public class TSqlInjectionCheckerTest
             "GETDATE,DATEADD",
             "GETDATE/*x*/",
             "@@ROWCOUNT;SELECT 1"
-        };
+        ];
 
         foreach (var value in values)
         {
@@ -134,7 +135,7 @@ public class TSqlInjectionCheckerTest
     public void DangerousMarkers_DoNotEscapeLiteralBoundary()
     {
         string[] payloads =
-        {
+        [
             "'; EXEC xp_cmdshell('whoami');--",
             "/*comment*/' OR 'x'='x",
             "UNION SELECT username,password FROM members--",
@@ -142,17 +143,17 @@ public class TSqlInjectionCheckerTest
             "abc``;DROP TABLE `T`;--",
             "abc\"\";DROP TABLE \"T\";--",
             "1); WAITFOR DELAY '00:00:05'--"
-        };
+        ];
 
         string[] markers =
-        {
+        [
             "xp_cmdshell",
             "union select",
             "drop table",
             "waitfor delay",
             "/*",
             "--"
-        };
+        ];
 
         var expr = SqQueryBuilder.Select(payloads.Select((p, i) => SqQueryBuilder.Literal(p).As($"v{i}")).ToList()).Done();
 

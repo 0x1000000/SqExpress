@@ -212,7 +212,7 @@ public readonly struct ParamValue : IReadOnlyList<ExprValue>
             return new SingleValueEnumerator(this._singleValue!);
         }
 
-        return ((IEnumerable<ExprValue>)Array.Empty<ExprValue>()).GetEnumerator();
+        return ((IEnumerable<ExprValue>)[]).GetEnumerator();
     }
 
     IEnumerator IEnumerable.GetEnumerator()

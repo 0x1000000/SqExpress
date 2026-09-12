@@ -131,7 +131,7 @@ internal static class EfMetadataTableReader
         var maxLength = metadata.MaxLength ?? ParseStoreTypeIntArgument(storeType, 0);
         var precision = metadata.Precision ?? ParseStoreTypeIntArgument(storeType, 0);
         var scale = metadata.Scale ?? ParseStoreTypeIntArgument(storeType, 1);
-        var baseType = storeType.Split(new[] { '(', ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty;
+        var baseType = storeType.Split(['(', ' ', '\t'], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty;
 
         switch (baseType)
         {
@@ -230,7 +230,7 @@ internal static class EfMetadataTableReader
         }
 
         var args = storeType.Substring(open + 1, close - open - 1)
-            .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+            .Split([','], StringSplitOptions.RemoveEmptyEntries)
             .Select(a => a.Trim())
             .ToArray();
         if (index >= args.Length || string.Equals(args[index], "max", StringComparison.OrdinalIgnoreCase))

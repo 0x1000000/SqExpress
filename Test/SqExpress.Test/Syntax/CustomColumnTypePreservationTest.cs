@@ -44,7 +44,7 @@ public class CustomColumnTypePreservationTest
     public void AliasedCasts_PreserveDetailedTypesInTempTableMaterialization()
     {
         var source = Select(
-                Cast(Literal(new byte[] { 1, 2 }), SqlType.ByteArrayFixedSize(4)).As("Blob"),
+                Cast(Literal([1, 2]), SqlType.ByteArrayFixedSize(4)).As("Blob"),
                 Cast(Literal(new DateTime(2024, 1, 2)), SqlType.DateTime(isDate: true)).As("CreatedOn"),
                 Cast(Literal(12.8m), SqlType.Decimal(new DecimalPrecisionScale(10, 2))).As("Amount"),
                 Cast(Literal("AB"), new ExprTypeFixSizeString(5, true)).As("Code"),

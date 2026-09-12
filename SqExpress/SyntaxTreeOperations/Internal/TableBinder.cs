@@ -15,8 +15,8 @@ internal sealed class TableBinder : ExprVisitorBase
     private readonly IReadOnlyList<TableBase> _catalog;
     private readonly TableBindingOptions _options;
     private readonly Dictionary<IExpr, IExpr> _replacements = new Dictionary<IExpr, IExpr>(ReferenceComparer.Instance);
-    private readonly List<TableBindingDiagnostic> _warnings = new List<TableBindingDiagnostic>();
-    private readonly List<TableBindingDiagnostic> _errors = new List<TableBindingDiagnostic>();
+    private readonly List<TableBindingDiagnostic> _warnings = [];
+    private readonly List<TableBindingDiagnostic> _errors = [];
     private Scope? _scope;
     private bool _suppressOuterScope;
 
@@ -312,8 +312,8 @@ internal sealed class TableBinder : ExprVisitorBase
     {
         public Scope(Scope? parent) => this.Parent = parent;
         public Scope? Parent { get; }
-        public List<SqTable> Physical { get; } = new List<SqTable>();
-        public List<IExprAlias> DerivedAliases { get; } = new List<IExprAlias>();
+        public List<SqTable> Physical { get; } = [];
+        public List<IExprAlias> DerivedAliases { get; } = [];
         public HashSet<string> DerivedColumns { get; } = new HashSet<string>(StringComparer.Ordinal);
     }
 

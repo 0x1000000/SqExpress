@@ -177,7 +177,7 @@ internal static class SqTSqlParserParseDiagnosticHelper
     {
         parsedExpr = null;
         parsedTables = null;
-        expectedTables = Array.Empty<ExpectedTableInfo>();
+        expectedTables = [];
         failureMessage = string.Empty;
 
         if (!SqTSqlParser.TryParse(sqlText, out parsedExpr, out parsedTables, out string? parseError))
@@ -282,7 +282,7 @@ internal static class SqTSqlParserParseDiagnosticHelper
 
     private static string FormatTableKey(string tableKey)
     {
-        var parts = tableKey.Split(new[] { '.' }, 2);
+        var parts = tableKey.Split(['.'], 2);
         return parts.Length == 2
             ? "[" + parts[0] + "].[" + parts[1] + "]"
             : "[" + tableKey + "]";
@@ -296,7 +296,7 @@ internal static class SqTSqlParserParseDiagnosticHelper
         }
 
         var parts = value
-            .Split(new[] { '_', ' ', '-' }, StringSplitOptions.RemoveEmptyEntries)
+            .Split(['_', ' ', '-'], StringSplitOptions.RemoveEmptyEntries)
             .Select(i => i.Trim())
             .Where(i => i.Length > 0)
             .ToList();

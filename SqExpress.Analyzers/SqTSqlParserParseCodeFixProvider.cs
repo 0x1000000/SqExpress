@@ -22,7 +22,7 @@ public sealed class SqTSqlParserParseCodeFixProvider : CodeFixProvider
     private const string SqexErrorPrefix = "#error SQEX:";
 
     public override ImmutableArray<string> FixableDiagnosticIds
-        => ImmutableArray.Create("SQEX001");
+        => ["SQEX001"];
 
     public override FixAllProvider GetFixAllProvider()
         => WellKnownFixAllProviders.BatchFixer;

@@ -31,8 +31,8 @@ internal class CodeGenModelSupport
     private const string MethodNameIsNull = "IsNull";
     private const string MethodNameIsNullWithPrefix = "IsNullWithPrefix";
 
-    private static readonly HashSet<string> AllMethods = new HashSet<string>
-    {
+    private static readonly HashSet<string> AllMethods =
+    [
         MethodNameGetColumns,
         MethodNameGetColumnsWithPrefix,
         MethodNameGetMapping,
@@ -45,7 +45,7 @@ internal class CodeGenModelSupport
         MethodNameGetUpdater,
         MethodNameIsNull,
         MethodNameIsNullWithPrefix
-    };
+    ];
 
     public static CompilationUnitSyntax Generate(
         CodeGenSqModelMeta meta,
@@ -270,16 +270,16 @@ internal class CodeGenModelSupport
         var generatedMembers = Constructors(meta)
             .Concat(GenerateStaticFactory(meta))
             .Concat(GenerateStaticFactoryWithPrefix(meta))
-            .Concat(rwClasses ? GenerateOrdinalStaticFactory(meta) : Array.Empty<MemberDeclarationSyntax>())
+            .Concat(rwClasses ? GenerateOrdinalStaticFactory(meta) : [])
             .Concat(Properties(meta, oldAttributes))
-            .Concat(modelType == CodeGenModelType.ImmutableClass ? GenerateWithModifiers(meta) : Array.Empty<MemberDeclarationSyntax>())
+            .Concat(modelType == CodeGenModelType.ImmutableClass ? GenerateWithModifiers(meta) : [])
             .Concat(GenerateGetColumns(meta))
             .Concat(GenerateGetColumnsWithPrefix(meta))
             .Concat(GenerateIsNull(meta))
             .Concat(GenerateIsNullWithPrefix(meta, nullRefTypes))
             .Concat(GenerateMapping(meta))
-            .Concat(rwClasses ? GenerateReaderClass(meta): Array.Empty<MemberDeclarationSyntax>())
-            .Concat(rwClasses ? GenerateWriterClass(meta) : Array.Empty<MemberDeclarationSyntax>())
+            .Concat(rwClasses ? GenerateReaderClass(meta): [])
+            .Concat(rwClasses ? GenerateWriterClass(meta) : [])
             .Select(m=> m.Modifiers.Count > 0 ? m.WithModifiers(m.Modifiers.Replace(m.Modifiers.First(), m.Modifiers.First().WithLeadingTrivia(comment))): m.WithLeadingTrivia(comment))
             .ToArray();
 
@@ -329,7 +329,7 @@ internal class CodeGenModelSupport
             .AddParameterListParameters(meta.Properties.Select(p=> FuncParameter(p.Name.FirstToLower(), p.FinalType)).ToArray())
             .WithBody(SyntaxFactory.Block(GenerateConstructorAssignments(meta)));
 
-        return new MemberDeclarationSyntax[] {constructor};
+        return [constructor];
     }
 
     private static IEnumerable<Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax> GenerateConstructorAssignments(CodeGenSqModelMeta meta)
@@ -438,12 +438,13 @@ internal class CodeGenModelSupport
                 .Select(p => SyntaxFactory.IdentifierName("table").MemberAccess(p.ColumnName));
             var arrayType = SyntaxFactory.ArrayType(
                 SyntaxFactory.IdentifierName(columnTypeName),
-                new SyntaxList<ArrayRankSpecifierSyntax>(new[]
-                {
+                new SyntaxList<ArrayRankSpecifierSyntax>(
+                [
                     SyntaxFactory.ArrayRankSpecifier(SyntaxFactory.Token(SyntaxKind.OpenBracketToken),
-                        new SeparatedSyntaxList<ExpressionSyntax>(),
+                        [],
                         SyntaxFactory.Token(SyntaxKind.CloseBracketToken))
-                }));
+                ]
+                ));
             var array = SyntaxFactory.ArrayCreationExpression(
                 arrayType,
                 SyntaxFactory.InitializerExpression(SyntaxKind.ArrayInitializerExpression,
@@ -569,12 +570,13 @@ internal class CodeGenModelSupport
                     MemberAccess("table", p.ColumnName).MemberAccess("ColumnName").MemberAccess("Name"))));
             var arrayType = SyntaxFactory.ArrayType(
                 SyntaxFactory.IdentifierName(columnTypeName),
-                new SyntaxList<ArrayRankSpecifierSyntax>(new[]
-                {
+                new SyntaxList<ArrayRankSpecifierSyntax>(
+                [
                     SyntaxFactory.ArrayRankSpecifier(SyntaxFactory.Token(SyntaxKind.OpenBracketToken),
-                        new SeparatedSyntaxList<ExpressionSyntax>(),
+                        [],
                         SyntaxFactory.Token(SyntaxKind.CloseBracketToken))
-                }));
+                ]
+                ));
             var array = SyntaxFactory.ArrayCreationExpression(
                 arrayType,
                 SyntaxFactory.InitializerExpression(SyntaxKind.ArrayInitializerExpression,
@@ -602,21 +604,21 @@ internal class CodeGenModelSupport
     {
         if (!HasUpdater(tableRef))
         {
-            return Array.Empty<MemberDeclarationSyntax>();
+            return [];
         }
 
         if (meta.HasPk())
         {
-            return new []
-            {
+            return
+            [
                 MethodDeclarationSyntax(meta, tableRef, MethodNameGetMapping, null),
                 MethodDeclarationSyntax(meta, tableRef,MethodNameGetUpdateKeyMapping, true),
                 MethodDeclarationSyntax(meta, tableRef,MethodNameGetUpdateMapping, false)
-            };
+            ];
         }
         else
         {
-            return new [] { MethodDeclarationSyntax(meta, tableRef, MethodNameGetMapping, null) };
+            return [MethodDeclarationSyntax(meta, tableRef, MethodNameGetMapping, null)];
         }
 
 
@@ -859,7 +861,7 @@ internal class CodeGenModelSupport
                 SyntaxFactory.Token(SyntaxKind.StaticKeyword))
             .AddBodyStatements(SyntaxFactory.ReturnStatement(MemberAccess(className, "Instance")));
 
-        return new MemberDeclarationSyntax[] {getReader, readerClassDeclaration};
+        return [getReader, readerClassDeclaration];
     }
 
     public static IEnumerable<MemberDeclarationSyntax> GenerateWriterClass(CodeGenSqModelMeta meta)
@@ -871,7 +873,7 @@ internal class CodeGenModelSupport
     {
         if (!HasUpdater(tableRef))
         {
-            return Array.Empty<MemberDeclarationSyntax>();
+            return [];
         }
 
         var tableType = ExtractTableTypeName(meta, tableRef);
@@ -991,7 +993,7 @@ internal class CodeGenModelSupport
                 SyntaxFactory.Token(SyntaxKind.StaticKeyword))
             .AddBodyStatements(SyntaxFactory.ReturnStatement(MemberAccess(className, "Instance")));
 
-        return new MemberDeclarationSyntax[] { getUpdater, updaterClassDeclaration };
+        return [getUpdater, updaterClassDeclaration];
     }
 
     private static string ExtractTableTypeName(CodeGenSqModelMeta meta, CodeGenSqModelTableRef tableRef)

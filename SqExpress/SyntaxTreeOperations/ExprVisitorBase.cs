@@ -49,7 +49,7 @@ namespace SqExpress.SyntaxTreeOperations;
 public abstract class ExprVisitorBase : IExprVisitor, IExprVisitorNodeHandler
 {
     private readonly IExprVisitor<object?, object?> _proxy;
-    private readonly List<IExpr> _currentPath = new List<IExpr>();
+    private readonly List<IExpr> _currentPath = [];
     private HashSet<string>? _cteChecker;
 
     /// <summary>
@@ -131,7 +131,7 @@ public abstract class ExprVisitorBase : IExprVisitor, IExprVisitorNodeHandler
     {
         this.Accept(expr.Alias);
 
-        this._cteChecker ??= new HashSet<string>();
+        this._cteChecker ??= [];
         if (!this._cteChecker.Contains(expr.Name))
         {
             this._cteChecker.Add(expr.Name);

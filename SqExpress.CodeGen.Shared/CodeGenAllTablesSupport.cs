@@ -96,12 +96,13 @@ internal static class CodeGenAllTablesSupport
         var arrayItems = tables.Select(t => SyntaxFactory.IdentifierName(GetMethodName(t, tablePrefix, schemaSegments)).Invoke(aliasType.MemberAccess(nameof(Alias.Empty))));
         var arrayType = SyntaxFactory.ArrayType(
             tableBaseType,
-            new SyntaxList<ArrayRankSpecifierSyntax>(new[]
-            {
+            new SyntaxList<ArrayRankSpecifierSyntax>(
+            [
                 SyntaxFactory.ArrayRankSpecifier(SyntaxFactory.Token(SyntaxKind.OpenBracketToken),
-                    new SeparatedSyntaxList<ExpressionSyntax>(),
+                    [],
                     SyntaxFactory.Token(SyntaxKind.CloseBracketToken))
-            }));
+            ]
+            ));
         var array = SyntaxFactory.ArrayCreationExpression(
             arrayType,
             SyntaxFactory.InitializerExpression(

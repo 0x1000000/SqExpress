@@ -1716,7 +1716,7 @@ public class SqExpressSqlTranspilerTest
 
         var compilation = CSharpCompilation.Create(
             assemblyName,
-            new[] { queryTree, declarationsTree },
+            [queryTree, declarationsTree],
             CompilationReferences,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 

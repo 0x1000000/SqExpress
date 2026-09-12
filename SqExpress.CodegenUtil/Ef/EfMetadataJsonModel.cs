@@ -6,7 +6,7 @@ internal sealed class EfMetadataDocument
 {
     public string ProviderName { get; set; } = "";
 
-    public List<EfTableMetadata> Tables { get; set; } = new List<EfTableMetadata>();
+    public List<EfTableMetadata> Tables { get; set; } = [];
 }
 
 internal sealed class EfTableMetadata
@@ -15,9 +15,9 @@ internal sealed class EfTableMetadata
 
     public string Name { get; set; } = "";
 
-    public List<EfColumnMetadata> Columns { get; set; } = new List<EfColumnMetadata>();
+    public List<EfColumnMetadata> Columns { get; set; } = [];
 
-    public List<EfIndexMetadata> Indexes { get; set; } = new List<EfIndexMetadata>();
+    public List<EfIndexMetadata> Indexes { get; set; } = [];
 }
 
 internal sealed class EfColumnMetadata
@@ -46,7 +46,7 @@ internal sealed class EfColumnMetadata
 
     public string? DefaultValue { get; set; }
 
-    public List<EfColumnRefMetadata> ForeignKeys { get; set; } = new List<EfColumnRefMetadata>();
+    public List<EfColumnRefMetadata> ForeignKeys { get; set; } = [];
 }
 
 internal sealed class EfColumnRefMetadata
@@ -66,7 +66,7 @@ internal sealed class EfIndexMetadata
 
     public bool Clustered { get; set; }
 
-    public List<EfIndexColumnMetadata> Columns { get; set; } = new List<EfIndexColumnMetadata>();
+    public List<EfIndexColumnMetadata> Columns { get; set; } = [];
 }
 
 internal sealed class EfIndexColumnMetadata

@@ -92,12 +92,13 @@ public class DerivedTableTest
     [Test]
     public void DerivedValues_NullColl()
     {
-        var values = Values(new[]
-        {
+        var values = Values(
+        [
             Row(1, (string?)null, (DateTime?) null, (int?)null),
             Row(2, (string?)null, (DateTime?) null, (int?)0),
             Row(3, (string?)null, (DateTime?) null, (int?)null)
-        });
+        ]
+        );
 
         Console.WriteLine(values.ToSql());
 

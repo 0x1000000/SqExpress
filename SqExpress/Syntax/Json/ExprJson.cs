@@ -302,7 +302,7 @@ public sealed class ExprJsonTable : IExprTableSource
     public TRes Accept<TRes, TArg>(IExprVisitor<TRes, TArg> visitor, TArg arg) => visitor.VisitExprJsonTable(this, arg);
 
     /// <inheritdoc />
-    public TableMultiplication ToTableMultiplication() => new(new IExprTableSource[] { this }, null);
+    public TableMultiplication ToTableMultiplication() => new([this], null);
 
     /// <inheritdoc />
     public IReadOnlyList<IExprSelecting> ExtractSelecting()
@@ -371,12 +371,12 @@ public sealed class ExprQueryAsJson : IExprSubQuery
         => visitor.VisitExprQueryAsJson(this, arg);
 
     /// <inheritdoc />
-    public IReadOnlyList<IExprSelecting> ExtractSelecting() => new IExprSelecting[] { new ExprColumnName("Json") };
+    public IReadOnlyList<IExprSelecting> ExtractSelecting() => [new ExprColumnName("Json")];
 
     IExprSubQuery ISubQuerySource.CreateSubQuery() => this;
 
     /// <inheritdoc />
-    public IReadOnlyList<string?> GetOutputColumnNames() => new string?[] { "Json" };
+    public IReadOnlyList<string?> GetOutputColumnNames() => ["Json"];
 
     /// <inheritdoc />
     public IExprSubQuery CreateSubQuery() => this;

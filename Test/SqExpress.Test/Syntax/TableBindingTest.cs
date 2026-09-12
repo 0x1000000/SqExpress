@@ -21,7 +21,7 @@ public class TableBindingTest
         var parsed = SqTSqlParser.Parse("SELECT u.id FROM users u");
         var canonical = Users();
 
-        var bound = parsed.BindTables(new TableBase[] { canonical });
+        var bound = parsed.BindTables([canonical]);
         var table = bound.SyntaxTree().DescendantsAndSelf().OfType<SqTable>().Single();
         var column = bound.SyntaxTree().DescendantsAndSelf().OfType<TableColumn>().Single();
 
@@ -38,7 +38,7 @@ public class TableBindingTest
     {
         var parsed = SqTSqlParser.Parse("SELECT a.Id,b.Id FROM dbo.Users a JOIN dbo.Users b ON a.Id=b.Id");
 
-        var bound = parsed.BindTables(new TableBase[] { Users() });
+        var bound = parsed.BindTables([Users()]);
         var tables = bound.SyntaxTree().DescendantsAndSelf().OfType<SqTable>().ToArray();
         var columns = bound.SyntaxTree().DescendantsAndSelf().OfType<TableColumn>().ToArray();
 
@@ -56,7 +56,7 @@ public class TableBindingTest
             null,
             new SqTSqlParserOptions { DefaultSchema = null });
 
-        var bound = parsed.BindTables(new TableBase[] { Users() });
+        var bound = parsed.BindTables([Users()]);
         var table = bound.SyntaxTree().DescendantsAndSelf().OfType<SqTable>().Single();
         var column = bound.SyntaxTree().DescendantsAndSelf().OfType<TableColumn>().Single();
 
@@ -70,7 +70,7 @@ public class TableBindingTest
         var parsed = SqTSqlParser.Parse("SELECT u.Id,u.Missing FROM dbo.Users u");
 
         var success = parsed.TryBindTables(
-            new TableBase[] { Users() },
+            [Users()],
             out var bound,
             out var warnings,
             out var errors);
@@ -91,7 +91,7 @@ public class TableBindingTest
             SeverityResolver = _ => TableBindingSeverity.Warning
         };
 
-        var bound = parsed.BindTables(new TableBase[] { Users() }, options, out var warnings);
+        var bound = parsed.BindTables([Users()], options, out var warnings);
 
         Assert.That(bound, Is.Not.Null);
         Assert.That(warnings, Is.Not.Empty);
@@ -138,7 +138,7 @@ public class TableBindingTest
             "SELECT u.Id FROM dbo.Users u WHERE EXISTS (SELECT 1 FROM dbo.Orders o WHERE o.UserId=u.Id)");
         var orders = SqTable.Create("dbo", "Orders", c => c.AppendInt32Column("Id").AppendInt32Column("UserId"));
 
-        var bound = parsed.BindTables(new TableBase[] { Users(), orders });
+        var bound = parsed.BindTables([Users(), orders]);
         var tables = bound.SyntaxTree().DescendantsAndSelf().OfType<SqTable>().ToArray();
         var columns = bound.SyntaxTree().DescendantsAndSelf().OfType<TableColumn>().ToArray();
 
@@ -152,7 +152,7 @@ public class TableBindingTest
     {
         var parsed = SqTSqlParser.Parse("SELECT d.Id FROM (SELECT u.Id FROM dbo.Users u) d");
 
-        var bound = parsed.BindTables(new TableBase[] { Users() });
+        var bound = parsed.BindTables([Users()]);
 
         Assert.That(bound.SyntaxTree().DescendantsAndSelf().OfType<TableColumn>().Count(), Is.EqualTo(1));
         Assert.That(bound.SyntaxTree().DescendantsAndSelf().OfType<ExprColumn>().Any(c => c is not TableColumn && c.ColumnName.Name == "Id"), Is.True);
@@ -170,7 +170,7 @@ public class TableBindingTest
         }
         var restored = ExprDeserializer.DeserializeFormJson(JsonDocument.Parse(stream.ToArray()).RootElement);
 
-        var bound = restored.BindTables(new TableBase[] { users });
+        var bound = restored.BindTables([users]);
         var table = bound.SyntaxTree().DescendantsAndSelf().OfType<SqTable>().Single();
         var column = bound.SyntaxTree().DescendantsAndSelf().OfType<TableColumn>().Single();
 
@@ -181,11 +181,11 @@ public class TableBindingTest
     public void BindTables_IsIdempotentForParserBoundExpression()
     {
         var users = Users();
-        var parsed = SqTSqlParser.Parse("SELECT u.Id FROM dbo.Users u", new TableBase[] { users });
+        var parsed = SqTSqlParser.Parse("SELECT u.Id FROM dbo.Users u", [users]);
         var parsedTable = parsed.SyntaxTree().DescendantsAndSelf().OfType<SqTable>().Single();
         var parsedColumn = parsed.SyntaxTree().DescendantsAndSelf().OfType<TableColumn>().Single();
 
-        var rebound = parsed.BindTables(new TableBase[] { users });
+        var rebound = parsed.BindTables([users]);
 
         Assert.That(rebound, Is.SameAs(parsed));
         Assert.That(rebound.SyntaxTree().DescendantsAndSelf().OfType<SqTable>().Single(), Is.SameAs(parsedTable));
