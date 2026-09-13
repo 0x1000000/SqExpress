@@ -1,29 +1,29 @@
 using System;
 using System.Collections.Generic;
+using SqExpress;
 
 namespace SqExpress.EfCodeGenIntTest.Tables;
-
 public static class AllTables
 {
     public static readonly IReadOnlyList<TableBase> StaticList = Array.AsReadOnly(BuildAllTableList());
-    public static TableBase[] BuildAllTableList() =>
-    [
+    public static TableBase[] BuildAllTableList() => new TableBase[]
+    {
         GetAuditAuditLogs(Alias.Empty),
         GetCatalogCategories(Alias.Empty),
         GetSalesCustomers(Alias.Empty),
         GetCatalogProducts(Alias.Empty),
         GetSalesOrders(Alias.Empty),
         GetSalesOrderLines(Alias.Empty)
-    ];
-    public static TableBase[] BuildAllAliasedTableList() =>
-    [
+    };
+    public static TableBase[] BuildAllAliasedTableList() => new TableBase[]
+    {
         GetAuditAuditLogs(),
         GetCatalogCategories(),
         GetSalesCustomers(),
         GetCatalogProducts(),
         GetSalesOrders(),
         GetSalesOrderLines()
-    ];
+    };
     public static global::SqExpress.EfCodeGenIntTest.Tables.Audit.TableAuditLogs GetAuditAuditLogs(Alias alias) => new global::SqExpress.EfCodeGenIntTest.Tables.Audit.TableAuditLogs(alias);
     public static global::SqExpress.EfCodeGenIntTest.Tables.Audit.TableAuditLogs GetAuditAuditLogs() => new global::SqExpress.EfCodeGenIntTest.Tables.Audit.TableAuditLogs(Alias.Auto);
     public static global::SqExpress.EfCodeGenIntTest.Tables.Catalog.TableCategories GetCatalogCategories(Alias alias) => new global::SqExpress.EfCodeGenIntTest.Tables.Catalog.TableCategories(alias);
