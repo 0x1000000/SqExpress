@@ -1,0 +1,50 @@
+{
+  "name": "sqyra",
+  "version": "0.1.0",
+  "private": false,
+  "description": "A strongly typed TypeScript port of SqExpress.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20.19.5"
+  },
+  "files": [
+    "dist",
+    "Readme.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "baseline:generate": "node tools/source-contract.mjs generate",
+    "baseline:check": "node tools/source-contract.mjs check",
+    "baseline:discover-tests": "node tools/discover-csharp-tests.mjs",
+    "baseline:update-mappings": "node tools/update-test-mappings.mjs",
+    "fixtures:build": "dotnet build tools/Sqyra.ReferenceFixtures/Sqyra.ReferenceFixtures.csproj --no-restore",
+    "fixtures:generate": "dotnet tools/Sqyra.ReferenceFixtures/bin/Debug/net8.0/Sqyra.ReferenceFixtures.dll test/fixtures/cases.json test/fixtures/csharp-reference.json",
+    "fixtures:import-invalid": "node tools/import-invalid-syntax-fixtures.mjs",
+    "fixtures:import-portable": "node tools/import-portable-function-fixtures.mjs",
+    "codegen": "dotnet tools/Sqyra.CodeGen/bin/Debug/net8.0/Sqyra.CodeGen.dll ../SqExpress src/ast/generated",
+    "codegen:check": "dotnet tools/Sqyra.CodeGen/bin/Debug/net8.0/Sqyra.CodeGen.dll ../SqExpress src/ast/generated --check",
+    "typecheck": "tsc --noEmit",
+    "typecheck:new": "node node_modules/typescript-new/bin/tsc --noEmit && node node_modules/typescript-new/bin/tsc -p tsconfig.type-tests.json --noEmit",
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean --target es2020",
+    "test": "vitest run",
+    "test:types": "tsc -p tsconfig.type-tests.json --noEmit",
+    "parity:audit": "node tools/parity-audit.mjs && vitest run test/tooling",
+    "test:docs": "node tools/test-docs.mjs",
+    "test:package": "node tools/test-package.mjs",
+    "verify": "npm run baseline:check && npm run codegen:check && npm run parity:audit && node tools/parity-audit.mjs --require-complete && npm run typecheck && npm run test:types && npm run typecheck:new && npm test && npm run test:docs && npm run build && npm run test:package"
+  },
+  "devDependencies": {
+    "@types/node": "20.17.30",
+    "tsup": "8.4.0",
+    "typescript": "5.0.4",
+    "typescript-new": "npm:typescript@^5.9.2",
+    "vitest": "1.6.1"
+  }
+}

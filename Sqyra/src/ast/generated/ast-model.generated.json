@@ -1,0 +1,4472 @@
+[
+  {
+    "name": "ExprAggregateFunction",
+    "kind": "Class",
+    "bases": [
+      "IExprSelecting"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Name",
+        "constructorArgument": "name",
+        "type": "ExprFunctionName",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Expression",
+        "constructorArgument": "expression",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "IsDistinct",
+        "constructorArgument": "isDistinct",
+        "type": "Boolean",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprAggregateOverFunction",
+    "kind": "Class",
+    "bases": [
+      "IExprSelecting"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Function",
+        "constructorArgument": "function",
+        "type": "ExprAggregateFunction",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Over",
+        "constructorArgument": "over",
+        "type": "ExprOver",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprAlias",
+    "kind": "Class",
+    "bases": [
+      "IExprAlias",
+      "IExprName"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Name",
+        "constructorArgument": "name",
+        "type": "String",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprAliasGuid",
+    "kind": "Class",
+    "bases": [
+      "IExprAlias"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Id",
+        "constructorArgument": "id",
+        "type": "Guid",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprAliasedColumn",
+    "kind": "Class",
+    "bases": [
+      "IExprNamedSelecting"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Column",
+        "constructorArgument": "column",
+        "type": "ExprColumn",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Alias",
+        "constructorArgument": "alias",
+        "type": "ExprColumnAlias",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprAliasedColumnName",
+    "kind": "Class",
+    "bases": [
+      "IExprNamedSelecting"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Column",
+        "constructorArgument": "column",
+        "type": "ExprColumnName",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Alias",
+        "constructorArgument": "alias",
+        "type": "ExprColumnAlias",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprAliasedSelecting",
+    "kind": "Class",
+    "bases": [
+      "IExprNamedSelecting"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Value",
+        "constructorArgument": "value",
+        "type": "IExprSelecting",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Alias",
+        "constructorArgument": "alias",
+        "type": "ExprColumnAlias",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprAliasedTableFunction",
+    "kind": "Class",
+    "bases": [
+      "IExprTableSource"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Function",
+        "constructorArgument": "function",
+        "type": "ExprTableFunction",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Alias",
+        "constructorArgument": "alias",
+        "type": "ExprTableAlias",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprAllColumns",
+    "kind": "Class",
+    "bases": [
+      "IExprSelecting"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Source",
+        "constructorArgument": "source",
+        "type": "IExprColumnSource",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprAnalyticFunction",
+    "kind": "Class",
+    "bases": [
+      "IExprSelecting"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Name",
+        "constructorArgument": "name",
+        "type": "ExprFunctionName",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Arguments",
+        "constructorArgument": "arguments",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": true
+      },
+      {
+        "name": "Over",
+        "constructorArgument": "over",
+        "type": "ExprOver",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprArithmetic",
+    "kind": "AbstractClass",
+    "bases": [
+      "ExprValue"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprBitwise",
+    "kind": "AbstractClass",
+    "bases": [
+      "ExprValue"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprBitwiseAnd",
+    "kind": "Class",
+    "bases": [
+      "ExprBitwise"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Left",
+        "constructorArgument": "left",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Right",
+        "constructorArgument": "right",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprBitwiseNot",
+    "kind": "Class",
+    "bases": [
+      "ExprBitwise"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Value",
+        "constructorArgument": "value",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprBitwiseOr",
+    "kind": "Class",
+    "bases": [
+      "ExprBitwise"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Left",
+        "constructorArgument": "left",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Right",
+        "constructorArgument": "right",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprBitwiseXor",
+    "kind": "Class",
+    "bases": [
+      "ExprBitwise"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Left",
+        "constructorArgument": "left",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Right",
+        "constructorArgument": "right",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprBoolLiteral",
+    "kind": "Class",
+    "bases": [
+      "ExprLiteral"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Value",
+        "constructorArgument": "value",
+        "type": "Boolean",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprBoolean",
+    "kind": "AbstractClass",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprBooleanAnd",
+    "kind": "Class",
+    "bases": [
+      "ExprBoolean"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Left",
+        "constructorArgument": "left",
+        "type": "ExprBoolean",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Right",
+        "constructorArgument": "right",
+        "type": "ExprBoolean",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprBooleanEq",
+    "kind": "Class",
+    "bases": [
+      "ExprPredicateLeftRight"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Left",
+        "constructorArgument": "left",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Right",
+        "constructorArgument": "right",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprBooleanGt",
+    "kind": "Class",
+    "bases": [
+      "ExprPredicateLeftRight"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Left",
+        "constructorArgument": "left",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Right",
+        "constructorArgument": "right",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprBooleanGtEq",
+    "kind": "Class",
+    "bases": [
+      "ExprPredicateLeftRight"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Left",
+        "constructorArgument": "left",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Right",
+        "constructorArgument": "right",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprBooleanLt",
+    "kind": "Class",
+    "bases": [
+      "ExprPredicateLeftRight"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Left",
+        "constructorArgument": "left",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Right",
+        "constructorArgument": "right",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprBooleanLtEq",
+    "kind": "Class",
+    "bases": [
+      "ExprPredicateLeftRight"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Left",
+        "constructorArgument": "left",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Right",
+        "constructorArgument": "right",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprBooleanNot",
+    "kind": "Class",
+    "bases": [
+      "ExprBoolean"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Expr",
+        "constructorArgument": "expr",
+        "type": "ExprBoolean",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprBooleanNotEq",
+    "kind": "Class",
+    "bases": [
+      "ExprPredicateLeftRight"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Left",
+        "constructorArgument": "left",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Right",
+        "constructorArgument": "right",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprBooleanOr",
+    "kind": "Class",
+    "bases": [
+      "ExprBoolean"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Left",
+        "constructorArgument": "left",
+        "type": "ExprBoolean",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Right",
+        "constructorArgument": "right",
+        "type": "ExprBoolean",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprByteArrayLiteral",
+    "kind": "Class",
+    "bases": [
+      "ExprLiteral"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Value",
+        "constructorArgument": "value",
+        "type": "Byte",
+        "hostType": null,
+        "child": false,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprByteLiteral",
+    "kind": "Class",
+    "bases": [
+      "ExprLiteral"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Value",
+        "constructorArgument": "value",
+        "type": "Byte",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprCase",
+    "kind": "Class",
+    "bases": [
+      "ExprValue"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Cases",
+        "constructorArgument": "cases",
+        "type": "ExprCaseWhenThen",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": false
+      },
+      {
+        "name": "DefaultValue",
+        "constructorArgument": "defaultValue",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprCaseWhenThen",
+    "kind": "Class",
+    "bases": [
+      "ExprValue"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Condition",
+        "constructorArgument": "condition",
+        "type": "ExprBoolean",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Value",
+        "constructorArgument": "value",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprCast",
+    "kind": "Class",
+    "bases": [
+      "ExprValue"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Expression",
+        "constructorArgument": "expression",
+        "type": "IExprSelecting",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "SqlType",
+        "constructorArgument": "sqlType",
+        "type": "ExprType",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprColumn",
+    "kind": "Class",
+    "bases": [
+      "ExprValue",
+      "IExprNamedSelecting"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Source",
+        "constructorArgument": "source",
+        "type": "IExprColumnSource",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      },
+      {
+        "name": "ColumnName",
+        "constructorArgument": "columnName",
+        "type": "ExprColumnName",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprColumnAlias",
+    "kind": "Class",
+    "bases": [
+      "IExprName"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Name",
+        "constructorArgument": "name",
+        "type": "String",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprColumnName",
+    "kind": "Class",
+    "bases": [
+      "IExprName",
+      "IExprNamedSelecting"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Name",
+        "constructorArgument": "name",
+        "type": "String",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprColumnSetClause",
+    "kind": "Class",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Column",
+        "constructorArgument": "column",
+        "type": "ExprColumn",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Value",
+        "constructorArgument": "value",
+        "type": "IExprAssigning",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprCrossedTable",
+    "kind": "Class",
+    "bases": [
+      "IExprTableSource"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Left",
+        "constructorArgument": "left",
+        "type": "IExprTableSource",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Right",
+        "constructorArgument": "right",
+        "type": "IExprTableSource",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprCte",
+    "kind": "AbstractClass",
+    "bases": [
+      "IExprTableSource"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Alias",
+        "constructorArgument": "alias",
+        "type": "ExprTableAlias",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      },
+      {
+        "name": "Name",
+        "constructorArgument": "name",
+        "type": "String",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprCteQuery",
+    "kind": "Class",
+    "bases": [
+      "ExprCte"
+    ],
+    "customTraversal": true,
+    "fields": [
+      {
+        "name": "Alias",
+        "constructorArgument": "alias",
+        "type": "ExprTableAlias",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      },
+      {
+        "name": "Query",
+        "constructorArgument": "query",
+        "type": "IExprSubQuery",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Name",
+        "constructorArgument": "name",
+        "type": "String",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprCurrentRowFrameBorder",
+    "kind": "SingletonClass",
+    "bases": [
+      "ExprFrameBorder"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprDatabaseName",
+    "kind": "Class",
+    "bases": [
+      "IExprName"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Name",
+        "constructorArgument": "name",
+        "type": "String",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprDateAdd",
+    "kind": "Class",
+    "bases": [
+      "ExprValue"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Date",
+        "constructorArgument": "date",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "DatePart",
+        "constructorArgument": "datePart",
+        "type": "DateAddDatePart",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Number",
+        "constructorArgument": "number",
+        "type": "Int32",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprDateDiff",
+    "kind": "Class",
+    "bases": [
+      "ExprValue"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "StartDate",
+        "constructorArgument": "startDate",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "EndDate",
+        "constructorArgument": "endDate",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "DatePart",
+        "constructorArgument": "datePart",
+        "type": "DateDiffDatePart",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprDateTimeLiteral",
+    "kind": "Class",
+    "bases": [
+      "ExprLiteral"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Value",
+        "constructorArgument": "value",
+        "type": "DateTime",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprDateTimeOffsetLiteral",
+    "kind": "Class",
+    "bases": [
+      "ExprLiteral"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Value",
+        "constructorArgument": "value",
+        "type": "DateTimeOffset",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprDbSchema",
+    "kind": "Class",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Database",
+        "constructorArgument": "database",
+        "type": "ExprDatabaseName",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      },
+      {
+        "name": "Schema",
+        "constructorArgument": "schema",
+        "type": "ExprSchemaName",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprDecimalLiteral",
+    "kind": "Class",
+    "bases": [
+      "ExprLiteral"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Value",
+        "constructorArgument": "value",
+        "type": "Decimal",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprDefault",
+    "kind": "SingletonClass",
+    "bases": [
+      "IExprAssigning"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprDelete",
+    "kind": "Class",
+    "bases": [
+      "IExprExec"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Target",
+        "constructorArgument": "target",
+        "type": "ExprTable",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Source",
+        "constructorArgument": "source",
+        "type": "IExprTableSource",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      },
+      {
+        "name": "Filter",
+        "constructorArgument": "filter",
+        "type": "ExprBoolean",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprDeleteOutput",
+    "kind": "Class",
+    "bases": [
+      "IExprQuery"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Delete",
+        "constructorArgument": "delete",
+        "type": "ExprDelete",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "OutputColumns",
+        "constructorArgument": "outputColumns",
+        "type": "ExprAliasedColumn",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprDerivedTable",
+    "kind": "AbstractClass",
+    "bases": [
+      "IExprTableSource"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Alias",
+        "constructorArgument": "alias",
+        "type": "ExprTableAlias",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprDerivedTableQuery",
+    "kind": "Class",
+    "bases": [
+      "ExprDerivedTable"
+    ],
+    "customTraversal": true,
+    "fields": [
+      {
+        "name": "Query",
+        "constructorArgument": "query",
+        "type": "IExprSubQuery",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Alias",
+        "constructorArgument": "alias",
+        "type": "ExprTableAlias",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Columns",
+        "constructorArgument": "columns",
+        "type": "ExprColumnName",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprDerivedTableValues",
+    "kind": "Class",
+    "bases": [
+      "ExprDerivedTable"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Values",
+        "constructorArgument": "values",
+        "type": "ExprTableValueConstructor",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Alias",
+        "constructorArgument": "alias",
+        "type": "ExprTableAlias",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Columns",
+        "constructorArgument": "columns",
+        "type": "ExprColumnName",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprDiv",
+    "kind": "Class",
+    "bases": [
+      "ExprArithmetic"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Left",
+        "constructorArgument": "left",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Right",
+        "constructorArgument": "right",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprDoubleLiteral",
+    "kind": "Class",
+    "bases": [
+      "ExprLiteral"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Value",
+        "constructorArgument": "value",
+        "type": "Double",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprExists",
+    "kind": "Class",
+    "bases": [
+      "ExprPredicate"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "SubQuery",
+        "constructorArgument": "subQuery",
+        "type": "IExprSubQuery",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprExprMergeNotMatchedInsert",
+    "kind": "Class",
+    "bases": [
+      "IExprMergeNotMatched"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "And",
+        "constructorArgument": "and",
+        "type": "ExprBoolean",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      },
+      {
+        "name": "Columns",
+        "constructorArgument": "columns",
+        "type": "ExprColumnName",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": false
+      },
+      {
+        "name": "Values",
+        "constructorArgument": "values",
+        "type": "IExprAssigning",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprExprMergeNotMatchedInsertDefault",
+    "kind": "Class",
+    "bases": [
+      "IExprMergeNotMatched"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "And",
+        "constructorArgument": "and",
+        "type": "ExprBoolean",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprFrameBorder",
+    "kind": "AbstractClass",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprFrameClause",
+    "kind": "Class",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Start",
+        "constructorArgument": "start",
+        "type": "ExprFrameBorder",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "End",
+        "constructorArgument": "end",
+        "type": "ExprFrameBorder",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprFuncCoalesce",
+    "kind": "Class",
+    "bases": [
+      "ExprValue"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Test",
+        "constructorArgument": "test",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Alts",
+        "constructorArgument": "alts",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprFuncIsNull",
+    "kind": "Class",
+    "bases": [
+      "ExprValue"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Test",
+        "constructorArgument": "test",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Alt",
+        "constructorArgument": "alt",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprFunctionName",
+    "kind": "Class",
+    "bases": [
+      "IExprName"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "BuiltIn",
+        "constructorArgument": "builtIn",
+        "type": "Boolean",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Name",
+        "constructorArgument": "name",
+        "type": "String",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprGetDate",
+    "kind": "SingletonClass",
+    "bases": [
+      "ExprValue"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprGetUtcDate",
+    "kind": "SingletonClass",
+    "bases": [
+      "ExprValue"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprGuidLiteral",
+    "kind": "Class",
+    "bases": [
+      "ExprLiteral"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Value",
+        "constructorArgument": "value",
+        "type": "Guid",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprIdentityInsert",
+    "kind": "Class",
+    "bases": [
+      "IExprExec"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Insert",
+        "constructorArgument": "insert",
+        "type": "ExprInsert",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "IdentityColumns",
+        "constructorArgument": "identityColumns",
+        "type": "ExprColumnName",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprIn",
+    "kind": "AbstractClass",
+    "bases": [
+      "ExprPredicate"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "TestExpression",
+        "constructorArgument": "testExpression",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprInSubQuery",
+    "kind": "Class",
+    "bases": [
+      "ExprIn"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "TestExpression",
+        "constructorArgument": "testExpression",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "SubQuery",
+        "constructorArgument": "subQuery",
+        "type": "IExprSubQuery",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprInValues",
+    "kind": "Class",
+    "bases": [
+      "ExprIn"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "TestExpression",
+        "constructorArgument": "testExpression",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Items",
+        "constructorArgument": "items",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprInsert",
+    "kind": "Class",
+    "bases": [
+      "IExprExec"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Target",
+        "constructorArgument": "target",
+        "type": "IExprTableFullName",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "TargetColumns",
+        "constructorArgument": "targetColumns",
+        "type": "ExprColumnName",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": true
+      },
+      {
+        "name": "Source",
+        "constructorArgument": "source",
+        "type": "IExprInsertSource",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprInsertOutput",
+    "kind": "Class",
+    "bases": [
+      "IExprQuery"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Insert",
+        "constructorArgument": "insert",
+        "type": "ExprInsert",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "OutputColumns",
+        "constructorArgument": "outputColumns",
+        "type": "ExprAliasedColumnName",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprInsertQuery",
+    "kind": "Class",
+    "bases": [
+      "IExprInsertSource"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Query",
+        "constructorArgument": "query",
+        "type": "IExprQuery",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprInsertValueRow",
+    "kind": "Class",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Items",
+        "constructorArgument": "items",
+        "type": "IExprAssigning",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprInsertValues",
+    "kind": "Class",
+    "bases": [
+      "IExprInsertSource"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Items",
+        "constructorArgument": "items",
+        "type": "ExprInsertValueRow",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprInt16Literal",
+    "kind": "Class",
+    "bases": [
+      "ExprLiteral"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Value",
+        "constructorArgument": "value",
+        "type": "Int16",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprInt32Literal",
+    "kind": "Class",
+    "bases": [
+      "ExprLiteral"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Value",
+        "constructorArgument": "value",
+        "type": "Int32",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprInt64Literal",
+    "kind": "Class",
+    "bases": [
+      "ExprLiteral"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Value",
+        "constructorArgument": "value",
+        "type": "Int64",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprIsNull",
+    "kind": "Class",
+    "bases": [
+      "ExprPredicate"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Test",
+        "constructorArgument": "test",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Not",
+        "constructorArgument": "not",
+        "type": "Boolean",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprJoinedTable",
+    "kind": "Class",
+    "bases": [
+      "IExprTableSource"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Left",
+        "constructorArgument": "left",
+        "type": "IExprTableSource",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Right",
+        "constructorArgument": "right",
+        "type": "IExprTableSource",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "SearchCondition",
+        "constructorArgument": "searchCondition",
+        "type": "ExprBoolean",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "JoinType",
+        "constructorArgument": "joinType",
+        "type": "ExprJoinType",
+        "hostType": "ExprJoinedTable",
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprJson",
+    "kind": "AbstractClass",
+    "bases": [
+      "ExprValue"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprJsonArray",
+    "kind": "Class",
+    "bases": [
+      "ExprJson"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Items",
+        "constructorArgument": "items",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprJsonMember",
+    "kind": "Class",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Value",
+        "constructorArgument": "value",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Name",
+        "constructorArgument": "name",
+        "type": "String",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprJsonNull",
+    "kind": "SingletonClass",
+    "bases": [
+      "ExprJson"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprJsonObject",
+    "kind": "Class",
+    "bases": [
+      "ExprJson"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Members",
+        "constructorArgument": "members",
+        "type": "ExprJsonMember",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprJsonOutputColumn",
+    "kind": "Class",
+    "bases": [
+      "IExprSelecting"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Value",
+        "constructorArgument": "value",
+        "type": "IExprSelecting",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "JsonPath",
+        "constructorArgument": "jsonPath",
+        "type": "String",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprJsonQuery",
+    "kind": "Class",
+    "bases": [
+      "ExprJson"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Document",
+        "constructorArgument": "document",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Path",
+        "constructorArgument": "path",
+        "type": "String",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprJsonRemove",
+    "kind": "Class",
+    "bases": [
+      "ExprJson"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Document",
+        "constructorArgument": "document",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Path",
+        "constructorArgument": "path",
+        "type": "String",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprJsonSet",
+    "kind": "Class",
+    "bases": [
+      "ExprJson"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Document",
+        "constructorArgument": "document",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Value",
+        "constructorArgument": "value",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Path",
+        "constructorArgument": "path",
+        "type": "String",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprJsonTable",
+    "kind": "Class",
+    "bases": [
+      "IExprTableSource"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Document",
+        "constructorArgument": "document",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Columns",
+        "constructorArgument": "columns",
+        "type": "ExprJsonTableColumn",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": false
+      },
+      {
+        "name": "Alias",
+        "constructorArgument": "alias",
+        "type": "ExprTableAlias",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Path",
+        "constructorArgument": "path",
+        "type": "String",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprJsonTableColumn",
+    "kind": "AbstractClass",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Name",
+        "constructorArgument": "name",
+        "type": "ExprColumnName",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprJsonTableOrdinalColumn",
+    "kind": "Class",
+    "bases": [
+      "ExprJsonTableColumn"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Name",
+        "constructorArgument": "name",
+        "type": "ExprColumnName",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprJsonTableQueryColumn",
+    "kind": "Class",
+    "bases": [
+      "ExprJsonTableColumn"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Name",
+        "constructorArgument": "name",
+        "type": "ExprColumnName",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Path",
+        "constructorArgument": "path",
+        "type": "String",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprJsonTableValueColumn",
+    "kind": "Class",
+    "bases": [
+      "ExprJsonTableColumn"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Name",
+        "constructorArgument": "name",
+        "type": "ExprColumnName",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "SqlType",
+        "constructorArgument": "sqlType",
+        "type": "ExprType",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Path",
+        "constructorArgument": "path",
+        "type": "String",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprJsonValue",
+    "kind": "Class",
+    "bases": [
+      "ExprValue"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Document",
+        "constructorArgument": "document",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "ReturningType",
+        "constructorArgument": "returningType",
+        "type": "ExprType",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      },
+      {
+        "name": "Path",
+        "constructorArgument": "path",
+        "type": "String",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprLateralCrossedTable",
+    "kind": "Class",
+    "bases": [
+      "IExprTableSource"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Left",
+        "constructorArgument": "left",
+        "type": "IExprTableSource",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Right",
+        "constructorArgument": "right",
+        "type": "IExprTableSource",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Outer",
+        "constructorArgument": "outer",
+        "type": "Boolean",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprLike",
+    "kind": "Class",
+    "bases": [
+      "ExprPredicate"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Test",
+        "constructorArgument": "test",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Pattern",
+        "constructorArgument": "pattern",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprList",
+    "kind": "Class",
+    "bases": [
+      "IExprExec"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Expressions",
+        "constructorArgument": "expressions",
+        "type": "IExprExec",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprLiteral",
+    "kind": "AbstractClass",
+    "bases": [
+      "ExprValue"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprMerge",
+    "kind": "Class",
+    "bases": [
+      "IExprExec"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "TargetTable",
+        "constructorArgument": "targetTable",
+        "type": "ExprTable",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Source",
+        "constructorArgument": "source",
+        "type": "IExprTableSource",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "On",
+        "constructorArgument": "on",
+        "type": "ExprBoolean",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "WhenMatched",
+        "constructorArgument": "whenMatched",
+        "type": "IExprMergeMatched",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      },
+      {
+        "name": "WhenNotMatchedByTarget",
+        "constructorArgument": "whenNotMatchedByTarget",
+        "type": "IExprMergeNotMatched",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      },
+      {
+        "name": "WhenNotMatchedBySource",
+        "constructorArgument": "whenNotMatchedBySource",
+        "type": "IExprMergeMatched",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprMergeMatchedDelete",
+    "kind": "Class",
+    "bases": [
+      "IExprMergeMatched"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "And",
+        "constructorArgument": "and",
+        "type": "ExprBoolean",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprMergeMatchedUpdate",
+    "kind": "Class",
+    "bases": [
+      "IExprMergeMatched"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "And",
+        "constructorArgument": "and",
+        "type": "ExprBoolean",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      },
+      {
+        "name": "Set",
+        "constructorArgument": "set",
+        "type": "ExprColumnSetClause",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprMergeOutput",
+    "kind": "Class",
+    "bases": [
+      "ExprMerge",
+      "IExprQuery"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "TargetTable",
+        "constructorArgument": "targetTable",
+        "type": "ExprTable",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Source",
+        "constructorArgument": "source",
+        "type": "IExprTableSource",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "On",
+        "constructorArgument": "on",
+        "type": "ExprBoolean",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "WhenMatched",
+        "constructorArgument": "whenMatched",
+        "type": "IExprMergeMatched",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      },
+      {
+        "name": "WhenNotMatchedByTarget",
+        "constructorArgument": "whenNotMatchedByTarget",
+        "type": "IExprMergeNotMatched",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      },
+      {
+        "name": "WhenNotMatchedBySource",
+        "constructorArgument": "whenNotMatchedBySource",
+        "type": "IExprMergeMatched",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      },
+      {
+        "name": "Output",
+        "constructorArgument": "output",
+        "type": "ExprOutput",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprModulo",
+    "kind": "Class",
+    "bases": [
+      "ExprArithmetic"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Left",
+        "constructorArgument": "left",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Right",
+        "constructorArgument": "right",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprMul",
+    "kind": "Class",
+    "bases": [
+      "ExprArithmetic"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Left",
+        "constructorArgument": "left",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Right",
+        "constructorArgument": "right",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprNull",
+    "kind": "SingletonClass",
+    "bases": [
+      "ExprValue"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprOffsetFetch",
+    "kind": "Class",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Offset",
+        "constructorArgument": "offset",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Fetch",
+        "constructorArgument": "fetch",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprOrderBy",
+    "kind": "Class",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "OrderList",
+        "constructorArgument": "orderList",
+        "type": "ExprOrderByItem",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprOrderByItem",
+    "kind": "Class",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Value",
+        "constructorArgument": "value",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Descendant",
+        "constructorArgument": "descendant",
+        "type": "Boolean",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprOrderByOffsetFetch",
+    "kind": "Class",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "OrderList",
+        "constructorArgument": "orderList",
+        "type": "ExprOrderByItem",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": false
+      },
+      {
+        "name": "OffsetFetch",
+        "constructorArgument": "offsetFetch",
+        "type": "ExprOffsetFetch",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprOutput",
+    "kind": "Class",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Columns",
+        "constructorArgument": "columns",
+        "type": "IExprOutputColumn",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprOutputAction",
+    "kind": "Class",
+    "bases": [
+      "IExprOutputColumn"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Alias",
+        "constructorArgument": "alias",
+        "type": "ExprColumnAlias",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprOutputColumn",
+    "kind": "Class",
+    "bases": [
+      "IExprOutputColumn"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Column",
+        "constructorArgument": "column",
+        "type": "ExprAliasedColumn",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprOutputColumnDeleted",
+    "kind": "Class",
+    "bases": [
+      "IExprOutputColumn"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "ColumnName",
+        "constructorArgument": "columnName",
+        "type": "ExprAliasedColumnName",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprOutputColumnInserted",
+    "kind": "Class",
+    "bases": [
+      "IExprOutputColumn"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "ColumnName",
+        "constructorArgument": "columnName",
+        "type": "ExprAliasedColumnName",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprOver",
+    "kind": "Class",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Partitions",
+        "constructorArgument": "partitions",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": true
+      },
+      {
+        "name": "OrderBy",
+        "constructorArgument": "orderBy",
+        "type": "ExprOrderBy",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      },
+      {
+        "name": "FrameClause",
+        "constructorArgument": "frameClause",
+        "type": "ExprFrameClause",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprParameter",
+    "kind": "Class",
+    "bases": [
+      "ExprValue"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "ReplacedValue",
+        "constructorArgument": "replacedValue",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      },
+      {
+        "name": "TagName",
+        "constructorArgument": "tagName",
+        "type": "String",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprPortableScalarFunction",
+    "kind": "Class",
+    "bases": [
+      "ExprValue"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Arguments",
+        "constructorArgument": "arguments",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": true
+      },
+      {
+        "name": "PortableFunction",
+        "constructorArgument": "PortableFunction",
+        "type": "PortableScalarFunction",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprPredicate",
+    "kind": "AbstractClass",
+    "bases": [
+      "ExprBoolean"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprPredicateLeftRight",
+    "kind": "AbstractClass",
+    "bases": [
+      "ExprPredicate"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprQueryAsJson",
+    "kind": "Class",
+    "bases": [
+      "IExprSubQuery"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Query",
+        "constructorArgument": "query",
+        "type": "IExprQuery",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "WithoutArrayWrapper",
+        "constructorArgument": "withoutArrayWrapper",
+        "type": "Boolean",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "IncludeNullValues",
+        "constructorArgument": "includeNullValues",
+        "type": "Boolean",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprQueryExpression",
+    "kind": "Class",
+    "bases": [
+      "IExprQueryExpression"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Left",
+        "constructorArgument": "left",
+        "type": "IExprSubQuery",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Right",
+        "constructorArgument": "right",
+        "type": "IExprSubQuery",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "QueryExpressionType",
+        "constructorArgument": "queryExpressionType",
+        "type": "ExprQueryExpressionType",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprQueryList",
+    "kind": "Class",
+    "bases": [
+      "IExprQuery"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Expressions",
+        "constructorArgument": "expressions",
+        "type": "IExprComplete",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprQuerySpecification",
+    "kind": "Class",
+    "bases": [
+      "IExprQueryExpression"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "SelectList",
+        "constructorArgument": "selectList",
+        "type": "IExprSelecting",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": false
+      },
+      {
+        "name": "Top",
+        "constructorArgument": "top",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      },
+      {
+        "name": "From",
+        "constructorArgument": "from",
+        "type": "IExprTableSource",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      },
+      {
+        "name": "Where",
+        "constructorArgument": "where",
+        "type": "ExprBoolean",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      },
+      {
+        "name": "GroupBy",
+        "constructorArgument": "groupBy",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": true
+      },
+      {
+        "name": "Distinct",
+        "constructorArgument": "distinct",
+        "type": "Boolean",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprScalarFunction",
+    "kind": "Class",
+    "bases": [
+      "ExprValue"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Schema",
+        "constructorArgument": "schema",
+        "type": "ExprDbSchema",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      },
+      {
+        "name": "Name",
+        "constructorArgument": "name",
+        "type": "ExprFunctionName",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Arguments",
+        "constructorArgument": "arguments",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprSchemaName",
+    "kind": "Class",
+    "bases": [
+      "IExprName"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Name",
+        "constructorArgument": "name",
+        "type": "String",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprSelect",
+    "kind": "Class",
+    "bases": [
+      "IExprReadOnlyQuery"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "SelectQuery",
+        "constructorArgument": "selectQuery",
+        "type": "IExprSubQuery",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "OrderBy",
+        "constructorArgument": "orderBy",
+        "type": "ExprOrderBy",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprSelectOffsetFetch",
+    "kind": "Class",
+    "bases": [
+      "IExprSubQuery"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "SelectQuery",
+        "constructorArgument": "selectQuery",
+        "type": "IExprSubQuery",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "OrderBy",
+        "constructorArgument": "orderBy",
+        "type": "ExprOrderByOffsetFetch",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprSelecting",
+    "kind": "AbstractClass",
+    "bases": [
+      "IExprSelecting"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprSelectingValue",
+    "kind": "Class",
+    "bases": [
+      "ExprValue"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Selecting",
+        "constructorArgument": "selecting",
+        "type": "IExprSelecting",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprStringAgg",
+    "kind": "Class",
+    "bases": [
+      "IExprSelecting"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Expression",
+        "constructorArgument": "expression",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Separator",
+        "constructorArgument": "separator",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "OrderBy",
+        "constructorArgument": "orderBy",
+        "type": "ExprOrderBy",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprStringConcat",
+    "kind": "Class",
+    "bases": [
+      "ExprValue"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Left",
+        "constructorArgument": "left",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Right",
+        "constructorArgument": "right",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprStringLiteral",
+    "kind": "Class",
+    "bases": [
+      "ExprLiteral"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Value",
+        "constructorArgument": "value",
+        "type": "String",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprSub",
+    "kind": "Class",
+    "bases": [
+      "ExprArithmetic"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Left",
+        "constructorArgument": "left",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Right",
+        "constructorArgument": "right",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprSum",
+    "kind": "Class",
+    "bases": [
+      "ExprArithmetic"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Left",
+        "constructorArgument": "left",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Right",
+        "constructorArgument": "right",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprTable",
+    "kind": "Class",
+    "bases": [
+      "IExprTableSource"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "FullName",
+        "constructorArgument": "fullName",
+        "type": "IExprTableFullName",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Alias",
+        "constructorArgument": "alias",
+        "type": "ExprTableAlias",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprTableAlias",
+    "kind": "Class",
+    "bases": [
+      "IExprColumnSource"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Alias",
+        "constructorArgument": "alias",
+        "type": "IExprAlias",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprTableFullName",
+    "kind": "Class",
+    "bases": [
+      "IExprTableFullName"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "DbSchema",
+        "constructorArgument": "dbSchema",
+        "type": "ExprDbSchema",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      },
+      {
+        "name": "TableName",
+        "constructorArgument": "tableName",
+        "type": "ExprTableName",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprTableFunction",
+    "kind": "Class",
+    "bases": [
+      "IExprTableSource"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Schema",
+        "constructorArgument": "schema",
+        "type": "ExprDbSchema",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      },
+      {
+        "name": "Name",
+        "constructorArgument": "name",
+        "type": "ExprFunctionName",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "Arguments",
+        "constructorArgument": "arguments",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprTableName",
+    "kind": "Class",
+    "bases": [
+      "IExprName"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Name",
+        "constructorArgument": "name",
+        "type": "String",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprTableValueConstructor",
+    "kind": "Class",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Items",
+        "constructorArgument": "items",
+        "type": "ExprValueRow",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprTempTableName",
+    "kind": "Class",
+    "bases": [
+      "IExprName",
+      "IExprTableFullName"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Name",
+        "constructorArgument": "name",
+        "type": "String",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprType",
+    "kind": "AbstractClass",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprTypeBoolean",
+    "kind": "SingletonClass",
+    "bases": [
+      "ExprType"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprTypeByte",
+    "kind": "SingletonClass",
+    "bases": [
+      "ExprType"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprTypeByteArray",
+    "kind": "Class",
+    "bases": [
+      "ExprTypeByteArrayBase"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Size",
+        "constructorArgument": "size",
+        "type": "Int32",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprTypeByteArrayBase",
+    "kind": "AbstractClass",
+    "bases": [
+      "ExprType"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprTypeDateTime",
+    "kind": "Class",
+    "bases": [
+      "ExprType"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "IsDate",
+        "constructorArgument": "isDate",
+        "type": "Boolean",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprTypeDateTimeOffset",
+    "kind": "SingletonClass",
+    "bases": [
+      "ExprType"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprTypeDecimal",
+    "kind": "Class",
+    "bases": [
+      "ExprType"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "PrecisionScale",
+        "constructorArgument": "precisionScale",
+        "type": "DecimalPrecisionScale",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprTypeDouble",
+    "kind": "SingletonClass",
+    "bases": [
+      "ExprType"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprTypeFixSizeByteArray",
+    "kind": "Class",
+    "bases": [
+      "ExprTypeByteArrayBase"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Size",
+        "constructorArgument": "size",
+        "type": "Int32",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprTypeFixSizeString",
+    "kind": "Class",
+    "bases": [
+      "ExprTypeStringBase"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Size",
+        "constructorArgument": "size",
+        "type": "Int32",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "IsUnicode",
+        "constructorArgument": "isUnicode",
+        "type": "Boolean",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprTypeGuid",
+    "kind": "SingletonClass",
+    "bases": [
+      "ExprType"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprTypeInt16",
+    "kind": "SingletonClass",
+    "bases": [
+      "ExprType"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprTypeInt32",
+    "kind": "SingletonClass",
+    "bases": [
+      "ExprType"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprTypeInt64",
+    "kind": "SingletonClass",
+    "bases": [
+      "ExprType"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprTypeString",
+    "kind": "Class",
+    "bases": [
+      "ExprTypeStringBase"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Size",
+        "constructorArgument": "size",
+        "type": "Int32",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      },
+      {
+        "name": "IsUnicode",
+        "constructorArgument": "isUnicode",
+        "type": "Boolean",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "IsText",
+        "constructorArgument": "isText",
+        "type": "Boolean",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprTypeStringBase",
+    "kind": "AbstractClass",
+    "bases": [
+      "ExprType"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprTypeXml",
+    "kind": "SingletonClass",
+    "bases": [
+      "ExprTypeStringBase"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprUnboundedFrameBorder",
+    "kind": "Class",
+    "bases": [
+      "ExprFrameBorder"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "FrameBorderDirection",
+        "constructorArgument": "frameBorderDirection",
+        "type": "FrameBorderDirection",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprUnsafeValue",
+    "kind": "Class",
+    "bases": [
+      "ExprValue"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "UnsafeValue",
+        "constructorArgument": "unsafeValue",
+        "type": "String",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprUpdate",
+    "kind": "Class",
+    "bases": [
+      "IExprExec"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Target",
+        "constructorArgument": "target",
+        "type": "ExprTable",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "SetClause",
+        "constructorArgument": "setClause",
+        "type": "ExprColumnSetClause",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": false
+      },
+      {
+        "name": "Source",
+        "constructorArgument": "source",
+        "type": "IExprTableSource",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      },
+      {
+        "name": "Filter",
+        "constructorArgument": "filter",
+        "type": "ExprBoolean",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "ExprValue",
+    "kind": "AbstractClass",
+    "bases": [
+      "ExprSelecting",
+      "IExprAssigning"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ExprValueFrameBorder",
+    "kind": "Class",
+    "bases": [
+      "ExprFrameBorder"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Value",
+        "constructorArgument": "value",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      },
+      {
+        "name": "FrameBorderDirection",
+        "constructorArgument": "frameBorderDirection",
+        "type": "FrameBorderDirection",
+        "hostType": null,
+        "child": false,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprValueQuery",
+    "kind": "Class",
+    "bases": [
+      "ExprValue"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Query",
+        "constructorArgument": "query",
+        "type": "IExprSubQuery",
+        "hostType": null,
+        "child": true,
+        "collection": false,
+        "collectionType": null,
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ExprValueRow",
+    "kind": "Class",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": [
+      {
+        "name": "Items",
+        "constructorArgument": "items",
+        "type": "ExprValue",
+        "hostType": null,
+        "child": true,
+        "collection": true,
+        "collectionType": "IReadOnlyList",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "IExprAlias",
+    "kind": "Interface",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "IExprAssigning",
+    "kind": "Interface",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "IExprColumnSource",
+    "kind": "Interface",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "IExprComplete",
+    "kind": "Interface",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "IExprExec",
+    "kind": "Interface",
+    "bases": [
+      "IExprComplete"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "IExprInsertSource",
+    "kind": "Interface",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "IExprMergeMatched",
+    "kind": "Interface",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "IExprMergeNotMatched",
+    "kind": "Interface",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "IExprName",
+    "kind": "Interface",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "IExprNamedSelecting",
+    "kind": "Interface",
+    "bases": [
+      "IExprSelecting"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "IExprOutputColumn",
+    "kind": "Interface",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "IExprQuery",
+    "kind": "Interface",
+    "bases": [
+      "IExprComplete",
+      "IExprSelectingSource"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "IExprQueryExpression",
+    "kind": "Interface",
+    "bases": [
+      "IExprSubQuery"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "IExprReadOnlyQuery",
+    "kind": "Interface",
+    "bases": [
+      "IExprQuery"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "IExprSelecting",
+    "kind": "Interface",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "IExprSelectingSource",
+    "kind": "Interface",
+    "bases": [
+      "IExpr"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "IExprSubQuery",
+    "kind": "Interface",
+    "bases": [
+      "IExprReadOnlyQuery",
+      "ISubQuerySource"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "IExprTableFullName",
+    "kind": "Interface",
+    "bases": [
+      "IExprColumnSource"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "IExprTableSource",
+    "kind": "Interface",
+    "bases": [
+      "ISubQuerySource"
+    ],
+    "customTraversal": false,
+    "fields": []
+  },
+  {
+    "name": "ISubQuerySource",
+    "kind": "Interface",
+    "bases": [
+      "IExprSelectingSource"
+    ],
+    "customTraversal": false,
+    "fields": []
+  }
+]

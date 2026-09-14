@@ -1,0 +1,3732 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "908b316f79e5a46391d8861f40cf165183088295",
+  "relevantWorkingTreeChanges": [],
+  "roots": [
+    "SqExpress/Syntax",
+    "SqExpress/SyntaxTreeOperations",
+    "SqExpress/SqlParser",
+    "SqExpress/SqlExport",
+    "SqExpress/QueryBuilders",
+    "Test/SqExpress.Test/SqlParser",
+    "Test/SqExpress.Test/Syntax",
+    "Test/SqExpress.Test/QueryBuilder",
+    "Test/SqExpress.Test/Export"
+  ],
+  "files": [
+    {
+      "path": "SqExpress/QueryBuilders/Case/CaseThen.cs",
+      "sha256": "164c4e56d9f9eb60204a58d8cbd7489c0dc8b8e4b3304c8306bd60f80d6497a3"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Case/CaseThenNext.cs",
+      "sha256": "848455a5530c720e5af8639bed2efaec1039e878fab9b7b0893c580cef3603e8"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Case/CaseWhen.cs",
+      "sha256": "1773ba12105eef4388241b9d823a3a164dad875fe89e27e6a33391913134de90"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Delete/DeleteBuilder.cs",
+      "sha256": "d56f23b7464b8137439e002328fe4d4a319242e4e54e2aad506e3170280eb661"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Delete/DeleteFromBuilder.cs",
+      "sha256": "86bdebfd5dd01d8d9e306f5c0e8a083a91a448920ca1cc87ccdc0e856c192082"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/IExprExecFinal.cs",
+      "sha256": "a4583bd81043753faf057167e8ca9ac3020d2b6de3c4a976420ff93ec9a32231"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/IExprQueryFinal.cs",
+      "sha256": "02f4f7dd32be7b0d38f36a149a47e58a55d5e911f6bb74c50e5c9f5e1e28d223"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/IExprSubQueryFinal.cs",
+      "sha256": "1a8d61b34d105dc903e77a692d9fbb0775e08fc0fc5607ffc23b3be776e4d6a7"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Insert/IInsertDataBuilder.cs",
+      "sha256": "25e34c0c598edc85d1f96b5d88a8a25f7dc80cba8aba6c9e627f4ee2d7384898"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Insert/InsertBuilder.cs",
+      "sha256": "c67583637c146cab65c7d52b1bc7435040661865fb03a92d533e2dcb91cf1b7b"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Insert/Internal/InsertDataBuilder.cs",
+      "sha256": "8befc63932f3c35fa60fce9f78857ffd20bbe1ecccf85393227b477adcbca9d0"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/IUpdateSetter.cs",
+      "sha256": "0548e11ed5b802de715a9a6fa262a7f74b4f332582d80cacae8da4725a7484f5"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Json/JsonTableBuilder.cs",
+      "sha256": "653da8c6157038424f010fc398ebf83f08162b6729e39029c3352ac50c15ae85"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Merge/IMergeBuilder.cs",
+      "sha256": "5a46ae4e01955a87885db0799e228b923fb34c0feecc016dff61f8a806a4d807"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Merge/IMergeDataBuilder.cs",
+      "sha256": "a4c14239b47f909dce1744238714cc5479da730db70d1d2c3ed08b1e0443fdff"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Merge/IMergeUpdateSetter.cs",
+      "sha256": "a4784bce0f1bf8aed242dfad7e38be3ae817df7607bcaeeb6bef6a7fadf83cc2"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Merge/Internal/MergeBuilder.cs",
+      "sha256": "d52901e3c12c8d4d8567b8f14f90fd20c29677a105bd1629365dbe828366d60d"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Merge/Internal/MergeDataBuilder.cs",
+      "sha256": "2097ba5d75006b0c51bcb321c7ef6df289d2ac548fe6a74808fac50431c93d8e"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Merge/Internal/MergerUpdateSetter.cs",
+      "sha256": "b30ff19e012c1e73a01e68040fd3d702d58baa6713f8e194f221a9a20f975154"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Merge/Internal/OutputSetter.cs",
+      "sha256": "0f8178128620ef369994c17de2a0d5664c3d657b6d98ffd79709d0411cf24c9d"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Merge/IOutputSetter.cs",
+      "sha256": "e9a1579e30ea343e6aefe4364942ae9cfc2a6909841be73cd35c6b4efd1cbe24"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/RecordSetter/Internal/ColumnValueInsertSelectMap.cs",
+      "sha256": "b941a6741a3b21dbdc4de644564b87dc919ed8e6ef793dda8b00ab334ddba584"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/RecordSetter/Internal/ColumnValueUpdateMap.cs",
+      "sha256": "657e719444dc8f25ebec5ce824ade9fb435262c346ff29b7fb5fa2adfff83639"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/RecordSetter/Internal/DataMapSetter.cs",
+      "sha256": "7f95938c2a5102705abc532eca4a758b08b66ecea5a02aaa05adc0247a616e7f"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/RecordSetter/Internal/RecordSetterBase.cs",
+      "sha256": "6ec1dbccd6d2d6411b3b91521a57c9a07d50f83096c17e669ee981a7d686fdcd"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/RecordSetter/Internal/TargetInsertSelectSetter.cs",
+      "sha256": "9ffd8f5ff71771b917b4a272a8308e96e9cae82a72b7db0111ba433610e7d563"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/RecordSetter/Internal/TargetUpdateSetter.cs",
+      "sha256": "06a5fdc9153b0ac69040a1c350d4f5dc69f1d811c19f8f73e0898e00a4fbbbfa"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/RecordSetter/Internal/ValueConstructorSetter.cs",
+      "sha256": "28221601e16612c368e99d7aa32170b169e887b2e6b957bc258046aa6ce6263c"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/RecordSetter/IRecordSetter.cs",
+      "sha256": "9c33d444c5260502118254a0378893693345813f237d516513ceb9b98bf91df5"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/RecordSetter/IValueConstructorSetter.cs",
+      "sha256": "145d3af9c7479f9152c05d7dd9eb0ccf9b05f6230333eae4517ed51d49419ac1"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Select/Internal/QueryExpressionBuilder.cs",
+      "sha256": "ae95e06dd2cab1a8bb4014c404aec7b405b86a8cc37ff26847feaed1067f4add"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Select/Internal/QueryExpressionBuilderBase.cs",
+      "sha256": "8919d3d455e9c68ef727801df470d9e1958807836adb5302ae6b458dd96fa1f2"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Select/Internal/QuerySpecificationBuilder.cs",
+      "sha256": "3b2309cfb2fdbbefe9f8fb0fa8b609f4a07b78122a209f1016c2a6fce670770a"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Select/IQueryExpressionBuilder.cs",
+      "sha256": "b391590912e25e057eb3390503ba74d051e03131feca47cfec36c4fab963509d"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Select/IQuerySpecificationBuilder.cs",
+      "sha256": "754d58597d1ec2c11277c01fca327c42f1bdce3565574ac3f3231bcfe0fde564"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Update/Internal/UpdateDataBuilder.cs",
+      "sha256": "0d0a716c3344496225071906f7d8ba33251d0bfcf3b230c2c704d4738e1c3f73"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Update/IUpdateDataBuilder.cs",
+      "sha256": "b2ae4a5efe49f115426ad63d7557951e95fbb442d9d53bcdd01f58e06bd11d16"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Update/UpdateBuilder.cs",
+      "sha256": "8d4180e6b17f4bfda5b196018e97dd7979fd8ab36e85068b0d5bed69e773ad95"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Update/UpdateBuilderFinal.cs",
+      "sha256": "a43eb3e4c9215f11ff67d24b0db43ac5207692487196fedc183abeab6b559d4f"
+    },
+    {
+      "path": "SqExpress/QueryBuilders/Update/UpdateBuilderSetter.cs",
+      "sha256": "cd9099f9dbd08bcbccaf477b0f679a9b303648d24500c7cbeb4132a0b0fb1732"
+    },
+    {
+      "path": "SqExpress/SqlExport/Internal/DbParameterValueVisitorExtractor.cs",
+      "sha256": "b14a387e848f110c7ecadbd4e8b20c5af0283c636a7149a92e4bfcd1a5f451fe"
+    },
+    {
+      "path": "SqExpress/SqlExport/Internal/ExtractedValue.cs",
+      "sha256": "e786dce6dfe8a888b0ade26c1fd6f84fd06f760c750168d4c1abcd091d1485fd"
+    },
+    {
+      "path": "SqExpress/SqlExport/Internal/JsonOutputShape.cs",
+      "sha256": "8e9934750d6865d54b457d3422a696a9da58a795cacae5aa576d9975d27e3f2e"
+    },
+    {
+      "path": "SqExpress/SqlExport/Internal/MySqlBuilder.cs",
+      "sha256": "5effff5666c34fc557d85d6d0eaeda7dbdadd3f1c0469028512f50917bb6b714"
+    },
+    {
+      "path": "SqExpress/SqlExport/Internal/MySqlBuilder.Json.cs",
+      "sha256": "0b1620f0ed46188a996daad5c76ee15f2504e8f80585f5950f4cb7f3f0ef3f42"
+    },
+    {
+      "path": "SqExpress/SqlExport/Internal/MySqlDbParameterValueVisitorExtractor.cs",
+      "sha256": "630e850b1b89cee110cc80e246d20f0428156f714da084af929bd503c6735d62"
+    },
+    {
+      "path": "SqExpress/SqlExport/Internal/PgDbParameterValueVisitorExtractor.cs",
+      "sha256": "d5a91cf777da644ca8705727cca56ac3a4d1ffd04cdac611aa21ed54761ceb3b"
+    },
+    {
+      "path": "SqExpress/SqlExport/Internal/PgSqlBuilder.cs",
+      "sha256": "7889126fc2c8c9a28ef653a28f001d0e76db59c1299c42a56d509678c8104799"
+    },
+    {
+      "path": "SqExpress/SqlExport/Internal/PgSqlBuilder.Json.cs",
+      "sha256": "729afb3d547ba7816ec3ef9f73c5d4b08ef4c56edc5af6cd42e9b1c12317053b"
+    },
+    {
+      "path": "SqExpress/SqlExport/Internal/SqlAliasGenerator.cs",
+      "sha256": "86c96747016f5c3a9669dbc857fdb7f066fab81d219e6f56b68de3e0bbb3a8a2"
+    },
+    {
+      "path": "SqExpress/SqlExport/Internal/SqlBuilderBase.cs",
+      "sha256": "a03c3bc5b065cbefd0439b9c81c864d51f9e45db829392ae282f232824193968"
+    },
+    {
+      "path": "SqExpress/SqlExport/Internal/SqlFormattingRules.cs",
+      "sha256": "620f8b42c201e11e88aa72f2830f44449217144526341069ffac4dc15d5eacbe"
+    },
+    {
+      "path": "SqExpress/SqlExport/Internal/SqlFormattingWriter.cs",
+      "sha256": "454685a32ef77ea549762593d5879f9bda0ced42db45007e5488ce1867b579f6"
+    },
+    {
+      "path": "SqExpress/SqlExport/Internal/SqlInjectionChecker.cs",
+      "sha256": "135995823513937025f006d3f527e535d67a7315d494768b91086d241b08b9cc"
+    },
+    {
+      "path": "SqExpress/SqlExport/Internal/SqliteBuilder.cs",
+      "sha256": "9c725552c9213168d68712dd8af719e78dd989aa8565d0b657373aab8d4418fb"
+    },
+    {
+      "path": "SqExpress/SqlExport/Internal/SqliteBuilder.Json.cs",
+      "sha256": "9011fc081fd65dbca9ecb1348deb48ba09a1d4b9f9add603cd63c88ecea6b75c"
+    },
+    {
+      "path": "SqExpress/SqlExport/Internal/TSqlBuilder.cs",
+      "sha256": "4ef4467b42214b7bd2056f3a5b1581a5fa994eba9e45cc3b038c0456465de8b1"
+    },
+    {
+      "path": "SqExpress/SqlExport/ISqlExporter.cs",
+      "sha256": "220fbf09635a94d4521c3b61787d4236c52a047aa3ca6eb8da424929d87c0593"
+    },
+    {
+      "path": "SqExpress/SqlExport/MySqlExporter.cs",
+      "sha256": "da1eef05c06778ee076bdcd005fd9d9990dc1490143792abedbe9e31164fca60"
+    },
+    {
+      "path": "SqExpress/SqlExport/MySqlExporterOptions.cs",
+      "sha256": "9612de2c1532221a9fa15726dd61dbf178abb1f35c99b2dd1997415872ebbc95"
+    },
+    {
+      "path": "SqExpress/SqlExport/MySqlFlavor.cs",
+      "sha256": "87ad770020f5acc2bae5b90ca8c64ce59532a230b4cd4581f4eca67d1bc53fd3"
+    },
+    {
+      "path": "SqExpress/SqlExport/PgSqlExporter.cs",
+      "sha256": "33df3657c6bc2ba2c26229c63e4953672aafab281f129bad854524aabcb33478"
+    },
+    {
+      "path": "SqExpress/SqlExport/SqlBuilderOptions.cs",
+      "sha256": "ace59f05afccbe709a84548b157cdb8ca9156d43762d102b5da2913f6d993e91"
+    },
+    {
+      "path": "SqExpress/SqlExport/SqlFormattingOptions.cs",
+      "sha256": "3c2037bfeb7c715d927f3bc82f72c170a593a6e370657e330f2866d9f3b6829a"
+    },
+    {
+      "path": "SqExpress/SqlExport/SqlFormattingProfile.cs",
+      "sha256": "7b24fbcb3c15007f78e17ba1d54bf82d89f5f55bba31a888bfcba52e70661cdb"
+    },
+    {
+      "path": "SqExpress/SqlExport/SqliteExporter.cs",
+      "sha256": "2914af94ef56b502a06589518f9943544c210572781adc4b3eac295602cfd3ef"
+    },
+    {
+      "path": "SqExpress/SqlExport/Statement/Internal/ColumnAnalysis.cs",
+      "sha256": "31772001e1d02fe09834e5d593fa94e73ef670b24f6b5f1a33b8cd260c8d74ee"
+    },
+    {
+      "path": "SqExpress/SqlExport/Statement/Internal/InformationSchemaTables.cs",
+      "sha256": "0c3f4e5b25bc14164ccf2ea1ed34a7cabde47f5309912cf59709f3155d0eab4e"
+    },
+    {
+      "path": "SqExpress/SqlExport/Statement/Internal/MySqlStatementBuilder.cs",
+      "sha256": "640e783762be2e964a1cb4d144b58a106f9536d02860641d3cf71468eac445e0"
+    },
+    {
+      "path": "SqExpress/SqlExport/Statement/Internal/PgSqlStatementBuilder.cs",
+      "sha256": "18e3ace49d8c18f67ceb6686a023cf4cbfd2c13cde1b943bfaedbc3e9b49364f"
+    },
+    {
+      "path": "SqExpress/SqlExport/Statement/Internal/SqliteStatementBuilder.cs",
+      "sha256": "91928c8124ca69d4e7f6f311b682c2567cccb8d04a917dce834ec196887c62cf"
+    },
+    {
+      "path": "SqExpress/SqlExport/Statement/Internal/SqlStatementBuilderBase.cs",
+      "sha256": "ab2038127e5c1b53ffd907b1ed48865350c8604e195fe934ca5089e5aa148e65"
+    },
+    {
+      "path": "SqExpress/SqlExport/Statement/Internal/TSqlStatementBuilder.cs",
+      "sha256": "1531b0cdf697fca278426f17f3d3771dbf225305c8073e5c4f9b22eab6ffe170"
+    },
+    {
+      "path": "SqExpress/SqlExport/TSqlExporter.cs",
+      "sha256": "06f6357523a2618d2c44c5d6a0873b944d919550b96a56e408faedab10241085"
+    },
+    {
+      "path": "SqExpress/SqlParser/CodeAnalysisAttributes.cs",
+      "sha256": "cd3a684bf4d9691fefc5bf807fd2d1718a3742d216957cbb6483cc0001eb1f5b"
+    },
+    {
+      "path": "SqExpress/SqlParser/Internal/Dom/SqlDomNodes.cs",
+      "sha256": "0fdfdc75743c2ea542cc03b0c38867977b853e3f94ac02ed9c8e9027c50a978a"
+    },
+    {
+      "path": "SqExpress/SqlParser/Internal/Mapping/SqlDomTableArtifactExtractor.cs",
+      "sha256": "72560de52dff3a47c019a4f10a273baef6495ee84ce2734ce4296553dd6d4987"
+    },
+    {
+      "path": "SqExpress/SqlParser/Internal/Mapping/SqlDomToSqExprMapper.cs",
+      "sha256": "14a27ea7e6bdfaddd4a58eaa84a808d166a7acc2087bac6e800ec15261eb1e82"
+    },
+    {
+      "path": "SqExpress/SqlParser/Internal/Parsing/SqlDomParser.cs",
+      "sha256": "9e7db1d9fa24190a62ca75e869e3cce8d4819f3a9fc80633a7072aad5fb30064"
+    },
+    {
+      "path": "SqExpress/SqlParser/Internal/Parsing/SqlLexer.cs",
+      "sha256": "5fedff4727c3cf8590b644f3ea37953a4c132bae4535e40b3f7c27d0b45d2dbe"
+    },
+    {
+      "path": "SqExpress/SqlParser/Internal/Parsing/SqlTextNormalizer.cs",
+      "sha256": "1f7b36dd9f0a94e6bd30dc191d93f53f6ca79a6cb03eda811f65d8831e092695"
+    },
+    {
+      "path": "SqExpress/SqlParser/Internal/Parsing/SqlToken.cs",
+      "sha256": "c844bd86022afee8c94212415c1226bf06644f077e96bcf46911c01a8fbbd5ff"
+    },
+    {
+      "path": "SqExpress/SqlParser/SqExpressTSqlParserException.cs",
+      "sha256": "5ac6200cd587232f8ca34b6629efa310560d777a5209ced0312b2b9a8d13f46b"
+    },
+    {
+      "path": "SqExpress/SqlParser/SqTSqlParser.cs",
+      "sha256": "c34f76bf6fb327f58fd046da3025a275bae5a8f8d471f39dae4e008eddd3d126"
+    },
+    {
+      "path": "SqExpress/SqlParser/SqTSqlParserOptions.cs",
+      "sha256": "453c1f446cb351182a13bd6ebded8335576c5149fc038f2b52ec25beb3edd926"
+    },
+    {
+      "path": "SqExpress/SqlParser/TSqlParserSupportedSubset.md",
+      "sha256": "aef24a359c255f9bc3a38f60ac27308df1ebd2c266dda4599ea23de58308b28d"
+    },
+    {
+      "path": "SqExpress/Syntax/Boolean/ExprBoolean.cs",
+      "sha256": "54565271e9f122358092422650b46836d56c074cb468b6f8fe67ec1c264188ed"
+    },
+    {
+      "path": "SqExpress/Syntax/Boolean/ExprBooleanAnd.cs",
+      "sha256": "353d8e831d4f562d9d804bf3c59a6c7f9f1ae5115f67abf29635e07de182c074"
+    },
+    {
+      "path": "SqExpress/Syntax/Boolean/ExprBooleanNot.cs",
+      "sha256": "fb3f6fee17e5a74fe1bdb475fa238fe1a0435fbb40d77835d816f0c0c75c6c47"
+    },
+    {
+      "path": "SqExpress/Syntax/Boolean/ExprBooleanOr.cs",
+      "sha256": "5b6ebf00a08b586e65b168a9b67db59b3236a1769119f9d9a5d0bb05fce5f933"
+    },
+    {
+      "path": "SqExpress/Syntax/Boolean/Predicate/ExprBooleanEq.cs",
+      "sha256": "a0f6e7c7ffd409cb935b26c60ae9eb862409245087037bc991cd491d560f2d23"
+    },
+    {
+      "path": "SqExpress/Syntax/Boolean/Predicate/ExprBooleanGt.cs",
+      "sha256": "daa64f4dfb6a55e11618a82ff433dee7ea43d21ed134bc479f3063453c7c1cad"
+    },
+    {
+      "path": "SqExpress/Syntax/Boolean/Predicate/ExprBooleanGtEq.cs",
+      "sha256": "941a76ec2b835c08dff4647292e9c580bcfddead3f24d49eb08f822da58c63b6"
+    },
+    {
+      "path": "SqExpress/Syntax/Boolean/Predicate/ExprBooleanLt.cs",
+      "sha256": "77fa1793c7f41d0a8d410abfc531b9b1375f279f84d1982f0e4931fce7402f99"
+    },
+    {
+      "path": "SqExpress/Syntax/Boolean/Predicate/ExprBooleanNotEq.cs",
+      "sha256": "503fcb872c72b5b150dbec97f5a25fb2bb18b7145caf86ba772ae3dc31b7d696"
+    },
+    {
+      "path": "SqExpress/Syntax/Boolean/Predicate/ExprExists.cs",
+      "sha256": "a5d05cffb20249f01a49952997b142a25d7d85e68cd8481fe7e1e745b88b427f"
+    },
+    {
+      "path": "SqExpress/Syntax/Boolean/Predicate/ExprIn.cs",
+      "sha256": "d4df146032cd73d86fb0f9b33cba406f5578444ab594f904b6893d07cfb4affb"
+    },
+    {
+      "path": "SqExpress/Syntax/Boolean/Predicate/ExprIsNull.cs",
+      "sha256": "c750d8e3581c0deca777ca3e2b4daa587f03cd7b4cfa9e9553eacbb971266972"
+    },
+    {
+      "path": "SqExpress/Syntax/Boolean/Predicate/ExprLike.cs",
+      "sha256": "1f69d0333b8221b3f33b6a66c1f79091fa9b6f5aa1b4fce1a13ba5543a7e24e9"
+    },
+    {
+      "path": "SqExpress/Syntax/Boolean/Predicate/ExprPredicate.cs",
+      "sha256": "36ff8ce155f17961c9b070e50577abcd8446378163cc4f089b5bfb181f3ac3a5"
+    },
+    {
+      "path": "SqExpress/Syntax/Boolean/Predicate/ExprPredicateLeftRight.cs",
+      "sha256": "a7d65f342dc64bac6ec3290ddd61b30cc894e75984863c61144cce6420d42c82"
+    },
+    {
+      "path": "SqExpress/Syntax/Expressions/ExprArithmetic.cs",
+      "sha256": "03c59732a1050e6091177df16c2688b021e7f6feb9b9c75606bd36cabdb4d54c"
+    },
+    {
+      "path": "SqExpress/Syntax/Expressions/ExprBitwise.cs",
+      "sha256": "bbcf2e2a979f71cc789cceddab00ee28b2ecb59ea7357350f463d6f6cd6d7d1f"
+    },
+    {
+      "path": "SqExpress/Syntax/Expressions/ExprBitwiseAnd.cs",
+      "sha256": "db6d708245405565e521aad21a8b105e87f634ded5c42be2de7f49582a5ac5a6"
+    },
+    {
+      "path": "SqExpress/Syntax/Expressions/ExprBitwiseNot.cs",
+      "sha256": "a56e53ef2c94a549ea181ee6923e058d28d74beb11e30142bc8fc5d8b675352d"
+    },
+    {
+      "path": "SqExpress/Syntax/Expressions/ExprBitwiseOr.cs",
+      "sha256": "3ccec918854752bc04d60222f826d60614ec8ccdd5f4c1772147e4a979b71ee3"
+    },
+    {
+      "path": "SqExpress/Syntax/Expressions/ExprBitwiseXor.cs",
+      "sha256": "d2828c8af627226dcca869d108fc7a62142918d6d304a8b9f6d14358d0d432ed"
+    },
+    {
+      "path": "SqExpress/Syntax/Expressions/ExprDiv.cs",
+      "sha256": "0bcd52e170b982a4d51b8e570292aa98a42265f06dc5929f6ce710fdc678e2a7"
+    },
+    {
+      "path": "SqExpress/Syntax/Expressions/ExprModulo.cs",
+      "sha256": "82efc233f84e5e7dd8d1aeac2ecc2a8575320c577ce764fa02a1bd6815d6757e"
+    },
+    {
+      "path": "SqExpress/Syntax/Expressions/ExprMul.cs",
+      "sha256": "fb6f89f9747a4d8c052c3de4e1bccb607ddd25f942b08aa82f12d746accf8734"
+    },
+    {
+      "path": "SqExpress/Syntax/Expressions/ExprStringConcat.cs",
+      "sha256": "f0c8445374b637dfc570e05adc980f2277235980e2faf66c68cdb4ca8877a3e0"
+    },
+    {
+      "path": "SqExpress/Syntax/Expressions/ExprSub.cs",
+      "sha256": "d934fce4413867cf90163ee3513b86ce4f98ee32d29c970e57ae31f1d346eaaf"
+    },
+    {
+      "path": "SqExpress/Syntax/Expressions/ExprSum.cs",
+      "sha256": "44d2e00f50a1e3354ec0dd5b0e1f2d57024f92de5a3e9bb1e2a916f8b9526609"
+    },
+    {
+      "path": "SqExpress/Syntax/ExprList.cs",
+      "sha256": "f48108491c729b7fc35247fb453a859a59ad92e5917889994517f2d88d613e6d"
+    },
+    {
+      "path": "SqExpress/Syntax/ExprQueryList.cs",
+      "sha256": "0cc5d9b88972f82bb3a2c50c6cab02d196be1a1b26a261ab1e128e84f68533c4"
+    },
+    {
+      "path": "SqExpress/Syntax/ExprVisitorProxy.cs",
+      "sha256": "3b5f31e18d7ee40a5d1e2edda84cef464e580543b24225523a7726877f737fad"
+    },
+    {
+      "path": "SqExpress/Syntax/Functions/ExprAggregateFunction.cs",
+      "sha256": "506b0a0ee6043a36b91103efa04dfe3c28a8d39a01f80e1022f6c9fc7c2e3514"
+    },
+    {
+      "path": "SqExpress/Syntax/Functions/ExprAggregateOverFunction.cs",
+      "sha256": "82ad8274b77c6bd61a25b70d9dc587f03f57176fec011a6213c2c439636688f6"
+    },
+    {
+      "path": "SqExpress/Syntax/Functions/ExprAnalyticFunction.cs",
+      "sha256": "ef506806c4d2378e5d13fa43c721587b2e3bcb8239cd3f42d9d7dbbf500091e2"
+    },
+    {
+      "path": "SqExpress/Syntax/Functions/ExprCase.cs",
+      "sha256": "ec54f2bf00e87ec4d883dda3514820d161ebd2ab4798802c8e2129f14b360096"
+    },
+    {
+      "path": "SqExpress/Syntax/Functions/ExprOver.cs",
+      "sha256": "e50a74f00013cac8ba015f2b3f7046ee1e720f78061c767c0f06d108b92d7c6b"
+    },
+    {
+      "path": "SqExpress/Syntax/Functions/ExprPortableScalarFunction.cs",
+      "sha256": "2a7833cf80634525bb9890530cc360073d1d63661f85bea6d4cd2e41ce5b8ffb"
+    },
+    {
+      "path": "SqExpress/Syntax/Functions/ExprScalarFunction.cs",
+      "sha256": "dc952d19c0657ece289f63eb68cab7d0f16c93b49817d7848f6ebe7ee9403de0"
+    },
+    {
+      "path": "SqExpress/Syntax/Functions/ExprTableFunction.cs",
+      "sha256": "dd275058c53a3735dc6c8be89a16deb3b886e0e0c758aa7bfa4bdba7b4929439"
+    },
+    {
+      "path": "SqExpress/Syntax/Functions/Known/ExprDateAdd.cs",
+      "sha256": "0ee9445655d5bcee79d7aa0e391bb19af96e619554f4c8978d4a9342efc452e1"
+    },
+    {
+      "path": "SqExpress/Syntax/Functions/Known/ExprDateDiff.cs",
+      "sha256": "d272d8ea203ef7c5a29fec098067503524c8c60a87b71c156e5b6e78b7456e8b"
+    },
+    {
+      "path": "SqExpress/Syntax/Functions/Known/ExprFuncCoalesce.cs",
+      "sha256": "2ea3afc7e8c2dc6866e476fb55b5e2dacc15a198e43cf2a667f84878b18d2de9"
+    },
+    {
+      "path": "SqExpress/Syntax/Functions/Known/ExprFuncIsNull.cs",
+      "sha256": "c1c89f15731539ef2554d302f8ff27d181d381599e3542af39e57d86488e8315"
+    },
+    {
+      "path": "SqExpress/Syntax/Functions/Known/ExprGetDate.cs",
+      "sha256": "9905a47bf6bb5c6b964512d4f422ed4838ca8f93cb15d8c86057210b1011057a"
+    },
+    {
+      "path": "SqExpress/Syntax/Functions/Known/ExprGetUtcDate.cs",
+      "sha256": "568ccf78bb462540a8c402bc41a945ce8361befd6b9501a949ff896bb92b9e8e"
+    },
+    {
+      "path": "SqExpress/Syntax/Functions/Known/ExprStringAgg.cs",
+      "sha256": "56cc8a9ddf18222ef45ca3507e06eb099d2ef5b271da83216c48102dad6cc9a1"
+    },
+    {
+      "path": "SqExpress/Syntax/IExpr.cs",
+      "sha256": "4a461b6aaac3c28f0ae6cbe5b0e30600a5a9fc53bf3bec98664aacae0b5134d5"
+    },
+    {
+      "path": "SqExpress/Syntax/IExprTypeVisitor.cs",
+      "sha256": "d90308739c70de3f30625e0d6d785e06c026535a2e7050d681afcd0261dd0d2d"
+    },
+    {
+      "path": "SqExpress/Syntax/IExprValueVisitor.cs",
+      "sha256": "54fc14e2d69e68852d9b8a727cd23d3f637e90756880a8210e4f2658d26686d5"
+    },
+    {
+      "path": "SqExpress/Syntax/IExprVisitor.cs",
+      "sha256": "6a5430c73142163e0bcbcf3c44041f62571f92259cce974c09f338cdbd3e73c6"
+    },
+    {
+      "path": "SqExpress/Syntax/IExprVisitorNoArg.cs",
+      "sha256": "398d7ef77c620562c2a5d5dbaab2de50a44d0e2926a539d79256b745208e9555"
+    },
+    {
+      "path": "SqExpress/Syntax/Internal/ExprStatement.cs",
+      "sha256": "2f201fc476f6a18c3ae5321b6215757eca2a549a7d1677425423f83f122b5115"
+    },
+    {
+      "path": "SqExpress/Syntax/Json/ExprJson.cs",
+      "sha256": "1cec0ddd66259944850e73d782d6b86dc42869998f04a71f9ddca749360af24e"
+    },
+    {
+      "path": "SqExpress/Syntax/Names/ExprAlias.cs",
+      "sha256": "2c8fa06e5e646f53f6a62757b150e9cee88863f8a0aa6e35ce399363ef6d7e03"
+    },
+    {
+      "path": "SqExpress/Syntax/Names/ExprAliasGuid.cs",
+      "sha256": "f92fdec035ae82772b0405dbea90cf21ae0c1da8b0face2442996f208e6a59e5"
+    },
+    {
+      "path": "SqExpress/Syntax/Names/ExprColumn.cs",
+      "sha256": "87b2ac52c924065a236ced43f3339f7769c026956478b8682463e5170a911d42"
+    },
+    {
+      "path": "SqExpress/Syntax/Names/ExprColumnAlias.cs",
+      "sha256": "d26ed27bdb0e8cc718718eef1a005d9a4f07cd686962a01ad1fc43151da42e78"
+    },
+    {
+      "path": "SqExpress/Syntax/Names/ExprColumnName.cs",
+      "sha256": "9422db6fa648af486ccf3c03e0cbb14176f6ee6b0b468f33c1c0dfe732fc4a59"
+    },
+    {
+      "path": "SqExpress/Syntax/Names/ExprDatabaseName.cs",
+      "sha256": "3b8df4043b6d382b010714013b4ef1a4efc15ec544f6b232edd2e2746a8724d7"
+    },
+    {
+      "path": "SqExpress/Syntax/Names/ExprDbSchema.cs",
+      "sha256": "ac3f602fec7bd9bd611cf9f8133555f28501e32b745f1224e0678cd0c37ed11a"
+    },
+    {
+      "path": "SqExpress/Syntax/Names/ExprFunctionName.cs",
+      "sha256": "cabc670f9c7e80c0a263e494e14a6f23409344990b824299e2328ece614e8269"
+    },
+    {
+      "path": "SqExpress/Syntax/Names/ExprNameEqualityComparer.cs",
+      "sha256": "460865ba281b211cc9d1c1aaf95faaad1223cd8835678ff824b90069f9a697ef"
+    },
+    {
+      "path": "SqExpress/Syntax/Names/ExprSchemaName.cs",
+      "sha256": "5707ab378eb96ddf4d035d68e730725f8aba70332b5489b7a2a187e181ec868b"
+    },
+    {
+      "path": "SqExpress/Syntax/Names/ExprTable.cs",
+      "sha256": "f7983dbdf6a42599206d5d01b49583c888667a69e37f06cd9a5e9789d19e9534"
+    },
+    {
+      "path": "SqExpress/Syntax/Names/ExprTableAlias.cs",
+      "sha256": "c0c9a2c2a8bbce0e78a0bac96aad3d1cd65150b697ee33bf51a6eefd33f661ab"
+    },
+    {
+      "path": "SqExpress/Syntax/Names/ExprTableFullName.cs",
+      "sha256": "977042064d784cebfb1641626c0862c4a513e85fbba720e77309d5e68b9d4587"
+    },
+    {
+      "path": "SqExpress/Syntax/Names/ExprTableName.cs",
+      "sha256": "e4dc77e10d697b286e3819203740bfd9c825210bf82145f610c7120832ac838b"
+    },
+    {
+      "path": "SqExpress/Syntax/Names/ExprTempTableName.cs",
+      "sha256": "3281d60b5eeb950e8733a64d28705d962ea20b6cdac731d04cc810c5f8cd496d"
+    },
+    {
+      "path": "SqExpress/Syntax/Names/IExprAlias.cs",
+      "sha256": "a91074194c4de91d3d6231dd934f47b4e9f772d9b568ad0f80f2a01ea478c486"
+    },
+    {
+      "path": "SqExpress/Syntax/Names/IExprColumnSource.cs",
+      "sha256": "a1e7e1916175a1b7e69f05847f483a2547853140786d52d947d10c9b2e45d186"
+    },
+    {
+      "path": "SqExpress/Syntax/Names/IExprName.cs",
+      "sha256": "d07dfa729e97e273a2818aa0a4bb38e7325168f544c0097cfa20e2c128434bb2"
+    },
+    {
+      "path": "SqExpress/Syntax/Names/IExprTableFullName.cs",
+      "sha256": "712800f6cc7fb65b6582cb45deeadb61b3e93cbdd62e3c05badbbb37de0db6ab"
+    },
+    {
+      "path": "SqExpress/Syntax/Output/ExprOutput.cs",
+      "sha256": "971a4b95e14415867c0ad8e1165bd3ec6acc6d4ae4119ec27d4faf2886be843e"
+    },
+    {
+      "path": "SqExpress/Syntax/Select/ExprCrossedTable.cs",
+      "sha256": "c25e139d479cd805828f8a1e006187f9448b17319d299013fc29e2864d41ef17"
+    },
+    {
+      "path": "SqExpress/Syntax/Select/ExprCte.cs",
+      "sha256": "7d5c435ddb1e957b6e65e9e8352a5c3d07924c77357db4b36451c7b1d0e81bb0"
+    },
+    {
+      "path": "SqExpress/Syntax/Select/ExprDerivedTableValues.cs",
+      "sha256": "e9f538a841088eb3b201a1a6413a688fceffbbf13247ded783b55797b906e3b8"
+    },
+    {
+      "path": "SqExpress/Syntax/Select/ExprJoinedTable.cs",
+      "sha256": "86f818a37153d61bcd210f9a1cee808e472b06c699b6d8e884b88c570307788c"
+    },
+    {
+      "path": "SqExpress/Syntax/Select/ExprLateralCrossedTable.cs",
+      "sha256": "c5f89f348cf5ae7984718d5b7b1550ffd47c473620492fafd075d6351da1ef90"
+    },
+    {
+      "path": "SqExpress/Syntax/Select/ExprOrderBy.cs",
+      "sha256": "bb456b34349fc70a259be87603f4ce124dcc1cccd0c4ac4be9dc2499443cbebe"
+    },
+    {
+      "path": "SqExpress/Syntax/Select/ExprQueryExpression.cs",
+      "sha256": "23a326a1585853a4b8330742fa5b60d03f8863969892237e3306a446b666f637"
+    },
+    {
+      "path": "SqExpress/Syntax/Select/ExprQuerySpecification.cs",
+      "sha256": "39142d0d31c4311a9065fce52c6f6643d77ebc835d3f213c87c5af244f3027e2"
+    },
+    {
+      "path": "SqExpress/Syntax/Select/ExprSelect.cs",
+      "sha256": "4c4008c4e786adac6642d4bb89365284ff6bee0843283d01978c462a469bd9d5"
+    },
+    {
+      "path": "SqExpress/Syntax/Select/ExprSelectOffsetFetch.cs",
+      "sha256": "b80e1405c53321e967ac8ec68a9c56759c94b860212670fa3ef1fb0af6cb87de"
+    },
+    {
+      "path": "SqExpress/Syntax/Select/ExprTableValueConstructor.cs",
+      "sha256": "17877268ab8301f9f28ea70fcc6af8f4a7175173101ef83b45c8ac8b2c28f947"
+    },
+    {
+      "path": "SqExpress/Syntax/Select/ExprValueRow.cs",
+      "sha256": "feb05fc5eba460e1681ab51416877e4dde584deb85e0bac275e93357ea600532"
+    },
+    {
+      "path": "SqExpress/Syntax/Select/IExprQueryExpression.cs",
+      "sha256": "3054e6d4c7299ff5cde4821ba1f6dcaa31502f68ee0743e53b7b93e3f7eeffa5"
+    },
+    {
+      "path": "SqExpress/Syntax/Select/IExprSelecting.cs",
+      "sha256": "66308261f9f74d891fff6b7a0162de05ccb6f32e1c03e32a18506388d8457bca"
+    },
+    {
+      "path": "SqExpress/Syntax/Select/IExprSelectingVisitor.cs",
+      "sha256": "e450f27b912d7541637f9e573554af5536bda4e736b7de1268ea502111e5b041"
+    },
+    {
+      "path": "SqExpress/Syntax/Select/IExprTableSource.cs",
+      "sha256": "430ed998e9829e24ff56ed2923e2613bdb64b9fa507641fcd5693d188f4e860c"
+    },
+    {
+      "path": "SqExpress/Syntax/Select/SelectItems/ExprAliasedColumn.cs",
+      "sha256": "4e58cc443c5a5c534849edcc0c52ac91aeb6e0cdeeeb92c08bc876c0936b8892"
+    },
+    {
+      "path": "SqExpress/Syntax/Select/SelectItems/ExprAliasedColumnName.cs",
+      "sha256": "bcd821ec83b216eaffee01c3ed2c7da1b089af7f8336525cf9748e2cedcc6f01"
+    },
+    {
+      "path": "SqExpress/Syntax/Select/SelectItems/ExprAliasedSelecting.cs",
+      "sha256": "81e93d588d1dc729d1ab2424f29cd5497636bf2ecde63c2ceeabd0363798217c"
+    },
+    {
+      "path": "SqExpress/Syntax/SqCustomTraversalAttribute.cs",
+      "sha256": "6894063660865d5bc434c5308f1623f468ac6eac7b335a38238c830eeba8c60b"
+    },
+    {
+      "path": "SqExpress/Syntax/Type/DecimalPrecisionScale.cs",
+      "sha256": "51de81ee9ced2feb8e39411a13a2bcee824203eb140afaf8eedc0d0ff0add319"
+    },
+    {
+      "path": "SqExpress/Syntax/Type/ExprCast.cs",
+      "sha256": "b50aaf1112482cbc4a2879c9eb1d5f1fb08f3853eed5a61773eb84142f698b11"
+    },
+    {
+      "path": "SqExpress/Syntax/Type/ExprType.cs",
+      "sha256": "9ddc4f1a600bbca8eaaec10435b8ea821a0e8eb73e5a8241c503cae84c3e0e13"
+    },
+    {
+      "path": "SqExpress/Syntax/Update/ExprColumnSetClause.cs",
+      "sha256": "36fb897eabe4fb091a0b0b99ef3f1ea5ff33bba977cda6dc266c2d737dd1547d"
+    },
+    {
+      "path": "SqExpress/Syntax/Update/ExprDelete.cs",
+      "sha256": "1d93e2f15353dc8d0dd36e7b89ff1b71d3fd255f4bdd1acef47f2c13f9c9442c"
+    },
+    {
+      "path": "SqExpress/Syntax/Update/ExprIdentityInsert.cs",
+      "sha256": "3f411b8116a6c1b4cf7e93caf43aab9d16d653b516055b26995fdf03b7571a88"
+    },
+    {
+      "path": "SqExpress/Syntax/Update/ExprInsert.cs",
+      "sha256": "131fd09920dd8641fac4707716723ffec30d09045c2e3c54f036d6bcac7db10d"
+    },
+    {
+      "path": "SqExpress/Syntax/Update/ExprInsertValueRow.cs",
+      "sha256": "79b99271ce2f2a1a433d78e5188104f3a8ceb5353d1aacd9d362afa8007b1630"
+    },
+    {
+      "path": "SqExpress/Syntax/Update/ExprMerge.cs",
+      "sha256": "23730453512fe3499212d0b7c5607e3f396d0d891719598f7814761b67a4a7c0"
+    },
+    {
+      "path": "SqExpress/Syntax/Update/ExprUpdate.cs",
+      "sha256": "0e7ec385888e980fed085d2711b63ae30766b68682c7c406478a7609e65d6417"
+    },
+    {
+      "path": "SqExpress/Syntax/Value/ExprBoolLiteral.cs",
+      "sha256": "ef3f12a5d8bcf060b3a56d04745edc143d11b5bd60aa195717597fe9053488f6"
+    },
+    {
+      "path": "SqExpress/Syntax/Value/ExprByteArrayLiteral.cs",
+      "sha256": "d145372ae9aeb8ee87fb9e85dcd249c1a1b1c2530e7cc307842f9e610617d84e"
+    },
+    {
+      "path": "SqExpress/Syntax/Value/ExprByteLiteral.cs",
+      "sha256": "19567a33d7deba1af989ecb45ff5d9b05c04e6fa34566d0a48e89c2382f80d89"
+    },
+    {
+      "path": "SqExpress/Syntax/Value/ExprDateTimeLiteral.cs",
+      "sha256": "91c7d04497e4d406d3b62914180a8da122e2b4e6ad440ae88499ebdc84b0b0c7"
+    },
+    {
+      "path": "SqExpress/Syntax/Value/ExprDateTimeOffsetLiteral.cs",
+      "sha256": "effbcd22167dbada5f6a727a34ecaec2660bda0ddf0a5c9e3f0a21b19955fba7"
+    },
+    {
+      "path": "SqExpress/Syntax/Value/ExprDecimalLiteral.cs",
+      "sha256": "b417c0b4682e7bc6c2a7019885d742f438a0bd6dc32faa0de042a055504acd40"
+    },
+    {
+      "path": "SqExpress/Syntax/Value/ExprDefault.cs",
+      "sha256": "d330d134050b8b56a5d9dbb5f100b5ab2c01d779b6136d1fbaa96c78aa3cb493"
+    },
+    {
+      "path": "SqExpress/Syntax/Value/ExprDoubleLiteral.cs",
+      "sha256": "607ac101f063bd5c945b95089b445d8e4721aff1c627cd1592bf67ece9d457d1"
+    },
+    {
+      "path": "SqExpress/Syntax/Value/ExprGuidLiteral.cs",
+      "sha256": "88e4712e02bd483f9309cad634d2be5b0254cae5cd249dc4276075813e08afb2"
+    },
+    {
+      "path": "SqExpress/Syntax/Value/ExprInt16Literal.cs",
+      "sha256": "2581830316f692ef5242ca3bdb38a1d6ae30ba895d216d9a17477e0989724bf2"
+    },
+    {
+      "path": "SqExpress/Syntax/Value/ExprInt32Literal.cs",
+      "sha256": "e0b1f7253afa2f32bed5fda348d9ce9c08efa8c20e1a6585d7f0189b22dcd2fb"
+    },
+    {
+      "path": "SqExpress/Syntax/Value/ExprInt64Literal.cs",
+      "sha256": "3b6d642428b05e8369e8ebb6f743aecb50267952c449f148e135a6dd019459dd"
+    },
+    {
+      "path": "SqExpress/Syntax/Value/ExprLiteral.cs",
+      "sha256": "bbe41e1f17a80a273dd2b983e5d56354897cbe0c35d4f9e2dbe27450275968f1"
+    },
+    {
+      "path": "SqExpress/Syntax/Value/ExprNull.cs",
+      "sha256": "f2336fefe958713374e807996eed5197fa3df1551bc3ada1cc0b2d4d922bd5f4"
+    },
+    {
+      "path": "SqExpress/Syntax/Value/ExprParameter.cs",
+      "sha256": "444bafe482058ecaa4b28331feae0e228d3b03c453e957c45e188b7924342097"
+    },
+    {
+      "path": "SqExpress/Syntax/Value/ExprSelectingValue.cs",
+      "sha256": "4ba92053f0e106de988fe4fc4db839c4337efaced5e03ecb829bf210e947de9b"
+    },
+    {
+      "path": "SqExpress/Syntax/Value/ExprStringLiteral.cs",
+      "sha256": "48ecc8808bb4a26f6488ff1a3cf1e207c51f5e38b533d4d01db3c8d7e48132e0"
+    },
+    {
+      "path": "SqExpress/Syntax/Value/ExprUnsafeValue.cs",
+      "sha256": "5e0cd2e972e7657ec5896e575b4af3c29df3d36e09a8971218a3b4582da7e54b"
+    },
+    {
+      "path": "SqExpress/Syntax/Value/ExprValue.cs",
+      "sha256": "91d667589bee3431e55769e75abf7f615a2a9aed97838e7dfbff12c9badbc05e"
+    },
+    {
+      "path": "SqExpress/Syntax/Value/ExprValueQuery.cs",
+      "sha256": "e2b9fc1c373a6ba3f1baa6129f7bde7f880c6670793672dddc237fc9265fed3f"
+    },
+    {
+      "path": "SqExpress/Syntax/Value/IExprAssigning.cs",
+      "sha256": "8826cfb358232a380034d5fd41456e5e09742be13ae48ac7ba907a9c3ef18d63"
+    },
+    {
+      "path": "SqExpress/SyntaxTreeOperations/DefaultWalkerVisitor.cs",
+      "sha256": "23b35ee9a1ca88e2dc08ea8ef674a35c6ed72f7ad1d25bf752ae1a74795d4386"
+    },
+    {
+      "path": "SqExpress/SyntaxTreeOperations/ExportImport/Internal/ExprJsonReader.cs",
+      "sha256": "1da634f0b9d854ed09d7903458d967cca402dbc27ab15d45b408d65a117137fe"
+    },
+    {
+      "path": "SqExpress/SyntaxTreeOperations/ExportImport/Internal/ExprJsonWriter.cs",
+      "sha256": "10ada538db8f3fc506bdcaf62c2d6017f70f4c68a13d0d62be652ed4287d4255"
+    },
+    {
+      "path": "SqExpress/SyntaxTreeOperations/ExportImport/Internal/ExprPlainReader.cs",
+      "sha256": "1b42e2a63df2623f28783e565a66715aa4234ab056e90a389fe7c80ff2014621"
+    },
+    {
+      "path": "SqExpress/SyntaxTreeOperations/ExportImport/Internal/ExprPlainWriter.cs",
+      "sha256": "15551f015318ff466b2ab55c914864b4ca264772fc38ae92c64dd7ef38a180d6"
+    },
+    {
+      "path": "SqExpress/SyntaxTreeOperations/ExportImport/Internal/ExprXmlReader.cs",
+      "sha256": "77e4cab04c3c17e62ac713205f1f421098643fe5628852ca0a860d7e61f35117"
+    },
+    {
+      "path": "SqExpress/SyntaxTreeOperations/ExportImport/Internal/ExprXmlWriter.cs",
+      "sha256": "d9e809ef97f528bbae25a918a7510225821a96b30dd74ebc22df17a95494bf8f"
+    },
+    {
+      "path": "SqExpress/SyntaxTreeOperations/ExportImport/IPlainItem.cs",
+      "sha256": "b46623d89e8fbf085b71b64eef9bf08a9b2128e628c10de2f98b6d6b351cf6a3"
+    },
+    {
+      "path": "SqExpress/SyntaxTreeOperations/ExprDeserializer.cs",
+      "sha256": "ee05e99fedbb4ca2d11321894da8b89d8e0575ad6215c0e687db238a88ae7c3d"
+    },
+    {
+      "path": "SqExpress/SyntaxTreeOperations/ExprVisitorBase.cs",
+      "sha256": "df7c6a166370ad28636417f09546f2edf7df2f183ba3d3be18fadc7192ed389f"
+    },
+    {
+      "path": "SqExpress/SyntaxTreeOperations/IExprReader.cs",
+      "sha256": "1ce8c0d58f4e01a349b6a3a03c82469ffbfb6e45cbf17edf621030dd961ceec4"
+    },
+    {
+      "path": "SqExpress/SyntaxTreeOperations/Internal/ExprModifier.cs",
+      "sha256": "c66e93f1660c01db32ec66a8776d223e537036cb7eec35352c3cc00ce737ea1a"
+    },
+    {
+      "path": "SqExpress/SyntaxTreeOperations/Internal/ExprSelectingToColumn.cs",
+      "sha256": "19e9e389bca65020b72f1c14f8c9e808870559c966cf14737ba858b4b3557f07"
+    },
+    {
+      "path": "SqExpress/SyntaxTreeOperations/Internal/ExprTypeToCustomColumn.cs",
+      "sha256": "1ce969334a5bb7ef013acbcfec99d3d38c4f9805bc12392c843d1d84e8907d34"
+    },
+    {
+      "path": "SqExpress/SyntaxTreeOperations/Internal/ExprTypeToTableColumn.cs",
+      "sha256": "9361dff3d6c1edc7267bb839a6d928fe26645a28a4dd0350d7e59e2dfe97adf3"
+    },
+    {
+      "path": "SqExpress/SyntaxTreeOperations/Internal/ExprValueTypeAnalyzer.cs",
+      "sha256": "1e80f9d0e0f4c3c5fb6f93b2077a66dfefbee3de955424419d5351bbd289b780"
+    },
+    {
+      "path": "SqExpress/SyntaxTreeOperations/Internal/ExprValueTypeDetailsVisitor.cs",
+      "sha256": "3be056a8297e60bc2638e7a79c47858f8a8847a53485f453890f262a29ab082f"
+    },
+    {
+      "path": "SqExpress/SyntaxTreeOperations/Internal/ExprValueTypeExtensions.cs",
+      "sha256": "632ee64d9888b658dd5e37c0bb07bdc2fa6fdf9e6acc3ab7bdd77ed792d21364"
+    },
+    {
+      "path": "SqExpress/SyntaxTreeOperations/Internal/ExprValueTypeIsNullVisitor.cs",
+      "sha256": "b075c310b3078e5ff5c313b7c2475b79c6ff04e51c4d5e455149f98ac2f41f39"
+    },
+    {
+      "path": "SqExpress/SyntaxTreeOperations/Internal/ExprWalker.cs",
+      "sha256": "08b74719c8331291370de234e11230e1589f0fece59572589cb9abae635ecca8"
+    },
+    {
+      "path": "SqExpress/SyntaxTreeOperations/Internal/ExprWalkerPull.cs",
+      "sha256": "9351353329bd8986630583df8214292c23171a34921564e6525f753d037383b6"
+    },
+    {
+      "path": "SqExpress/SyntaxTreeOperations/Internal/IExprValueTypeVisitor.cs",
+      "sha256": "f9ff1dfc87d644ff515e8d80b47780ab2a42b9ab85a1a0604e180f8fea46f71f"
+    },
+    {
+      "path": "SqExpress/SyntaxTreeOperations/Internal/TableBinder.cs",
+      "sha256": "90e257bdd336e4c9a8a0c539b7457b868826b71c0ba729a208bd39d36466c369"
+    },
+    {
+      "path": "SqExpress/SyntaxTreeOperations/IWalkerVisitor.cs",
+      "sha256": "1764aa90d26783ccd90e125c295c4bc1cfacaa9ccebc71c4708d01528caa1cd2"
+    },
+    {
+      "path": "Test/SqExpress.Test/Export/SqlFormattingProfileTest.cs",
+      "sha256": "eff010624d28b6db7b917037d574a8336acecd7eddc5cf1dc3783dcf68197bc5",
+      "tests": [
+        {
+          "id": "SqlFormattingProfileTest.BooleanOperatorsFollowConditionIndentation#1",
+          "method": "BooleanOperatorsFollowConditionIndentation",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingProfileTest.BooleanOperatorsFollowConditionIndentation#2",
+          "method": "BooleanOperatorsFollowConditionIndentation",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingProfileTest.BooleanOperatorsFollowConditionIndentation#3",
+          "method": "BooleanOperatorsFollowConditionIndentation",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingProfileTest.CompactBooleanParenthesisSpacingAndLineStartSpacing",
+          "method": "CompactBooleanParenthesisSpacingAndLineStartSpacing",
+          "source": "Test"
+        },
+        {
+          "id": "SqlFormattingProfileTest.EveryOptionPreservesSqlTokens#1",
+          "method": "EveryOptionPreservesSqlTokens",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingProfileTest.EveryOptionPreservesSqlTokens#2",
+          "method": "EveryOptionPreservesSqlTokens",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingProfileTest.EveryOptionPreservesSqlTokens#3",
+          "method": "EveryOptionPreservesSqlTokens",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingProfileTest.EveryOptionPreservesSqlTokens#4",
+          "method": "EveryOptionPreservesSqlTokens",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingProfileTest.EveryOptionPreservesSqlTokens#5",
+          "method": "EveryOptionPreservesSqlTokens",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingProfileTest.FirstItemAndContinuationLayoutAreIndependent#1",
+          "method": "FirstItemAndContinuationLayoutAreIndependent",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingProfileTest.FirstItemAndContinuationLayoutAreIndependent#2",
+          "method": "FirstItemAndContinuationLayoutAreIndependent",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingProfileTest.FirstItemAndContinuationLayoutAreIndependent#3",
+          "method": "FirstItemAndContinuationLayoutAreIndependent",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingProfileTest.FirstItemAndContinuationLayoutAreIndependent#4",
+          "method": "FirstItemAndContinuationLayoutAreIndependent",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingProfileTest.NewlinesAndZeroIndentation#1",
+          "method": "NewlinesAndZeroIndentation",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingProfileTest.NewlinesAndZeroIndentation#2",
+          "method": "NewlinesAndZeroIndentation",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingProfileTest.PaginationPreservesTokensAndErrors#1",
+          "method": "PaginationPreservesTokensAndErrors",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingProfileTest.PaginationPreservesTokensAndErrors#2",
+          "method": "PaginationPreservesTokensAndErrors",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingProfileTest.PaginationPreservesTokensAndErrors#3",
+          "method": "PaginationPreservesTokensAndErrors",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingProfileTest.PaginationPreservesTokensAndErrors#4",
+          "method": "PaginationPreservesTokensAndErrors",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingProfileTest.PaginationPreservesTokensAndErrors#5",
+          "method": "PaginationPreservesTokensAndErrors",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingProfileTest.PatchesAreSnapshotsAndInheritOmittedValues",
+          "method": "PatchesAreSnapshotsAndInheritOmittedValues",
+          "source": "Test"
+        },
+        {
+          "id": "SqlFormattingProfileTest.QueryListSeparatesStatementsWithoutFinalNewline",
+          "method": "QueryListSeparatesStatementsWithoutFinalNewline",
+          "source": "Test"
+        },
+        {
+          "id": "SqlFormattingProfileTest.RecursiveAndMultipleCtesHaveStableWhitespace#1",
+          "method": "RecursiveAndMultipleCtesHaveStableWhitespace",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingProfileTest.RecursiveAndMultipleCtesHaveStableWhitespace#2",
+          "method": "RecursiveAndMultipleCtesHaveStableWhitespace",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingProfileTest.RecursiveAndMultipleCtesHaveStableWhitespace#3",
+          "method": "RecursiveAndMultipleCtesHaveStableWhitespace",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingProfileTest.RecursiveAndMultipleCtesHaveStableWhitespace#4",
+          "method": "RecursiveAndMultipleCtesHaveStableWhitespace",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingProfileTest.RecursiveAndMultipleCtesHaveStableWhitespace#5",
+          "method": "RecursiveAndMultipleCtesHaveStableWhitespace",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingProfileTest.RejectsNullNegativeIndentationAndEveryUndefinedEnum",
+          "method": "RejectsNullNegativeIndentationAndEveryUndefinedEnum",
+          "source": "Test"
+        },
+        {
+          "id": "SqlFormattingProfileTest.ReusedSubqueryIndentsPerOccurrence",
+          "method": "ReusedSubqueryIndentsPerOccurrence",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/Export/SqlFormattingTest.cs",
+      "sha256": "d36daa3a8487761c7b86c84430be6771eeee77eed2cd3fab330f502d264c5582",
+      "tests": [
+        {
+          "id": "SqlFormattingTest.CompactOutputIsUnchanged",
+          "method": "CompactOutputIsUnchanged",
+          "source": "Test"
+        },
+        {
+          "id": "SqlFormattingTest.FormattingPreservesOtherBuilderOptions",
+          "method": "FormattingPreservesOtherBuilderOptions",
+          "source": "Test"
+        },
+        {
+          "id": "SqlFormattingTest.ReusedColumnReceivesTriviaPerRenderLocation",
+          "method": "ReusedColumnReceivesTriviaPerRenderLocation",
+          "source": "Test"
+        },
+        {
+          "id": "SqlFormattingTest.SpaciousFormatsEveryDialect#1",
+          "method": "SpaciousFormatsEveryDialect",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingTest.SpaciousFormatsEveryDialect#2",
+          "method": "SpaciousFormatsEveryDialect",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingTest.SpaciousFormatsEveryDialect#3",
+          "method": "SpaciousFormatsEveryDialect",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingTest.SpaciousFormatsEveryDialect#4",
+          "method": "SpaciousFormatsEveryDialect",
+          "source": "TestCase"
+        },
+        {
+          "id": "SqlFormattingTest.SpaciousFormatsInsertRowsButKeepsRowValuesCompact",
+          "method": "SpaciousFormatsInsertRowsButKeepsRowValuesCompact",
+          "source": "Test"
+        },
+        {
+          "id": "SqlFormattingTest.SpaciousFormatsOnlyExporterRequiredBooleanParentheses",
+          "method": "SpaciousFormatsOnlyExporterRequiredBooleanParentheses",
+          "source": "Test"
+        },
+        {
+          "id": "SqlFormattingTest.SpaciousFormatsQueryStructure",
+          "method": "SpaciousFormatsQueryStructure",
+          "source": "Test"
+        },
+        {
+          "id": "SqlFormattingTest.SpaciousFormatsSetOperators",
+          "method": "SpaciousFormatsSetOperators",
+          "source": "Test"
+        },
+        {
+          "id": "SqlFormattingTest.SpaciousFormatsUpdateAndDelete",
+          "method": "SpaciousFormatsUpdateAndDelete",
+          "source": "Test"
+        },
+        {
+          "id": "SqlFormattingTest.SpaciousHasNoTrailingWhitespaceOrFinalNewline",
+          "method": "SpaciousHasNoTrailingWhitespaceOrFinalNewline",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/Export/TSqlInjectionCheckerTest.cs",
+      "sha256": "0bbec09aa66447d911a73aae1db2ff011240d89f5eb19de689be1cdca08a81d3",
+      "tests": [
+        {
+          "id": "TSqlInjectionCheckerTest.AppendStringEscape_Basic",
+          "method": "AppendStringEscape_Basic",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlInjectionCheckerTest.AppendStringEscapeMySql_Backslash",
+          "method": "AppendStringEscapeMySql_Backslash",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlInjectionCheckerTest.CheckTSqlBuildInFunctionName_FuzzInvalid",
+          "method": "CheckTSqlBuildInFunctionName_FuzzInvalid",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlInjectionCheckerTest.CheckTSqlBuildInFunctionName_RejectsInjectionVectors",
+          "method": "CheckTSqlBuildInFunctionName_RejectsInjectionVectors",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlInjectionCheckerTest.CheckTSqlBuildInFunctionName_Valid",
+          "method": "CheckTSqlBuildInFunctionName_Valid",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlInjectionCheckerTest.DangerousMarkers_DoNotEscapeLiteralBoundary",
+          "method": "DangerousMarkers_DoNotEscapeLiteralBoundary",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlInjectionCheckerTest.LiteralEscaping_FuzzRoundTrip_AllExporters",
+          "method": "LiteralEscaping_FuzzRoundTrip_AllExporters",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlInjectionCheckerTest.UnsafeValue_EmitsRawSql",
+          "method": "UnsafeValue_EmitsRawSql",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/QueryBuilder/CteTest.cs",
+      "sha256": "21f5c643d79adbb4ca0ecca1f13bcb53fdd3972899ba61d60a6fe7032c9912f7",
+      "tests": [
+        {
+          "id": "CteTest.TestInsert",
+          "method": "TestInsert",
+          "source": "Test"
+        },
+        {
+          "id": "CteTest.TestJoinCte",
+          "method": "TestJoinCte",
+          "source": "Test"
+        },
+        {
+          "id": "CteTest.TestModify",
+          "method": "TestModify",
+          "source": "Test"
+        },
+        {
+          "id": "CteTest.TestRecursiveCteEmptyModifier",
+          "method": "TestRecursiveCteEmptyModifier",
+          "source": "Test"
+        },
+        {
+          "id": "CteTest.TestRefSimpleRecursive",
+          "method": "TestRefSimpleRecursive",
+          "source": "Test"
+        },
+        {
+          "id": "CteTest.TestSimple",
+          "method": "TestSimple",
+          "source": "Test"
+        },
+        {
+          "id": "CteTest.TestSimpleFromRecursive",
+          "method": "TestSimpleFromRecursive",
+          "source": "Test"
+        },
+        {
+          "id": "CteTest.TestSimpleRecursive",
+          "method": "TestSimpleRecursive",
+          "source": "Test"
+        },
+        {
+          "id": "CteTest.TestUnionOfDifferentCte",
+          "method": "TestUnionOfDifferentCte",
+          "source": "Test"
+        },
+        {
+          "id": "CteTest.TestUnionOfOneCte",
+          "method": "TestUnionOfOneCte",
+          "source": "Test"
+        },
+        {
+          "id": "CteTest.TestUpdate",
+          "method": "TestUpdate",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/QueryBuilder/DeleteTest.cs",
+      "sha256": "9952c8cfdb92a9694b7bda7d7b80fc3210d56b3d1e50c92d9d3ae90fbad1eaae",
+      "tests": [
+        {
+          "id": "DeleteTest.Delete_NullWhere",
+          "method": "Delete_NullWhere",
+          "source": "Test"
+        },
+        {
+          "id": "DeleteTest.DeleteFromTableTest",
+          "method": "DeleteFromTableTest",
+          "source": "Test"
+        },
+        {
+          "id": "DeleteTest.DeleteFromTest",
+          "method": "DeleteFromTest",
+          "source": "Test"
+        },
+        {
+          "id": "DeleteTest.DeleteOutputOracleMySqlTest",
+          "method": "DeleteOutputOracleMySqlTest",
+          "source": "Test"
+        },
+        {
+          "id": "DeleteTest.DeleteOutputPgTest",
+          "method": "DeleteOutputPgTest",
+          "source": "Test"
+        },
+        {
+          "id": "DeleteTest.DeleteOutputTest",
+          "method": "DeleteOutputTest",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/QueryBuilder/DerivedTableTest.cs",
+      "sha256": "8670c92606f5b6f5c590d6bfe512cd346e7f296988728a1d91c5cefba487fe2e",
+      "tests": [
+        {
+          "id": "DerivedTableTest.DerivedValues_NullColl",
+          "method": "DerivedValues_NullColl",
+          "source": "Test"
+        },
+        {
+          "id": "DerivedTableTest.EmptyModifyTest",
+          "method": "EmptyModifyTest",
+          "source": "Test"
+        },
+        {
+          "id": "DerivedTableTest.Test",
+          "method": "Test",
+          "source": "Test"
+        },
+        {
+          "id": "DerivedTableTest.Test_AllNamed",
+          "method": "Test_AllNamed",
+          "source": "Test"
+        },
+        {
+          "id": "DerivedTableTest.Test_AutoNamesAnonymousDerivedTableColumns_ForTSql",
+          "method": "Test_AutoNamesAnonymousDerivedTableColumns_ForTSql",
+          "source": "Test"
+        },
+        {
+          "id": "DerivedTableTest.Test_ErrorNotMatched",
+          "method": "Test_ErrorNotMatched",
+          "source": "Test"
+        },
+        {
+          "id": "DerivedTableTest.Test_ReNamed",
+          "method": "Test_ReNamed",
+          "source": "Test"
+        },
+        {
+          "id": "DerivedTableTest.TestWrongOrder",
+          "method": "TestWrongOrder",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/QueryBuilder/ExistsPredicateTest.cs",
+      "sha256": "c079e7329796a8d3f748194e33095339b5ed1fd7b3b61c84a59f24f927b88918",
+      "tests": [
+        {
+          "id": "ExistsPredicateTest.Test",
+          "method": "Test",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/QueryBuilder/FunctionsTest.cs",
+      "sha256": "0290e1ea0bcefb346e2e729235d59b180e7c2a8a50f4230ec041f992f00e04ef",
+      "tests": [
+        {
+          "id": "FunctionsTest.AggBasicTest",
+          "method": "AggBasicTest",
+          "source": "Test"
+        },
+        {
+          "id": "FunctionsTest.CaseWhenThenTest",
+          "method": "CaseWhenThenTest",
+          "source": "Test"
+        },
+        {
+          "id": "FunctionsTest.OracleMySql_Hour_UsesSqlDateTimeLiteralFormat",
+          "method": "OracleMySql_Hour_UsesSqlDateTimeLiteralFormat",
+          "source": "Test"
+        },
+        {
+          "id": "FunctionsTest.ScalarFunctionTest",
+          "method": "ScalarFunctionTest",
+          "source": "Test"
+        },
+        {
+          "id": "FunctionsTest.Sqlite_ScalarFunction_IgnoresSchemaPrefix",
+          "method": "Sqlite_ScalarFunction_IgnoresSchemaPrefix",
+          "source": "Test"
+        },
+        {
+          "id": "FunctionsTest.Sqlite_TableFunction_IgnoresSchemaPrefix",
+          "method": "Sqlite_TableFunction_IgnoresSchemaPrefix",
+          "source": "Test"
+        },
+        {
+          "id": "FunctionsTest.StringAgg_ExportsPortableOrderedAndUnorderedForms",
+          "method": "StringAgg_ExportsPortableOrderedAndUnorderedForms",
+          "source": "Test"
+        },
+        {
+          "id": "FunctionsTest.StringAgg_MySqlRejectsDynamicSeparator",
+          "method": "StringAgg_MySqlRejectsDynamicSeparator",
+          "source": "Test"
+        },
+        {
+          "id": "FunctionsTest.StringAgg_MySqlUnwrapsParameterizedLiteralSeparator",
+          "method": "StringAgg_MySqlUnwrapsParameterizedLiteralSeparator",
+          "source": "Test"
+        },
+        {
+          "id": "FunctionsTest.StringAgg_TSqlUnwrapsParameterizedLiteralSeparator",
+          "method": "StringAgg_TSqlUnwrapsParameterizedLiteralSeparator",
+          "source": "Test"
+        },
+        {
+          "id": "FunctionsTest.UnsafeValueTest",
+          "method": "UnsafeValueTest",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/QueryBuilder/InPredicateTest.cs",
+      "sha256": "22be5890dedb6e8a5af030c96f84b75eecc3abc46085c4dd8d3bbe7fcfc23d04",
+      "tests": [
+        {
+          "id": "InPredicateTest.InSubQueryTest",
+          "method": "InSubQueryTest",
+          "source": "Test"
+        },
+        {
+          "id": "InPredicateTest.InValuesQueryTest",
+          "method": "InValuesQueryTest",
+          "source": "Test"
+        },
+        {
+          "id": "InPredicateTest.InValuesTest",
+          "method": "InValuesTest",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/QueryBuilder/InsertTest.cs",
+      "sha256": "a359b5bbf520e266d16cd1b745bec39551c47cba699fe835c0d12d49e10650f3",
+      "tests": [
+        {
+          "id": "InsertTest.IdentityInsertDataWithExtraTest",
+          "method": "IdentityInsertDataWithExtraTest",
+          "source": "Test"
+        },
+        {
+          "id": "InsertTest.IdentityInsertValuesTest",
+          "method": "IdentityInsertValuesTest",
+          "source": "Test"
+        },
+        {
+          "id": "InsertTest.InsertDataTest",
+          "method": "InsertDataTest",
+          "source": "Test"
+        },
+        {
+          "id": "InsertTest.InsertDataWithExtraTest",
+          "method": "InsertDataWithExtraTest",
+          "source": "Test"
+        },
+        {
+          "id": "InsertTest.InsertExprTest",
+          "method": "InsertExprTest",
+          "source": "Test"
+        },
+        {
+          "id": "InsertTest.InsertValuesTest",
+          "method": "InsertValuesTest",
+          "source": "Test"
+        },
+        {
+          "id": "InsertTest.Test",
+          "method": "Test",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/QueryBuilder/JsonTest.cs",
+      "sha256": "61d7aba8f6c4176a20af00123270632a06e78a815c771859ad40179d1bca3895",
+      "tests": [
+        {
+          "id": "JsonTest.Construction_RejectsDuplicateKeys",
+          "method": "Construction_RejectsDuplicateKeys",
+          "source": "Test"
+        },
+        {
+          "id": "JsonTest.DefaultPath_IsRejectedByBuilder",
+          "method": "DefaultPath_IsRejectedByBuilder",
+          "source": "Test"
+        },
+        {
+          "id": "JsonTest.ForJson_StoresAndExportsPortableOptions",
+          "method": "ForJson_StoresAndExportsPortableOptions",
+          "source": "Test"
+        },
+        {
+          "id": "JsonTest.JsonOutputColumn_IsTerminal",
+          "method": "JsonOutputColumn_IsTerminal",
+          "source": "Test"
+        },
+        {
+          "id": "JsonTest.JsonTableColumn_DefaultPath_IsRejectedByBuilder",
+          "method": "JsonTableColumn_DefaultPath_IsRejectedByBuilder",
+          "source": "Test"
+        },
+        {
+          "id": "JsonTest.Path_RejectsUnsupportedGrammar#1",
+          "method": "Path_RejectsUnsupportedGrammar",
+          "source": "TestCase"
+        },
+        {
+          "id": "JsonTest.Path_RejectsUnsupportedGrammar#2",
+          "method": "Path_RejectsUnsupportedGrammar",
+          "source": "TestCase"
+        },
+        {
+          "id": "JsonTest.Path_RejectsUnsupportedGrammar#3",
+          "method": "Path_RejectsUnsupportedGrammar",
+          "source": "TestCase"
+        },
+        {
+          "id": "JsonTest.Path_RejectsUnsupportedGrammar#4",
+          "method": "Path_RejectsUnsupportedGrammar",
+          "source": "TestCase"
+        },
+        {
+          "id": "JsonTest.Path_RejectsUnsupportedGrammar#5",
+          "method": "Path_RejectsUnsupportedGrammar",
+          "source": "TestCase"
+        },
+        {
+          "id": "JsonTest.Path_RejectsUnsupportedGrammar#6",
+          "method": "Path_RejectsUnsupportedGrammar",
+          "source": "TestCase"
+        },
+        {
+          "id": "JsonTest.Path_RoundTrips#1",
+          "method": "Path_RoundTrips",
+          "source": "TestCase"
+        },
+        {
+          "id": "JsonTest.Path_RoundTrips#2",
+          "method": "Path_RoundTrips",
+          "source": "TestCase"
+        },
+        {
+          "id": "JsonTest.Path_RoundTrips#3",
+          "method": "Path_RoundTrips",
+          "source": "TestCase"
+        },
+        {
+          "id": "JsonTest.PortableOperations_ExportAcrossEveryDialect",
+          "method": "PortableOperations_ExportAcrossEveryDialect",
+          "source": "Test"
+        },
+        {
+          "id": "JsonTest.RootRemoval_IsRejected",
+          "method": "RootRemoval_IsRejected",
+          "source": "Test"
+        },
+        {
+          "id": "JsonTest.ScalarExtraction_UsesEachDialectJsonApi",
+          "method": "ScalarExtraction_UsesEachDialectJsonApi",
+          "source": "Test"
+        },
+        {
+          "id": "JsonTest.Select_UsesSelectingOverloadForJsonOutputColumns",
+          "method": "Select_UsesSelectingOverloadForJsonOutputColumns",
+          "source": "Test"
+        },
+        {
+          "id": "JsonTest.TSqlTypedExtraction_UsesParentObjectToPreserveJsonKind",
+          "method": "TSqlTypedExtraction_UsesParentObjectToPreserveJsonKind",
+          "source": "Test"
+        },
+        {
+          "id": "JsonTest.UnspecifiedJsonDecimal_KeepsFractionalPrecision",
+          "method": "UnspecifiedJsonDecimal_KeepsFractionalPrecision",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/QueryBuilder/MergeDataTest.cs",
+      "sha256": "34cf5f20ef81dc235030282c311d4b8177b3fa8bbc6044992a52eb8b5ba68bfe",
+      "tests": [
+        {
+          "id": "MergeDataTest.EmptyData_Null",
+          "method": "EmptyData_Null",
+          "source": "Test"
+        },
+        {
+          "id": "MergeDataTest.FullTest",
+          "method": "FullTest",
+          "source": "Test"
+        },
+        {
+          "id": "MergeDataTest.KeysOnly_NoWhenMatch",
+          "method": "KeysOnly_NoWhenMatch",
+          "source": "Test"
+        },
+        {
+          "id": "MergeDataTest.KeysOnly_WhenMatchedThenDelete",
+          "method": "KeysOnly_WhenMatchedThenDelete",
+          "source": "Test"
+        },
+        {
+          "id": "MergeDataTest.KeysOnly_WhenMatchedThenUpdate_AlsoSet",
+          "method": "KeysOnly_WhenMatchedThenUpdate_AlsoSet",
+          "source": "Test"
+        },
+        {
+          "id": "MergeDataTest.KeysOnly_WhenMatchedThenUpdate_Error",
+          "method": "KeysOnly_WhenMatchedThenUpdate_Error",
+          "source": "Test"
+        },
+        {
+          "id": "MergeDataTest.TestMatched_ThenDelete",
+          "method": "TestMatched_ThenDelete",
+          "source": "Test"
+        },
+        {
+          "id": "MergeDataTest.TestNotMatched_ThenExclude",
+          "method": "TestNotMatched_ThenExclude",
+          "source": "Test"
+        },
+        {
+          "id": "MergeDataTest.TestNotMatched_ThenInsertDefaults",
+          "method": "TestNotMatched_ThenInsertDefaults",
+          "source": "Test"
+        },
+        {
+          "id": "MergeDataTest.TestNotMatchedBySourceMatched_ThenUpdate",
+          "method": "TestNotMatchedBySourceMatched_ThenUpdate",
+          "source": "Test"
+        },
+        {
+          "id": "MergeDataTest.TestUpdateDefault",
+          "method": "TestUpdateDefault",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/QueryBuilder/MergeTest.cs",
+      "sha256": "e19d89aa39fca658d7f2d7005174c77b97da91d7157877ed96e148ca72627ace",
+      "tests": [
+        {
+          "id": "MergeTest.PgMergePolyfill_NamesAnonymousSourceColumns",
+          "method": "PgMergePolyfill_NamesAnonymousSourceColumns",
+          "source": "Test"
+        },
+        {
+          "id": "MergeTest.SqliteMergePolyfill_RewritesMatchedInsertUpdateFlow",
+          "method": "SqliteMergePolyfill_RewritesMatchedInsertUpdateFlow",
+          "source": "Test"
+        },
+        {
+          "id": "MergeTest.SqliteMergePolyfill_UsesTempTableAndTargetOnlyDelete",
+          "method": "SqliteMergePolyfill_UsesTempTableAndTargetOnlyDelete",
+          "source": "Test"
+        },
+        {
+          "id": "MergeTest.ValueBuilder_ActualMerge",
+          "method": "ValueBuilder_ActualMerge",
+          "source": "Test"
+        },
+        {
+          "id": "MergeTest.ValueBuilder_DeleteDelete",
+          "method": "ValueBuilder_DeleteDelete",
+          "source": "Test"
+        },
+        {
+          "id": "MergeTest.ValueBuilder_Output",
+          "method": "ValueBuilder_Output",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/QueryBuilder/MySqlUnicodeExportTest.cs",
+      "sha256": "b0ab07c2a34868e5790f229f75bf53aef9de05e95703728f653e5b434e99b132",
+      "tests": [
+        {
+          "id": "MySqlUnicodeExportTest.UnicodeVarchar_PreservesExplicitSizeAndUsesUtf8Mb4",
+          "method": "UnicodeVarchar_PreservesExplicitSizeAndUsesUtf8Mb4",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/QueryBuilder/SelectTest.cs",
+      "sha256": "5afa1f461465501366065a5bcadb6b61632a05ee2821e7656902d3eb85e64245",
+      "tests": [
+        {
+          "id": "SelectTest.BasicTest",
+          "method": "BasicTest",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.GroupBy_Basic",
+          "method": "GroupBy_Basic",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.GroupBy_List",
+          "method": "GroupBy_List",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.GroupBy_ListEmpty",
+          "method": "GroupBy_ListEmpty",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.JoinAs_Empty",
+          "method": "JoinAs_Empty",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.JoinAsAnd_1",
+          "method": "JoinAsAnd_1",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.JoinAsAnd_2",
+          "method": "JoinAsAnd_2",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.JoinAsAnd_4",
+          "method": "JoinAsAnd_4",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.JoinAsOr_1",
+          "method": "JoinAsOr_1",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.JoinAsOr_2",
+          "method": "JoinAsOr_2",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.JoinAsOr_4",
+          "method": "JoinAsOr_4",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.OracleMySqlStringCastTest",
+          "method": "OracleMySqlStringCastTest",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.OrderBy_Basic",
+          "method": "OrderBy_Basic",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.OrderBy_Join",
+          "method": "OrderBy_Join",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.OrderBy_List",
+          "method": "OrderBy_List",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.OrderBy_ListEmpty",
+          "method": "OrderBy_ListEmpty",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.OrderBy_Offset",
+          "method": "OrderBy_Offset",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.OrderBy_OffsetFetch",
+          "method": "OrderBy_OffsetFetch",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.OrderBy_OffsetFetch2",
+          "method": "OrderBy_OffsetFetch2",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.OrderBy_Union",
+          "method": "OrderBy_Union",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.Query_CanBeProjectedAsScalarSubQuery",
+          "method": "Query_CanBeProjectedAsScalarSubQuery",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.Set_CombinationTest",
+          "method": "Set_CombinationTest",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.Set_SimpleText",
+          "method": "Set_SimpleText",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.TestDbName",
+          "method": "TestDbName",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.TopTest",
+          "method": "TopTest",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.TopVsLimit",
+          "method": "TopVsLimit",
+          "source": "Test"
+        },
+        {
+          "id": "SelectTest.Where_NullSupport",
+          "method": "Where_NullSupport",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/QueryBuilder/TempTablesTest.cs",
+      "sha256": "8daa3726144605081fb2e7eb2ea4d6e0d2ff475ac0fa303256bafc33ea224a7e",
+      "tests": [
+        {
+          "id": "TempTablesTest.Create",
+          "method": "Create",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/QueryBuilder/UpdateTest.cs",
+      "sha256": "085a839240cf9e0b87ebf044c948668dac939c3abe625ee79f914582301f455e",
+      "tests": [
+        {
+          "id": "UpdateTest.UpdateDataIn_Test",
+          "method": "UpdateDataIn_Test",
+          "source": "Test"
+        },
+        {
+          "id": "UpdateTest.UpdateFromTest",
+          "method": "UpdateFromTest",
+          "source": "Test"
+        },
+        {
+          "id": "UpdateTest.UpdateFromTestPg",
+          "method": "UpdateFromTestPg",
+          "source": "Test"
+        },
+        {
+          "id": "UpdateTest.UpdateTableTest",
+          "method": "UpdateTableTest",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/SqlParser/TSqlParserBasicTest.cs",
+      "sha256": "22e5c13b0e56aa5c5dfd99e79c8aedfbf6ec9d843c5a923b9106bfea3ffd7e51",
+      "tests": [
+        {
+          "id": "TSqlParserBasicTest.ExtractTableArtifacts_ForMultiJoinQuery_CollectsExpectedColumns",
+          "method": "ExtractTableArtifacts_ForMultiJoinQuery_CollectsExpectedColumns",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserBasicTest.ParseCommaSeparatedCteSources_MapsSuccessfully",
+          "method": "ParseCommaSeparatedCteSources_MapsSuccessfully",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserBasicTest.ParseComplexQueryWithCteAndOuterApply_BuildsExpectedAstNodes",
+          "method": "ParseComplexQueryWithCteAndOuterApply_BuildsExpectedAstNodes",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserBasicTest.ParseCrossJoinMultipleCtesWithUnqualifiedProjection_MapsSuccessfully",
+          "method": "ParseCrossJoinMultipleCtesWithUnqualifiedProjection_MapsSuccessfully",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserBasicTest.ParseDeeplyNestedGroupedSetOperations_MapsSuccessfully",
+          "method": "ParseDeeplyNestedGroupedSetOperations_MapsSuccessfully",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserBasicTest.ParseDeleteWhereInSubQueryWithSingleInnerTable_MapsSuccessfully",
+          "method": "ParseDeleteWhereInSubQueryWithSingleInnerTable_MapsSuccessfully",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserBasicTest.ParseDeleteWithCteWhereInSubQuery_MapsSuccessfully",
+          "method": "ParseDeleteWithCteWhereInSubQuery_MapsSuccessfully",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserBasicTest.ParseInsertWithoutInto_MapsSuccessfully",
+          "method": "ParseInsertWithoutInto_MapsSuccessfully",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserBasicTest.ParseLargeMultiCteQuery_BuildsExpectedAstNodes",
+          "method": "ParseLargeMultiCteQuery_BuildsExpectedAstNodes",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserBasicTest.ParseNestedParenthesizedSetOperations_MapsSuccessfully",
+          "method": "ParseNestedParenthesizedSetOperations_MapsSuccessfully",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserBasicTest.ParseParenthesizedSetOperationWithTopLevelOrderBy_MapsSuccessfully",
+          "method": "ParseParenthesizedSetOperationWithTopLevelOrderBy_MapsSuccessfully",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserBasicTest.ParseParenthesizedUnionBranch_MapsSuccessfully",
+          "method": "ParseParenthesizedUnionBranch_MapsSuccessfully",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserBasicTest.ParseSelectWhereArithmeticComparisonInParentheses_MapsSuccessfully",
+          "method": "ParseSelectWhereArithmeticComparisonInParentheses_MapsSuccessfully",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserBasicTest.ParseSelectWhereInSubQueryWithSingleInnerTable_MapsSuccessfully",
+          "method": "ParseSelectWhereInSubQueryWithSingleInnerTable_MapsSuccessfully",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserBasicTest.ParseSelectWhereLikeWithEscape_MapsSuccessfully",
+          "method": "ParseSelectWhereLikeWithEscape_MapsSuccessfully",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserBasicTest.ParseSelectWhereLiteralNotLike_BuildsExpectedAstNodes",
+          "method": "ParseSelectWhereLiteralNotLike_BuildsExpectedAstNodes",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserBasicTest.ParseSelectWhereNotIn_BuildsExpectedAstNodes",
+          "method": "ParseSelectWhereNotIn_BuildsExpectedAstNodes",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserBasicTest.ParseSetOperationBranchesWithOrderByOffsetFetch_MapsSuccessfully",
+          "method": "ParseSetOperationBranchesWithOrderByOffsetFetch_MapsSuccessfully",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserBasicTest.ParseSimpleCrossJoinSelect_BuildsExpectedAstAndTableArtifacts",
+          "method": "ParseSimpleCrossJoinSelect_BuildsExpectedAstAndTableArtifacts",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserBasicTest.ParseTopGroupedJoinWithDateAddAndOrderAlias",
+          "method": "ParseTopGroupedJoinWithDateAddAndOrderAlias",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserBasicTest.ParseUnionWithParenthesizedRightBranch_MapsSuccessfully",
+          "method": "ParseUnionWithParenthesizedRightBranch_MapsSuccessfully",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserBasicTest.ParseUpdateWithCteInFromAndUnqualifiedSetValue_MapsSuccessfully",
+          "method": "ParseUpdateWithCteInFromAndUnqualifiedSetValue_MapsSuccessfully",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserBasicTest.ParseUpdateWithJoinAndLike_BuildsExpectedAstNodes",
+          "method": "ParseUpdateWithJoinAndLike_BuildsExpectedAstNodes",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/SqlParser/TSqlParserCastTest.cs",
+      "sha256": "b800cf4c90ceae3916fe1e3c470677cb89588b6df3a274f79a92ffb046127338",
+      "tests": [
+        {
+          "id": "TSqlParserCastTest.Cast_CharCannotUseMax",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserCastTest.Cast_DateTime2ScaleOutOfRange",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserCastTest.Cast_DateTimeOffsetScaleOutOfRange",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserCastTest.Cast_DecimalScaleGreaterThanPrecision",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserCastTest.Cast_DecimalTooManyArguments",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserCastTest.Cast_IntWithArguments",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserCastTest.Cast_MissingAsClause",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserCastTest.Cast_MissingParentheses",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserCastTest.Cast_MissingType",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserCastTest.Cast_NVarCharTooManyLengthArguments",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserCastTest.Cast_VarCharInvalidLengthToken",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserCastTest.ParseCastWithInvalidSyntaxOrArguments_ReturnsParserError",
+          "method": "ParseCastWithInvalidSyntaxOrArguments_ReturnsParserError",
+          "source": "TestCaseSource"
+        },
+        {
+          "id": "TSqlParserCastTest.ParseCastWithUnsupportedType_ReturnsParserError",
+          "method": "ParseCastWithUnsupportedType_ReturnsParserError",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserCastTest.ParseSelectWithCastExpressions_BuildsExpectedTypeNodes",
+          "method": "ParseSelectWithCastExpressions_BuildsExpectedTypeNodes",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/SqlParser/TSqlParserEdgeBehaviorTest.cs",
+      "sha256": "a0ce879d6f4eb67b215c2765b3a6a20c0d585ba8649c695db751194e1d888d08",
+      "tests": [
+        {
+          "id": "TSqlParserEdgeBehaviorTest.AggregateArithmeticInSelectListRoundTrips",
+          "method": "AggregateArithmeticInSelectListRoundTrips",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserEdgeBehaviorTest.CaseWithoutAliasDoesNotTreatEndAsAlias",
+          "method": "CaseWithoutAliasDoesNotTreatEndAsAlias",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserEdgeBehaviorTest.CommentsAreIgnoredByTokenizer",
+          "method": "CommentsAreIgnoredByTokenizer",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserEdgeBehaviorTest.CrossApplyDerivedTableCanReferenceLeftTable",
+          "method": "CrossApplyDerivedTableCanReferenceLeftTable",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserEdgeBehaviorTest.CrossJoinSimpleProjectionMapsToStructuredExpr",
+          "method": "CrossJoinSimpleProjectionMapsToStructuredExpr",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserEdgeBehaviorTest.CustomDefaultSchemaIsUsedForUnqualifiedTables",
+          "method": "CustomDefaultSchemaIsUsedForUnqualifiedTables",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserEdgeBehaviorTest.DeleteWithoutFromClause_Parses",
+          "method": "DeleteWithoutFromClause_Parses",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserEdgeBehaviorTest.DerivedTableGroupByQuery_WithSingleQuotedInnerAlias_Parses",
+          "method": "DerivedTableGroupByQuery_WithSingleQuotedInnerAlias_Parses",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserEdgeBehaviorTest.EmptySqlReturnsError",
+          "method": "EmptySqlReturnsError",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserEdgeBehaviorTest.MergeWithAsAliases_MapsSuccessfully",
+          "method": "MergeWithAsAliases_MapsSuccessfully",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserEdgeBehaviorTest.MultipleStatementsReturnError",
+          "method": "MultipleStatementsReturnError",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserEdgeBehaviorTest.NullDefaultSchemaKeepsUnqualifiedTablesSchemaLess",
+          "method": "NullDefaultSchemaKeepsUnqualifiedTablesSchemaLess",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserEdgeBehaviorTest.OrderByCanUseSelectAliasInMultiTableScope",
+          "method": "OrderByCanUseSelectAliasInMultiTableScope",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserEdgeBehaviorTest.ParameterArithmeticInSelectListParsesWithoutAliasTruncation",
+          "method": "ParameterArithmeticInSelectListParsesWithoutAliasTruncation",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserEdgeBehaviorTest.SingleStatementWithTrailingSemicolonParses",
+          "method": "SingleStatementWithTrailingSemicolonParses",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserEdgeBehaviorTest.TableArtifactsAreCollectedFromMergeTargetAndSource",
+          "method": "TableArtifactsAreCollectedFromMergeTargetAndSource",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserEdgeBehaviorTest.TableArtifactsIgnoreFunctionSource",
+          "method": "TableArtifactsIgnoreFunctionSource",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserEdgeBehaviorTest.TableArtifactsIgnoreValuesSource",
+          "method": "TableArtifactsIgnoreValuesSource",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserEdgeBehaviorTest.TryFormatScriptNormalizesCteName",
+          "method": "TryFormatScriptNormalizesCteName",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserEdgeBehaviorTest.TryFormatScriptNormalizesUpdateAlias",
+          "method": "TryFormatScriptNormalizesUpdateAlias",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserEdgeBehaviorTest.UnaliasedTableReferenceKeepsNullAlias",
+          "method": "UnaliasedTableReferenceKeepsNullAlias",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserEdgeBehaviorTest.UpdateJoinOnPredicateIsPreserved",
+          "method": "UpdateJoinOnPredicateIsPreserved",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserEdgeBehaviorTest.WindowAggregateArithmeticInSelectListRoundTrips",
+          "method": "WindowAggregateArithmeticInSelectListRoundTrips",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/SqlParser/TSqlParserExistingTablesTest.cs",
+      "sha256": "cb813d22209e2914c8891df25ee8ec34156853e3bfa4b49569b20ea0dc75dd05",
+      "tests": [
+        {
+          "id": "TSqlParserExistingTablesTest.Parse_WhenExistingTablesAreNotProvided_SkipsValidationAndReturnsExpression",
+          "method": "Parse_WhenExistingTablesAreNotProvided_SkipsValidationAndReturnsExpression",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.Parse_WithExistingTables_CrossApplyBindsPhysicalColumnsAcrossCorrelatedScopes",
+          "method": "Parse_WithExistingTables_CrossApplyBindsPhysicalColumnsAcrossCorrelatedScopes",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.Parse_WithExistingTables_EmitsOwnedSqTablesAndReusesTheirColumns",
+          "method": "Parse_WithExistingTables_EmitsOwnedSqTablesAndReusesTheirColumns",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.Parse_WithExistingTables_NormalizesUnqualifiedColumnToOwnedAliasColumn",
+          "method": "Parse_WithExistingTables_NormalizesUnqualifiedColumnToOwnedAliasColumn",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.Parse_WithExistingTables_RepeatedAliasesOwnIndependentColumnSets",
+          "method": "Parse_WithExistingTables_RepeatedAliasesOwnIndependentColumnSets",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.Parse_WithExistingTables_WhenParsedTableIsMissing_ThrowsSqExpressTSqlParserException",
+          "method": "Parse_WithExistingTables_WhenParsedTableIsMissing_ThrowsSqExpressTSqlParserException",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.Parse_WithExistingTables_WhenParserFails_ThrowsSqExpressTSqlParserException",
+          "method": "Parse_WithExistingTables_WhenParserFails_ThrowsSqExpressTSqlParserException",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.Parse_WithoutExistingTables_KeepsNeutralNodes",
+          "method": "Parse_WithoutExistingTables_KeepsNeutralNodes",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.TryParse_WithExistingTables_WhenArgumentIsNull_SkipsValidationAndReturnsTrue",
+          "method": "TryParse_WithExistingTables_WhenArgumentIsNull_SkipsValidationAndReturnsTrue",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.TryParse_WithExistingTables_WhenColumnNullabilityDiffers_StillReturnsTrue",
+          "method": "TryParse_WithExistingTables_WhenColumnNullabilityDiffers_StillReturnsTrue",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.TryParse_WithExistingTables_WhenColumnTypeDiffers_StillReturnsTrue",
+          "method": "TryParse_WithExistingTables_WhenColumnTypeDiffers_StillReturnsTrue",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.TryParse_WithExistingTables_WhenCustomDefaultSchemaMatchesUnqualifiedTable_ReturnsTrue",
+          "method": "TryParse_WithExistingTables_WhenCustomDefaultSchemaMatchesUnqualifiedTable_ReturnsTrue",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.TryParse_WithExistingTables_WhenDefaultSchemaIsNull_MatchesSchemaLessTable",
+          "method": "TryParse_WithExistingTables_WhenDefaultSchemaIsNull_MatchesSchemaLessTable",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.TryParse_WithExistingTables_WhenExactMatch_ReturnsTrue",
+          "method": "TryParse_WithExistingTables_WhenExactMatch_ReturnsTrue",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.TryParse_WithExistingTables_WhenExpectedHasMoreColumns_StillReturnsTrue",
+          "method": "TryParse_WithExistingTables_WhenExpectedHasMoreColumns_StillReturnsTrue",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.TryParse_WithExistingTables_WhenIndexAndMetaDiffer_StillReturnsTrue",
+          "method": "TryParse_WithExistingTables_WhenIndexAndMetaDiffer_StillReturnsTrue",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.TryParse_WithExistingTables_WhenNamesDifferOnlyByCase_ReturnsMismatchError",
+          "method": "TryParse_WithExistingTables_WhenNamesDifferOnlyByCase_ReturnsMismatchError",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.TryParse_WithExistingTables_WhenParserFails_ReturnsParseError",
+          "method": "TryParse_WithExistingTables_WhenParserFails_ReturnsParseError",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.TryParse_WithExistingTables_WhenProvidedTablesContainExtraEntries_StillReturnsTrue",
+          "method": "TryParse_WithExistingTables_WhenProvidedTablesContainExtraEntries_StillReturnsTrue",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.TryParse_WithExistingTables_WhenSchemaMatchesNonDbo_ReturnsTrue",
+          "method": "TryParse_WithExistingTables_WhenSchemaMatchesNonDbo_ReturnsTrue",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.TryParse_WithExistingTables_WhenSimpleUpdateWithoutFrom_UsesUpdateTargetTableForValidation",
+          "method": "TryParse_WithExistingTables_WhenSimpleUpdateWithoutFrom_UsesUpdateTargetTableForValidation",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.TryParse_WithExistingTables_WhenSqlHasNoTablesAndExpectedIsEmpty_ReturnsTrue",
+          "method": "TryParse_WithExistingTables_WhenSqlHasNoTablesAndExpectedIsEmpty_ReturnsTrue",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.TryParse_WithExistingTables_WhenSqlHasNoTablesButExpectedNotEmpty_ReturnsTrue",
+          "method": "TryParse_WithExistingTables_WhenSqlHasNoTablesButExpectedNotEmpty_ReturnsTrue",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.TryParse_WithExistingTables_WhenUnexpectedColumnParsed_ReturnsMismatchError",
+          "method": "TryParse_WithExistingTables_WhenUnexpectedColumnParsed_ReturnsMismatchError",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.TryParse_WithExistingTables_WhenUnexpectedTableParsed_ReturnsMismatchError",
+          "method": "TryParse_WithExistingTables_WhenUnexpectedTableParsed_ReturnsMismatchError",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.TryParse_WithExistingTables_WhenUnqualifiedProjectionColumnsResolveUniquelyInJoin_ReturnsTrue",
+          "method": "TryParse_WithExistingTables_WhenUnqualifiedProjectionColumnsResolveUniquelyInJoin_ReturnsTrue",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.TryParse_WithExistingTables_WhenWildcardQueryReferencesKnownColumn_ReturnsTrue",
+          "method": "TryParse_WithExistingTables_WhenWildcardQueryReferencesKnownColumn_ReturnsTrue",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserExistingTablesTest.TryParse_WithExistingTables_WhenWildcardQueryReferencesUnknownColumn_ReturnsMismatchError",
+          "method": "TryParse_WithExistingTables_WhenWildcardQueryReferencesUnknownColumn_ReturnsMismatchError",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/SqlParser/TSqlParserInvalidSyntaxAndInjectionTest.cs",
+      "sha256": "256f71398abba7a52fe8ebaf14f36aa824cbcfc339e728b172ca2648479668cd",
+      "tests": [
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.AggregateQueryWithoutGroupByRejectsBareColumn",
+          "method": "AggregateQueryWithoutGroupByRejectsBareColumn",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.AllWithEmptyOperand",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.AllWithIncompleteSubquery",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.AllWithInvalidValuesOperand",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.AllWithoutOperand",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.AllWithValidSubqueryUnsupported",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.AnyWithIncompleteSubquery",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.AnyWithInvalidValuesOperand",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.AnyWithValidSubqueryUnsupported",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.CoalesceSelectTrailingComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.CoalesceTrailingComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.ConvertMissingSecondArgument",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.ConvertTrailingComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.CrossApplyNamedTable",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.CrossApplyValuesDoubleComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.CrossApplyValuesTrailingComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.CrossApplyWithoutRightSource_NoAlias",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.CrossJoinWithOn",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.CrossJoinWithoutRightSource",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.CrossJoinWithoutRightSource_NoAlias",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.DanglingOperator",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.DeleteWhereInListTrailingComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.DeleteWithAsAliasTarget",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.DeleteWithAsBracketAliasTarget",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.DuplicateImplicitTableNameIsRejected",
+          "method": "DuplicateImplicitTableNameIsRejected",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.DuplicateSelectAliasIsRejected",
+          "method": "DuplicateSelectAliasIsRejected",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.DuplicateTableAliasIsRejected",
+          "method": "DuplicateTableAliasIsRejected",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.EmptyBracketProjectionAlias",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.EmptyHavingClause",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.ExistsWithEmptyOperand",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.FromDanglingAsAlias",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.FromDoubleComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.FromSeparatedDoubleComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.FromWithoutSource",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.FullJoinWithoutOn",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.FunctionCallTrailingComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.GroupByCannotReferenceSelectAlias",
+          "method": "GroupByCannotReferenceSelectAlias",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.GroupByRejectsNonGroupedProjectedColumn",
+          "method": "GroupByRejectsNonGroupedProjectedColumn",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.GroupByTrailingComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.GroupByWithoutItems",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.InjectionPayloadWithSecondStatementIsRejected",
+          "method": "InjectionPayloadWithSecondStatementIsRejected",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.InListTrailingCommaWithAnd",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.InListTrailingCommaWithCase",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.InListTrailingCommaWithOr",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.InListTrailingCommaWithOrderBy",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.InnerJoinWithoutOn",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.InsertColumnListTrailingComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.InsertSelectColumnCountMismatch",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.InsertTargetMissingParenthesizedColumnList",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.InsertValuesTrailingComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.InvalidSetOperationSyntaxIsRejected#1",
+          "method": "InvalidSetOperationSyntaxIsRejected",
+          "source": "TestCase"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.InvalidSetOperationSyntaxIsRejected#2",
+          "method": "InvalidSetOperationSyntaxIsRejected",
+          "source": "TestCase"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.InvalidSetOperationSyntaxIsRejected#3",
+          "method": "InvalidSetOperationSyntaxIsRejected",
+          "source": "TestCase"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.InvalidSetOperationSyntaxIsRejected#4",
+          "method": "InvalidSetOperationSyntaxIsRejected",
+          "source": "TestCase"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.InvalidSetOperationSyntaxIsRejected#5",
+          "method": "InvalidSetOperationSyntaxIsRejected",
+          "source": "TestCase"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.InvalidSetOperationSyntaxIsRejected#6",
+          "method": "InvalidSetOperationSyntaxIsRejected",
+          "source": "TestCase"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.InvalidStartKeyword",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.InvalidSyntaxReturnsError",
+          "method": "InvalidSyntaxReturnsError",
+          "source": "TestCaseSource"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.IsNullConvertTrailingComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.IsNullTrailingComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.JoinKeywordIsNotConsumedAsAlias",
+          "method": "JoinKeywordIsNotConsumedAsAlias",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.JoinWhereInListTrailingComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.LeftJoinWithoutOn",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.LeftTrailingComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.MergeWithoutOn",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.MissingCteNameAfterComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.MissingSelectList",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.NonApplyDerivedTableCannotReferenceOuterAlias",
+          "method": "NonApplyDerivedTableCannotReferenceOuterAlias",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.NullIfInvalidArity",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.OffsetFetchMissingFetchValue",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.OffsetMissingRowKeyword",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.OffsetWithoutOrderBy",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.OnWithoutJoin",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.OrderByBareTableAliasIsRejected",
+          "method": "OrderByBareTableAliasIsRejected",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.OrderByTrailingComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.OrderByWithoutItems",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.OrderMissingBy",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.OrderMissingByAfterTop",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.OuterApplyNamedTable",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.OuterApplyValuesDoubleComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.OuterApplyValuesTrailingComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.OuterApplyWithoutRightSource_NoAlias",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.PowerTrailingComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.ReplaceInvalidArity",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.ReplicateInvalidArity",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.RightJoinWithoutOn",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.SelectAllWithoutProjection",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.SelectDoubleComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.SemicolonInsideEscapedStringLiteralDoesNotTriggerMultiStatementCheck",
+          "method": "SemicolonInsideEscapedStringLiteralDoesNotTriggerMultiStatementCheck",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.SomeWithEmptyOperand",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.SomeWithIncompleteSubquery",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.SomeWithInvalidValuesOperand",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.SomeWithoutOperand",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.SomeWithValidSubqueryUnsupported",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.SumNoArguments",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.TopWithTiesWithoutProjection",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.TryConvertTrailingComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.UnbalancedParentheses",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.UndefinedOrderByAliasIsRejected",
+          "method": "UndefinedOrderByAliasIsRejected",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.UnqualifiedJoinPredicateColumnsAreRejectedAsAmbiguous",
+          "method": "UnqualifiedJoinPredicateColumnsAreRejectedAsAmbiguous",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.UnterminatedBlockCommentIsRejected",
+          "method": "UnterminatedBlockCommentIsRejected",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.UnterminatedBracketIdentifierDoesNotSwallowRestOfStatement",
+          "method": "UnterminatedBracketIdentifierDoesNotSwallowRestOfStatement",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.UnterminatedBracketIdentifierIsRejected",
+          "method": "UnterminatedBracketIdentifierIsRejected",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.UnterminatedStringLiteralIsRejected",
+          "method": "UnterminatedStringLiteralIsRejected",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.UpdateParenthesizedAssignmentTarget",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.UpdateWhereInListTrailingComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.UpdateWithoutSet",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.ValuesTableDoubleComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.ValuesTableTrailingComma",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserInvalidSyntaxAndInjectionTest.WildcardCannotHaveAlias",
+          "method": null,
+          "source": "SetName"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/SqlParser/TSqlParserJsonTest.cs",
+      "sha256": "873b196c04cf826324313fd2095dd68e465723725b659a415075bbfa98ce2f93",
+      "tests": [
+        {
+          "id": "TSqlParserJsonTest.BareOpenJson_IsRejected",
+          "method": "BareOpenJson_IsRejected",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserJsonTest.ForJsonPath_MapsDottedAliasesAndTerminalQuery",
+          "method": "ForJsonPath_MapsDottedAliasesAndTerminalQuery",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserJsonTest.ForJsonPath_MapsPortableOptions",
+          "method": "ForJsonPath_MapsPortableOptions",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserJsonTest.JsonConstruction_MapsToPortableNodes",
+          "method": "JsonConstruction_MapsToPortableNodes",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserJsonTest.JsonModify_Append_IsRejected",
+          "method": "JsonModify_Append_IsRejected",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserJsonTest.JsonQuery_LiteralPath_MapsToPortableNode",
+          "method": "JsonQuery_LiteralPath_MapsToPortableNode",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserJsonTest.JsonValue_DynamicPath_IsRejected",
+          "method": "JsonValue_DynamicPath_IsRejected",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserJsonTest.JsonValue_LiteralPath_MapsToPortableNode",
+          "method": "JsonValue_LiteralPath_MapsToPortableNode",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserJsonTest.OpenJsonWith_DefaultRootPath_IsSupported",
+          "method": "OpenJsonWith_DefaultRootPath_IsSupported",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserJsonTest.OpenJsonWith_MapsTypedAndFragmentColumns",
+          "method": "OpenJsonWith_MapsTypedAndFragmentColumns",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/SqlParser/TSqlParserParameterTest.cs",
+      "sha256": "a205c928a1d55e8bd3851b33670a486715a812fc23f80cc7327838ccdab01cbc",
+      "tests": [
+        {
+          "id": "TSqlParserParameterTest.DoubleAtVariablesArePreservedByFormatter",
+          "method": "DoubleAtVariablesArePreservedByFormatter",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserParameterTest.ExtractParameters#1",
+          "method": "ExtractParameters",
+          "source": "TestCase"
+        },
+        {
+          "id": "TSqlParserParameterTest.ExtractParameters#2",
+          "method": "ExtractParameters",
+          "source": "TestCase"
+        },
+        {
+          "id": "TSqlParserParameterTest.NamedParametersAreMappedToSqExpr",
+          "method": "NamedParametersAreMappedToSqExpr",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserParameterTest.NamedParametersArePreservedByFormatter",
+          "method": "NamedParametersArePreservedByFormatter",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserParameterTest.ParameterMarkersInsideStringLiteralArePreservedByFormatter",
+          "method": "ParameterMarkersInsideStringLiteralArePreservedByFormatter",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/SqlParser/TSqlParserPortableFunctionTest.cs",
+      "sha256": "4e8feb012a3bca72cc292d7cb69fdf52ba988325c7af7820ae106dbbeb70acaf",
+      "tests": [
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseCurrentTimestamp_InMultiTableScope_MapsToKnownNode",
+          "method": "ParseCurrentTimestamp_InMultiTableScope_MapsToKnownNode",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseGroupByFunctionCall_MapsSuccessfully",
+          "method": "ParseGroupByFunctionCall_MapsSuccessfully",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseGroupByFunctionCall_WhenSelectExpressionDiffers_FailsValidation",
+          "method": "ParseGroupByFunctionCall_WhenSelectExpressionDiffers_FailsValidation",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseGroupedConcatenationOfGroupedColumns_MapsSuccessfully",
+          "method": "ParseGroupedConcatenationOfGroupedColumns_MapsSuccessfully",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseGroupedFormatFunctionAndOrderByAlias_MapsSuccessfully",
+          "method": "ParseGroupedFormatFunctionAndOrderByAlias_MapsSuccessfully",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseGroupedFormatFunctionAndOrderByAlias_UnbracketedMultipartColumn_MapsSuccessfully",
+          "method": "ParseGroupedFormatFunctionAndOrderByAlias_UnbracketedMultipartColumn_MapsSuccessfully",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseIifFunction_MapsSuccessfully",
+          "method": "ParseIifFunction_MapsSuccessfully",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseKnownDateFunctions_InMultiTableScope_MapsToKnownNodes",
+          "method": "ParseKnownDateFunctions_InMultiTableScope_MapsToKnownNodes",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseKnownDateFunctions_MapsToKnownNodes_AndExportsToPgSql",
+          "method": "ParseKnownDateFunctions_MapsToKnownNodes_AndExportsToPgSql",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseKnownNullFunctions_MapsToKnownNodes_AndExportsToPgSql",
+          "method": "ParseKnownNullFunctions_MapsToKnownNodes_AndExportsToPgSql",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseNotLikePredicate_MapsSuccessfully",
+          "method": "ParseNotLikePredicate_MapsSuccessfully",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseOrderByAggregateExpressionInGroupedQuery_MapsSuccessfully",
+          "method": "ParseOrderByAggregateExpressionInGroupedQuery_MapsSuccessfully",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParsePortableDatePartFunctions_MapsToPortableNodes_AndExportsToPgSql",
+          "method": "ParsePortableDatePartFunctions_MapsToPortableNodes_AndExportsToPgSql",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParsePortableStringFunctions_MapsToPortableNodes_AndExportsToPgSql",
+          "method": "ParsePortableStringFunctions_MapsToPortableNodes_AndExportsToPgSql",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParsePromotedPortableScalarFunctions_MapsToPortableNodes_AndExportsToPgSql",
+          "method": "ParsePromotedPortableScalarFunctions_MapsToPortableNodes_AndExportsToPgSql",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseStringAgg_InvalidFormsAreRejected#1",
+          "method": "ParseStringAgg_InvalidFormsAreRejected",
+          "source": "TestCase"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseStringAgg_InvalidFormsAreRejected#2",
+          "method": "ParseStringAgg_InvalidFormsAreRejected",
+          "source": "TestCase"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseStringAgg_InvalidFormsAreRejected#3",
+          "method": "ParseStringAgg_InvalidFormsAreRejected",
+          "source": "TestCase"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseStringAgg_InvalidFormsAreRejected#4",
+          "method": "ParseStringAgg_InvalidFormsAreRejected",
+          "source": "TestCase"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseStringAgg_InvalidFormsAreRejected#5",
+          "method": "ParseStringAgg_InvalidFormsAreRejected",
+          "source": "TestCase"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseStringAgg_InvalidFormsAreRejected#6",
+          "method": "ParseStringAgg_InvalidFormsAreRejected",
+          "source": "TestCase"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseStringAgg_MapsKnownAggregate_WithAliasAndOrdering",
+          "method": "ParseStringAgg_MapsKnownAggregate_WithAliasAndOrdering",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseStringAgg_WithoutWithinGroup_PreservesSelectAlias",
+          "method": "ParseStringAgg_WithoutWithinGroup_PreservesSelectAlias",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseUnknownScalarFunctions_MapToExprScalarFunction#1",
+          "method": "ParseUnknownScalarFunctions_MapToExprScalarFunction",
+          "source": "TestCase"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseUnknownScalarFunctions_MapToExprScalarFunction#10",
+          "method": "ParseUnknownScalarFunctions_MapToExprScalarFunction",
+          "source": "TestCase"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseUnknownScalarFunctions_MapToExprScalarFunction#2",
+          "method": "ParseUnknownScalarFunctions_MapToExprScalarFunction",
+          "source": "TestCase"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseUnknownScalarFunctions_MapToExprScalarFunction#3",
+          "method": "ParseUnknownScalarFunctions_MapToExprScalarFunction",
+          "source": "TestCase"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseUnknownScalarFunctions_MapToExprScalarFunction#4",
+          "method": "ParseUnknownScalarFunctions_MapToExprScalarFunction",
+          "source": "TestCase"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseUnknownScalarFunctions_MapToExprScalarFunction#5",
+          "method": "ParseUnknownScalarFunctions_MapToExprScalarFunction",
+          "source": "TestCase"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseUnknownScalarFunctions_MapToExprScalarFunction#6",
+          "method": "ParseUnknownScalarFunctions_MapToExprScalarFunction",
+          "source": "TestCase"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseUnknownScalarFunctions_MapToExprScalarFunction#7",
+          "method": "ParseUnknownScalarFunctions_MapToExprScalarFunction",
+          "source": "TestCase"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseUnknownScalarFunctions_MapToExprScalarFunction#8",
+          "method": "ParseUnknownScalarFunctions_MapToExprScalarFunction",
+          "source": "TestCase"
+        },
+        {
+          "id": "TSqlParserPortableFunctionTest.ParseUnknownScalarFunctions_MapToExprScalarFunction#9",
+          "method": "ParseUnknownScalarFunctions_MapToExprScalarFunction",
+          "source": "TestCase"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/SqlParser/TSqlParserSamplesTest.cs",
+      "sha256": "34e8227f63a97e139b14816df9bdf2ee8d2864a8618a64198326591418c11603",
+      "tests": [
+        {
+          "id": "TSqlParserSamplesTest.ExportToPgSqlSamples",
+          "method": "ExportToPgSqlSamples",
+          "source": "TestCaseSource"
+        },
+        {
+          "id": "TSqlParserSamplesTest.RoundTripSamples",
+          "method": "RoundTripSamples",
+          "source": "TestCaseSource"
+        },
+        {
+          "id": "TSqlParserSamplesTest.StructuredMappingSamples",
+          "method": "StructuredMappingSamples",
+          "source": "TestCaseSource"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/SqlParser/TSqlParserSimpleObviousCasesTest.cs",
+      "sha256": "6733341875bd820c40deba8c49466481dcf3ac734a0273add88d1ea91c47d2fb",
+      "tests": [
+        {
+          "id": "TSqlParserSimpleObviousCasesTest.SimpleObviousCases_ParseAndRoundTrip",
+          "method": "SimpleObviousCases_ParseAndRoundTrip",
+          "source": "TestCaseSource"
+        },
+        {
+          "id": "TSqlParserSimpleObviousCasesTest.SimpleObviousCases_RejectMalformedSql",
+          "method": "SimpleObviousCases_RejectMalformedSql",
+          "source": "TestCaseSource"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/SqlParser/TSqlParserTableExtractionTest.cs",
+      "sha256": "d02adb53a819c20f545679f0eabef688205e858b88e3f69b9dacdf7169568d56",
+      "tests": [
+        {
+          "id": "TSqlParserTableExtractionTest.ExtractTables_CteAndSubQuery_InfersTypesAndSkipsCtePseudoTable",
+          "method": "ExtractTables_CteAndSubQuery_InfersTypesAndSkipsCtePseudoTable",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserTableExtractionTest.ExtractTables_Delete_DetectsExistsSubquerySource",
+          "method": "ExtractTables_Delete_DetectsExistsSubquerySource",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserTableExtractionTest.ExtractTables_Merge_DetectsTargetAndSourceWithTypes",
+          "method": "ExtractTables_Merge_DetectsTargetAndSourceWithTypes",
+          "source": "Test"
+        },
+        {
+          "id": "TSqlParserTableExtractionTest.ExtractTables_Update_DetectsJoinedTablesAndTypeHints",
+          "method": "ExtractTables_Update_DetectsJoinedTablesAndTypeHints",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/SqlParser/TSqlParserUnicodeLiteralTest.cs",
+      "sha256": "f91628e2a232acf48b566491b62bda03a3a328bd9865a6e70604a35c8a3336ad",
+      "tests": [
+        {
+          "id": "TSqlParserUnicodeLiteralTest.UnicodePrefixedStringLiteralParses",
+          "method": "UnicodePrefixedStringLiteralParses",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/SqlParser/TSqlParserUnsupportedFeatureTest.cs",
+      "sha256": "d05edb758f2c75629994b4341c6fd76a276399639d65efc430debede5c13c5cc",
+      "tests": [
+        {
+          "id": "TSqlParserUnsupportedFeatureTest.Unsupported_Delete_OutputInto",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserUnsupportedFeatureTest.Unsupported_Merge_OutputInto",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserUnsupportedFeatureTest.Unsupported_Select_Having",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserUnsupportedFeatureTest.Unsupported_Select_OptionHint",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserUnsupportedFeatureTest.Unsupported_Select_Pivot",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserUnsupportedFeatureTest.Unsupported_Update_OutputInto",
+          "method": null,
+          "source": "SetName"
+        },
+        {
+          "id": "TSqlParserUnsupportedFeatureTest.UnsupportedFeaturesReturnErrors",
+          "method": "UnsupportedFeaturesReturnErrors",
+          "source": "TestCaseSource"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/Syntax/ArithmeticTest.cs",
+      "sha256": "04cceb4acf516241842f943a7f6568e69dcb266c0915c689bae0560bb4518ec9",
+      "tests": [
+        {
+          "id": "ArithmeticTest.Bitwise",
+          "method": "Bitwise",
+          "source": "Test"
+        },
+        {
+          "id": "ArithmeticTest.TestNum",
+          "method": "TestNum",
+          "source": "Test"
+        },
+        {
+          "id": "ArithmeticTest.TestSpace",
+          "method": "TestSpace",
+          "source": "Test"
+        },
+        {
+          "id": "ArithmeticTest.TestString",
+          "method": "TestString",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/Syntax/AstReferenceGenerationTest.cs",
+      "sha256": "9493a0feb332a6d9e9c99d843eb73d0e5ff06b0725f07837929c547147efbdae",
+      "tests": [
+        {
+          "id": "AstReferenceGenerationTest.BuildDocumentationModel_WhenUsingCurrentSyntax_FindsAbstractBases",
+          "method": "BuildDocumentationModel_WhenUsingCurrentSyntax_FindsAbstractBases",
+          "source": "Test"
+        },
+        {
+          "id": "AstReferenceGenerationTest.GenerateAstReferenceMarkdown_WhenUsingCurrentSyntax_ProducesHierarchyAndLinks",
+          "method": "GenerateAstReferenceMarkdown_WhenUsingCurrentSyntax_ProducesHierarchyAndLinks",
+          "source": "Test"
+        },
+        {
+          "id": "AstReferenceGenerationTest.ReplaceGeneratedRegion_WhenUsingMarkdownMarkers_PreservesWrapperText",
+          "method": "ReplaceGeneratedRegion_WhenUsingMarkdownMarkers_PreservesWrapperText",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/Syntax/Boolean/BooleanExpressionsTest.cs",
+      "sha256": "06e5c9d057244db0aee0d51208d8933945b467a856d8b6418170cab452694ade",
+      "tests": [
+        {
+          "id": "BooleanExpressionsTest.BasicTest",
+          "method": "BasicTest",
+          "source": "Test"
+        },
+        {
+          "id": "BooleanExpressionsTest.NotTest_Predicate",
+          "method": "NotTest_Predicate",
+          "source": "Test"
+        },
+        {
+          "id": "BooleanExpressionsTest.TestNull",
+          "method": "TestNull",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/Syntax/CustomColumnTypePreservationTest.cs",
+      "sha256": "f3d620e60af556fcd63a14dccf7ab663ce5232d6b005713900ba93b5b5cd98f0",
+      "tests": [
+        {
+          "id": "CustomColumnTypePreservationTest.AliasedCasts_PreserveDetailedTypesInTempTableMaterialization",
+          "method": "AliasedCasts_PreserveDetailedTypesInTempTableMaterialization",
+          "source": "Test"
+        },
+        {
+          "id": "CustomColumnTypePreservationTest.AliasedLiteral_ProducesCustomColumnWithSqlTypeAndNullability",
+          "method": "AliasedLiteral_ProducesCustomColumnWithSqlTypeAndNullability",
+          "source": "Test"
+        },
+        {
+          "id": "CustomColumnTypePreservationTest.ToCustomColumn_PreservesMatchingKindsAndDetailedTypes",
+          "method": "ToCustomColumn_PreservesMatchingKindsAndDetailedTypes",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/Syntax/ExprSelectingToColumnInfoTest.cs",
+      "sha256": "6b48227d61a9dfdef370b5efddb093d86c12138957a5159fff5e1e9bc9b25a5a",
+      "tests": [
+        {
+          "id": "ExprSelectingToColumnInfoTest.AliasedCast_ProducesNullableTypedCustomColumn",
+          "method": "AliasedCast_ProducesNullableTypedCustomColumn",
+          "source": "Test"
+        },
+        {
+          "id": "ExprSelectingToColumnInfoTest.AliasedLiteral_ProducesTypedCustomColumn",
+          "method": "AliasedLiteral_ProducesTypedCustomColumn",
+          "source": "Test"
+        },
+        {
+          "id": "ExprSelectingToColumnInfoTest.AliasedXmlCast_ProducesStringCustomColumn",
+          "method": "AliasedXmlCast_ProducesStringCustomColumn",
+          "source": "Test"
+        },
+        {
+          "id": "ExprSelectingToColumnInfoTest.StringAggAsValue_ProducesNullableUnknownLengthStringColumn",
+          "method": "StringAggAsValue_ProducesNullableUnknownLengthStringColumn",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/Syntax/Meta/EqualityTest.cs",
+      "sha256": "752a2d9f5fc5af9e6738041b78b1c9f96814f813df9b78b8c1e0539db57dc77b",
+      "tests": [
+        {
+          "id": "EqualityTest.ColumnName_CaseInsensitive",
+          "method": "ColumnName_CaseInsensitive",
+          "source": "Test"
+        },
+        {
+          "id": "EqualityTest.ColumnName_CaseSensitive",
+          "method": "ColumnName_CaseSensitive",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/Syntax/Meta/ExprTest.cs",
+      "sha256": "f35a1e6bd41b6ba097a36502196a94d67afde259bb0b6f60cf74c187f9c08925",
+      "tests": [
+        {
+          "id": "ExprTest.ExprDeleteOutput_GetOutputColumnNames_ReturnsOutputAliases",
+          "method": "ExprDeleteOutput_GetOutputColumnNames_ReturnsOutputAliases",
+          "source": "Test"
+        },
+        {
+          "id": "ExprTest.ExprInsertOutput_GetOutputColumnNames_ReturnsOutputAliases",
+          "method": "ExprInsertOutput_GetOutputColumnNames_ReturnsOutputAliases",
+          "source": "Test"
+        },
+        {
+          "id": "ExprTest.ExprMergeOutput_GetOutputColumnNames_ReturnsNullForUnnamedAction",
+          "method": "ExprMergeOutput_GetOutputColumnNames_ReturnsNullForUnnamedAction",
+          "source": "Test"
+        },
+        {
+          "id": "ExprTest.ExprMergeOutput_GetOutputColumnNames_ReturnsOutputNames",
+          "method": "ExprMergeOutput_GetOutputColumnNames_ReturnsOutputNames",
+          "source": "Test"
+        },
+        {
+          "id": "ExprTest.ExprQueryExpression_GetOutputColumnNames_UsesLeftSideProjection",
+          "method": "ExprQueryExpression_GetOutputColumnNames_UsesLeftSideProjection",
+          "source": "Test"
+        },
+        {
+          "id": "ExprTest.ExprQueryList_GetOutputColumnNames_DelegatesToContainedQuery",
+          "method": "ExprQueryList_GetOutputColumnNames_DelegatesToContainedQuery",
+          "source": "Test"
+        },
+        {
+          "id": "ExprTest.ExprQueryList_GetOutputColumnNames_DelegatesWhenQueryIsNotFirst",
+          "method": "ExprQueryList_GetOutputColumnNames_DelegatesWhenQueryIsNotFirst",
+          "source": "Test"
+        },
+        {
+          "id": "ExprTest.ExprQueryList_GetOutputColumnNames_WhenNoQuery_ReturnsEmpty",
+          "method": "ExprQueryList_GetOutputColumnNames_WhenNoQuery_ReturnsEmpty",
+          "source": "Test"
+        },
+        {
+          "id": "ExprTest.ExprQuerySpecification_GetOutputColumnNames_ReturnsNullForUnnamedItems",
+          "method": "ExprQuerySpecification_GetOutputColumnNames_ReturnsNullForUnnamedItems",
+          "source": "Test"
+        },
+        {
+          "id": "ExprTest.ExprQuerySpecification_GetOutputColumnNames_ReturnsProjectedNames",
+          "method": "ExprQuerySpecification_GetOutputColumnNames_ReturnsProjectedNames",
+          "source": "Test"
+        },
+        {
+          "id": "ExprTest.ExprQuerySpecification_GetOutputColumnNames_SupportsMixedNamedAndUnnamedItems",
+          "method": "ExprQuerySpecification_GetOutputColumnNames_SupportsMixedNamedAndUnnamedItems",
+          "source": "Test"
+        },
+        {
+          "id": "ExprTest.ExprSelect_GetOutputColumnNames_DelegatesToSubQuery",
+          "method": "ExprSelect_GetOutputColumnNames_DelegatesToSubQuery",
+          "source": "Test"
+        },
+        {
+          "id": "ExprTest.ExprSelectOffsetFetch_GetOutputColumnNames_DelegatesToSubQuery",
+          "method": "ExprSelectOffsetFetch_GetOutputColumnNames_DelegatesToSubQuery",
+          "source": "Test"
+        },
+        {
+          "id": "ExprTest.ExprTable_Test",
+          "method": "ExprTable_Test",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/Syntax/ModificationTest.cs",
+      "sha256": "73b8259ec0eb6bc394aeb219e3c41fd0e8fc49103f88d6d0acfe0f09602b512e",
+      "tests": [
+        {
+          "id": "ModificationTest.AddOffsetFetch_Basic",
+          "method": "AddOffsetFetch_Basic",
+          "source": "Test"
+        },
+        {
+          "id": "ModificationTest.AddOffsetFetch_OffsetOnly",
+          "method": "AddOffsetFetch_OffsetOnly",
+          "source": "Test"
+        },
+        {
+          "id": "ModificationTest.AddOrderBy_Basic",
+          "method": "AddOrderBy_Basic",
+          "source": "Test"
+        },
+        {
+          "id": "ModificationTest.WithCrossJoinTest",
+          "method": "WithCrossJoinTest",
+          "source": "Test"
+        },
+        {
+          "id": "ModificationTest.WithFullJoinTest",
+          "method": "WithFullJoinTest",
+          "source": "Test"
+        },
+        {
+          "id": "ModificationTest.WithInnerJoinTest",
+          "method": "WithInnerJoinTest",
+          "source": "Test"
+        },
+        {
+          "id": "ModificationTest.WithJoin_Error",
+          "method": "WithJoin_Error",
+          "source": "Test"
+        },
+        {
+          "id": "ModificationTest.WithLeftJoinTest",
+          "method": "WithLeftJoinTest",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/Syntax/PlainItem.cs",
+      "sha256": "efea215b0db37a3b73e8a6be24763a0da765996b3e9112900646a5f0925ad0e5",
+      "tests": []
+    },
+    {
+      "path": "Test/SqExpress.Test/Syntax/SyntaxTreeOperationsTest.cs",
+      "sha256": "6ef4c748686eb0a85db4cca6457afc7002fbb2023f214583ef8cfc1077259dde",
+      "tests": [
+        {
+          "id": "SyntaxTreeOperationsTest.Descendants_Test#1",
+          "method": "Descendants_Test",
+          "source": "TestCase"
+        },
+        {
+          "id": "SyntaxTreeOperationsTest.Descendants_Test#2",
+          "method": "Descendants_Test",
+          "source": "TestCase"
+        },
+        {
+          "id": "SyntaxTreeOperationsTest.FindTest",
+          "method": "FindTest",
+          "source": "Test"
+        },
+        {
+          "id": "SyntaxTreeOperationsTest.JsonAst_TraversesModifiesAndRoundTripsEveryFormat",
+          "method": "JsonAst_TraversesModifiesAndRoundTripsEveryFormat",
+          "source": "Test"
+        },
+        {
+          "id": "SyntaxTreeOperationsTest.ModifyTest",
+          "method": "ModifyTest",
+          "source": "Test"
+        },
+        {
+          "id": "SyntaxTreeOperationsTest.NonGenericExprVisitorBasePathTest",
+          "method": "NonGenericExprVisitorBasePathTest",
+          "source": "Test"
+        },
+        {
+          "id": "SyntaxTreeOperationsTest.NonGenericExprVisitorBaseTest",
+          "method": "NonGenericExprVisitorBaseTest",
+          "source": "Test"
+        },
+        {
+          "id": "SyntaxTreeOperationsTest.StringAgg_TraversesModifiesAndRoundTripsJson",
+          "method": "StringAgg_TraversesModifiesAndRoundTripsJson",
+          "source": "Test"
+        },
+        {
+          "id": "SyntaxTreeOperationsTest.TestExportImportJson",
+          "method": "TestExportImportJson",
+          "source": "Test"
+        },
+        {
+          "id": "SyntaxTreeOperationsTest.TestExportImportPlain",
+          "method": "TestExportImportPlain",
+          "source": "Test"
+        },
+        {
+          "id": "SyntaxTreeOperationsTest.TestExportImportXml",
+          "method": "TestExportImportXml",
+          "source": "Test"
+        },
+        {
+          "id": "SyntaxTreeOperationsTest.TestImportPortableScalarFunctionJson",
+          "method": "TestImportPortableScalarFunctionJson",
+          "source": "Test"
+        },
+        {
+          "id": "SyntaxTreeOperationsTest.WalkThroughParentTest",
+          "method": "WalkThroughParentTest",
+          "source": "Test"
+        },
+        {
+          "id": "SyntaxTreeOperationsTest.WalkThroughTest",
+          "method": "WalkThroughTest",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/Syntax/TableBindingTest.cs",
+      "sha256": "4700d03812443deaa025423cfea996536b23a79bf17a68f27d45e77cc0d4a59e",
+      "tests": [
+        {
+          "id": "TableBindingTest.BindTables_AmbiguousSchemaDoesNotReplaceTable",
+          "method": "BindTables_AmbiguousSchemaDoesNotReplaceTable",
+          "source": "Test"
+        },
+        {
+          "id": "TableBindingTest.BindTables_CorrelatedSubqueryUsesOuterScope",
+          "method": "BindTables_CorrelatedSubqueryUsesOuterScope",
+          "source": "Test"
+        },
+        {
+          "id": "TableBindingTest.BindTables_IsCaseInsensitiveAndCompletesMissingSchema",
+          "method": "BindTables_IsCaseInsensitiveAndCompletesMissingSchema",
+          "source": "Test"
+        },
+        {
+          "id": "TableBindingTest.BindTables_IsIdempotentForParserBoundExpression",
+          "method": "BindTables_IsIdempotentForParserBoundExpression",
+          "source": "Test"
+        },
+        {
+          "id": "TableBindingTest.BindTables_LeavesDerivedOutputButBindsInnerPhysicalColumn",
+          "method": "BindTables_LeavesDerivedOutputButBindsInnerPhysicalColumn",
+          "source": "Test"
+        },
+        {
+          "id": "TableBindingTest.BindTables_ReconnectsJsonDeserializedTableAndColumn",
+          "method": "BindTables_ReconnectsJsonDeserializedTableAndColumn",
+          "source": "Test"
+        },
+        {
+          "id": "TableBindingTest.BindTables_RepeatedTableAliasesProduceIndependentTablesAndColumns",
+          "method": "BindTables_RepeatedTableAliasesProduceIndependentTablesAndColumns",
+          "source": "Test"
+        },
+        {
+          "id": "TableBindingTest.BindTables_ReplacesAliasedTableAndColumnWithSameOwnedObjects",
+          "method": "BindTables_ReplacesAliasedTableAndColumnWithSameOwnedObjects",
+          "source": "Test"
+        },
+        {
+          "id": "TableBindingTest.BindTables_SeverityResolverCanDowngradeEveryIssue",
+          "method": "BindTables_SeverityResolverCanDowngradeEveryIssue",
+          "source": "Test"
+        },
+        {
+          "id": "TableBindingTest.SqTableCreate_DeepClonesColumnsAndIndexes",
+          "method": "SqTableCreate_DeepClonesColumnsAndIndexes",
+          "source": "Test"
+        },
+        {
+          "id": "TableBindingTest.TryBindTables_ReturnsPartialResultAndErrors",
+          "method": "TryBindTables_ReturnsPartialResultAndErrors",
+          "source": "Test"
+        }
+      ]
+    },
+    {
+      "path": "Test/SqExpress.Test/Syntax/TableMultiplicationTest.cs",
+      "sha256": "d27774c19b5b1a6dac23e9bdc3a40a52206316a538cc7ec17da74c16532b6bf1",
+      "tests": [
+        {
+          "id": "TableMultiplicationTest.CrossJoinedTableFallsBackToWildcardWhenOneSideHasUnknownSelecting",
+          "method": "CrossJoinedTableFallsBackToWildcardWhenOneSideHasUnknownSelecting",
+          "source": "Test"
+        },
+        {
+          "id": "TableMultiplicationTest.CrossJoinTest",
+          "method": "CrossJoinTest",
+          "source": "Test"
+        },
+        {
+          "id": "TableMultiplicationTest.DerivedTableExposesRegisteredSelectingAndUnderlyingQuery",
+          "method": "DerivedTableExposesRegisteredSelectingAndUnderlyingQuery",
+          "source": "Test"
+        },
+        {
+          "id": "TableMultiplicationTest.DerivedTableTest",
+          "method": "DerivedTableTest",
+          "source": "Test"
+        },
+        {
+          "id": "TableMultiplicationTest.FullJoinTest",
+          "method": "FullJoinTest",
+          "source": "Test"
+        },
+        {
+          "id": "TableMultiplicationTest.InnerCrossJoinTest",
+          "method": "InnerCrossJoinTest",
+          "source": "Test"
+        },
+        {
+          "id": "TableMultiplicationTest.InnerJoinTest",
+          "method": "InnerJoinTest",
+          "source": "Test"
+        },
+        {
+          "id": "TableMultiplicationTest.LeftJoinTest",
+          "method": "LeftJoinTest",
+          "source": "Test"
+        }
+      ]
+    }
+  ],
+  "totals": {
+    "files": 275,
+    "tests": 505,
+    "parserTestFiles": 13,
+    "parserTests": 264
+  }
+}
