@@ -31,7 +31,7 @@ describe("typed DML builders", () => {
   });
   it("ports query-based INSERT expressions", () => {
     const table = aliasTable(defineTable({ schema: "dbo", name: "user", columns: { FirstName: column(sqlType.string()), LastName: column(sqlType.string()), Modified: column(sqlType.dateTime), Version: column(sqlType.int32) } }), "A0");
-    const source = select({ FirstName: table.FirstName, LastName: table.LastName, Modified: exprGetUtcDate, Version: add(1, 1) }).from(table).done();
+  const source = select({ FirstName: table.FirstName, LastName: table.LastName, Modified: exprGetUtcDate, Version: add(1, 1) }).from(table);
     expect(toSql(insertInto(table).from(source, "FirstName", "LastName", "Modified", "Version").ast, { dialect: "tsql" })).toBe("INSERT INTO [dbo].[user]([FirstName],[LastName],[Modified],[Version]) SELECT [A0].[FirstName] [FirstName],[A0].[LastName] [LastName],GETUTCDATE() [Modified],1+1 [Version] FROM [dbo].[user] [A0]");
   });
   it("ports PostgreSQL data identity INSERT reseeding", () => {
@@ -42,7 +42,7 @@ describe("typed DML builders", () => {
   it("ports data INSERT with extra values and OUTPUT", () => {
     const table = defineTable({ schema: "dbo", name: "user", columns: { UserId: column(sqlType.int32), FirstName: column(sqlType.string()), LastName: column(sqlType.string()), Email: column(sqlType.string()), RegDate: column(sqlType.dateTime), Version: column(sqlType.int32), Created: column(sqlType.dateTime) } });
     const data = values([["First0","Last0","user0@company.com","2020-01-02"],["First1","Last1","user1@company.com","2020-01-02"],["First2","Last2","user2@company.com","2020-01-02"]], "A0", { FirstName: column(sqlType.string()), LastName: column(sqlType.string()), Email: column(sqlType.string()), RegDate: column(sqlType.dateTime) });
-    const source = select({ FirstName: data.FirstName, LastName: data.LastName, Email: data.Email, RegDate: data.RegDate, Version: 5, Created: "2020-01-02" }).from(data).done();
+  const source = select({ FirstName: data.FirstName, LastName: data.LastName, Email: data.Email, RegDate: data.RegDate, Version: 5, Created: "2020-01-02" }).from(data);
     const statement = insertInto(table).from(source, "FirstName", "LastName", "Email", "RegDate", "Version", "Created").output(table.UserId);
     expect(toSql(statement.ast, { dialect: "tsql" })).toBe("INSERT INTO [dbo].[user]([FirstName],[LastName],[Email],[RegDate],[Version],[Created]) OUTPUT INSERTED.[UserId] SELECT [A0].[FirstName] [FirstName],[A0].[LastName] [LastName],[A0].[Email] [Email],[A0].[RegDate] [RegDate],5 [Version],'2020-01-02' [Created] FROM (VALUES ('First0','Last0','user0@company.com','2020-01-02'),('First1','Last1','user1@company.com','2020-01-02'),('First2','Last2','user2@company.com','2020-01-02'))[A0]([FirstName],[LastName],[Email],[RegDate])");
     expect(toSql(statement.ast, { dialect: "mysql", mysqlFlavor: "mariadb" })).toContain("RETURNING `UserId`"); expect(() => toSql(statement.ast, { dialect: "mysql", mysqlFlavor: "oracle" })).toThrow(/Oracle MySQL/);
@@ -51,14 +51,14 @@ describe("typed DML builders", () => {
     const target = aliasTable(defineTable({ schema: "dbo", name: "user", columns: { UserId: column(sqlType.int32), FirstName: column(sqlType.string()), LastName: column(sqlType.string()) } }), "A1");
     const data = values([["First0", "Last0"]], "A0", { FirstName: column(sqlType.string()), LastName: column(sqlType.string()) });
     const duplicate = exprQuerySpecification({ selectList: [exprInt32Literal({ value: 1 })], top: null, from: tableSource(target), where: eq(target.FirstName, data.FirstName).and(eq(target.LastName, data.LastName)), groupBy: null, distinct: false });
-    const source = exprQuerySpecification({ selectList: [columnExpression(data.FirstName), columnExpression(data.LastName)], top: null, from: data.derivedSource, where: not(exists({ ast: duplicate })), groupBy: null, distinct: false });
-    const statement = insertInto(target).from({ ast: source }, "FirstName", "LastName").output(target.UserId);
+    const source = exprQuerySpecification({ selectList: [columnExpression(data.FirstName), columnExpression(data.LastName)], top: null, from: data.$metadata.source, where: not(exists(duplicate)), groupBy: null, distinct: false });
+    const statement = insertInto(target).from(source, "FirstName", "LastName").output(target.UserId);
     expect(toSql(statement.ast, { dialect: "tsql" })).toBe("INSERT INTO [dbo].[user]([FirstName],[LastName]) OUTPUT INSERTED.[UserId] SELECT [A0].[FirstName],[A0].[LastName] FROM (VALUES ('First0','Last0'))[A0]([FirstName],[LastName]) WHERE NOT EXISTS(SELECT 1 FROM [dbo].[user] [A1] WHERE [A1].[FirstName]=[A0].[FirstName] AND [A1].[LastName]=[A0].[LastName])");
     const maria = toSql(statement.ast, { dialect: "mysql", mysqlFlavor: "mariadb" }); expect(maria).toContain("WITH CTE_Derived_Table_0(`FirstName`,`LastName`) AS(VALUES ('First0','Last0'))"); expect(maria).toContain("RETURNING `UserId`");
     expect(() => toSql(statement.ast, { dialect: "mysql", mysqlFlavor: "oracle" })).toThrow(/Oracle MySQL/);
   });
   it("builds UPDATE with an optional predicate", () => {
-    const statement = update(users).set({ Name: "Renamed" }).where(eq(users.columns.Id, 1));
+    const statement = update(users).set({ Name: "Renamed" }).where(eq(users.Id, 1));
     expect(toSql(statement.ast, { dialect: "tsql" })).toBe("UPDATE [u] SET [u].[Name]='Renamed' WHERE [u].[Id]=1");
   });
   it("ports UPDATE FROM join chains", () => {
@@ -82,7 +82,7 @@ describe("typed DML builders", () => {
     const mysql = toSql(statement.ast, { dialect: "mysql" }); expect(mysql).toMatch(/^CREATE TEMPORARY TABLE `t[\da-z]{32}`/i); expect(mysql.replace(/t[\da-z]{32}/gi, "tmpTableName")).toBe("CREATE TEMPORARY TABLE `tmpTableName`(`UserId` int,`FirstName` varchar(6) character set utf8mb4,CONSTRAINT PRIMARY KEY (`UserId`));INSERT INTO `tmpTableName`(`UserId`,`FirstName`) VALUES (1,'First0'),(2,'First1'),(3,'First2');UPDATE `user` `A0` JOIN `tmpTableName` `A1` ON `A0`.`UserId`=`A1`.`UserId` SET `A0`.`FirstName`=`A1`.`FirstName`,`A0`.`Modified`=UTC_TIMESTAMP();DROP TABLE `tmpTableName`;");
   });
   it("builds DELETE with an optional predicate", () => {
-    const statement = deleteFrom(users).where(eq(users.columns.Id, 1));
+    const statement = deleteFrom(users).where(eq(users.Id, 1));
     expect(toSql(statement.ast, { dialect: "tsql" })).toBe("DELETE [u] FROM [dbo].[Users] [u] WHERE [u].[Id]=1");
   });
   it("ports DELETE FROM joins and nullable predicates", () => {

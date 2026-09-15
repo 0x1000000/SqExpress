@@ -17,9 +17,9 @@ describe("dialect exporter slice", () => {
     expect(toSql(parseTSql("WITH A AS (SELECT 1 AS Id) SELECT a.Id FROM A a").ast, { dialect: "tsql" })).toBe("WITH [A] AS(SELECT 1 [Id])SELECT [a].[Id] FROM [A] [a]");
   });
   it("compiles parameters with dialect placeholders and exact ordered values", () => {
-    const ast = select({ value: param(9007199254740993n, "id") }).done().ast;
+    const ast = select({ value: param(9007199254740993n, "id") });
     expect(compileSql(ast, { dialect: "tsql" })).toEqual({ sql: "SELECT @id [value]", parameters: [{ name: "id", value: 9007199254740993n, type: "ExprInt64Literal" }] });
     expect(compileSql(ast, { dialect: "postgresql" }).sql).toBe('SELECT $1 "value"');
-    expect(compileSql(select({ ok: param(true) }).done().ast, { dialect: "mysql" }).parameters[0]?.value).toBe(true);
+    expect(compileSql(select({ ok: param(true) }), { dialect: "mysql" }).parameters[0]?.value).toBe(true);
   });
 });

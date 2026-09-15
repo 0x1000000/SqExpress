@@ -1,9 +1,18 @@
 export interface AstNodeBase<K extends string> { readonly kind: K; }
 export interface DecimalValue { readonly value: string; }
 export interface DecimalPrecisionScale { readonly precision: number; readonly scale: number; }
-export type GuidValue = string & { readonly __guid: unique symbol };
+declare const guidValueType: unique symbol;
+export type GuidValue = string & { readonly [guidValueType]: true };
 export interface DateTimeValue { readonly value: string; readonly kind: "unspecified" | "utc" | "local"; }
 export interface DateTimeOffsetValue { readonly value: string; }
+/** @internal Carries the immutable AST behind a fluent builder facade. */
+export const queryAstNode = Symbol.for("sqyra.queryAstNode");
+/** @internal Returns a fluent query's backing AST, or the input itself. */
+export function unwrapAstNode<T>(value: T): T {
+  if (typeof value !== "object" || value === null) return value;
+  const ast = (value as { readonly [queryAstNode]?: T })[queryAstNode];
+  return ast ?? value;
+}
 
 export function decimalValue(value: string): DecimalValue {
   if (!/^[+-]?(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value)) throw new RangeError(`Invalid exact decimal: ${value}`);

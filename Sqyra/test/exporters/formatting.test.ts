@@ -40,29 +40,29 @@ describe("SQL formatting profiles", () => {
   });
   it("ports spacious query structure and reused columns", () => {
     const base = defineTable({ schema: "dbo", name: "Users", columns: { id: column(sqlType.int32), name: column(sqlType.string()) } }); const users = aliasTable(base, "u"); const other = aliasTable(base, "u2");
-    const ast = select({ id: users.id, name: users.$name }).from(users).innerJoin(other, eq(other.id, users.id)).where(eq(users.id, 1).and(eq(users.$name, "First"))).orderBy(users.id).done().ast;
+    const ast = select({ id: users.id, name: users.name }).from(users).innerJoin(other, eq(other.id, users.id)).where(eq(users.id, 1).and(eq(users.name, "First"))).orderBy(users.id);
     expect(toSql(ast, { dialect: "tsql", formatting: SqlFormattingProfile.spacious.withOptions({ newLineStyle: "lf" }) })).toBe("SELECT\n    [u].[id] [id],\n    [u].[name] [name]\nFROM [dbo].[Users]\n    [u]\nJOIN [dbo].[Users]\n    [u2] ON\n    [u2].[id]=[u].[id]\nWHERE\n    [u].[id]=1\n    AND\n    [u].[name]='First'\nORDER BY\n    [u].[id]");
   });
   it("ports spacious INSERT, UPDATE, DELETE, and set operators", () => {
     const users = defineTable({ schema: "dbo", name: "Users", columns: { id: column(sqlType.int32), name: column(sqlType.string()) } }); const formatting = SqlFormattingProfile.spacious.withOptions({ newLineStyle: "lf" });
     expect(toSql(insertInto(users).values({ id: 1, name: "A" }, { id: 2, name: "B" }).ast, { dialect: "tsql", formatting })).toBe("INSERT INTO [dbo].[Users]([id],[name])\nVALUES\n    (1,'A'),\n    (2,'B')");
-    expect(toSql(update(users).set({ id: 1, name: "A" }).where(eq(users.id, 2)).ast, { dialect: "tsql", formatting })).toBe("UPDATE [dbo].[Users]\nSET\n    [Users].[id]=1,\n    [Users].[name]='A'\nWHERE\n    [Users].[id]=2");
-    expect(toSql(deleteFrom(users).where(eq(users.id, 2)).ast, { dialect: "tsql", formatting })).toBe("DELETE [dbo].[Users]\nWHERE\n    [Users].[id]=2");
-    expect(toSql(unionAll(select({ one: 1 }).done(), select({ one: 2 }).done()).ast, { dialect: "tsql", formatting })).toBe("SELECT\n    1 [one]\nUNION ALL\nSELECT\n    2 [one]");
+  expect(toSql(update(users).set({ id: 1, name: "A" }).where(eq(users.id, 2)).ast, { dialect: "tsql", formatting })).toBe("UPDATE [dbo].[Users]\nSET\n    [Users].[id]=1,\n    [Users].[name]='A'\nWHERE\n    [Users].[id]=2");
+  expect(toSql(deleteFrom(users).where(eq(users.id, 2)).ast, { dialect: "tsql", formatting })).toBe("DELETE [dbo].[Users]\nWHERE\n    [Users].[id]=2");
+    expect(toSql(unionAll(select({ one: 1 }), select({ one: 2 })), { dialect: "tsql", formatting })).toBe("SELECT\n    1 [one]\nUNION ALL\nSELECT\n    2 [one]");
   });
   it("ports inline, line-start, and separate-line Boolean operators", () => {
-    const users = defineTable({ schema: "dbo", name: "Users", columns: { id: column(sqlType.int32) } }); const ast = select({ one: 1 }).from(users).where(eq(users.id, 1).or(eq(users.id, 2))).done().ast;
+    const users = defineTable({ schema: "dbo", name: "Users", columns: { id: column(sqlType.int32) } }); const ast = select({ one: 1 }).from(users).where(eq(users.id, 1).or(eq(users.id, 2)));
     const expected = { "inline": "[Users].[id]=1 OR [Users].[id]=2", "line-start": "[Users].[id]=1\n    OR [Users].[id]=2", "separate-line": "[Users].[id]=1\n    OR\n    [Users].[id]=2" } as const;
     for (const placement of ["inline", "line-start", "separate-line"] as const) expect(toSql(ast, { dialect: "tsql", formatting: SqlFormattingProfile.spacious.withOptions({ newLineStyle: "lf", booleanOperatorPlacement: placement }) })).toContain(`WHERE\n    ${expected[placement]}`);
   });
   it("ports every formatting option without changing SQL tokens", () => {
     const users = aliasTable(defineTable({ schema: "dbo", name: "Users", columns: { id: column(sqlType.int32), name: column(sqlType.string()) } }), "U");
     const statements = [
-      select({ id: users.id, again: users.id, text: "a \n b" }).from(users).where(eq(users.id, 1).or(eq(users.id, 2))).groupBy(users.id).orderBy(users.id).done().ast,
-      unionAll(select({ one: 1 }).done(), select({ one: 2 }).done()).ast,
+      select({ id: users.id, again: users.id, text: "a \n b" }).from(users).where(eq(users.id, 1).or(eq(users.id, 2))).groupBy(users.id).orderBy(users.id),
+      unionAll(select({ one: 1 }), select({ one: 2 })),
       insertInto(users).values({ id: 1, name: "a" }, { id: 2, name: "b" }).ast,
-      update(users).set({ name: "x" }).where(eq(users.id, 1)).ast,
-      deleteFrom(users).where(eq(users.id, 1)).ast,
+    update(users).set({ name: "x" }).where(eq(users.id, 1)).ast,
+    deleteFrom(users).where(eq(users.id, 1)).ast,
     ];
     const patches = [{ indentationSize: 0 }, { newLineBeforeClauses: false }, { newLineBeforeJoins: false }, { newLineAroundSetOperators: false }, { multilineSubqueries: false }, { multilineBooleanParentheses: false }, { multilineCteBodies: false }, { newLineBetweenCtes: false }, { newLineBetweenStatements: false }] as const;
     for (const dialect of ["tsql", "postgresql", "mysql", "sqlite"] as const) for (const statement of statements) {
@@ -79,11 +79,11 @@ describe("SQL formatting profiles", () => {
   });
   it("ports pagination token preservation and TOP/FETCH rejection", () => {
     const users = aliasTable(defineTable({ schema: "dbo", name: "user", columns: { UserId: column(sqlType.int32) } }), "U");
-    const orderedOffset = select({ UserId: users.UserId }, { top: 7 }).from(users).orderBy(users.UserId).offsetFetch(5).done().ast;
-    const offsetFetch = select({ UserId: users.UserId }).from(users).orderBy(users.UserId).offsetFetch(5, 9).done().ast;
+    const orderedOffset = select({ UserId: users.UserId }, { top: 7 }).from(users).orderBy(users.UserId).offsetFetch(5);
+    const offsetFetch = select({ UserId: users.UserId }).from(users).orderBy(users.UserId).offsetFetch(5, 9);
     const base = exprQuerySpecification({ selectList: [columnExpression(users.UserId)], top: exprInt32Literal({ value: 7 }), from: null, where: gt(users.UserId, 0), groupBy: null, distinct: false });
     const unorderedOffset = exprSelectOffsetFetch({ selectQuery: base, orderBy: exprOrderByOffsetFetch({ orderList: [], offsetFetch: exprOffsetFetch({ offset: exprInt32Literal({ value: 5 }), fetch: null }) }) });
-    const invalid = select({ UserId: users.UserId }, { top: 7 }).from(users).orderBy(users.UserId).offsetFetch(5, 9).done().ast;
+    const invalid = select({ UserId: users.UserId }, { top: 7 }).from(users).orderBy(users.UserId).offsetFetch(5, 9);
     const dialects = [{ dialect: "tsql" }, { dialect: "postgresql" }, { dialect: "mysql", mysqlFlavor: "mariadb" }, { dialect: "mysql", mysqlFlavor: "oracle" }, { dialect: "sqlite" }] as const;
     for (const options of dialects) {
       for (const ast of [orderedOffset, unorderedOffset, offsetFetch]) { const compact = toSql(ast, options); const formatted = toSql(ast, { ...options, formatting: SqlFormattingProfile.spacious.withOptions({ newLineStyle: "lf" }) }); expect(tokens(formatted)).toBe(tokens(compact)); }
@@ -91,9 +91,9 @@ describe("SQL formatting profiles", () => {
     }
   });
   it("ports recursive and multiple CTE whitespace for every dialect", () => {
-    const first = cte("First", { Num: column(sqlType.int32) }, self => unionAll(select({ Num: 1 }).done(), select({ Num: add(self.Num, 1) }).from(self).where(lt(self.Num, 3)).done()));
-    const second = cte("Second", { Num: column(sqlType.int32) }, () => select({ Num: 2 }).done());
-    const ast = select({ First: first.Num, Second: second.Num }).from(first).crossJoin(second).done().ast;
+    const first = cte("First", { Num: column(sqlType.int32) }, self => unionAll(select({ Num: 1 }), select({ Num: add(self.Num, 1) }).from(self).where(lt(self.Num, 3))));
+    const second = cte("Second", { Num: column(sqlType.int32) }, () => select({ Num: 2 }));
+    const ast = select({ First: first.Num, Second: second.Num }).from(first).crossJoin(second);
     for (const options of [{ dialect: "tsql" }, { dialect: "postgresql" }, { dialect: "mysql", mysqlFlavor: "mariadb" }, { dialect: "mysql", mysqlFlavor: "oracle" }, { dialect: "sqlite" }] as const) {
       const compact = toSql(ast, options); const formatted = toSql(ast, { ...options, formatting: SqlFormattingProfile.spacious.withOptions({ newLineStyle: "lf" }) });
       expect(tokens(formatted)).toBe(tokens(compact)); expect(formatted).toContain("AS(\n    SELECT\n"); expect(formatted).toContain("),\n"); expect(formatted).toContain(")\nSELECT\n"); expect(formatted).not.toContain("\n\n");
@@ -107,7 +107,7 @@ describe("SQL formatting profiles", () => {
   });
   it("ports spacious formatting of only required Boolean parentheses", () => {
     const users = defineTable({ schema: "dbo", name: "user", columns: { UserId: column(sqlType.int32) } }); const filter = eq(users.UserId, 1).or(eq(users.UserId, 2)).and(eq(users.UserId, 3));
-    const ast = select({ UserId: users.UserId }).from(users).where(filter).done().ast;
+    const ast = select({ UserId: users.UserId }).from(users).where(filter);
     expect(toSql(ast, { dialect: "tsql", formatting: SqlFormattingProfile.spacious.withOptions({ newLineStyle: "lf" }) })).toBe("SELECT\n    [user].[UserId] [UserId]\nFROM [dbo].[user]\nWHERE\n    (\n        [user].[UserId]=1\n        OR\n        [user].[UserId]=2\n    )\n    AND\n    [user].[UserId]=3");
   });
   it("indents each reused subquery occurrence by its actual depth", () => {

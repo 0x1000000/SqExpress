@@ -3,8 +3,8 @@ import { aggregate, asc, call, callCustom, caseWhen, column, dateTimeValue, desc
 
 describe("function and JSON builders", () => {
   it("builds scalar, aggregate, CASE, and STRING_AGG expressions", () => {
-    const query = select({ lower: call("LOWER", "ABC"), count: aggregate("COUNT", 1), label: caseWhen([eq(1, 1), "yes"]).else("no"), joined: stringAgg("a", "|") }).done();
-    expect(toSql(query.ast, { dialect: "tsql" })).toBe("SELECT LOWER('ABC') [lower],COUNT(1) [count],CASE WHEN 1=1 THEN 'yes' ELSE 'no' END [label],STRING_AGG('a','|') [joined]");
+    const query = select({ lower: call("LOWER", "ABC"), count: aggregate("COUNT", 1), label: caseWhen([eq(1, 1), "yes"]).else("no"), joined: stringAgg("a", "|") });
+    expect(toSql(query, { dialect: "tsql" })).toBe("SELECT LOWER('ABC') [lower],COUNT(1) [count],CASE WHEN 1=1 THEN 'yes' ELSE 'no' END [label],STRING_AGG('a','|') [joined]");
   });
   it("ports aggregate and window forms", () => {
     const id = exprColumn({ source: null, columnName: exprColumnName({ name: "UserId" }) });
@@ -53,7 +53,7 @@ describe("function and JSON builders", () => {
   });
   it("ports SQLite schema elision for table functions", () => {
     const source = tableFunction("MyTableFunc", [1], "T", { value: column(sqlType.int32) }, { schema: "dbo" });
-    const query = exprQuerySpecification({ selectList: [exprInt32Literal({ value: 1 })], top: null, from: source.derivedSource, where: null, groupBy: null, distinct: false });
+    const query = exprQuerySpecification({ selectList: [exprInt32Literal({ value: 1 })], top: null, from: source.$metadata.source, where: null, groupBy: null, distinct: false });
     expect(toSql(query, { dialect: "sqlite" })).toBe('SELECT 1 FROM "MyTableFunc"(1) "T"');
     expect(source.value.sourceAlias).toBe("T");
   });
@@ -66,7 +66,7 @@ describe("function and JSON builders", () => {
   });
   it("ports explicit unsafe values", () => {
     expect(toSql(unsafeSql("'Wh' + 'at ever'"), { dialect: "tsql" })).toBe("'Wh' + 'at ever'");
-    expect(toSql(select({ value: unsafeSql("'Wh' + 'at ever'") }).done().ast, { dialect: "tsql" })).toBe("SELECT 'Wh' + 'at ever' [value]");
+    expect(toSql(select({ value: unsafeSql("'Wh' + 'at ever'") }), { dialect: "tsql" })).toBe("SELECT 'Wh' + 'at ever' [value]");
   });
   it("ports mixed-result CASE expressions", () => {
     const name = exprColumn({ source: null, columnName: exprColumnName({ name: "FirstName" }) });
@@ -74,11 +74,11 @@ describe("function and JSON builders", () => {
     expect(toSql(value, { dialect: "tsql" })).toBe("CASE WHEN [FirstName]='John' THEN 'J' WHEN [FirstName]='Bob' THEN CAST(0 AS bit) ELSE 5 END");
   });
   it("builds portable JSON operations for every dialect", () => {
-    const query = select({ value: jsonValue('{"a":1}', "$.a", exprTypeInt32), fragment: jsonQuery("[1]"), changed: jsonSet("{}", "$.a", 1), removed: jsonRemove('{"a":1}', "$.a"), array: jsonArray(1, null), object: jsonObject({ a: 1, b: null }) }).done();
-    expect(toSql(query.ast, { dialect: "tsql" })).toContain("OPENJSON");
-    expect(toSql(query.ast, { dialect: "postgresql" })).toContain("jsonb_set");
-    expect(toSql(query.ast, { dialect: "mysql" })).toContain("JSON_SET");
-    expect(toSql(query.ast, { dialect: "sqlite" })).toContain("json_set");
+    const query = select({ value: jsonValue('{"a":1}', "$.a", exprTypeInt32), fragment: jsonQuery("[1]"), changed: jsonSet("{}", "$.a", 1), removed: jsonRemove('{"a":1}', "$.a"), array: jsonArray(1, null), object: jsonObject({ a: 1, b: null }) });
+    expect(toSql(query, { dialect: "tsql" })).toContain("OPENJSON");
+    expect(toSql(query, { dialect: "postgresql" })).toContain("jsonb_set");
+    expect(toSql(query, { dialect: "mysql" })).toContain("JSON_SET");
+    expect(toSql(query, { dialect: "sqlite" })).toContain("json_set");
   });
   it("rejects unsupported JSON paths and root removal", () => {
     for (const path of ["", "store", "$..name", "$.items[-1]", "$.items[*]", "$.items[0:2]"]) expect(() => jsonValue("{}", path)).toThrow(/Invalid portable JSON path/);
@@ -104,12 +104,12 @@ describe("function and JSON builders", () => {
   });
   it("accepts JSON output columns in SELECT and rejects duplicate paths during export", () => {
     const query = forJson(selectJson(jsonOutput(1, "$.a"), jsonOutput(1, "$.a")));
-    expect(() => toSql(query.ast, { dialect: "tsql" })).toThrow(/paths must be unique/);
+    expect(() => toSql(query, { dialect: "tsql" })).toThrow(/paths must be unique/);
   });
   it("stores and exports portable FOR JSON options", () => {
-    const query = forJson(select({ optional: null }).done(), { withoutArrayWrapper: true, includeNullValues: false });
-    expect(query.ast).toMatchObject({ kind: "ExprQueryAsJson", withoutArrayWrapper: true, includeNullValues: false });
-    const tsql = toSql(query.ast, { dialect: "tsql" }); expect(tsql).toContain("JSON_QUERY(J1.Json,'$[0]')"); expect(tsql).not.toContain("INCLUDE_NULL_VALUES");
-    expect(toSql(query.ast, { dialect: "postgresql" })).toContain("jsonb_strip_nulls"); expect(toSql(query.ast, { dialect: "mysql" })).toContain("JSON_MERGE_PATCH"); expect(toSql(query.ast, { dialect: "sqlite" })).toContain("json_patch");
+    const query = forJson(select({ optional: null }), { withoutArrayWrapper: true, includeNullValues: false });
+    expect(query).toMatchObject({ kind: "ExprQueryAsJson", withoutArrayWrapper: true, includeNullValues: false });
+    const tsql = toSql(query, { dialect: "tsql" }); expect(tsql).toContain("JSON_QUERY(J1.Json,'$[0]')"); expect(tsql).not.toContain("INCLUDE_NULL_VALUES");
+    expect(toSql(query, { dialect: "postgresql" })).toContain("jsonb_strip_nulls"); expect(toSql(query, { dialect: "mysql" })).toContain("JSON_MERGE_PATCH"); expect(toSql(query, { dialect: "sqlite" })).toContain("json_patch");
   });
 });

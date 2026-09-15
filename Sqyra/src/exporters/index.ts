@@ -1,6 +1,7 @@
-import type { Expr, ExprBoolean, ExprType, ExprValue, IExprColumnSource, IExprSelecting, IExprTableFullName, IExprTableSource } from "../ast/generated/ast.generated.js";
+import type { Expr, ExprBoolean, ExprType, ExprValue, IExprAlias, IExprColumnSource, IExprSelecting, IExprTableFullName, IExprTableSource } from "../ast/generated/ast.generated.js";
 import { exprMerge } from "../ast/generated/ast.generated.js";
 import { walk } from "../ast/operations.js";
+import { unwrapAstNode } from "../ast/runtime.js";
 import { formatSql, type SqlFormattingProfile } from "./formatting.js";
 export * from "./formatting.js";
 
@@ -9,12 +10,14 @@ export interface ExportOptions { readonly dialect: SqlDialect; readonly mysqlFla
 export interface SqlParameter { readonly name: string; readonly value: unknown; readonly type: string | null; }
 export interface CompiledSql { readonly sql: string; readonly parameters: ReadonlyArray<SqlParameter>; }
 
-export function toSql(ast: Expr, options: ExportOptions): string { const sql = new Renderer(options).renderRoot(ast); return options.formatting === undefined || options.formatting === null ? sql : formatSql(sql, options.formatting); }
-export function compileSql(ast: Expr, options: ExportOptions): CompiledSql { const renderer = new Renderer({ ...options, parameterize: true }); const compact = renderer.renderRoot(ast); const sql = options.formatting === undefined || options.formatting === null ? compact : formatSql(compact, options.formatting); return { sql, parameters: Object.freeze(renderer.parameters) }; }
+export function toSql(ast: Expr, options: ExportOptions): string { const sql = new Renderer(options).renderRoot(unwrapAstNode(ast)); return options.formatting === undefined || options.formatting === null ? sql : formatSql(sql, options.formatting); }
+export function compileSql(ast: Expr, options: ExportOptions): CompiledSql { const renderer = new Renderer({ ...options, parameterize: true }); const compact = renderer.renderRoot(unwrapAstNode(ast)); const sql = options.formatting === undefined || options.formatting === null ? compact : formatSql(compact, options.formatting); return { sql, parameters: Object.freeze(renderer.parameters) }; }
 export function toSqlType(type: ExprType, options: ExportOptions): string { return new Renderer(options).renderSqlType(type); }
 
 class Renderer {
   readonly parameters: SqlParameter[] = [];
+  private readonly automaticAliases = new Map<string, string>();
+  private nextAutomaticAlias = 0;
   private implicitColumnSource: string | null = null;
   private implicitColumnSources: ReadonlyMap<string, string> = new Map();
   private columnSourceRemap: ReadonlyMap<string, string> = new Map();
@@ -171,8 +174,9 @@ class Renderer {
   private value(node: ExprValue): string { return this.render(node); }
   private boolean(node: ExprBoolean): string { return this.render(node); }
   private tableSource(node: IExprTableSource): string { return this.render(node); }
-  private columnSource(node: IExprColumnSource): string { if (node.kind === "ExprTableAlias") return node.alias.kind === "ExprAlias" ? this.quote(node.alias.name) : this.quote(node.alias.id); return this.tableName(node); }
-  private rawColumnSource(node: IExprColumnSource): string { if (node.kind === "ExprTableAlias") return node.alias.kind === "ExprAlias" ? node.alias.name : node.alias.id; return node.kind === "ExprTableFullName" ? node.tableName.name : node.name; }
+  private aliasName(alias: IExprAlias): string { if (alias.kind === "ExprAlias") return alias.name; const existing = this.automaticAliases.get(alias.id); if (existing !== undefined) return existing; const generated = `A${this.nextAutomaticAlias++}`; this.automaticAliases.set(alias.id, generated); return generated; }
+  private columnSource(node: IExprColumnSource): string { if (node.kind === "ExprTableAlias") return this.quote(this.aliasName(node.alias)); return this.tableName(node); }
+  private rawColumnSource(node: IExprColumnSource): string { if (node.kind === "ExprTableAlias") return this.aliasName(node.alias); return node.kind === "ExprTableFullName" ? node.tableName.name : node.name; }
   private querySpecification(node: Extract<Expr, { readonly kind: "ExprQuerySpecification" }>, includeLimit: boolean): string {
     const previous = this.implicitColumnSource; const previousSources = this.implicitColumnSources;
     this.implicitColumnSource = node.from?.kind === "ExprCteQuery" ? (node.from.alias?.alias.kind === "ExprAlias" ? node.from.alias.alias.name : node.from.name) : null;

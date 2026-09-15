@@ -1,10 +1,10 @@
 import { childFields, enumValues, isAstKind, nodeFields, nodeTypeKinds, visitNode, type AstKind, type AstVisitor, type Expr } from "./generated/ast.generated.js";
-import { freezeNode } from "./runtime.js";
+import { freezeNode, unwrapAstNode } from "./runtime.js";
 
 type NodeRecord = Readonly<Record<string, unknown>>;
 
 export function visit<R, C = void>(visitor: AstVisitor<R, C>, node: Expr, context: C): R {
-  return visitNode(visitor, node, context);
+  return visitNode(visitor, unwrapAstNode(node), context);
 }
 
 export function createVisitor<R, C = void>(fallback: (node: Expr, context: C) => R, overrides: Partial<AstVisitor<R, C>> = {}): AstVisitor<R, C> {
@@ -20,6 +20,7 @@ function asRecord(node: Expr): NodeRecord {
 }
 
 export function isAstNode(value: unknown, ancestors: ReadonlySet<object> = new Set()): value is Expr {
+  value = unwrapAstNode(value);
   if (typeof value !== "object" || value === null || !("kind" in value) || typeof value.kind !== "string" || !isAstKind(value.kind)) return false;
   if (ancestors.has(value)) return false;
   const nextAncestors = new Set(ancestors).add(value);
@@ -43,6 +44,7 @@ export function isAstNode(value: unknown, ancestors: ReadonlySet<object> = new S
 }
 
 export function* walk(root: Expr): IterableIterator<Expr> {
+  root = unwrapAstNode(root);
   const ancestors = new Set<object>();
   function* inner(node: Expr): IterableIterator<Expr> {
     if (ancestors.has(node)) throw new Error(`Cycle detected at ${node.kind}`);
@@ -61,6 +63,7 @@ export function* walk(root: Expr): IterableIterator<Expr> {
 
 export interface WalkEntry { readonly node: Expr; readonly parent: Expr | null; readonly depth: number; readonly path: ReadonlyArray<Expr>; }
 export function* walkWithParent(root: Expr): IterableIterator<WalkEntry> {
+  root = unwrapAstNode(root);
   const ancestors = new Set<object>(); const path: Expr[] = [];
   function* inner(node: Expr, parent: Expr | null): IterableIterator<WalkEntry> {
     if (ancestors.has(node)) throw new Error(`Cycle detected at ${node.kind}`);
@@ -88,6 +91,7 @@ export function find(root: Expr, predicate: (node: Expr) => boolean): Expr | nul
 }
 
 export function modify(root: Expr, modifier: (node: Expr) => Expr | null): Expr | null {
+  root = unwrapAstNode(root);
   const ancestors = new Set<object>();
   function inner(node: Expr): Expr | null {
     if (ancestors.has(node)) throw new Error(`Cycle detected at ${node.kind}`);

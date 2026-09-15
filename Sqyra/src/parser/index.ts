@@ -296,7 +296,7 @@ class Parser {
       const candidates = this.tables.map((table, index) => ({ table, index })).filter(({ table }) => alias === null ? this.tables.length === 1 : (table.alias ?? table.name).toLocaleLowerCase("en-US") === alias.toLocaleLowerCase("en-US"));
       if (alias !== null && candidates.length === 0) { if (this.outerVisible.has(alias.toLocaleLowerCase("en-US")) || this.syntheticVisible.has(alias.toLocaleLowerCase("en-US"))) continue; this.fail(`Unknown table or alias '${alias}'.`, "binding"); }
       if (alias === null && this.tables.length > 1) {
-        const descriptorOwners = this.options?.existingTables === undefined ? [] : this.tables.map((table, index) => ({ table, index })).filter(({ table }) => this.options!.existingTables!.some((descriptor) => descriptor.schema === table.schema && descriptor.name === table.name && Object.prototype.hasOwnProperty.call(descriptor.definitions, node.columnName.name)));
+      const descriptorOwners = this.options?.existingTables === undefined ? [] : this.tables.map((table, index) => ({ table, index })).filter(({ table }) => this.options!.existingTables!.some((descriptor) => descriptor.$metadata.schema === table.schema && descriptor.$metadata.name === table.name && Object.prototype.hasOwnProperty.call(descriptor.$metadata.definitions, node.columnName.name)));
         if (descriptorOwners.length === 1) { used.get(descriptorOwners[0]!.index)!.add(node.columnName.name); continue; }
         this.fail(`Column '${node.columnName.name}' is ambiguous in a multi-table scope.`, "binding");
       }
@@ -317,12 +317,12 @@ class Parser {
     if (ast.kind === "ExprDelete" && !this.preserveDeleteTargetArtifact && ast.target.fullName.kind === "ExprTableFullName") grouped.delete(`${ast.target.fullName.dbSchema?.database?.name ?? ""}\0${ast.target.fullName.dbSchema?.schema.name ?? ""}\0${ast.target.fullName.tableName.name}`);
     const artifacts = [...grouped.values()].sort((left, right) => `${left.schema ?? ""}.${left.name}`.localeCompare(`${right.schema ?? ""}.${right.name}`, "en-US"));
     if (this.options?.existingTables) for (const artifact of artifacts) {
-      const exact = this.options.existingTables.filter((table) => table.name === artifact.name && table.schema === artifact.schema);
+      const exact = this.options.existingTables.filter((table) => table.$metadata.name === artifact.name && table.$metadata.schema === artifact.schema);
       if (exact.length !== 1) {
-        const insensitive = this.options.existingTables.some((table) => table.name.toLocaleLowerCase("en-US") === artifact.name.toLocaleLowerCase("en-US") && table.schema?.toLocaleLowerCase("en-US") === artifact.schema?.toLocaleLowerCase("en-US"));
+        const insensitive = this.options.existingTables.some((table) => table.$metadata.name.toLocaleLowerCase("en-US") === artifact.name.toLocaleLowerCase("en-US") && table.$metadata.schema?.toLocaleLowerCase("en-US") === artifact.schema?.toLocaleLowerCase("en-US"));
         this.fail(insensitive ? `DifferentName: parsed table name differs by case: [${artifact.schema ?? ""}].[${artifact.name}].` : `Unexpected tables: [${artifact.schema ?? ""}].[${artifact.name}]`, "binding");
       }
-      const columnNames = Object.keys(exact[0]!.definitions);
+      const columnNames = Object.keys(exact[0]!.$metadata.definitions);
       for (const column of artifact.columns) {
         if (columnNames.includes(column)) continue;
         const insensitive = columnNames.some((name) => name.toLocaleLowerCase("en-US") === column.toLocaleLowerCase("en-US"));

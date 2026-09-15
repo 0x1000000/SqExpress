@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { add, aliasTable, column, columnExpression, defaultValue, defineTable, dynamicDerivedTable, eq, exprAliasedSelecting, exprColumn, exprColumnAlias, exprColumnName, exprGetUtcDate, exprInt32Literal, exprQuerySpecification, exprStringLiteral, gt, lit, mergeInto, neq, sqlType, toSql, values } from "../../src/index.js";
+import { add, aliasTable, column, columnExpression, defaultValue, defineTable, derivedTable, eq, exprAliasedSelecting, exprColumn, exprColumnAlias, exprColumnName, exprGetUtcDate, exprInt32Literal, exprQuerySpecification, exprStringLiteral, gt, lit, mergeInto, neq, sqlType, toSql, values } from "../../src/index.js";
 
 const user = defineTable({ schema: "dbo", name: "user", columns: {
   UserId: column(sqlType.int32), FirstName: column(sqlType.string(255)), Modified: column(sqlType.dateTime)
@@ -10,9 +10,9 @@ describe("MERGE builder", () => {
     const target = aliasTable(user, "T");
     const source = aliasTable(user, "S");
     const statement = mergeInto(target, source)
-      .on(eq(target.columns.UserId, source.columns.UserId))
-      .whenMatchedUpdate({ FirstName: source.columns.FirstName })
-      .whenNotMatchedInsert({ UserId: source.columns.UserId, FirstName: source.columns.FirstName })
+      .on(eq(target.UserId, source.UserId))
+      .whenMatchedUpdate({ FirstName: source.FirstName })
+      .whenNotMatchedInsert({ UserId: source.UserId, FirstName: source.FirstName })
       .whenNotMatchedBySourceDelete()
       .done();
     expect(toSql(statement.ast, { dialect: "tsql" })).toBe("MERGE [dbo].[user] [T] USING [dbo].[user] [S] ON [T].[UserId]=[S].[UserId] WHEN MATCHED THEN UPDATE SET [T].[FirstName]=[S].[FirstName] WHEN NOT MATCHED THEN INSERT([UserId],[FirstName]) VALUES([S].[UserId],[S].[FirstName]) WHEN NOT MATCHED BY SOURCE THEN  DELETE;");
@@ -21,15 +21,15 @@ describe("MERGE builder", () => {
   it("supports guarded deletes and INSERT DEFAULT VALUES", () => {
     const target = aliasTable(user, "T");
     const source = aliasTable(user, "S");
-    const statement = mergeInto(target, source).on(eq(target.columns.UserId, source.columns.UserId))
-      .whenMatchedDelete(eq(source.columns.FirstName, "deleted"))
-      .whenNotMatchedInsertDefault(eq(source.columns.UserId, 7)).done();
+    const statement = mergeInto(target, source).on(eq(target.UserId, source.UserId))
+      .whenMatchedDelete(eq(source.FirstName, "deleted"))
+      .whenNotMatchedInsertDefault(eq(source.UserId, 7)).done();
     expect(toSql(statement.ast, { dialect: "tsql" })).toContain("WHEN MATCHED AND [S].[FirstName]='deleted' THEN  DELETE WHEN NOT MATCHED AND [S].[UserId]=7 THEN INSERT DEFAULT VALUES");
   });
 
   it("rejects an actionless merge and empty assignments", () => {
     const target = aliasTable(user, "T"); const source = aliasTable(user, "S");
-    const builder = mergeInto(target, source).on(eq(target.columns.UserId, source.columns.UserId));
+    const builder = mergeInto(target, source).on(eq(target.UserId, source.UserId));
     expect(() => builder.done()).toThrow(/action/);
     expect(() => builder.whenMatchedUpdate({})).toThrow(/assignment/);
     expect(lit(1).kind).toBe("ExprInt32Literal");
@@ -81,8 +81,8 @@ describe("MERGE builder", () => {
   it("ports PostgreSQL anonymous MERGE source-column naming", () => {
     const target = aliasTable(defineTable({ schema: "dbo", name: "user", columns: { UserId: column(sqlType.int32), FirstName: column(sqlType.string()), Version: column(sqlType.int32) } }), "T");
     const sourceQuery = exprQuerySpecification({ selectList: [exprInt32Literal({ value: 1 }), exprAliasedSelecting({ value: exprStringLiteral({ value: "AA" }), alias: exprColumnAlias({ name: "BB" }) }), exprColumn({ source: null, columnName: exprColumnName({ name: "UserId" }) }), exprGetUtcDate], top: null, from: null, where: null, groupBy: null, distinct: false });
-    const source = dynamicDerivedTable({ ast: sourceQuery }, "S");
-    const statement = mergeInto(target, source).on(eq(target.UserId, columnExpression(source.columns.UserId!))).whenMatchedUpdate({ FirstName: columnExpression(source.columns.BB!), Version: 1 }).done();
+    const source = derivedTable(sourceQuery, "S");
+    const statement = mergeInto(target, source).on(eq(target.UserId, columnExpression(source.$metadata.columns.UserId!))).whenMatchedUpdate({ FirstName: columnExpression(source.$metadata.columns.BB!), Version: 1 }).done();
     const sql = toSql(statement.ast, { dialect: "postgresql" }); expect(sql).toContain('WITH "__sqexpress_merge_source"("Expr1","BB","UserId","Expr4") AS('); expect(sql).toContain('FROM "__sqexpress_merge_source" "S"');
   });
   it("ports SQLite MERGE delete and insert/update polyfills", () => {
