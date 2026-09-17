@@ -1,6 +1,14 @@
-import { exprBooleanAnd, exprBooleanEq, exprInt32Literal, type ExprBooleanAnd } from "../../src/index.js";
+import {
+  exprBooleanAnd,
+  exprBooleanEq,
+  exprInt32Literal,
+  type ExprBooleanAnd,
+} from "../../src/index.js";
 
-const equality = exprBooleanEq({ left: exprInt32Literal({ value: 1 }), right: exprInt32Literal({ value: 2 }) });
+const equality = exprBooleanEq({
+  left: exprInt32Literal({ value: 1 }),
+  right: exprInt32Literal({ value: 2 }),
+});
 const node = exprBooleanAnd({ left: equality, right: equality });
 const typed: ExprBooleanAnd = node;
 void typed;

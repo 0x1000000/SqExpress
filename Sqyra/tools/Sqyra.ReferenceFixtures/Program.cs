@@ -26,13 +26,17 @@ static Fixture Build(Case item)
     else { parsed = SqTSqlParser.TryParse(item.Sql, existing, options, out expression, out error); tables = null; }
     if (!parsed) return new(item.Id, item.Sql, item.DefaultSchema, item.ExistingTables, item.CompareSemantic, false, null, null, null, error, item.ExpectedErrorPart, item.ExpectedErrorExact);
     if (!item.CompareSemantic) return new(item.Id, item.Sql, item.DefaultSchema, item.ExistingTables, false, true, null, null, null, null, item.ExpectedErrorPart, item.ExpectedErrorExact);
-    return new(item.Id, item.Sql, item.DefaultSchema, item.ExistingTables, true, true, AstJson(expression!), tables!.Select(t => {
+    return new(item.Id, item.Sql, item.DefaultSchema, item.ExistingTables, true, true, AstJson(expression!), tables!.Select(t =>
+    {
         var name = t.FullName.AsExprTableFullName();
         return new TableArtifact(name.DbSchema?.Database?.Name, name.DbSchema?.Schema.Name, name.TableName.Name,
             t.Columns.Select(c => new ColumnArtifact(c.ColumnName.Name, c.SqlType.GetType().Name, c.IsNullable)).ToArray());
-    }).ToArray(), new Dictionary<string, ExportResult> {
-        ["tsql"] = Export(() => TSqlExporter.Default.ToSql(expression!)), ["postgresql"] = Export(() => PgSqlExporter.Default.ToSql(expression!)),
-        ["mysql"] = Export(() => MySqlExporter.OracleDefault.ToSql(expression!)), ["sqlite"] = Export(() => SqliteExporter.Default.ToSql(expression!))
+    }).ToArray(), new Dictionary<string, ExportResult>
+    {
+        ["tsql"] = Export(() => TSqlExporter.Default.ToSql(expression!)),
+        ["postgresql"] = Export(() => PgSqlExporter.Default.ToSql(expression!)),
+        ["mysql"] = Export(() => MySqlExporter.OracleDefault.ToSql(expression!)),
+        ["sqlite"] = Export(() => SqliteExporter.Default.ToSql(expression!))
     }, null, item.ExpectedErrorPart, item.ExpectedErrorExact);
 }
 static SqTable CreateTable(TableInput input) => SqTable.Create(input.Schema, input.Name, appender =>

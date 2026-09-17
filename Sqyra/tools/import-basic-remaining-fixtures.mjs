@@ -2,7 +2,10 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
-const source = await readFile(resolve(root, "../Test/SqExpress.Test/SqlParser/TSqlParserBasicTest.cs"), "utf8");
+const source = await readFile(
+  resolve(root, "../Test/SqExpress.Test/SqlParser/TSqlParserBasicTest.cs"),
+  "utf8",
+);
 const path = resolve(root, "test/fixtures/cases.json");
 const cases = JSON.parse(await readFile(path, "utf8"));
 const names = [
@@ -19,7 +22,12 @@ for (const name of names) {
   const body = source.slice(start, next < 0 ? source.length : next);
   const ordinary = /(?:var|const string) inputSql\s*=\s*("(?:\\.|[^"\\])*")/.exec(body);
   const verbatim = /(?:var|const string) inputSql\s*=\s*@"([\s\S]*?)";/.exec(body);
-  const sql = ordinary !== null ? JSON.parse(ordinary[1]) : verbatim !== null ? verbatim[1].replaceAll('""', '"') : null;
+  const sql =
+    ordinary !== null
+      ? JSON.parse(ordinary[1])
+      : verbatim !== null
+        ? verbatim[1].replaceAll('""', '"')
+        : null;
   if (sql === null) throw new Error(`Could not extract inputSql for ${name}.`);
   imported.push({ id: `${prefix}${name}#1`, sql });
 }

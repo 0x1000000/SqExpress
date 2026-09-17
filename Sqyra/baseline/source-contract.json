@@ -1,7 +1,10 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "b92b3d5573daeca0de1367719d5bde8f2b7086ee",
-  "relevantWorkingTreeChanges": [],
+  "sourceCommit": "db4cbfad1c2bc0eec3db3f09bdfc5a9a02c67699",
+  "relevantWorkingTreeChanges": [
+    " M SqExpress/SqlExport/Internal/SqlBuilderBase.cs",
+    " M Test/SqExpress.Test/SqlParser/TSqlParserBasicTest.cs"
+  ],
   "roots": [
     "SqExpress/Syntax",
     "SqExpress/SyntaxTreeOperations",
@@ -216,7 +219,7 @@
     },
     {
       "path": "SqExpress/SqlExport/Internal/SqlBuilderBase.cs",
-      "sha256": "a03c3bc5b065cbefd0439b9c81c864d51f9e45db829392ae282f232824193968"
+      "sha256": "8a5b11d444db115b49b6b3ebb91f5a028e1d538a33040b7bd62afaadcc3ebf99"
     },
     {
       "path": "SqExpress/SqlExport/Internal/SqlFormattingRules.cs",
@@ -1885,8 +1888,13 @@
     },
     {
       "path": "Test/SqExpress.Test/SqlParser/TSqlParserBasicTest.cs",
-      "sha256": "22e5c13b0e56aa5c5dfd99e79c8aedfbf6ec9d843c5a923b9106bfea3ffd7e51",
+      "sha256": "861017c27912a0a8f2868398ad5ce1f8789dea984987a05da0e8c494b80eadb3",
       "tests": [
+        {
+          "id": "TSqlParserBasicTest.ExportCteChain_PlacesDependenciesBeforeConsumers",
+          "method": "ExportCteChain_PlacesDependenciesBeforeConsumers",
+          "source": "Test"
+        },
         {
           "id": "TSqlParserBasicTest.ExtractTableArtifacts_ForMultiJoinQuery_CollectsExpectedColumns",
           "method": "ExtractTableArtifacts_ForMultiJoinQuery_CollectsExpectedColumns",
@@ -3725,8 +3733,8 @@
   ],
   "totals": {
     "files": 275,
-    "tests": 505,
+    "tests": 506,
     "parserTestFiles": 13,
-    "parserTests": 264
+    "parserTests": 265
   }
 }

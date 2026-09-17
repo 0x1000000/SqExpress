@@ -20,6 +20,10 @@
     }
   },
   "scripts": {
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "baseline:generate": "node tools/source-contract.mjs generate",
     "baseline:check": "node tools/source-contract.mjs check",
     "baseline:discover-tests": "node tools/discover-csharp-tests.mjs",
@@ -33,17 +37,24 @@
     "typecheck": "tsc --noEmit",
     "typecheck:new": "node node_modules/typescript-new/bin/tsc --noEmit && node node_modules/typescript-new/bin/tsc -p tsconfig.type-tests.json --noEmit",
     "build": "tsup src/index.ts --format esm,cjs --dts --clean --target es2020",
-    "test": "vitest run",
+    "test": "vitest run test --exclude integration-test/**",
     "test:types": "tsc -p tsconfig.type-tests.json --noEmit",
     "parity:audit": "node tools/parity-audit.mjs && vitest run test/tooling",
     "test:docs": "node tools/test-docs.mjs",
     "test:package": "node tools/test-package.mjs",
-    "verify": "npm run baseline:check && npm run codegen:check && npm run parity:audit && node tools/parity-audit.mjs --require-complete && npm run typecheck && npm run test:types && npm run typecheck:new && npm test && npm run test:docs && npm run build && npm run test:package"
+    "verify": "npm run lint && npm run format:check && npm run baseline:check && npm run codegen:check && npm run parity:audit && node tools/parity-audit.mjs --require-complete && npm run typecheck && npm run test:types && npm run typecheck:new && npm test && npm run test:docs && npm run build && npm run test:package"
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
     "@types/node": "20.17.30",
+    "eslint": "10.10.0",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-unused-imports": "4.4.1",
+    "globals": "17.12.0",
+    "prettier": "3.9.7",
     "tsup": "8.4.0",
     "typescript": "5.0.4",
+    "typescript-eslint": "8.70.0",
     "typescript-new": "npm:typescript@^5.9.2",
     "vitest": "1.6.1"
   }

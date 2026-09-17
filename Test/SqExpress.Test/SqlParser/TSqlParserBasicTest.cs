@@ -23,6 +23,22 @@ namespace SqExpress.Test.SqlParser;
 public class TSqlParserBasicTest
 {
     [Test]
+    public void ExportCteChain_PlacesDependenciesBeforeConsumers()
+    {
+        const string input = "WITH [Base] AS (SELECT 1 AS [Id]), " +
+            "[Middle] AS (SELECT [Base].[Id] FROM [Base]), " +
+            "[Outer] AS (SELECT [Middle].[Id] FROM [Middle]) " +
+            "SELECT [Outer].[Id] FROM [Outer]";
+        Assert.That(SqTSqlParser.TryParse(input, out var expression, out var errors), Is.True);
+        var sql = expression!.ToSql(TSqlExporter.Default);
+        Assert.That(sql.IndexOf("[Base] AS", StringComparison.Ordinal), Is.GreaterThanOrEqualTo(0));
+        Assert.That(sql.IndexOf("[Middle] AS", StringComparison.Ordinal),
+            Is.GreaterThan(sql.IndexOf("[Base] AS", StringComparison.Ordinal)), sql);
+        Assert.That(sql.IndexOf("[Outer] AS", StringComparison.Ordinal),
+            Is.GreaterThan(sql.IndexOf("[Middle] AS", StringComparison.Ordinal)), sql);
+    }
+
+    [Test]
     public void ParseSimpleCrossJoinSelect_BuildsExpectedAstAndTableArtifacts()
     {
 

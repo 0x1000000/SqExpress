@@ -6,6 +6,10 @@
       "command": "dotnet test Test/SqExpress.Test/SqExpress.Test.csproj --no-restore --no-build --filter FullyQualifiedName~TSqlParser --logger trx;LogFileName=parser.trx --results-directory C:\\Proj\\SqExpress\\Sqyra\\.tmp\\test-discovery",
       "tests": [
         {
+          "id": "SqExpress.Test.SqlParser.TSqlParserBasicTest.ExportCteChain_PlacesDependenciesBeforeConsumers#1",
+          "displayName": "ExportCteChain_PlacesDependenciesBeforeConsumers"
+        },
+        {
           "id": "SqExpress.Test.SqlParser.TSqlParserBasicTest.ExtractTableArtifacts_ForMultiJoinQuery_CollectsExpectedColumns#1",
           "displayName": "ExtractTableArtifacts_ForMultiJoinQuery_CollectsExpectedColumns"
         },
@@ -1755,19 +1759,19 @@
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.DeleteClause_Case#1",
-          "displayName": "DeleteClause_4025CBDF"
+          "displayName": "DeleteClause_ED993E63"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.DeleteClause_Case#2",
-          "displayName": "DeleteClause_88B97AB2"
+          "displayName": "DeleteClause_FEB35A14"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.DeleteClause_Case#3",
-          "displayName": "DeleteClause_474BBA7D"
+          "displayName": "DeleteClause_E8C79027"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.DeleteClause_Case#4",
-          "displayName": "DeleteClause_43C48517"
+          "displayName": "DeleteClause_C95BC6F5"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.DeleteCrossApplyOn#1",
@@ -1783,19 +1787,19 @@
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.DeleteFromClause_Case#1",
-          "displayName": "DeleteFromClause_4025CBDF"
+          "displayName": "DeleteFromClause_E8C79027"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.DeleteFromClause_Case#2",
-          "displayName": "DeleteFromClause_43C48517"
+          "displayName": "DeleteFromClause_ED993E63"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.DeleteFromClause_Case#3",
-          "displayName": "DeleteFromClause_88B97AB2"
+          "displayName": "DeleteFromClause_FEB35A14"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.DeleteFromClause_Case#4",
-          "displayName": "DeleteFromClause_474BBA7D"
+          "displayName": "DeleteFromClause_C95BC6F5"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.DeleteFromComma#1",
@@ -2351,43 +2355,43 @@
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.MergeAction_Case#1",
-          "displayName": "MergeAction_6B872E5"
+          "displayName": "MergeAction_1E51EB3E"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.MergeAction_Case#2",
-          "displayName": "MergeAction_A6ABD03C"
+          "displayName": "MergeAction_F505717"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.MergeAction_Case#3",
-          "displayName": "MergeAction_7736D77E"
+          "displayName": "MergeAction_9A39CA9B"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.MergeAction_Case#4",
-          "displayName": "MergeAction_792EB96"
+          "displayName": "MergeAction_807706E4"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.MergeAction_Case#5",
-          "displayName": "MergeAction_3C76C79A"
+          "displayName": "MergeAction_34966A31"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.MergeAction_Case#6",
-          "displayName": "MergeAction_C3FF73DC"
+          "displayName": "MergeAction_4FBBEBFB"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.MergeBadSemicolon_Case#1",
-          "displayName": "MergeBadSemicolon_20F89995"
+          "displayName": "MergeBadSemicolon_CE6B4B36"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.MergeBadSemicolon_Case#2",
-          "displayName": "MergeBadSemicolon_2D58AC8A"
+          "displayName": "MergeBadSemicolon_474864FA"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.MergeBadSemicolon_Case#3",
-          "displayName": "MergeBadSemicolon_6E152110"
+          "displayName": "MergeBadSemicolon_FD2EC28D"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.MergeBadSemicolon_Case#4",
-          "displayName": "MergeBadSemicolon_CE634814"
+          "displayName": "MergeBadSemicolon_4C730370"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.MergeConditionAndOnly#1",
@@ -2415,19 +2419,19 @@
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.MergeMissingAction_Case#1",
-          "displayName": "MergeMissingAction_6E152110"
+          "displayName": "MergeMissingAction_474864FA"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.MergeMissingAction_Case#2",
-          "displayName": "MergeMissingAction_CE634814"
+          "displayName": "MergeMissingAction_CE6B4B36"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.MergeMissingAction_Case#3",
-          "displayName": "MergeMissingAction_20F89995"
+          "displayName": "MergeMissingAction_FD2EC28D"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.MergeMissingAction_Case#4",
-          "displayName": "MergeMissingAction_2D58AC8A"
+          "displayName": "MergeMissingAction_4C730370"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.MergeNoOn#1",
@@ -3423,51 +3427,51 @@
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.UpdateAssignment_Case_NoWhere#1",
-          "displayName": "UpdateAssignment_93C93FE6_NoWhere"
+          "displayName": "UpdateAssignment_E8455A46_NoWhere"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.UpdateAssignment_Case_NoWhere#2",
-          "displayName": "UpdateAssignment_E8CA221_NoWhere"
+          "displayName": "UpdateAssignment_AD42CD2D_NoWhere"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.UpdateAssignment_Case_NoWhere#3",
-          "displayName": "UpdateAssignment_FBD88A41_NoWhere"
+          "displayName": "UpdateAssignment_BE80A0A1_NoWhere"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.UpdateAssignment_Case_NoWhere#4",
-          "displayName": "UpdateAssignment_7312F0E1_NoWhere"
+          "displayName": "UpdateAssignment_25E28CC8_NoWhere"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.UpdateAssignment_Case_NoWhere#5",
-          "displayName": "UpdateAssignment_8B98F645_NoWhere"
+          "displayName": "UpdateAssignment_F95223B6_NoWhere"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.UpdateAssignment_Case_NoWhere#6",
-          "displayName": "UpdateAssignment_2529FAF7_NoWhere"
+          "displayName": "UpdateAssignment_585D4195_NoWhere"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.UpdateAssignment_Case_Where#1",
-          "displayName": "UpdateAssignment_7312F0E1_Where"
+          "displayName": "UpdateAssignment_E8455A46_Where"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.UpdateAssignment_Case_Where#2",
-          "displayName": "UpdateAssignment_93C93FE6_Where"
+          "displayName": "UpdateAssignment_BE80A0A1_Where"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.UpdateAssignment_Case_Where#3",
-          "displayName": "UpdateAssignment_2529FAF7_Where"
+          "displayName": "UpdateAssignment_585D4195_Where"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.UpdateAssignment_Case_Where#4",
-          "displayName": "UpdateAssignment_E8CA221_Where"
+          "displayName": "UpdateAssignment_AD42CD2D_Where"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.UpdateAssignment_Case_Where#5",
-          "displayName": "UpdateAssignment_8B98F645_Where"
+          "displayName": "UpdateAssignment_F95223B6_Where"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.UpdateAssignment_Case_Where#6",
-          "displayName": "UpdateAssignment_FBD88A41_Where"
+          "displayName": "UpdateAssignment_25E28CC8_Where"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserSimpleObviousCasesTest.UpdateCommaOnly#1",
@@ -4426,6 +4430,10 @@
         {
           "id": "SqExpress.Test.QueryBuilder.MySqlUnicodeExportTest.UnicodeVarchar_PreservesExplicitSizeAndUsesUtf8Mb4#1",
           "displayName": "UnicodeVarchar_PreservesExplicitSizeAndUsesUtf8Mb4"
+        },
+        {
+          "id": "SqExpress.Test.SqlParser.TSqlParserBasicTest.ExportCteChain_PlacesDependenciesBeforeConsumers#1",
+          "displayName": "ExportCteChain_PlacesDependenciesBeforeConsumers"
         },
         {
           "id": "SqExpress.Test.SqlParser.TSqlParserPortableFunctionTest.ParseKnownDateFunctions_MapsToKnownNodes_AndExportsToPgSql#1",

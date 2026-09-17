@@ -1,0 +1,1393 @@
+{
+  "schemaVersion": 3,
+  "sourceProgram": {
+    "path": "Test/SqExpress.IntTest/Program.cs",
+    "sha256": "a0f9514925c23021469f5ba70b9647db812a5052c8003fe3f27c2d1d121c8bf6"
+  },
+  "parameterizations": [
+    "none",
+    "literal-fallback",
+    "throw-on-limit"
+  ],
+  "dialects": [
+    "tsql",
+    "pgsql",
+    "mysql-oracle",
+    "mariadb",
+    "sqlite"
+  ],
+  "defaultChain": [
+    "ScCreateTables",
+    "ScInsertUserData",
+    "ScSqlInjections",
+    "ScLike",
+    "ScDeleteCustomersByTopUser",
+    "ScInsertCompanies",
+    "ScUpdateUsers",
+    "ScUpdateUserData",
+    "ScSelectSeveralModelsWithPrefix",
+    "ScAllColumnTypes",
+    "ScAllColumnTypesExportImport",
+    "ScSelectLogic",
+    "ScSelectTop",
+    "ScSelectSets",
+    "ScTempTables",
+    "ScGroupByExpression",
+    "ScStringAgg",
+    "ScSelectValue",
+    "ScCreateOrders",
+    "ScAnalyticFunctionsOrders",
+    "ScTransactions",
+    "ScTransactions",
+    "ScTransactionsAsync",
+    "ScTransactionsAsync",
+    "ScTransactionsDeadlock",
+    "ScMerge",
+    "ScPgMergeIdentityPolyfill",
+    "ScParametrizationTypes",
+    "ScParserParamsExprValues",
+    "ScParserTypedParams",
+    "ScParametrizationLimitBoundary",
+    "ScMergeExpr",
+    "ScMergeExprEdgeCases",
+    "ScModelSelector",
+    "ScCancellation",
+    "ScCte",
+    "ScCteCross",
+    "ScTreeClosure",
+    "ScBitwise",
+    "ScJsonRead",
+    "ScJsonMutationAndConstruction",
+    "ScJsonTable",
+    "ScForJson",
+    "ScForJsonNestedBooks",
+    "ScGetTables",
+    "ScGetTablesComplex",
+    "ScDateDiff",
+    "ScCreateDynamicTable",
+    "ScPortableScalarFunctions"
+  ],
+  "testData": [
+    {
+      "source": "Test/SqExpress.IntTest/TestData/users.json",
+      "copy": "Sqyra/integration-test/data/users.json",
+      "sourceSha256": "89fe7df4dbcd272b63878c88ea89a183c551a812ae0bb4398c09db11045fab4b",
+      "copySha256": "89fe7df4dbcd272b63878c88ea89a183c551a812ae0bb4398c09db11045fab4b"
+    },
+    {
+      "source": "Test/SqExpress.IntTest/TestData/company.json",
+      "copy": "Sqyra/integration-test/data/company.json",
+      "sourceSha256": "d8ee83bdecfe40226fec0682faf9581b9843bff59179d1977daa1ac574e78db3",
+      "copySha256": "d8ee83bdecfe40226fec0682faf9581b9843bff59179d1977daa1ac574e78db3"
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "ScAllColumnTypes",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScAllColumnTypes.cs",
+      "sha256": "5aee8c7391fdb5874debd578fae4b2dac801a7beffc1e2adb4884d0f59bc4c2c",
+      "order": [
+        13
+      ],
+      "defaultChainOrder": [
+        9
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [
+        "PgSql",
+        "Sqlite",
+        "TSql"
+      ],
+      "status": "ported",
+      "module": "src/scenarios/all-column-types.ts",
+      "excludedAssertions": [
+        {
+          "source": "ScAllColumnTypes.cs:164-182",
+          "reason": "The second model-based read, count assertion, and mapped bulk reinsert use AllTypes model generation and InsertDataInto MapData, which have no public Sqyra equivalent."
+        }
+      ]
+    },
+    {
+      "name": "ScAllColumnTypesExportImport",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScAllColumnTypesExportImport.cs",
+      "sha256": "c8fc078a5d57ebfbcd1e500ed7a3575d2cdcdf3dd16df33e74ca165897a7d957",
+      "order": [
+        14
+      ],
+      "defaultChainOrder": [
+        10
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/all-column-types-export-import.ts"
+    },
+    {
+      "name": "ScAnalyticFunctionsOrders",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScAnalyticFunctionsOrders.cs",
+      "sha256": "9bd188841848fc5924c0e35f5161031e281aec55fa3e03d28b8ab22649ebd7ab",
+      "order": [
+        23
+      ],
+      "defaultChainOrder": [
+        19
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/analytic-functions-orders.ts"
+    },
+    {
+      "name": "ScBitwise",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScBitwise.cs",
+      "sha256": "6f0cb7daad94c2ce26b74d40b674aee7948349f8aefe79e09ea7fd1ab140d8a0",
+      "order": [
+        42
+      ],
+      "defaultChainOrder": [
+        38
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/bitwise.ts"
+    },
+    {
+      "name": "ScCancellation",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScCancellation.cs",
+      "sha256": "7535fb46a250522d4318b85b49c8a97833597e0d4aa36dbd2701f059e6fb31f2",
+      "order": [
+        38
+      ],
+      "defaultChainOrder": [
+        34
+      ],
+      "applicableDialects": [
+        "mariadb"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": "ScCancellation.cs:12-21",
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/cancellation.ts"
+    },
+    {
+      "name": "ScCreateDynamicTable",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScCreateDynamicTable.cs",
+      "sha256": "b4f753a9232685dcb5d8beeec227c586c020107794f682ca6fb28e404429545a",
+      "order": [
+        51
+      ],
+      "defaultChainOrder": [
+        47
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": "ScCreateDynamicTable.cs:13-17",
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/create-dynamic-table.ts",
+      "excludedAssertions": [
+        {
+          "source": "ScCreateDynamicTable.cs:35-56",
+          "reason": "The DatabaseMetadata GetTables and strict CompareWith assertions require live schema discovery, which Sqyra does not expose."
+        }
+      ]
+    },
+    {
+      "name": "ScCreateOrders",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScCreateOrders.cs",
+      "sha256": "7d9734456718725d3b6e60b21f708bd31ab4aa699a1db6b0433750b30a3fd3bd",
+      "order": [
+        22
+      ],
+      "defaultChainOrder": [
+        18
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [
+        "Sqlite"
+      ],
+      "status": "ported",
+      "module": "src/scenarios/create-orders.ts"
+    },
+    {
+      "name": "ScCreateTables",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScCreateTables.cs",
+      "sha256": "c234e88bc01daf18156e158c56e01ddb877577e9a68b2bea836e65b782b731cb",
+      "order": [
+        4
+      ],
+      "defaultChainOrder": [
+        0
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/create-tables.ts"
+    },
+    {
+      "name": "ScCte",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScCte.cs",
+      "sha256": "5010cd07454a8e6294353288f9a519b6b3de93ebc6034622e619bedc2beb3476",
+      "order": [
+        39
+      ],
+      "defaultChainOrder": [
+        35
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [
+        "Sqlite"
+      ],
+      "status": "ported",
+      "module": "src/scenarios/cte.ts"
+    },
+    {
+      "name": "ScCteCross",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScCteCross.cs",
+      "sha256": "1d576e684f7e8f40dd25cd57ac363fba6bac1951aa583939b1c215876fa9c2b5",
+      "order": [
+        40
+      ],
+      "defaultChainOrder": [
+        36
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/cte-cross.ts"
+    },
+    {
+      "name": "ScDateDiff",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScDateDiff.cs",
+      "sha256": "4fa082db300e298f4d9f4a4349b8abcf16c306e9946a69069e991925426e0e63",
+      "order": [
+        50
+      ],
+      "defaultChainOrder": [
+        46
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/date-diff.ts"
+    },
+    {
+      "name": "ScDeleteCustomersByTopUser",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScDeleteCustomersByTopUser.cs",
+      "sha256": "e5963557e6737350ce398a7fff03f3929885eb8f4a21a45a30919572e7d5fc74",
+      "order": [
+        8
+      ],
+      "defaultChainOrder": [
+        4
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [
+        "Sqlite"
+      ],
+      "status": "ported",
+      "module": "src/scenarios/delete-customers-top-user.ts"
+    },
+    {
+      "name": "ScForJson",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScForJson.cs",
+      "sha256": "6efc4b93c97e229a39c1c9a291d8ba01c429e3edda518a318aa92afd85781b5e",
+      "order": [
+        46
+      ],
+      "defaultChainOrder": [
+        42
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/for-json.ts"
+    },
+    {
+      "name": "ScForJsonNestedBooks",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScForJsonNestedBooks.cs",
+      "sha256": "3a8a2e3900d5e3927c23b50d47b9004a00d563298d36aac72618cc3c127ec9d0",
+      "order": [
+        2,
+        47
+      ],
+      "defaultChainOrder": [
+        43
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/for-json-nested-books.ts"
+    },
+    {
+      "name": "ScGetTables",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScGetTables.cs",
+      "sha256": "2cd50e3c35b5dd9e0c46b769da04c98a4ecabc1766d077a35a26510e106772e5",
+      "order": [
+        48
+      ],
+      "defaultChainOrder": [
+        44
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "excluded",
+      "reason": "The source scenario is entirely a live DatabaseMetadata discovery test, which Sqyra intentionally does not provide."
+    },
+    {
+      "name": "ScGetTablesComplex",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScGetTablesComplex.cs",
+      "sha256": "35c2b69eee671ee9755d3ce99454c103e19fe1322253ce75ac19e2e8afd7c7d9",
+      "order": [
+        3,
+        49
+      ],
+      "defaultChainOrder": [
+        45
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": "ScGetTablesComplex.cs:12-16",
+      "dialectReferences": [
+        "Sqlite"
+      ],
+      "status": "excluded",
+      "reason": "ScGetTablesComplex.cs:19-63 constructs a correlated JSON_TABLE source through fluent OUTER APPLY; Sqyra has no public OUTER APPLY builder for this query."
+    },
+    {
+      "name": "ScGroupByExpression",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScGroupByExpression.cs",
+      "sha256": "368b208720bf9a11f9f2b1d787d2b1b0b7cc725643a2b30e2e92a6fde868f1f6",
+      "order": [
+        19
+      ],
+      "defaultChainOrder": [
+        15
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/group-by-expression.ts"
+    },
+    {
+      "name": "ScInsertCompanies",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScInsertCompanies.cs",
+      "sha256": "b39848870fd9cb7cdca8e3dff52429c3eca8adf395698f8e30fc50f6af81da3b",
+      "order": [
+        9
+      ],
+      "defaultChainOrder": [
+        5
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/insert-companies.ts"
+    },
+    {
+      "name": "ScInsertUserData",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScInsertUserData.cs",
+      "sha256": "a7cb759f36e6c92a1f741d653fb7fb45221a7220c23e4c3440db7de00f6035ff",
+      "order": [
+        5
+      ],
+      "defaultChainOrder": [
+        1
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/insert-users.ts"
+    },
+    {
+      "name": "ScJsonMutationAndConstruction",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScJsonMutationAndConstruction.cs",
+      "sha256": "355aee52cf8cfa9ec03527eee8a31d1cd749029e07d62a2e90f5178f0c6dc0d4",
+      "order": [
+        44
+      ],
+      "defaultChainOrder": [
+        40
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/json-mutation-construction.ts"
+    },
+    {
+      "name": "ScJsonRead",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScJsonRead.cs",
+      "sha256": "202e49d3c33aacfaabcb66e7826c431c4ef387348e28ceeb055518ad273f08b5",
+      "order": [
+        43
+      ],
+      "defaultChainOrder": [
+        39
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/json-read.ts"
+    },
+    {
+      "name": "ScJsonTable",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScJsonTable.cs",
+      "sha256": "5a13876da32343ddb689159066d635701c6c2a838306471f2362ad8d86005574",
+      "order": [
+        45
+      ],
+      "defaultChainOrder": [
+        41
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/json-table.ts"
+    },
+    {
+      "name": "ScLike",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScLike.cs",
+      "sha256": "b278a7f31bde890eefc06e777b738137bc2e1d264ec950bea4ee2d0f65969c91",
+      "order": [
+        7
+      ],
+      "defaultChainOrder": [
+        3
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [
+        "Sqlite",
+        "TSql"
+      ],
+      "status": "ported",
+      "module": "src/scenarios/like.ts"
+    },
+    {
+      "name": "ScMerge",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScMerge.cs",
+      "sha256": "40781142bac075846feea3a7cff33287a2acfb65f6b5adac7327c552851eeb05",
+      "order": [
+        29
+      ],
+      "defaultChainOrder": [
+        25
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/merge.ts"
+    },
+    {
+      "name": "ScMergeExpr",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScMergeExpr.cs",
+      "sha256": "4937a8c2ad4f5b702ad1218cd23e4957c929ab8bb9cbe9219058af628eb2e20c",
+      "order": [
+        35
+      ],
+      "defaultChainOrder": [
+        31
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/merge-expr.ts"
+    },
+    {
+      "name": "ScMergeExprEdgeCases",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScMergeExprEdgeCases.cs",
+      "sha256": "cdc4d0bdb122cf8f2f19b48557b2bc7d3dda921c1180382956fafdc94bca0456",
+      "order": [
+        36
+      ],
+      "defaultChainOrder": [
+        32
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/merge-expr-edge-cases.ts"
+    },
+    {
+      "name": "ScModelSelector",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScModelSelector.cs",
+      "sha256": "191100e3f87a0696e3a46cfe2aeb671e704e933da833e01e1ab5cbd8086a8049",
+      "order": [
+        37
+      ],
+      "defaultChainOrder": [
+        33
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [
+        "MariaDb",
+        "OracleMySql",
+        "Sqlite",
+        "TSql"
+      ],
+      "status": "excluded",
+      "reason": "ScModelSelector.cs:14-61 uses generated model readers, SqModelSelectBuilder Find, and QueryPage totals; Sqyra has no equivalent public model-selection/page API."
+    },
+    {
+      "name": "ScParametrizationLimitBoundary",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScParametrizationLimitBoundary.cs",
+      "sha256": "13d1e100a312a6e9407b2550b6457de3a925c457c94b2de3afc32f844223861f",
+      "order": [
+        0,
+        34
+      ],
+      "defaultChainOrder": [
+        30
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": "ScParametrizationLimitBoundary.cs:16-19",
+      "dialectReferences": [
+        "Sqlite",
+        "TSql"
+      ],
+      "status": "ported",
+      "module": "src/scenarios/parametrization-limit-boundary.ts"
+    },
+    {
+      "name": "ScParametrizationTypes",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScParametrizationTypes.cs",
+      "sha256": "65f31a9745881c1455a7d7826b12183432183deba700ae9ae6d8193f73ab60d1",
+      "order": [
+        31
+      ],
+      "defaultChainOrder": [
+        27
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/parametrization-types.ts"
+    },
+    {
+      "name": "ScParserParamsExprValues",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScParserParamsExprValues.cs",
+      "sha256": "d895745fb8d1ed0f7aea34237f9bea2bfac1adffe35543df2ac5a7d57a75f20f",
+      "order": [
+        32
+      ],
+      "defaultChainOrder": [
+        28
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/parser-params-expr-values.ts"
+    },
+    {
+      "name": "ScParserTypedParams",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScParserTypedParams.cs",
+      "sha256": "758444d1f02048dd299083819ff5908ca785c542c40dbda6a24657febd945b49",
+      "order": [
+        33
+      ],
+      "defaultChainOrder": [
+        29
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/parser-typed-params.ts"
+    },
+    {
+      "name": "ScPgMergeIdentityPolyfill",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScPgMergeIdentityPolyfill.cs",
+      "sha256": "42f6c93ab34a442d8da0cb23b0fcc03531664c359b65b92b26aa97079e9a56ab",
+      "order": [
+        30
+      ],
+      "defaultChainOrder": [
+        26
+      ],
+      "applicableDialects": [
+        "pgsql"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": "ScPgMergeIdentityPolyfill.cs:15-19",
+      "dialectReferences": [
+        "PgSql"
+      ],
+      "status": "ported",
+      "module": "src/scenarios/pg-merge-identity-polyfill.ts"
+    },
+    {
+      "name": "ScPortableScalarFunctions",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScPortableScalarFunctions.cs",
+      "sha256": "83c56fa9905a73ad387004a8a71cfe5b2b47522bf6ebecdc6e47ea3ee6d790e8",
+      "order": [
+        52
+      ],
+      "defaultChainOrder": [
+        48
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [
+        "TSql"
+      ],
+      "status": "ported",
+      "module": "src/scenarios/portable-scalar-functions.ts"
+    },
+    {
+      "name": "ScSelectLogic",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScSelectLogic.cs",
+      "sha256": "0fc695b78915e6d830637356fd51617e292c4df8ba1a888f2cfbef5451b10ccc",
+      "order": [
+        15
+      ],
+      "defaultChainOrder": [
+        11
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/select-logic.ts"
+    },
+    {
+      "name": "ScSelectSets",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScSelectSets.cs",
+      "sha256": "107dafbb7f7d14f420609f9975056f3de8d1beb0b1cdf9ddb841200e5a41748e",
+      "order": [
+        17
+      ],
+      "defaultChainOrder": [
+        13
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [
+        "Sqlite"
+      ],
+      "status": "ported",
+      "module": "src/scenarios/select-sets.ts"
+    },
+    {
+      "name": "ScSelectSeveralModelsWithPrefix",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScSelectSeveralModelsWithPrefix.cs",
+      "sha256": "3efb0af0b4f4cb644f6def3c9ff376d980be9d1969e82158d33b546f9be799bc",
+      "order": [
+        12
+      ],
+      "defaultChainOrder": [
+        8
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/select-prefixed-models.ts"
+    },
+    {
+      "name": "ScSelectTop",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScSelectTop.cs",
+      "sha256": "1eb588b51eb572d46447c0751b6d23e73775dd85dde448898caca70dd4ca5d34",
+      "order": [
+        16
+      ],
+      "defaultChainOrder": [
+        12
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/select-top.ts"
+    },
+    {
+      "name": "ScSelectValue",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScSelectValue.cs",
+      "sha256": "9b347b16e2c5d04a4ddb081c6009442c2e8f0fff3801bc10ad1fcae0cae38b79",
+      "order": [
+        21
+      ],
+      "defaultChainOrder": [
+        17
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/select-value.ts"
+    },
+    {
+      "name": "ScSqlInjections",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScSqlInjections.cs",
+      "sha256": "cb2a3cac4eb34184ee9d1a946217c934b3d1e9c8955b73dc74ac856f0cfc4ed6",
+      "order": [
+        6
+      ],
+      "defaultChainOrder": [
+        2
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/sql-injections.ts"
+    },
+    {
+      "name": "ScStringAgg",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScStringAgg.cs",
+      "sha256": "4c89552366f4801e4b8cc3fbade17fcc24a7ef2d6331a79f0480acf8b0c96700",
+      "order": [
+        1,
+        20
+      ],
+      "defaultChainOrder": [
+        16
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/string-agg.ts"
+    },
+    {
+      "name": "ScTempTables",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScTempTables.cs",
+      "sha256": "4305db7362960b29e687c34a73f1743bd11be6983317496d5451f2ea302eb1f6",
+      "order": [
+        18
+      ],
+      "defaultChainOrder": [
+        14
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/temp-tables.ts"
+    },
+    {
+      "name": "ScTransactions",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScTransactions.cs",
+      "sha256": "1da2416c7c1ea86a90719468725fed863fc63d6bc298ba6c6685d83bd3713149",
+      "order": [
+        24,
+        25
+      ],
+      "defaultChainOrder": [
+        20,
+        21
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/transactions.ts"
+    },
+    {
+      "name": "ScTransactionsAsync",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScTransactionsAsync.cs",
+      "sha256": "bf0e15773d7e0fbf4f5599b74c0f106b5dfbc68b121f94a709813a0316768f22",
+      "order": [
+        26,
+        27
+      ],
+      "defaultChainOrder": [
+        22,
+        23
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/transactions-async.ts"
+    },
+    {
+      "name": "ScTransactionsDeadlock",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScTransactionsDeadlock.cs",
+      "sha256": "231cb681a52c3165353c53577d210f1ed29d608fc645954b7c1b07d62d7a6921",
+      "order": [
+        28
+      ],
+      "defaultChainOrder": [
+        24
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": "ScTransactionsDeadlock.cs:16-20",
+      "dialectReferences": [
+        "Sqlite"
+      ],
+      "status": "ported",
+      "module": "src/scenarios/transactions-deadlock.ts"
+    },
+    {
+      "name": "ScTreeClosure",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScTreeClosure.cs",
+      "sha256": "8df62859420e69038fa3867330fbb68490a49ffd7a88c7ac23b04fdeb1178d2b",
+      "order": [
+        41
+      ],
+      "defaultChainOrder": [
+        37
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": "ScTreeClosure.cs:13-17",
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/tree-closure.ts"
+    },
+    {
+      "name": "ScUpdateUserData",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScUpdateUserData.cs",
+      "sha256": "846874bc4d08968d43a620d3341aa8dcb5a34e77a4d3aa2a1e3cc9ace4e59c41",
+      "order": [
+        11
+      ],
+      "defaultChainOrder": [
+        7
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "excluded",
+      "reason": "The source assertions exercise the mapped bulk UpdateData API, which Sqyra does not currently expose; replacing it with individual UPDATE statements would not test the source operation."
+    },
+    {
+      "name": "ScUpdateUsers",
+      "source": "Test/SqExpress.IntTest/Scenarios/ScUpdateUsers.cs",
+      "sha256": "831aedfdc7800122f918641f8bb2843f650ee51c92044b361368f2ff37b78dba",
+      "order": [
+        10
+      ],
+      "defaultChainOrder": [
+        6
+      ],
+      "applicableDialects": [
+        "tsql",
+        "pgsql",
+        "mysql-oracle",
+        "mariadb",
+        "sqlite"
+      ],
+      "applicableParameterizations": [
+        "none",
+        "literal-fallback",
+        "throw-on-limit"
+      ],
+      "restrictionSource": null,
+      "dialectReferences": [],
+      "status": "ported",
+      "module": "src/scenarios/update-users.ts"
+    }
+  ]
+}

@@ -6,6 +6,7 @@
 
 ### Bugfix
 - Fixed PostgreSQL `OuterApply` export by adding the required `ON TRUE` lateral-join condition.
+- Fixed SQL export ordering of dependent CTEs so dependencies are declared before their consumers, including multi-level dependency chains.
 
 # 1.3.0
 ### New Features

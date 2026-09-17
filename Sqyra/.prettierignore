@@ -1,0 +1,14 @@
+**/node_modules/**
+**/dist/**
+**/build/**
+**/bin/**
+**/obj/**
+**/.tmp/**
+**/.npm-cache/**
+src/ast/generated/**
+baseline/**
+test/fixtures/**
+**/package-lock.json
+integration-test/data/**
+integration-test/scenario-inventory.json
+integration-test/scenario-status.json

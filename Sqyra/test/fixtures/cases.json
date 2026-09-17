@@ -6942,5 +6942,12 @@
       }
     ],
     "compareSemantic": false
+  },
+  {
+    "id": "SqExpress.Test.SqlParser.TSqlParserBasicTest.ExportCteChain_PlacesDependenciesBeforeConsumers#1",
+    "sql": "WITH [Base] AS (SELECT 1 AS [Id]), [Middle] AS (SELECT [Base].[Id] FROM [Base]), [Outer] AS (SELECT [Middle].[Id] FROM [Middle]) SELECT [Outer].[Id] FROM [Outer]",
+    "defaultSchema": "dbo",
+    "expectedErrorPart": null,
+    "expectedErrorExact": null
   }
 ]

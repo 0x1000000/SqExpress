@@ -8,7 +8,15 @@
     "sourceContract": { "type": "string" },
     "subsystems": {
       "type": "object",
-      "required": ["ast", "traversal", "descriptors", "parser", "exporters", "builders", "documentation"]
+      "required": [
+        "ast",
+        "traversal",
+        "descriptors",
+        "parser",
+        "exporters",
+        "builders",
+        "documentation"
+      ]
     }
   }
 }

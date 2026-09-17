@@ -4,6 +4,11 @@
     "parser": {
       "tests": [
         {
+          "sourceId": "SqExpress.Test.SqlParser.TSqlParserBasicTest.ExportCteChain_PlacesDependenciesBeforeConsumers#1",
+          "status": "mapped",
+          "fixtureId": "SqExpress.Test.SqlParser.TSqlParserBasicTest.ExportCteChain_PlacesDependenciesBeforeConsumers#1"
+        },
+        {
           "sourceId": "SqExpress.Test.SqlParser.TSqlParserBasicTest.ExtractTableArtifacts_ForMultiJoinQuery_CollectsExpectedColumns#1",
           "status": "mapped",
           "fixtureId": "SqExpress.Test.SqlParser.TSqlParserBasicTest.ExtractTableArtifacts_ForMultiJoinQuery_CollectsExpectedColumns#1"
@@ -6262,6 +6267,11 @@
             "testFile": "test/builders/functions-json.test.ts",
             "testName": "ports explicit-size Unicode VARCHAR to MySQL utf8mb4"
           }
+        },
+        {
+          "sourceId": "SqExpress.Test.SqlParser.TSqlParserBasicTest.ExportCteChain_PlacesDependenciesBeforeConsumers#1",
+          "status": "mapped",
+          "fixtureId": "SqExpress.Test.SqlParser.TSqlParserBasicTest.ExportCteChain_PlacesDependenciesBeforeConsumers#1"
         },
         {
           "sourceId": "SqExpress.Test.SqlParser.TSqlParserPortableFunctionTest.ParseKnownDateFunctions_MapsToKnownNodes_AndExportsToPgSql#1",

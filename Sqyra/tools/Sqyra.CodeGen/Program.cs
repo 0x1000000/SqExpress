@@ -33,18 +33,21 @@ static string Render(IReadOnlyList<NodeModel> all, IReadOnlyList<NodeModel> conc
     b.AppendLine("import { freezeNode } from \"../runtime.js\";"); b.AppendLine("import type { AstNodeBase, DecimalPrecisionScale, DecimalValue, DateTimeValue, DateTimeOffsetValue, GuidValue } from \"../runtime.js\";\n");
     foreach (var item in enums.OrderBy(e => e.Key)) b.AppendLine($"export type {item.Key} = {string.Join(" | ", item.Value.Select(v => $"\"{v}\""))};");
     if (enums.Count > 0) b.AppendLine();
-    foreach (var node in concrete) {
+    foreach (var node in concrete)
+    {
         b.AppendLine($"export interface {node.TypeName} extends AstNodeBase<\"{node.TypeName}\"> {{");
         foreach (var p in node.SubNodes.Concat(node.Properties)) b.AppendLine($"  readonly {Camel(p.PropertyName)}: {TsType(p, all)};");
         b.AppendLine("}\n");
     }
-    foreach (var category in categories) {
+    foreach (var category in categories)
+    {
         var members = concrete.Where(c => IsDescendant(c.TypeName, category.TypeName, directBases)).Select(c => c.TypeName).ToArray();
         if (members.Length == 0) throw new InvalidOperationException($"AST category {category.TypeName} has no concrete descendants.");
         b.AppendLine($"export type {category.TypeName} = {string.Join(" | ", members)};");
     }
     b.AppendLine($"\nexport type Expr = {string.Join(" | ", concrete.Select(c => c.TypeName))};"); b.AppendLine("export type AstKind = Expr[\"kind\"];\n");
-    foreach (var node in concrete) {
+    foreach (var node in concrete)
+    {
         var nodeFields = node.SubNodes.Concat(node.Properties).ToArray();
         var fields = nodeFields.Length > 0 ? $"fields: Omit<{node.TypeName}, \"kind\">" : "";
         var expectedFields = $"[{string.Join(", ", nodeFields.Select(p => $"\"{Camel(p.PropertyName)}\""))}]";

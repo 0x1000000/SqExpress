@@ -1809,48 +1809,56 @@ internal abstract class SqlBuilderBase: IExprVisitorInternal<bool, IExpr?>
         this._uniqueCteCheck ??= new Dictionary<string, ExprCte>();
         bool recursive = false;
         var result = new List<ExprCte>();
-        var parents = expressions.Where(e=> !this._uniqueCteCheck.ContainsKey(e.Name)).ToList();
-        foreach (var parent in parents)
-        {
-            this._uniqueCteCheck.Add(parent.Name, parent);
-        }
+        var visiting = new HashSet<string>();
+        var added = new HashSet<string>();
+        var alreadyRendered = new HashSet<string>(this._uniqueCteCheck.Keys);
 
-        result.AddRange(parents);
-        while (parents.Count > 0)
+        void Append(ExprCte cte)
         {
-            var nextChunk = new List<ExprCte>();
-            foreach (var cte in parents)
+            if (this._uniqueCteCheck.TryGetValue(cte.Name, out var existing))
             {
-                foreach (var subCte in cte.SyntaxTree().Descendants().OfType<ExprCte>())
+                var type1 = cte.GetType();
+                var type2 = existing.GetType();
+                if (type1 != typeof(ExprCteQuery) && type2 != typeof(ExprCteQuery) && type1 != type2)
                 {
-                    if (subCte.Name == cte.Name)
-                    {
-                        recursive = true;
-                    }
-                    else
-                    {
-                        if (!this._uniqueCteCheck.TryGetValue(subCte.Name, out var existingSubCte))
-                        {
-                            this._uniqueCteCheck.Add(subCte.Name, subCte);
-                            nextChunk.Add(subCte);
-                        }
-                        else
-                        {
-                            var type1 = subCte.GetType();
-                            var type2 = existingSubCte.GetType();
-
-                            if (type1 != typeof(ExprCteQuery) && type2 != typeof(ExprCteQuery) && type1 != type2)
-                            {
-                                throw new SqExpressException($"Different CTE with name \"{cte.Name}\" has already been added");
-                            }
-                        }
-                    }
+                    throw new SqExpressException($"Different CTE with name \"{cte.Name}\" has already been added");
                 }
             }
-            result.InsertRange(0, nextChunk);
-            parents = nextChunk;
+            else
+            {
+                this._uniqueCteCheck.Add(cte.Name, cte);
+            }
+
+            if (alreadyRendered.Contains(cte.Name) || added.Contains(cte.Name)) return;
+            if (!visiting.Add(cte.Name))
+            {
+                recursive = true;
+                return;
+            }
+
+            // Stop at each CTE reference: its dependencies are visited separately,
+            // so every dependency is emitted before its consumer.
+            var dependencies = cte.CreateQuery().SyntaxTree().WalkThrough((node, list) =>
+            {
+                if (node is ExprCte dependency)
+                {
+                    list.Add(dependency);
+                    return VisitorResult<List<ExprCte>>.StopNode(list);
+                }
+                return VisitorResult<List<ExprCte>>.Continue(list);
+            }, new List<ExprCte>());
+            foreach (var dependency in dependencies)
+            {
+                // Recursive descriptor references may use a separate proxy type.
+                if (dependency.Name == cte.Name) recursive = true;
+                else Append(dependency);
+            }
+            visiting.Remove(cte.Name);
+            added.Add(cte.Name);
+            result.Add(cte);
         }
 
+        foreach (var expression in expressions) Append(expression);
         this.FormattingWriter.Append("WITH ");
         if (recursive)
         {
