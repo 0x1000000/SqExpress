@@ -2,7 +2,7 @@
 
 _For those who like SQL but hate raw strings._
 
-Write SQL with the confidence of TypeScript. Sqyra brings the fluent experience of [SqExpress](../Readme.md) to your queries: readable code, typed columns, and SQL you can inspect before it reaches your database. Start with an existing SQL statement or build a query from scratch, then let Sqyra handle the dialect.
+Write SQL with the confidence of TypeScript. Sqyra brings the fluent experience of [SqExpress](https://github.com/0x1000000/SqExpress) to your queries: readable code, typed columns, and SQL you can inspect before it reaches your database. Start with an existing SQL statement or build a query from scratch, then let Sqyra handle the dialect.
 
 ## Contents
 
