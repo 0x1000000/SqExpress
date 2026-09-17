@@ -13,7 +13,7 @@ internal abstract class DbStrategyBase : IDbStrategy
         Database = database;
     }
 
-    public abstract Task<DbRawModels> LoadRawModels();
+    public abstract Task<DbRawModels> LoadRawModels(bool includeViews);
 
     public abstract ColumnType? TryGetColType(ColumnRawModel raw);
 

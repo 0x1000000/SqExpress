@@ -50,9 +50,9 @@ internal class MySqlDbStrategy : DbStrategyBase
 
     public override string DefaultSchemaName => "";
 
-    public override async Task<DbRawModels> LoadRawModels()
+    public override async Task<DbRawModels> LoadRawModels(bool includeViews)
     {
-        var columns = await LoadColumns();
+        var columns = await LoadColumns(includeViews);
 
         var (foreignKeys, fkNames, pk) = await LoadConstrains();
 
@@ -325,7 +325,7 @@ internal class MySqlDbStrategy : DbStrategyBase
         return new DefaultValue(DefaultValueType.Raw, rawColumnDefaultValue);
     }
 
-    private Task<List<ColumnRawModel>> LoadColumns()
+    private Task<List<ColumnRawModel>> LoadColumns(bool includeViews)
     {
         var tColumns = new MySqlColumns();
 
@@ -344,7 +344,7 @@ internal class MySqlDbStrategy : DbStrategyBase
                 tColumns.CharacterSetName
             )
             .From(tColumns)
-            .Where(GetTableFilter(tColumns))
+            .Where(GetTableFilter(tColumns, includeViews))
             .OrderBy(tColumns.OrdinalPosition)
             .Done()
             .QueryList(
@@ -473,8 +473,15 @@ internal class MySqlDbStrategy : DbStrategyBase
             );
     }
 
-    private ExprBoolean GetTableFilter(IMySqlTableColumns tColumns)
+    private ExprBoolean GetTableFilter(IMySqlTableColumns tColumns, bool includeViews = false)
     {
-        return tColumns.TableSchema == _databaseName;
+        var tTables = new MySqlTables();
+        return tColumns.TableSchema == _databaseName
+               & Exists(SelectOne().From(tTables).Where(
+                   tTables.TableSchema == tColumns.TableSchema
+                   & tTables.TableName == tColumns.TableName
+                   & (includeViews
+                       ? tTables.TableType.In("BASE TABLE", "VIEW")
+                       : tTables.TableType == "BASE TABLE")));
     }
 }

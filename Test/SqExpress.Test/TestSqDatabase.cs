@@ -113,6 +113,9 @@ public class TestSqDatabase : ISqDatabase
         throw new NotImplementedException();
     }
 
+    Task<IReadOnlyList<SqTable>> ISqDatabase.GetTables(SqGetTablesOptions options, CancellationToken cancellationToken)
+        => throw new NotImplementedException();
+
     Task<IReadOnlyList<SqTable>> ISqDatabase.GetTables(bool skipUnknownColumnTypes, CancellationToken cancellationToken)
     {
         throw new NotImplementedException();

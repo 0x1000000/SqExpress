@@ -49,10 +49,10 @@ internal class MsSqlDbStrategy : DbStrategyBase
 
     public override string DefaultSchemaName => "dbo";
 
-    public override async Task<DbRawModels> LoadRawModels()
+    public override async Task<DbRawModels> LoadRawModels(bool includeViews)
     {
 
-        var cols = await LoadColumns();
+        var cols = await LoadColumns(includeViews);
         var indexes = await LoadIndexes();
         var fks = await LoadForeignKeys();
 
@@ -202,7 +202,7 @@ internal class MsSqlDbStrategy : DbStrategyBase
         }
     }
 
-    private Task<List<ColumnRawModel>> LoadColumns()
+    private Task<List<ColumnRawModel>> LoadColumns(bool includeViews)
     {
         var tColumns = new MsSqlIsColumns();
 
@@ -228,7 +228,7 @@ internal class MsSqlDbStrategy : DbStrategyBase
                 funcIsIdentity.As(cIsIdentity)
             )
             .From(tColumns)
-            .Where(GetTableFilter(tColumns))
+            .Where(GetTableFilter(tColumns, includeViews))
             .OrderBy(tColumns.OrdinalPosition)
             .QueryList(
                 Database,
@@ -391,13 +391,13 @@ internal class MsSqlDbStrategy : DbStrategyBase
                 });
     }
 
-    private ExprBoolean GetTableFilter(IMsSqlTableColumns tColumns)
+    private ExprBoolean GetTableFilter(IMsSqlTableColumns tColumns, bool includeViews = false)
     {
         var tTables = new MsSqlTables();
 
         var filter = tTables.TableName == tColumns.TableName
                      & tTables.TableSchema == tColumns.TableSchema
-                     & tTables.TableType == "BASE TABLE"
+                     & (includeViews ? tTables.TableType.In("BASE TABLE", "VIEW") : tTables.TableType == "BASE TABLE")
                      & tTables.TableCatalog == _databaseName;
 
         return Exists(SelectOne().From(tTables).Where(filter));

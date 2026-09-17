@@ -91,7 +91,7 @@ public class DbManagerTest : IDbStrategy
     }
 
 
-    async Task<DbRawModels> IDbStrategy.LoadRawModels()
+    async Task<DbRawModels> IDbStrategy.LoadRawModels(bool includeViews)
     {
         return new DbRawModels(await this.LoadColumns(), await this.LoadIndexes(), await this.LoadForeignKeys());
     }
@@ -235,7 +235,7 @@ public class DbManagerTest : IDbStrategy
 
         public string DefaultSchemaName => "dbo";
 
-        public Task<DbRawModels> LoadRawModels()
+        public Task<DbRawModels> LoadRawModels(bool includeViews)
         {
             return Task.FromResult(new DbRawModels(
                 [

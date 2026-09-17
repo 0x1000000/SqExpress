@@ -124,6 +124,13 @@ public interface ISqDatabase : IDisposable
     /// <param name="cancellationToken">Requests cancellation of metadata queries.</param>
     /// <returns>A task containing the discovered tables and all retained columns.</returns>
     Task<IReadOnlyList<SqTable>> GetTables(bool skipUnknownColumnTypes, CancellationToken cancellationToken = default);
+
+    /// <summary>Reads table metadata and optionally view metadata. Views are returned as ordinary table descriptors.</summary>
+    /// <param name="options">Controls view inclusion and unsupported column type handling.</param>
+    /// <param name="cancellationToken">Requests cancellation of metadata queries.</param>
+    /// <returns>The discovered tables and, when requested, views.</returns>
+    /// <exception cref="ArgumentNullException">The options are null.</exception>
+    Task<IReadOnlyList<SqTable>> GetTables(SqGetTablesOptions options, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Represents a database transaction owned or proxied by an <see cref="ISqDatabase"/>.</summary>
@@ -481,8 +488,18 @@ public class SqDatabase<TConnection> : ISqDatabase where TConnection : DbConnect
     public Task<IReadOnlyList<SqTable>> GetTables(CancellationToken cancellationToken = default)
         => this.GetTables(skipUnknownColumnTypes: false, cancellationToken);
 
-    public async Task<IReadOnlyList<SqTable>> GetTables(bool skipUnknownColumnTypes, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<SqTable>> GetTables(bool skipUnknownColumnTypes, CancellationToken cancellationToken = default)
+        => this.GetTables(new SqGetTablesOptions { SkipUnknownColumnTypes = skipUnknownColumnTypes }, cancellationToken);
+
+    public async Task<IReadOnlyList<SqTable>> GetTables(SqGetTablesOptions options, CancellationToken cancellationToken = default)
     {
+        if (options == null)
+        {
+            throw new ArgumentNullException(nameof(options));
+        }
+
+        var skipUnknownColumnTypes = options.SkipUnknownColumnTypes;
+        var includeViews = options.IncludeViews;
         this.CheckDisposed();
 
         if (string.IsNullOrEmpty(this._connection.Database) && this._sqlExporter is not SqliteExporter)
@@ -506,7 +523,7 @@ public class SqDatabase<TConnection> : ISqDatabase where TConnection : DbConnect
         IReadOnlyList<TableModel> tableModels;
         try
         {
-            tableModels = await dbManager.SelectTables(skipUnknownColumnTypes);
+            tableModels = await dbManager.SelectTables(skipUnknownColumnTypes, includeViews);
         }
         catch (Exception e)
         {

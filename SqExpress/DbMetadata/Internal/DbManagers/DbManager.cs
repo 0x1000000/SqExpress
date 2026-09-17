@@ -44,9 +44,9 @@ internal class DbManager : IDisposable
     public Task<IReadOnlyList<TableModel>> SelectTables()
         => this.SelectTables(skipUnknownColumnTypes: false);
 
-    public async Task<IReadOnlyList<TableModel>> SelectTables(bool skipUnknownColumnTypes)
+    public async Task<IReadOnlyList<TableModel>> SelectTables(bool skipUnknownColumnTypes, bool includeViews = false)
     {
-        var (columnsRaw, indexes, fk) = await this.Database.LoadRawModels();
+        var (columnsRaw, indexes, fk) = await this.Database.LoadRawModels(includeViews);
 
         var acc = new Dictionary<TableRef, Dictionary<ColumnRef, ColumnModel>>();
         var skippedColumns = new HashSet<ColumnRef>();

@@ -183,7 +183,7 @@ public class MySqlDbStrategyTest
         );
         var strategy = new MySqlDbStrategy(database, "test", MySqlFlavor.MariaDb);
 
-        var rawModels = await strategy.LoadRawModels();
+        var rawModels = await strategy.LoadRawModels(false);
 
         Assert.That(rawModels.Indexes.Indexes.Count, Is.EqualTo(1));
         Assert.That(rawModels.Indexes.Indexes[new TableRef("test", "Users")][0].Columns[0].IsDescending, Is.False);
@@ -235,7 +235,7 @@ public class MySqlDbStrategyTest
         );
         var strategy = new MySqlDbStrategy(database, "test", MySqlFlavor.MariaDb);
 
-        var ex = Assert.ThrowsAsync<SqExpressException>(() => strategy.LoadRawModels());
+        var ex = Assert.ThrowsAsync<SqExpressException>(() => strategy.LoadRawModels(false));
 
         Assert.That(ex!.Message, Does.Contain("Functional or expression-based indexes are not supported"));
         Assert.That(ex.Message, Does.Contain("test.Users.IX_Users_Func"));

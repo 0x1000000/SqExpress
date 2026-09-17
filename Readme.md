@@ -1435,6 +1435,18 @@ static async Task InsertTableData(ISqDatabase database, TableBase table, JsonEle
 
 ## Getting and Comparing Database Table Metadata
 
+Discovery excludes views by default. To include ordinary views alongside tables:
+
+```csharp
+var tablesAndViews = await database.GetTables(new SqGetTablesOptions
+{
+    IncludeViews = true,
+    SkipUnknownColumnTypes = false
+});
+```
+
+Views are returned as ordinary `SqTable` / `TableBase` descriptors without object-kind information or write restrictions. Their metadata comes from the database catalog; keys and relationships are not inferred from underlying tables. PostgreSQL materialized views are not included. SQLite retains its introspection limitations for column types and nullability.
+
 You can a list of dynamic table descriptors directly from a database using ```GetTables()``` method of ```ISqDatabase``` object. For example, this how you can read a list of all tables with all columns:
 
 ```cs
@@ -2204,6 +2216,14 @@ Parameters:
   Optional switch. Skips unsupported database column types and generates descriptors from the remaining supported columns.
 
 The `ef` mode creates the target `DbContext` and reads EF relational model metadata without opening a database connection. The generated descriptors reflect the configured EF database mapping.
+
+For live database scaffolding, add `--include-views` to discover views with the same naming and include/exclude filters as tables:
+
+```sh
+dotnet SqExpress.CodeGenUtil.dll gentables mssql "MyConnectionString" -o "./Tables" --include-views
+```
+
+The flag defaults to false and is not supported in `ef` mode. Generated views are ordinary table descriptors; table schema scripts do not recreate view definitions.
 
 ```GenerateTables.cmd```
 

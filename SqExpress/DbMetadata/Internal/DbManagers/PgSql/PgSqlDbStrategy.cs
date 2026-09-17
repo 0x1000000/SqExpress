@@ -51,10 +51,10 @@ internal class PgSqlDbStrategy : DbStrategyBase
 
     public override string DefaultSchemaName => "public";
 
-    public override async Task<DbRawModels> LoadRawModels()
+    public override async Task<DbRawModels> LoadRawModels(bool includeViews)
     {
 
-        var cols = await LoadColumns();
+        var cols = await LoadColumns(includeViews);
         var indexes = await LoadIndexes();
         var fks = await LoadForeignKeys();
 
@@ -184,7 +184,7 @@ internal class PgSqlDbStrategy : DbStrategyBase
                new DefaultValue(DefaultValueType.Raw, rawColumnDefaultValue);
     }
 
-    private Task<List<ColumnRawModel>> LoadColumns()
+    private Task<List<ColumnRawModel>> LoadColumns(bool includeViews)
     {
         var tColumns = new PgSqlColumns();
 
@@ -202,7 +202,7 @@ internal class PgSqlDbStrategy : DbStrategyBase
                 tColumns.NumericScale
             )
             .From(tColumns)
-            .Where(GetTableFilter(tColumns))
+            .Where(GetTableFilter(tColumns, includeViews))
             .OrderBy(tColumns.OrdinalPosition)
             .QueryList(
                 Database,
@@ -371,13 +371,13 @@ internal class PgSqlDbStrategy : DbStrategyBase
             );
     }
 
-    private ExprBoolean GetTableFilter(IPgSqlTableColumns tColumns)
+    private ExprBoolean GetTableFilter(IPgSqlTableColumns tColumns, bool includeViews = false)
     {
         var tTables = new PgSqlTables();
 
         var filter = tTables.TableName == tColumns.TableName
                      & tTables.TableSchema == tColumns.TableSchema
-                     & tTables.TableType == "BASE TABLE"
+                     & (includeViews ? tTables.TableType.In("BASE TABLE", "VIEW") : tTables.TableType == "BASE TABLE")
                      & tTables.TableCatalog == _databaseName
                      & tTables.TableSchema != "pg_catalog"
                      & tTables.TableSchema != "information_schema";

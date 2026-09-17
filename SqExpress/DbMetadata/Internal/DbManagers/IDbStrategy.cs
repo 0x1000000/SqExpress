@@ -7,7 +7,7 @@ namespace SqExpress.DbMetadata.Internal.DbManagers;
 
 internal interface IDbStrategy : IDisposable
 {
-    Task<DbRawModels> LoadRawModels();
+    Task<DbRawModels> LoadRawModels(bool includeViews);
 
     ColumnType? TryGetColType(ColumnRawModel raw);
 

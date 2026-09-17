@@ -10,7 +10,13 @@ namespace SqExpress.CodeGenUtil;
 public class GenTablesOptions
 {
     public GenTablesOptions(ConnectionType connectionType, string source, string tableClassPrefix, string outputDir, string @namespace, Verbosity verbosity, bool useTableDeclarationAttributes = false, bool skipUnknownColumnTypes = false, string dbContext = "", string framework = "", bool splitTablesBySchema = false, bool cleanOutput = false, IEnumerable<string>? include = null, IEnumerable<string>? exclude = null)
+        : this(connectionType, source, tableClassPrefix, outputDir, @namespace, verbosity, useTableDeclarationAttributes, skipUnknownColumnTypes, dbContext, framework, splitTablesBySchema, cleanOutput, include, exclude, false)
     {
+    }
+
+    public GenTablesOptions(ConnectionType connectionType, string source, string tableClassPrefix, string outputDir, string @namespace, Verbosity verbosity, bool useTableDeclarationAttributes, bool skipUnknownColumnTypes, string dbContext, string framework, bool splitTablesBySchema, bool cleanOutput, IEnumerable<string>? include, IEnumerable<string>? exclude, bool includeViews)
+    {
+        this.IncludeViews = includeViews;
         this.ConnectionType = connectionType;
         this.Source = source;
         this.TableClassPrefix = tableClassPrefix;
@@ -68,6 +74,9 @@ public class GenTablesOptions
 
     [Option("exclude", Required = false, Separator = ';', HelpText = "Exclude tables matching a semicolon-separated list of wildcard patterns.")]
     public IEnumerable<string> Exclude { get; }
+
+    [Option("include-views", Required = false, Default = false, HelpText = "Include ordinary database views as table descriptors (not supported in EF mode).")]
+    public bool IncludeViews { get; }
 }
 
 public enum ConnectionType

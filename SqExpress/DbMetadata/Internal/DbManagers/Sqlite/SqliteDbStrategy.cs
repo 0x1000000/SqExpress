@@ -23,9 +23,9 @@ internal class SqliteDbStrategy : DbStrategyBase
 
     public override string DefaultSchemaName => "dbo";
 
-    public override async Task<DbRawModels> LoadRawModels()
+    public override async Task<DbRawModels> LoadRawModels(bool includeViews)
     {
-        var tables = await this.LoadTables();
+        var tables = await this.LoadTables(includeViews);
         var columns = new List<ColumnRawModel>();
         var primaryKeys = new Dictionary<TableRef, PrimaryKeyModel>();
         var indexes = new Dictionary<TableRef, List<IndexModel>>();
@@ -143,13 +143,15 @@ internal class SqliteDbStrategy : DbStrategyBase
         return columnType.Accept(DefaultValueParser.Instance, raw) ?? new DefaultValue(DefaultValueType.Raw, raw);
     }
 
-    private async Task<List<(string Name, string CreateSql)>> LoadTables()
+    private async Task<List<(string Name, string CreateSql)>> LoadTables(bool includeViews)
     {
         var result = new List<(string Name, string CreateSql)>();
         await this.WithOpenConnection(async () =>
         {
             using var cmd = this._connection.CreateCommand();
-            cmd.CommandText = "SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name";
+            cmd.CommandText = includeViews
+                ? "SELECT name, sql FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' ORDER BY name"
+                : "SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name";
             using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {

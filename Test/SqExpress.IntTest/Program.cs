@@ -93,6 +93,7 @@ public class Program
             return scenario.Trim().ToLowerInvariant() switch
             {
                 "for-json-nested-books" => new ScForJsonNestedBooks(),
+                "get-views" => new ScGetViews(),
                 "get-tables-complex" => new ScGetTablesComplex(),
                 _ => throw new ArgumentException($"Unknown scenario '{scenario}'.")
             };
@@ -143,6 +144,7 @@ public class Program
             .Then(new ScForJson())
             .Then(new ScForJsonNestedBooks())
             .Then(new ScGetTables())
+            .Then(new ScGetViews())
             .Then(new ScGetTablesComplex())
             .Then(new ScDateDiff())
             .Then(new ScCreateDynamicTable())

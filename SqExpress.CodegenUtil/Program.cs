@@ -75,6 +75,11 @@ public class Program
 
     public static async Task RunGenTablesOptions(GenTablesOptions options)
     {
+        if (options.ConnectionType == ConnectionType.Ef && options.IncludeViews)
+        {
+            throw new SqExpressCodeGenException("--include-views is not supported in EF mode.");
+        }
+
         ILogger logger = new DefaultLogger(Console.Out, options.Verbosity);
 
         logger.LogMinimal("Table proxy classes generation is running...");
@@ -124,7 +129,7 @@ public class Program
 
             logger.LogNormal("Success!");
 
-            tables = await sqlManager.SelectTables(options.SkipUnknownColumnTypes);
+            tables = await sqlManager.SelectTables(options.SkipUnknownColumnTypes, options.IncludeViews);
         }
 
         tables = TableFilter.Apply(tables, options.Include, options.Exclude);

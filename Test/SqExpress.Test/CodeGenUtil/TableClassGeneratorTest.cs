@@ -470,7 +470,7 @@ public class TableClassGeneratorTest
 
         public string DefaultSchemaName => "dbo";
 
-        public Task<DbRawModels> LoadRawModels()
+        public Task<DbRawModels> LoadRawModels(bool includeViews)
         {
             var table = new TableRef("dbo", "Audit");
             return Task.FromResult(new DbRawModels(

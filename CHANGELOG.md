@@ -1,5 +1,6 @@
 # 1.4.0
 ### New Features
+- Added opt-in view discovery via `gentables --include-views` and `GetTables(SqGetTablesOptions)` across all supported database dialects, returning ordinary table descriptors while keeping table-only discovery as the default.
 - Added portable JSON reading, construction, mutation, array expansion, and `ForJson()` output across all supported dialects.
 - Added portable `StringAgg(...)` with aggregate-local ordering and T-SQL parser support.
 - Added configurable SQL formatting profiles shared by exporters and the SQL transpiler formatter.
