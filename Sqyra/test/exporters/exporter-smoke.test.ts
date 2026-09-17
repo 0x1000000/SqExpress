@@ -23,6 +23,26 @@ import {
 } from "../../src/index.js";
 
 describe("dialect exporter slice", () => {
+  it.each([true, false])("renders T-SQL Boolean comparisons without a cast: %s", (value) => {
+    const users = defineTable({
+      schema: "dbo",
+      name: "Users",
+      columns: { Active: column(sqlType.boolean) },
+    });
+    expect(select(users.Active).from(users).where(users.Active.eq(value)).toSql("tsql")).toBe(
+      `SELECT [Users].[Active] FROM [dbo].[Users] WHERE [Users].[Active]=${value ? 1 : 0}`,
+    );
+  });
+  it("renders T-SQL Boolean literals like SqExpress and preserves other dialects", () => {
+    expect(select(true, false).toSql("tsql")).toBe("SELECT 1,0");
+    expect(select(true, false).toSql("pgsql")).toBe("SELECT TRUE,FALSE");
+    expect(select(true, false).toSql("mysql")).toBe("SELECT 1,0");
+    expect(select(true, false).toSql("sqlite")).toBe("SELECT 1,0");
+    expect(compileSql(select(true), { dialect: "tsql" })).toEqual({
+      sql: "SELECT @p0",
+      parameters: [{ name: "p0", value: true, type: "ExprBoolLiteral" }],
+    });
+  });
   it.each(["tsql", "pgsql", "mysql", "sqlite"] as const)(
     "matches the C# literal fixture for %s",
     (dialect) => expect(toSql(parseTSql("SELECT 1").ast, { dialect })).toBe("SELECT 1"),

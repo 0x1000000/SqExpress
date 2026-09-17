@@ -682,7 +682,9 @@ class Renderer {
         return node.value === null
           ? "NULL"
           : this.options.dialect === "tsql"
-            ? `CAST(${node.value ? 1 : 0} AS bit)`
+            ? node.value
+              ? "1"
+              : "0"
             : this.options.dialect === "pgsql"
               ? String(node.value).toUpperCase()
               : node.value

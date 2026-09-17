@@ -166,7 +166,7 @@ describe("function and JSON builders", () => {
       .then(false)
       .else(5);
     expect(toSql(value, { dialect: "tsql" })).toBe(
-      "CASE WHEN [FirstName]='John' THEN 'J' WHEN [FirstName]='Bob' THEN CAST(0 AS bit) ELSE 5 END",
+      "CASE WHEN [FirstName]='John' THEN 'J' WHEN [FirstName]='Bob' THEN 0 ELSE 5 END",
     );
   });
   it("builds portable JSON operations for every dialect", () => {
