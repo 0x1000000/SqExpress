@@ -1,6 +1,0 @@
-node_modules/
-.npm-cache/
-.sqyra-int.sqlite*
-build/
-*.db
-*.log

@@ -1,7 +1,0 @@
-node_modules/
-dist/
-**/bin/
-**/obj/
-*.tgz
-package/
-.tmp/
