@@ -36,11 +36,7 @@ public class MySqlExporter : ISqlExporterInternal
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
     public MySqlExporter(MySqlExporterOptions options)
     {
-        if (options == null)
-        {
-            throw new ArgumentNullException(nameof(options));
-        }
-
+        options = options ?? throw new ArgumentNullException(nameof(options));
         this._builderOptions = options.BuilderOptions;
         this.Flavor = options.Flavor;
     }
@@ -59,6 +55,17 @@ public class MySqlExporter : ISqlExporterInternal
         : this(new MySqlExporterOptions(builderOptions, flavor))
     {
     }
+
+    /// <summary>Returns a new exporter using the specified common builder options and the current MySQL flavor.</summary>
+    /// <param name="options">The replacement builder options.</param>
+    /// <returns>A new exporter instance.</returns>
+    public MySqlExporter WithOptions(SqlBuilderOptions options) => new MySqlExporter(options, this.Flavor);
+
+    /// <summary>Returns a new exporter using the specified formatting profile and the current MySQL flavor.</summary>
+    /// <param name="profile">The formatting profile, or <see langword="null"/> for unformatted SQL.</param>
+    /// <returns>A new exporter instance.</returns>
+    public MySqlExporter WithFormatting(SqlFormattingProfile? profile)
+        => new MySqlExporter(this._builderOptions.WithFormatting(profile), this.Flavor);
 
     /// <inheritdoc/>
     public string ToSql(IExpr expr)

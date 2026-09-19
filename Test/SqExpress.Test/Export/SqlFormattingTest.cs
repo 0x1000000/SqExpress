@@ -8,7 +8,7 @@ namespace SqExpress.Test.Export;
 [TestFixture]
 public class SqlFormattingTest
 {
-    private static readonly SqlBuilderOptions FormattedOptions = SqlBuilderOptions.Default
+    private static readonly TSqlExporter FormattedTSqlExporter = TSqlExporter.Default
         .WithFormatting(SqlFormattingProfile.Spacious);
 
     [Test]
@@ -39,7 +39,7 @@ public class SqlFormattingTest
                                 + "ORDER BY" + nl
                                 + "    [U].[UserId]";
 
-        Assert.AreEqual(expected, query.ToSql(new TSqlExporter(FormattedOptions)));
+        Assert.AreEqual(expected, query.ToSql(FormattedTSqlExporter));
     }
 
     [TestCase(0)]
@@ -51,10 +51,10 @@ public class SqlFormattingTest
         var query = Select(Literal(1), Literal(2)).Done();
         ISqlExporter exporter = dialect switch
         {
-            0 => new TSqlExporter(FormattedOptions),
-            1 => new PgSqlExporter(FormattedOptions),
-            2 => new MySqlExporter(FormattedOptions, MySqlFlavor.MariaDb),
-            _ => new SqliteExporter(FormattedOptions)
+            0 => TSqlExporter.Default.WithFormatting(SqlFormattingProfile.Spacious),
+            1 => PgSqlExporter.Default.WithFormatting(SqlFormattingProfile.Spacious),
+            2 => MySqlExporter.MariaDbDefault.WithFormatting(SqlFormattingProfile.Spacious),
+            _ => SqliteExporter.Default.WithFormatting(SqlFormattingProfile.Spacious)
         };
 
         var nl = Environment.NewLine;
@@ -67,7 +67,7 @@ public class SqlFormattingTest
         var query = Select(Literal(1), Literal(2)).Done();
 
         Assert.AreEqual("SELECT 1,2", query.ToSql(TSqlExporter.Default));
-        Assert.AreEqual("SELECT 1,2", query.ToSql(new TSqlExporter(SqlBuilderOptions.Default.WithFormatting(null))));
+        Assert.AreEqual("SELECT 1,2", query.ToSql(TSqlExporter.Default.WithFormatting(null)));
     }
 
     [Test]
@@ -80,7 +80,7 @@ public class SqlFormattingTest
             .OrderBy(user.UserId)
             .Done();
 
-        var sql = query.ToSql(new TSqlExporter(FormattedOptions));
+        var sql = query.ToSql(FormattedTSqlExporter);
 
         Assert.That(sql, Does.Contain("    [U].[UserId]," + Environment.NewLine + "    [U].[UserId]"));
         Assert.That(sql, Does.Contain("WHERE" + Environment.NewLine + "    [U].[UserId]=1"));
@@ -90,7 +90,7 @@ public class SqlFormattingTest
     [Test]
     public void SpaciousHasNoTrailingWhitespaceOrFinalNewline()
     {
-        var sql = Select(Literal(1), Literal(2)).Done().ToSql(new TSqlExporter(FormattedOptions));
+        var sql = Select(Literal(1), Literal(2)).Done().ToSql(FormattedTSqlExporter);
 
         Assert.That(sql, Does.Not.EndWith(Environment.NewLine));
         foreach (var line in sql.Split([Environment.NewLine], StringSplitOptions.None))
@@ -103,7 +103,7 @@ public class SqlFormattingTest
     public void SpaciousFormatsUpdateAndDelete()
     {
         var user = Tables.User(Alias.Empty);
-        var exporter = new TSqlExporter(FormattedOptions);
+        var exporter = FormattedTSqlExporter;
         var nl = Environment.NewLine;
 
         var update = Update(user)
@@ -144,7 +144,7 @@ public class SqlFormattingTest
                                                                + "VALUES" + nl
                                                                + "    ('First','Last')," + nl
                                                                + "    ('Second','User')",
-            insert.ToSql(new TSqlExporter(FormattedOptions)));
+            insert.ToSql(FormattedTSqlExporter));
     }
 
     [Test]
@@ -159,7 +159,7 @@ public class SqlFormattingTest
                      + "UNION ALL" + nl
                      + "SELECT" + nl
                      + "    2",
-            query.ToSql(new TSqlExporter(FormattedOptions)));
+            query.ToSql(FormattedTSqlExporter));
     }
 
     [Test]
@@ -182,7 +182,7 @@ public class SqlFormattingTest
                      + "    )" + nl
                      + "    AND" + nl
                      + "    [UserId]=3",
-            query.ToSql(new TSqlExporter(FormattedOptions)));
+            query.ToSql(FormattedTSqlExporter));
     }
 
     [Test]

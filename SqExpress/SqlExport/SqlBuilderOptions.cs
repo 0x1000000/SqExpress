@@ -48,7 +48,15 @@ public class SqlBuilderOptions
     {
     }
 
-    private SqlBuilderOptions(
+    /// <summary>
+    /// Creates exporter options with the specified schema mappings, identifier-quoting behavior, and formatting profile.
+    /// </summary>
+    /// <param name="schemaMap">Schema-name substitutions, or <see langword="null"/> for none.</param>
+    /// <param name="avoidNameQuoting"><see langword="true"/> to omit dialect-specific identifier delimiters.</param>
+    /// <param name="formattingProfile">
+    /// The formatting profile, or <see langword="null"/> to preserve the existing unformatted output.
+    /// </param>
+    public SqlBuilderOptions(
         IReadOnlyList<SchemaMap>? schemaMap,
         bool avoidNameQuoting,
         SqlFormattingProfile? formattingProfile)

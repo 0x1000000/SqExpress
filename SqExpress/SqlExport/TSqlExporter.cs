@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using SqExpress.SqlExport.Internal;
 using SqExpress.SqlExport.Statement.Internal;
 using SqExpress.StatementSyntax;
@@ -6,13 +6,7 @@ using SqExpress.Syntax;
 
 namespace SqExpress.SqlExport;
 
-/// <summary>
-/// Renders SqExpress expression trees and statements using Microsoft SQL Server T-SQL syntax.
-/// </summary>
-/// <remarks>
-/// Portable SqExpress operations—including pagination, Boolean values, string/date functions, and DML—are
-/// translated to SQL Server-native syntax or an equivalent T-SQL expression. No database command is executed.
-/// </remarks>
+/// <summary>Renders SqExpress expression trees and statements using Microsoft SQL Server T-SQL syntax.</summary>
 public class TSqlExporter : ISqlExporterInternal
 {
     /// <summary>Gets a reusable T-SQL exporter with default identifier quoting and no schema remapping.</summary>
@@ -21,17 +15,22 @@ public class TSqlExporter : ISqlExporterInternal
     private readonly SqlBuilderOptions _builderOptions;
 
     /// <summary>Creates a T-SQL renderer with caller-selected identifier and schema handling.</summary>
-    /// <param name="builderOptions">Options controlling schema mapping and whether identifiers are quoted.</param>
-    public TSqlExporter(SqlBuilderOptions builderOptions)
-    {
-        this._builderOptions = builderOptions;
-    }
+    /// <param name="builderOptions">Options controlling schema mapping and identifier quoting.</param>
+    public TSqlExporter(SqlBuilderOptions builderOptions) => this._builderOptions = builderOptions;
+
+    /// <summary>Returns a new T-SQL exporter using the specified builder options.</summary>
+    /// <param name="options">The replacement builder options.</param>
+    /// <returns>A new exporter instance.</returns>
+    public TSqlExporter WithOptions(SqlBuilderOptions options) => new TSqlExporter(options);
+
+    /// <summary>Returns a new T-SQL exporter using the specified formatting profile.</summary>
+    /// <param name="profile">The formatting profile, or <see langword="null"/> for unformatted SQL.</param>
+    /// <returns>A new exporter instance.</returns>
+    public TSqlExporter WithFormatting(SqlFormattingProfile? profile)
+        => new TSqlExporter(this._builderOptions.WithFormatting(profile));
 
     /// <inheritdoc/>
-    public string ToSql(IExpr expr)
-    {
-        return ((ISqlExporterInternal)this).ToSql(expr, out _);
-    }
+    public string ToSql(IExpr expr) => ((ISqlExporterInternal)this).ToSql(expr, out _);
 
     /// <inheritdoc/>
     public string ToSql(IStatement statement)

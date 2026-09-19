@@ -10,8 +10,8 @@ namespace SqExpress.SqlTranspiler;
 
 public sealed class SqExpressSqlFormatter : ISqExpressSqlFormatter
 {
-    private static readonly TSqlExporter FormattedExporter = new TSqlExporter(
-        SqlBuilderOptions.Default.WithFormatting(SqlFormattingProfile.Spacious));
+        private static readonly TSqlExporter FormattedExporter = TSqlExporter.Default
+            .WithFormatting(SqlFormattingProfile.Spacious);
 
     public string Format(string sql)
     {

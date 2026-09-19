@@ -251,8 +251,8 @@ public class Program
 
     private static async Task ExecNpgSql(IScenario scenario, string connectionString, ParametrizationMode parametrizationMode)
     {
-        var sqlExporter =
-            new PgSqlExporter(SqlBuilderOptions.Default.WithSchemaMap([new SchemaMap("dbo", "public")]));
+        var sqlExporter = PgSqlExporter.Default.WithOptions(
+            SqlBuilderOptions.Default.WithSchemaMap([new SchemaMap("dbo", "public")]));
 
         await using var database = GetPgSqlDatabase(connectionString, sqlExporter, parametrizationMode);
         await scenario.Exec(

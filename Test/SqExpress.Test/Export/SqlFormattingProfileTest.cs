@@ -16,15 +16,46 @@ public class SqlFormattingProfileTest
 
     private static ISqlExporter Exporter(int dialect, SqlFormattingProfile? profile)
     {
-        var options = SqlBuilderOptions.Default.WithFormatting(profile);
         return dialect switch
         {
-            0 => new TSqlExporter(options),
-            1 => new PgSqlExporter(options),
-            2 => new MySqlExporter(options, MySqlFlavor.MariaDb),
-            3 => new MySqlExporter(options, MySqlFlavor.Oracle),
-            _ => new SqliteExporter(options)
+            0 => TSqlExporter.Default.WithFormatting(profile),
+            1 => PgSqlExporter.Default.WithFormatting(profile),
+            2 => MySqlExporter.MariaDbDefault.WithFormatting(profile),
+            3 => MySqlExporter.OracleDefault.WithFormatting(profile),
+            _ => SqliteExporter.Default.WithFormatting(profile)
         };
+    }
+
+    [Test]
+    public void FormattingProfileCanBeSetExplicitlyInBuilderOptions()
+    {
+        var schemaMap = new[] { new SchemaMap("dbo", "public") };
+        var options = new SqlBuilderOptions(
+            schemaMap,
+            avoidNameQuoting: true,
+            formattingProfile: SqlFormattingProfile.Spacious);
+
+        Assert.AreSame(schemaMap, options.SchemaMap);
+        Assert.IsTrue(options.AvoidNameQuoting);
+        Assert.AreSame(SqlFormattingProfile.Spacious, options.FormattingProfile);
+    }
+
+    [Test]
+    public void ExportersCanBeCopiedWithOptionsOrFormatting()
+    {
+        var query = Select(Literal(1)).Done();
+        var options = new SqlBuilderOptions(
+            schemaMap: null,
+            avoidNameQuoting: true,
+            formattingProfile: SqlFormattingProfile.Spacious);
+
+        Assert.That(query.ToSql(TSqlExporter.Default.WithOptions(options)), Does.Contain(Environment.NewLine));
+        Assert.That(query.ToSql(PgSqlExporter.Default.WithFormatting(SqlFormattingProfile.Spacious)), Does.Contain(Environment.NewLine));
+        Assert.That(query.ToSql(SqliteExporter.Default.WithFormatting(SqlFormattingProfile.Spacious)), Does.Contain(Environment.NewLine));
+
+        var mySql = MySqlExporter.OracleDefault.WithFormatting(SqlFormattingProfile.Spacious);
+        Assert.AreEqual(MySqlFlavor.Oracle, mySql.Flavor);
+        Assert.That(query.ToSql(mySql), Does.Contain(Environment.NewLine));
     }
 
     [Test]

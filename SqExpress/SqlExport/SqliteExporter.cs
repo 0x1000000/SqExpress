@@ -27,6 +27,17 @@ public class SqliteExporter : ISqlExporterInternal
         this._builderOptions = builderOptions;
     }
 
+    /// <summary>Returns a new SQLite exporter using the specified builder options.</summary>
+    /// <param name="options">The replacement builder options.</param>
+    /// <returns>A new exporter instance.</returns>
+    public SqliteExporter WithOptions(SqlBuilderOptions options) => new SqliteExporter(options);
+
+    /// <summary>Returns a new SQLite exporter using the specified formatting profile.</summary>
+    /// <param name="profile">The formatting profile, or <see langword="null"/> for unformatted SQL.</param>
+    /// <returns>A new exporter instance.</returns>
+    public SqliteExporter WithFormatting(SqlFormattingProfile? profile)
+        => new SqliteExporter(this._builderOptions.WithFormatting(profile));
+
     /// <inheritdoc/>
     public string ToSql(IExpr expr)
     {
