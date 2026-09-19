@@ -2185,7 +2185,7 @@ For full `Gen-Tables`, EF mode, generated table attributes, and MSBuild project 
 ```Package Manager Console```
 
 ```powershell
-Gen-Tables -DbType {mssql | mysql | pgsql} -ConnectionString <string> [-OutputDir <string>] [-TableClassPrefix <string>] [-Namespace <string>] [-Verbosity {Quiet | Minimal | Normal | Detailed}] [-UseTableDeclarationAttributes] [-SkipUnknownColumnTypes] [-SplitTablesBySchema] [-CleanOutput]
+Gen-Tables -DbType {mssql | mysql | pgsql} -ConnectionString <string> [-OutputDir <string>] [-TableClassPrefix <string>] [-Namespace <string>] [-Verbosity {Quiet | Minimal | Normal | Detailed}] [-UseTableDeclarationAttributes] [-SkipUnknownColumnTypes] [-IncludeViews] [-SplitTablesBySchema] [-CleanOutput]
 Gen-Tables ef [[-Project] <project-name-or-path>] [-DbContext <type-name>] [-Framework <tfm>] [-OutputDir <string>] [-TableClassPrefix <string>] [-Namespace <string>] [-Verbosity {Quiet | Minimal | Normal | Detailed}] [-UseTableDeclarationAttributes] [-SkipUnknownColumnTypes] [-SplitTablesBySchema] [-CleanOutput]
 ```
 
@@ -2214,10 +2214,12 @@ Parameters:
   Optional switch. Generates attribute-based partial declarations instead of direct `TableBase` descriptor classes.
 - `-SkipUnknownColumnTypes`
   Optional switch. Skips unsupported database column types and generates descriptors from the remaining supported columns.
+- `-IncludeViews`
+  Optional switch for live database generation. Includes ordinary views as table descriptors.
 
 The `ef` mode creates the target `DbContext` and reads EF relational model metadata without opening a database connection. The generated descriptors reflect the configured EF database mapping.
 
-For live database scaffolding, add `--include-views` to discover views with the same naming and include/exclude filters as tables:
+For live database scaffolding, use `Gen-Tables -IncludeViews` or add `--include-views` to the CLI to discover views with the same naming and include/exclude filters as tables:
 
 ```sh
 dotnet SqExpress.CodeGenUtil.dll gentables mssql "MyConnectionString" -o "./Tables" --include-views

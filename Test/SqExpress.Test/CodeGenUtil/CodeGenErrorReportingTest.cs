@@ -96,7 +96,7 @@ public class CodeGenErrorReportingTest
         foreach (var suffix in new[]
                  {
                      "Output", "Namespace", "TableClassPrefix", "UseTableDeclarationAttributes",
-                     "SkipUnknownColumnTypes", "SplitTablesBySchema", "CleanOutput", "Include", "Exclude"
+                     "SkipUnknownColumnTypes", "IncludeViews", "SplitTablesBySchema", "CleanOutput", "Include", "Exclude"
                  })
         {
             Assert.That(props, Does.Contain($"<SqTablesGen{suffix}"));
@@ -109,9 +109,12 @@ public class CodeGenErrorReportingTest
         Assert.That(module, Does.Contain("GetCurrentProjectProperty (\"SqTablseGen\" + $propertySuffix)"));
         Assert.That(module, Does.Contain("GetTableGenProperty \"UseTableDeclarationAttributes\""));
         Assert.That(module, Does.Contain("GetTableGenProperty \"SkipUnknownColumnTypes\""));
+        Assert.That(module, Does.Contain("GetTableGenProperty \"IncludeViews\""));
         Assert.That(module, Does.Contain("GetTableGenProperty \"SplitTablesBySchema\""));
         Assert.That(module, Does.Contain("$PSBoundParameters.ContainsKey('UseTableDeclarationAttributes')"));
         Assert.That(module, Does.Contain("$PSBoundParameters.ContainsKey('Include')"));
+        Assert.That(module, Does.Contain("$PSBoundParameters.ContainsKey('IncludeViews')"));
+        Assert.That(module, Does.Contain("$args = $args + \" --include-views\""));
     }
 
     [Test]

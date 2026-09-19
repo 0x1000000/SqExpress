@@ -118,6 +118,7 @@ Gen-Tables -DbType {mssql | mysql | pgsql} `
   [-Verbosity {Quiet | Minimal | Normal | Detailed}] `
   [-UseTableDeclarationAttributes] `
   [-SkipUnknownColumnTypes] `
+  [-IncludeViews] `
   [-SplitTablesBySchema] `
   [-CleanOutput] `
   [-Include <string[]>] `
@@ -138,6 +139,7 @@ Gen-Tables -DbType {mssql | mysql | pgsql} `
 | `Verbosity` | no | `Minimal` | `Quiet`, `Minimal`, `Normal`, or `Detailed`. |
 | `UseTableDeclarationAttributes` | no | project property `SqTablesGenUseTableDeclarationAttributes`; otherwise `false` | Generate attribute-based partial declarations. |
 | `SkipUnknownColumnTypes` | no | project property `SqTablesGenSkipUnknownColumnTypes`; otherwise `false` | Omit unsupported columns instead of failing. |
+| `IncludeViews` | no | project property `SqTablesGenIncludeViews`; otherwise `false` | Include ordinary database views as table descriptors. |
 | `SplitTablesBySchema` | no | project property `SqTablesGenSplitTablesBySchema`; otherwise `false` | Create schema-specific folders and namespaces. |
 | `CleanOutput` | no | project property `SqTablesGenCleanOutput`; otherwise `false` | Remove obsolete recognized descriptors. |
 | `Include` | no | project property `SqTablesGenInclude`; otherwise all tables | One or more case-insensitive table patterns. |
@@ -156,6 +158,7 @@ Store reusable Package Manager Console defaults in the selected `.csproj`:
   <SqTablesGenTableClassPrefix>Table</SqTablesGenTableClassPrefix>
   <SqTablesGenUseTableDeclarationAttributes>true</SqTablesGenUseTableDeclarationAttributes>
   <SqTablesGenSkipUnknownColumnTypes>false</SqTablesGenSkipUnknownColumnTypes>
+  <SqTablesGenIncludeViews>false</SqTablesGenIncludeViews>
   <SqTablesGenSplitTablesBySchema>false</SqTablesGenSplitTablesBySchema>
   <SqTablesGenCleanOutput>false</SqTablesGenCleanOutput>
   <SqTablesGenInclude></SqTablesGenInclude>
@@ -170,6 +173,7 @@ Store reusable Package Manager Console defaults in the selected `.csproj`:
 | `SqTablesGenTableClassPrefix` | `Table` | Prefix for generated descriptor class names. |
 | `SqTablesGenUseTableDeclarationAttributes` | `false` | Generate attribute-based declarations instead of complete `TableBase` classes. |
 | `SqTablesGenSkipUnknownColumnTypes` | `false` | Omit unsupported columns instead of failing. |
+| `SqTablesGenIncludeViews` | `false` | Include ordinary database views as table descriptors. |
 | `SqTablesGenSplitTablesBySchema` | `false` | Create schema-specific folders and namespaces. |
 | `SqTablesGenCleanOutput` | `false` | Remove obsolete recognized descriptors. |
 | `SqTablesGenInclude` | all tables | Semicolon-separated include patterns. |

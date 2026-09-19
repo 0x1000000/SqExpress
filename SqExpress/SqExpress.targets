@@ -14,6 +14,9 @@
     <_SqTablesGenSkipUnknownColumnTypes Condition="'$(SqTablesGenSkipUnknownColumnTypes)' != ''">$(SqTablesGenSkipUnknownColumnTypes)</_SqTablesGenSkipUnknownColumnTypes>
     <_SqTablesGenSkipUnknownColumnTypes Condition="'$(_SqTablesGenSkipUnknownColumnTypes)' == '' And '$(SqTablseGenSkipUnknownColumnTypes)' != ''">$(SqTablseGenSkipUnknownColumnTypes)</_SqTablesGenSkipUnknownColumnTypes>
     <_SqTablesGenSkipUnknownColumnTypes Condition="'$(_SqTablesGenSkipUnknownColumnTypes)' == ''">true</_SqTablesGenSkipUnknownColumnTypes>
+    <_SqTablesGenIncludeViews Condition="'$(SqTablesGenIncludeViews)' != ''">$(SqTablesGenIncludeViews)</_SqTablesGenIncludeViews>
+    <_SqTablesGenIncludeViews Condition="'$(_SqTablesGenIncludeViews)' == '' And '$(SqTablseGenIncludeViews)' != ''">$(SqTablseGenIncludeViews)</_SqTablesGenIncludeViews>
+    <_SqTablesGenIncludeViews Condition="'$(_SqTablesGenIncludeViews)' == ''">false</_SqTablesGenIncludeViews>
     <_SqTablesGenSplitTablesBySchema Condition="'$(SqTablesGenSplitTablesBySchema)' != ''">$(SqTablesGenSplitTablesBySchema)</_SqTablesGenSplitTablesBySchema>
     <_SqTablesGenSplitTablesBySchema Condition="'$(_SqTablesGenSplitTablesBySchema)' == '' And '$(SqTablseGenSplitTablesBySchema)' != ''">$(SqTablseGenSplitTablesBySchema)</_SqTablesGenSplitTablesBySchema>
     <_SqTablesGenSplitTablesBySchema Condition="'$(_SqTablesGenSplitTablesBySchema)' == ''">false</_SqTablesGenSplitTablesBySchema>

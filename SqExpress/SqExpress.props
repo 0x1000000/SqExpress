@@ -11,6 +11,7 @@
     <SqTablseGenTableClassPrefix></SqTablseGenTableClassPrefix>
     <SqTablseGenUseTableDeclarationAttributes Condition="'$(SqTablseGenUseTableDeclarationAttributes)' == ''"></SqTablseGenUseTableDeclarationAttributes>
     <SqTablseGenSkipUnknownColumnTypes Condition="'$(SqTablseGenSkipUnknownColumnTypes)' == ''"></SqTablseGenSkipUnknownColumnTypes>
+    <SqTablseGenIncludeViews Condition="'$(SqTablseGenIncludeViews)' == ''"></SqTablseGenIncludeViews>
     <SqTablseGenSplitTablesBySchema Condition="'$(SqTablseGenSplitTablesBySchema)' == ''"></SqTablseGenSplitTablesBySchema>
     <SqTablseGenCleanOutput>false</SqTablseGenCleanOutput>
     <SqTablseGenInclude></SqTablseGenInclude>
@@ -20,6 +21,7 @@
     <SqTablesGenTableClassPrefix Condition="'$(SqTablesGenTableClassPrefix)' == ''"></SqTablesGenTableClassPrefix>
     <SqTablesGenUseTableDeclarationAttributes Condition="'$(SqTablesGenUseTableDeclarationAttributes)' == ''"></SqTablesGenUseTableDeclarationAttributes>
     <SqTablesGenSkipUnknownColumnTypes Condition="'$(SqTablesGenSkipUnknownColumnTypes)' == ''"></SqTablesGenSkipUnknownColumnTypes>
+    <SqTablesGenIncludeViews Condition="'$(SqTablesGenIncludeViews)' == ''"></SqTablesGenIncludeViews>
     <SqTablesGenSplitTablesBySchema Condition="'$(SqTablesGenSplitTablesBySchema)' == ''"></SqTablesGenSplitTablesBySchema>
     <SqTablesGenCleanOutput Condition="'$(SqTablesGenCleanOutput)' == ''"></SqTablesGenCleanOutput>
     <SqTablesGenInclude Condition="'$(SqTablesGenInclude)' == ''"></SqTablesGenInclude>

@@ -17,6 +17,7 @@ function Gen-Tables
         [string] $Namespace,
         [switch] $UseTableDeclarationAttributes,
         [switch] $SkipUnknownColumnTypes,
+        [switch] $IncludeViews,
         [switch] $SplitTablesBySchema,
         [switch] $CleanOutput,
         [string[]] $Include,
@@ -104,6 +105,12 @@ function Gen-Tables
        (!$PSBoundParameters.ContainsKey('SkipUnknownColumnTypes') -and (GetTableGenProperty "SkipUnknownColumnTypes") -eq "True"))
     {
         $args = $args + " --skip-unknown-column-types"
+    }
+
+    if($IncludeViews.IsPresent -or
+       (!$PSBoundParameters.ContainsKey('IncludeViews') -and (GetTableGenProperty "IncludeViews") -eq "True"))
+    {
+        $args = $args + " --include-views"
     }
 
     if($SplitTablesBySchema.IsPresent -or
