@@ -16,6 +16,8 @@ You can also use SqExpress with a database-first approach. Table Descriptors can
 
 SqExpress is also a strong fit when SQL is produced dynamically, including by AI agents. Because SQL can be parsed into the SqExpress AST, validated against an allowed table model, traversed, rewritten with additional security predicates, and exported back to SQL, SqExpress can act as a fail-closed safety layer for AI-generated T-SQL within the supported parser surface.
 
+[Sqyra](https://github.com/0x1000000/sqyra) is a port of SqExpress that can be useful for web development, such as an online SQL editor, or for Node.js backends.
+
 # Content
 
 ### Resources
