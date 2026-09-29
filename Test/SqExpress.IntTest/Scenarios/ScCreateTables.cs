@@ -11,11 +11,16 @@ public class ScCreateTables : IScenario
     public async Task Exec(IScenarioContext context)
     {
         IReadOnlyList<TableBase> createList = AllTables.BuildAllTableList(context.Dialect);
+        var regularTables = createList.Where(i => !ForeignKeyTables.IsCycleTable(i)).ToArray();
 
-        var dropping = createList.Reverse().Select(i => i.Script.DropIfExist()).Combine();
+        await ForeignKeyTables.DropCycleTables(context);
+
+        var dropping = regularTables.Reverse().Select(i => i.Script.DropIfExist()).Combine();
         await context.Database.Statement(dropping);
 
-        var creating = createList.Select(i => i.Script.Create()).Combine();
+        var creating = regularTables.Select(i => i.Script.Create()).Combine();
         await context.Database.Statement(creating);
+
+        await ForeignKeyTables.CreateCycleTables(context);
     }
 }

@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using SqExpress.DbMetadata;
 using SqExpress.IntTest.Context;
 using SqExpress.IntTest.Tables;
 using SqExpress.Syntax.Names;
@@ -11,8 +13,21 @@ public class ScGetTables : IScenario
 {
     public async Task Exec(IScenarioContext context)
     {
-        var actualTables = await context.Database.GetTables();
         var declaredTables = AllTables.BuildAllTableList(context.Dialect);
+        AssertCycleForeignKey(declaredTables, "FkCycleA", "FkCycleBId", "FkCycleB");
+        AssertCycleForeignKey(declaredTables, "FkCycleB", "FkCycleAId", "FkCycleA");
+
+        IReadOnlyList<SqTable> actualTables;
+        try
+        {
+            actualTables = await context.Database.GetTables();
+        }
+        catch (SqExpressException e) when (e.InnerException?.Message == "Cycle in tables")
+        {
+            throw new Exception($"GetTables failed on cyclic foreign keys: {e.Message}; {e.InnerException.Message}");
+        }
+        AssertCycleForeignKey(actualTables, "FkCycleA", "FkCycleBId", "FkCycleB");
+        AssertCycleForeignKey(actualTables, "FkCycleB", "FkCycleAId", "FkCycleA");
 
         //SQLite introspection collapses several declared types/defaults to affinity-level metadata,
         //so this comparison keeps structure strict while relaxing type/default round-tripping.
@@ -59,6 +74,24 @@ public class ScGetTables : IScenario
             {
                 context.WriteLine($"{prefix} - {table.TableName.Name}");
             }
+        }
+    }
+
+    private static void AssertCycleForeignKey(
+        IReadOnlyList<TableBase> tables,
+        string tableName,
+        string columnName,
+        string referencedTableName)
+    {
+        var table = tables.Single(t => string.Equals(t.FullName.TableName, tableName, StringComparison.OrdinalIgnoreCase));
+        var column = table.Columns.Single(c => string.Equals(c.ColumnName.Name, columnName, StringComparison.OrdinalIgnoreCase));
+        var foreignKeys = column.ColumnMeta?.ForeignKeys;
+        if (foreignKeys?.Count != 1 ||
+            !string.Equals(foreignKeys[0].ReferencedColumn.Table.FullName.TableName,
+                referencedTableName, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(foreignKeys[0].ReferencedColumn.ColumnName.Name, "Id", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new Exception($"{tableName}.{columnName} should reference {referencedTableName}.Id");
         }
     }
 

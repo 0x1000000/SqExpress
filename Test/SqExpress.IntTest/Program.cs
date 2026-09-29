@@ -95,6 +95,7 @@ public class Program
             {
                 "for-json-nested-books" => new ScForJsonNestedBooks(),
                 "get-views" => new ScGetViews(),
+                "get-tables" => new ScCreateTables().Then(new ScGetTables()),
                 "get-tables-complex" => new ScGetTablesComplex(),
                 "cascade-delete" => new ScCascadeDelete(),
                 _ => throw new ArgumentException($"Unknown scenario '{scenario}'.")
@@ -102,6 +103,7 @@ public class Program
         }
 
         return new ScCreateTables()
+            .Then(new ScGetTables())
             .Then(new ScCascadeDelete())
             .Then(new ScInsertUserData())
             .Then(new ScSqlInjections())
@@ -146,7 +148,6 @@ public class Program
             .Then(new ScJsonTable())
             .Then(new ScForJson())
             .Then(new ScForJsonNestedBooks())
-            .Then(new ScGetTables())
             .Then(new ScGetViews())
             .Then(new ScGetTablesComplex())
             .Then(new ScDateDiff())
