@@ -189,64 +189,134 @@ internal class DbManager : IDisposable
     private static IReadOnlyList<TableRef> SortTablesByForeignKeys(
         Dictionary<TableRef, Dictionary<ColumnRef, ColumnModel>> acc)
     {
-        var tableGraph = new Dictionary<TableRef, int>();
-        var maxValue = 0;
-
-        foreach (var pair in acc)
-        {
-            CountTable(pair.Key, pair.Value, 1);
-        }
-
-        return acc
-            .Keys
-            .OrderByDescending(k => tableGraph.TryGetValue(k, out var value) ? value : maxValue)
-            .ThenBy(k => k)
-            .ToList();
-
-        void CountTable(TableRef table, Dictionary<ColumnRef, ColumnModel> columns, int value)
-        {
-            var parentTables = columns.Values
+        var parents = acc.ToDictionary(
+            pair => pair.Key,
+            pair => pair.Value.Values
                 .Where(c => c.Fk != null)
                 .SelectMany(c => c.Fk!)
                 .Select(f => f.Column.Table)
                 .Distinct()
-                .Where(pt => !pt.Equals(table)) //Self ref
-                .ToList();
+                .Where(parent => !parent.Equals(pair.Key)) // Self references do not affect ordering.
+                .OrderBy(parent => parent)
+                .ToList());
 
-            bool hasParents = false;
-            foreach (var parentTable in parentTables)
+        var children = acc.Keys.ToDictionary(table => table, _ => new List<TableRef>());
+        foreach (var pair in parents)
+        {
+            foreach (var parent in pair.Value)
             {
-                if (tableGraph.TryGetValue(parentTable, out int oldValue))
+                if (!children.TryGetValue(parent, out var parentChildren))
                 {
-                    if (value >= 1000)
-                    {
-                        throw new SqExpressException("Cycle in tables");
-                    }
-
-                    if (oldValue < value)
-                    {
-                        tableGraph[parentTable] = value;
-                    }
-                }
-                else
-                {
-                    tableGraph.Add(parentTable, value);
+                    throw new SqExpressException($"Foreign key references unknown table {parent}");
                 }
 
-                if (maxValue < value)
-                {
-                    maxValue = value;
-                }
-
-                CountTable(parentTable, acc[parentTable], value + 1);
-                hasParents = true;
-            }
-
-            if (hasParents && !tableGraph.ContainsKey(columns.Keys.First().Table))
-            {
-                tableGraph.Add(table, 0);
+                parentChildren.Add(pair.Key);
             }
         }
+
+        // Kosaraju's two passes are iterative so deep, valid FK chains do not exhaust the stack.
+        var visited = new HashSet<TableRef>();
+        var finished = new List<TableRef>(acc.Count);
+        foreach (var table in acc.Keys.OrderBy(table => table))
+        {
+            if (!visited.Add(table))
+            {
+                continue;
+            }
+
+            var path = new Stack<(TableRef Table, int NextParent)>();
+            path.Push((table, 0));
+            while (path.Count > 0)
+            {
+                var (current, nextParent) = path.Pop();
+                if (nextParent == parents[current].Count)
+                {
+                    finished.Add(current);
+                    continue;
+                }
+
+                path.Push((current, nextParent + 1));
+                var parent = parents[current][nextParent];
+                if (visited.Add(parent))
+                {
+                    path.Push((parent, 0));
+                }
+            }
+        }
+
+        var componentByTable = new Dictionary<TableRef, int>(acc.Count);
+        var components = new List<List<TableRef>>();
+        for (var index = finished.Count - 1; index >= 0; index--)
+        {
+            var table = finished[index];
+            if (componentByTable.ContainsKey(table))
+            {
+                continue;
+            }
+
+            var component = new List<TableRef>();
+            var componentIndex = components.Count;
+            var pending = new Stack<TableRef>();
+            pending.Push(table);
+            componentByTable.Add(table, componentIndex);
+            while (pending.Count > 0)
+            {
+                var member = pending.Pop();
+                component.Add(member);
+                foreach (var child in children[member])
+                {
+                    if (!componentByTable.ContainsKey(child))
+                    {
+                        componentByTable.Add(child, componentIndex);
+                        pending.Push(child);
+                    }
+                }
+            }
+
+            component.Sort();
+            components.Add(component);
+        }
+
+        var componentParents = Enumerable.Range(0, components.Count)
+            .Select(_ => new HashSet<int>()).ToArray();
+        var childCounts = new int[components.Count];
+        var ranks = new int[components.Count];
+        var hasDependency = new bool[components.Count];
+        foreach (var pair in parents)
+        {
+            var childComponent = componentByTable[pair.Key];
+            foreach (var parent in pair.Value)
+            {
+                var parentComponent = componentByTable[parent];
+                hasDependency[childComponent] = true;
+                hasDependency[parentComponent] = true;
+                if (childComponent != parentComponent && componentParents[childComponent].Add(parentComponent))
+                {
+                    childCounts[parentComponent]++;
+                }
+            }
+        }
+
+        var ready = new Queue<int>(Enumerable.Range(0, components.Count).Where(i => childCounts[i] == 0));
+        while (ready.Count > 0)
+        {
+            var child = ready.Dequeue();
+            foreach (var parent in componentParents[child])
+            {
+                ranks[parent] = Math.Max(ranks[parent], ranks[child] + 1);
+                if (--childCounts[parent] == 0)
+                {
+                    ready.Enqueue(parent);
+                }
+            }
+        }
+
+        var maxRank = ranks.Length == 0 ? 0 : ranks.Max();
+        return Enumerable.Range(0, components.Count)
+            .OrderByDescending(i => hasDependency[i] ? ranks[i] : maxRank)
+            .ThenBy(i => components[i][0])
+            .SelectMany(i => components[i])
+            .ToList();
     }
 
     private void EnsureTableNamesAreUnique(List<TableModel> result, string defaultSchema)

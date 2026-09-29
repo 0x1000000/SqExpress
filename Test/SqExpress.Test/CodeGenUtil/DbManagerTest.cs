@@ -1,6 +1,7 @@
 ﻿#if NET
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using SqExpress.CodeGenUtil;
@@ -74,6 +75,39 @@ public class DbManagerTest : IDbStrategy
         Assert.AreEqual(1, tables[0].Columns.Count);
         Assert.AreEqual("Id", tables[0].Columns[0].Name);
         Assert.AreEqual(0, tables[0].Indexes.Count);
+    }
+
+    [Test]
+    public async Task SelectTables_CycleKeepsExternalDependenciesOrdered()
+    {
+        var strategy = new GraphDbStrategy(
+            ["Parent", "CycleA", "CycleB", "Child", "Isolated"],
+            [("CycleA", "CycleB"), ("CycleB", "CycleA"),
+                ("CycleA", "Parent"), ("Child", "CycleA")]);
+        using var dbManager = new DbManager(strategy, new SqlConnection("Initial Catalog=TestDatabase;"), new DbManagerOptions(""));
+
+        var tables = await dbManager.SelectTables();
+        var names = tables.Select(t => t.DbName.Name).ToList();
+
+        Assert.That(names.IndexOf("Parent"), Is.LessThan(names.IndexOf("CycleA")));
+        Assert.That(names.IndexOf("CycleA"), Is.LessThan(names.IndexOf("CycleB")));
+        Assert.That(names.IndexOf("CycleB"), Is.LessThan(names.IndexOf("Child")));
+        Assert.That(tables.Single(t => t.DbName.Name == "CycleA").Columns[0].Fk?.Count, Is.EqualTo(2));
+        Assert.That(tables.Single(t => t.DbName.Name == "CycleB").Columns[0].Fk?.Count, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task SelectTables_DeepForeignKeyChainDoesNotThrow()
+    {
+        var names = Enumerable.Range(0, 1001).Select(i => $"T{i:0000}").ToArray();
+        var edges = Enumerable.Range(1, names.Length - 1)
+            .Select(i => (Child: names[i], Parent: names[i - 1])).ToArray();
+        using var dbManager = new DbManager(new GraphDbStrategy(names, edges),
+            new SqlConnection("Initial Catalog=TestDatabase;"), new DbManagerOptions(""));
+
+        var tables = await dbManager.SelectTables();
+
+        Assert.That(tables.Select(t => t.DbName.Name), Is.EqualTo(names));
     }
 
     [Test]
@@ -304,6 +338,49 @@ public class DbManagerTest : IDbStrategy
         public DefaultValue? ParseDefaultValue(string? rawColumnDefaultValue, ColumnType columnType)
         {
             return this._msSqlDbStrategy.ParseDefaultValue(rawColumnDefaultValue, columnType);
+        }
+    }
+
+    private sealed class GraphDbStrategy : IDbStrategy
+    {
+        private readonly IReadOnlyList<string> _tables;
+        private readonly IReadOnlyList<(string Child, string Parent)> _edges;
+
+        public GraphDbStrategy(IReadOnlyList<string> tables, IReadOnlyList<(string Child, string Parent)> edges)
+        {
+            this._tables = tables;
+            this._edges = edges;
+        }
+
+        public string DefaultSchemaName => "dbo";
+
+        public Task<DbRawModels> LoadRawModels(bool includeViews)
+        {
+            var columns = this._tables.Select((name, index) => new ColumnRawModel(
+                new ColumnRef("dbo", name, "Id"), index + 1, false, false, "int",
+                null, null, null, null, null)).ToList();
+            var foreignKeys = new Dictionary<ColumnRef, List<ForeignKeyModel>>();
+            foreach (var (child, parent) in this._edges)
+            {
+                var column = new ColumnRef("dbo", child, "Id");
+                if (!foreignKeys.TryGetValue(column, out var targets))
+                {
+                    targets = new List<ForeignKeyModel>();
+                    foreignKeys.Add(column, targets);
+                }
+
+                targets.Add(new ForeignKeyModel(new ColumnRef("dbo", parent, "Id"), ForeignKeyDeleteAction.NoAction));
+            }
+
+            return Task.FromResult(new DbRawModels(columns, LoadIndexesResult.Empty(), foreignKeys));
+        }
+
+        public ColumnType? TryGetColType(ColumnRawModel raw) => new Int32ColumnType(false);
+
+        public DefaultValue? ParseDefaultValue(string? rawColumnDefaultValue, ColumnType columnType) => null;
+
+        public void Dispose()
+        {
         }
     }
 }

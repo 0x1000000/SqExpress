@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using SqExpress.DbMetadata;
 using SqExpress.IntTest.Context;
 using SqExpress.IntTest.Tables;
 using SqExpress.Syntax.Names;
@@ -17,15 +16,7 @@ public class ScGetTables : IScenario
         AssertCycleForeignKey(declaredTables, "FkCycleA", "FkCycleBId", "FkCycleB");
         AssertCycleForeignKey(declaredTables, "FkCycleB", "FkCycleAId", "FkCycleA");
 
-        IReadOnlyList<SqTable> actualTables;
-        try
-        {
-            actualTables = await context.Database.GetTables();
-        }
-        catch (SqExpressException e) when (e.InnerException?.Message == "Cycle in tables")
-        {
-            throw new Exception($"GetTables failed on cyclic foreign keys: {e.Message}; {e.InnerException.Message}");
-        }
+        var actualTables = await context.Database.GetTables();
         AssertCycleForeignKey(actualTables, "FkCycleA", "FkCycleBId", "FkCycleB");
         AssertCycleForeignKey(actualTables, "FkCycleB", "FkCycleAId", "FkCycleA");
 
@@ -55,25 +46,44 @@ public class ScGetTables : IScenario
         Console.WriteLine("Hierarchy:");
 
         var hierarchy = actualTables.BuildHierarchy();
+        var printed = new HashSet<ExprTableFullName>();
         foreach (var actualTable in actualTables.Where(t => !t.GetParentTables().Any()))
         {
-            Print(actualTable.FullName.AsExprTableFullName(), "");
+            Print(actualTable.FullName.AsExprTableFullName(), "", new HashSet<ExprTableFullName>());
         }
 
-        void Print(ExprTableFullName table, string prefix)
+        foreach (var actualTable in actualTables)
         {
+            var name = actualTable.FullName.AsExprTableFullName();
+            if (!printed.Contains(name))
+            {
+                Print(name, "", new HashSet<ExprTableFullName>());
+            }
+        }
+
+        void Print(ExprTableFullName table, string prefix, HashSet<ExprTableFullName> path)
+        {
+            if (!path.Add(table))
+            {
+                context.WriteLine($"{prefix} - {table.TableName.Name} (cycle)");
+                return;
+            }
+
+            printed.Add(table);
             if (hierarchy.TryGetValue(table, out var children))
             {
                 context.WriteLine($"{prefix} - {table.TableName.Name} is referenced by:");
                 foreach (var child in children)
                 {
-                    Print(child, prefix + "  ");
+                    Print(child, prefix + "  ", path);
                 }
             }
             else
             {
                 context.WriteLine($"{prefix} - {table.TableName.Name}");
             }
+
+            path.Remove(table);
         }
     }
 
