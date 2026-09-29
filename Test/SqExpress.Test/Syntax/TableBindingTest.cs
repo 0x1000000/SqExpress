@@ -5,6 +5,7 @@ using NUnit.Framework;
 using SqExpress.DbMetadata;
 using SqExpress.SqlParser;
 using SqExpress.Syntax.Names;
+using SqExpress.Syntax.Update;
 using SqExpress.SyntaxTreeOperations;
 
 namespace SqExpress.Test.Syntax;
@@ -46,6 +47,61 @@ public class TableBindingTest
         Assert.That(columns, Has.Length.EqualTo(4));
         Assert.That(tables[0], Is.Not.SameAs(tables[1]));
         Assert.That(columns.All(c => tables.Any(t => ReferenceEquals(t, c.Table))), Is.True);
+    }
+
+    [Test]
+    public void BindTables_UnaliasedJoinRetainsQualifiedOwnedColumns()
+    {
+        const string sql = "SELECT T1.Id,T1.Value FROM dbo.T1 JOIN dbo.T2 ON T1.Id=T2.Id";
+        var parsed = SqTSqlParser.Parse(sql);
+        var first = SqTable.Create("dbo", "T1", c => c.AppendInt32Column("Id").AppendInt32Column("Value"));
+        var second = SqTable.Create("dbo", "T2", c => c.AppendInt32Column("Id"));
+
+        var bound = parsed.BindTables([first, second]);
+        var tables = bound.SyntaxTree().DescendantsAndSelf().OfType<SqTable>().ToArray();
+        var columns = bound.SyntaxTree().DescendantsAndSelf().OfType<TableColumn>().ToArray();
+
+        Assert.That(bound.ToSql(), Is.EqualTo("SELECT [T1].[Id],[T1].[Value] FROM [dbo].[T1] JOIN [dbo].[T2] ON [T1].[Id]=[T2].[Id]"));
+        Assert.That(tables, Has.Length.EqualTo(2));
+        Assert.That(columns, Has.Length.EqualTo(4));
+        Assert.That(columns.All(c => tables.Any(t => ReferenceEquals(c.Table, t) && t.Columns.Any(owned => ReferenceEquals(owned, c)))), Is.True);
+        Assert.That(columns.All(c => c.Source is IExprTableFullName source && source.TableName == c.Table.FullName.TableName), Is.True);
+    }
+
+    [Test]
+    public void BindTables_SchemaQualifiedColumnRetainsSourceAndOwner()
+    {
+        var parsed = SqTSqlParser.Parse("SELECT dbo.T1.Id FROM dbo.T1");
+        var descriptor = SqTable.Create("dbo", "T1", c => c.AppendInt32Column("Id"));
+
+        var bound = parsed.BindTables([descriptor]);
+        var table = bound.SyntaxTree().DescendantsAndSelf().OfType<SqTable>().Single();
+        var column = bound.SyntaxTree().DescendantsAndSelf().OfType<TableColumn>().Single();
+
+        Assert.That(bound.ToSql(), Is.EqualTo("SELECT [dbo].[T1].[Id] FROM [dbo].[T1]"));
+        Assert.That(column.Table, Is.SameAs(table));
+        Assert.That(column.Source, Is.TypeOf<ExprTableFullName>());
+        Assert.That(((ExprTableFullName)column.Source!).DbSchema?.Schema.Name, Is.EqualTo("dbo"));
+    }
+
+    [Test]
+    public void BindTables_UnqualifiedUpdateAssignmentRetainsTargetOwnership()
+    {
+        var parsed = SqTSqlParser.Parse("UPDATE dbo.Users SET Name='X' WHERE Users.Id=1");
+
+        var bound = (ExprUpdate)parsed.BindTables([Users()]);
+        var target = (SqTable)bound.Target;
+        var assignmentColumn = bound.SetClause.Single().Column as TableColumn;
+        var filterColumn = bound.Filter!.SyntaxTree().DescendantsAndSelf().OfType<TableColumn>().Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(bound.ToSql(), Is.EqualTo("UPDATE [dbo].[Users] SET [Name]='X' WHERE [Users].[Id]=1"));
+            Assert.That(assignmentColumn, Is.TypeOf<StringTableColumn>());
+            Assert.That(assignmentColumn?.Table, Is.SameAs(target));
+            Assert.That(assignmentColumn?.Source, Is.Null);
+            Assert.That(filterColumn, Is.SameAs(target.Columns.Single(c => c.ColumnName.Name == "Id")));
+        });
     }
 
     [Test]

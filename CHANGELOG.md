@@ -7,6 +7,7 @@
 - Added configurable SQL formatting profiles shared by exporters and the SQL transpiler formatter.
 
 ### Bugfix
+- Fixed T-SQL parser table binding dropping column qualifiers from unaliased joins, which could turn `T1.Id = T2.Id` into `Id = Id`. Bound columns retain their table ownership and SQL qualification, and ambiguous references are rejected.
 - Fixed `GetTables()` metadata discovery for mutually referencing foreign keys. Cyclic tables and their foreign keys are now returned; existing dependency ordering is preserved for acyclic tables.
 - Fixed PostgreSQL `OuterApply` export by adding the required `ON TRUE` lateral-join condition.
 - Fixed SQL export ordering of dependent CTEs so dependencies are declared before their consumers, including multi-level dependency chains.

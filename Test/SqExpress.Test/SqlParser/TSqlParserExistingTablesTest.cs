@@ -4,7 +4,10 @@ using NUnit.Framework;
 using SqExpress.DbMetadata;
 using SqExpress.SqlParser;
 using SqExpress.Syntax;
+using SqExpress.Syntax.Boolean.Predicate;
 using SqExpress.Syntax.Names;
+using SqExpress.Syntax.Select;
+using SqExpress.Syntax.Update;
 
 namespace SqExpress.Test.SqlParser;
 #pragma warning disable SQEX011 // Tests intentionally use runtime metadata tables.
@@ -412,10 +415,249 @@ public class TSqlParserExistingTablesTest
         var tables = expr.SyntaxTree().DescendantsAndSelf().OfType<SqTable>().ToArray();
         var columns = expr.SyntaxTree().DescendantsAndSelf().OfType<TableColumn>().ToArray();
 
+        Assert.That(expr.ToSql(), Is.EqualTo("SELECT [u].[Id],[o].[OrderId] FROM [dbo].[Users] [u] JOIN [dbo].[Orders] [o] ON [o].[UserId]=[u].[Id]"));
         Assert.That(tables, Has.Length.EqualTo(2));
         Assert.That(columns, Has.Length.EqualTo(4));
         Assert.That(columns.All(column => tables.Any(table => ReferenceEquals(column.Table, table))), Is.True);
         Assert.That(columns.All(column => ((SqTable)column.Table).Columns.Any(owned => ReferenceEquals(owned, column))), Is.True);
+    }
+
+    [Test]
+    public void Parse_WithExistingTables_UnaliasedJoinRetainsQualifiedOwnedColumns()
+    {
+        const string sql = "SELECT [T1].[Id], [T1].[Value] FROM [dbo].[T1] INNER JOIN [dbo].[T2] ON [T1].[Id] = [T2].[Id]";
+        var existing = new TableBase[]
+        {
+            CreateTable("dbo", "T1", a => a.AppendInt32Column("Id").AppendInt32Column("Value")),
+            CreateTable("dbo", "T2", a => a.AppendInt32Column("Id").AppendInt32Column("Value"))
+        };
+
+        var expr = SqTSqlParser.Parse(sql, existing);
+        var tables = expr.SyntaxTree().DescendantsAndSelf().OfType<SqTable>().ToArray();
+        var columns = expr.SyntaxTree().DescendantsAndSelf().OfType<TableColumn>().ToArray();
+
+        Assert.That(expr.ToSql(), Is.EqualTo("SELECT [T1].[Id],[T1].[Value] FROM [dbo].[T1] JOIN [dbo].[T2] ON [T1].[Id]=[T2].[Id]"));
+        Assert.That(tables, Has.Length.EqualTo(2));
+        Assert.That(columns, Has.Length.EqualTo(4));
+        Assert.That(columns.Select(c => c.Table.FullName.TableName), Is.EqualTo(new[] { "T1", "T1", "T1", "T2" }));
+        Assert.That(columns.All(c => tables.Any(t => ReferenceEquals(c.Table, t) && t.Columns.Any(owned => ReferenceEquals(owned, c)))), Is.True);
+        Assert.That(columns.All(c => c.Source is IExprTableFullName source && source.TableName == c.Table.FullName.TableName), Is.True);
+    }
+
+    [Test]
+    public void Parse_WithExistingTables_PreservesSchemaQualifiedColumnSource()
+    {
+        const string sql = "SELECT dbo.T1.Id FROM dbo.T1";
+        var existing = new TableBase[]
+        {
+            CreateTable("dbo", "T1", a => a.AppendInt32Column("Id"))
+        };
+
+        var expr = SqTSqlParser.Parse(sql, existing);
+        var table = expr.SyntaxTree().DescendantsAndSelf().OfType<SqTable>().Single();
+        var column = expr.SyntaxTree().DescendantsAndSelf().OfType<TableColumn>().Single();
+
+        Assert.That(expr.ToSql(), Is.EqualTo("SELECT [dbo].[T1].[Id] FROM [dbo].[T1]"));
+        Assert.That(column.Table, Is.SameAs(table));
+        Assert.That(column.Source, Is.TypeOf<ExprTableFullName>());
+        Assert.That(((ExprTableFullName)column.Source!).DbSchema?.Schema.Name, Is.EqualTo("dbo"));
+    }
+
+    [Test]
+    public void Parse_WithExistingTables_UpdateAssignmentExportsUnqualifiedTargetAndRetainsOwnership()
+    {
+        const string sql = "UPDATE dbo.T1 SET Value=1 WHERE T1.Id=1";
+        var existing = new TableBase[]
+        {
+            CreateTable("dbo", "T1", a => a.AppendInt32Column("Id").AppendInt32Column("Value"))
+        };
+
+        var update = (ExprUpdate)SqTSqlParser.Parse(sql, existing);
+        var target = (SqTable)update.Target;
+        var assignment = update.SetClause.Single();
+        var assignedColumn = assignment.Column as TableColumn;
+        var filterColumn = ((ExprBooleanEq)update.Filter!).Left as TableColumn;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(update.ToSql(), Is.EqualTo("UPDATE [dbo].[T1] SET [Value]=1 WHERE [T1].[Id]=1"));
+            Assert.That(target.FullName.TableName, Is.EqualTo("T1"));
+            Assert.That(target.Alias, Is.Null);
+            Assert.That(assignedColumn, Is.TypeOf<Int32TableColumn>());
+            Assert.That(assignedColumn?.ColumnName.Name, Is.EqualTo("Value"));
+            Assert.That(assignedColumn?.Table, Is.SameAs(target));
+            Assert.That(assignedColumn?.Source, Is.Null);
+            Assert.That(filterColumn, Is.SameAs(target.Columns.Single(c => c.ColumnName.Name == "Id")));
+            Assert.That(filterColumn?.Table, Is.SameAs(target));
+            Assert.That(filterColumn?.Source, Is.Not.Null);
+        });
+    }
+
+    [Test]
+    public void Parse_WithExistingTables_UpdateFromSharedColumnBindsAssignmentToTarget()
+    {
+        const string sql = "UPDATE dbo.T1 SET Value=1 FROM dbo.T1 JOIN dbo.T2 ON T1.Id=T2.Id";
+        var existing = new TableBase[]
+        {
+            CreateTable("dbo", "T1", a => a.AppendInt32Column("Id").AppendInt32Column("Value")),
+            CreateTable("dbo", "T2", a => a.AppendInt32Column("Id").AppendInt32Column("Value"))
+        };
+
+        var update = (ExprUpdate)SqTSqlParser.Parse(sql, existing);
+        var target = (SqTable)update.Target;
+        var assignmentColumn = update.SetClause.Single().Column as TableColumn;
+        var sourceTables = update.Source!.SyntaxTree().DescendantsAndSelf().OfType<SqTable>().ToArray();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(update.ToSql(), Is.EqualTo("UPDATE [dbo].[T1] SET [Value]=1 FROM [dbo].[T1] JOIN [dbo].[T2] ON [T1].[Id]=[T2].[Id]"));
+            Assert.That(sourceTables, Has.Length.EqualTo(2));
+            Assert.That(assignmentColumn, Is.TypeOf<Int32TableColumn>());
+            Assert.That(assignmentColumn?.ColumnName.Name, Is.EqualTo("Value"));
+            Assert.That(assignmentColumn?.Table, Is.SameAs(target));
+            Assert.That(assignmentColumn?.Source, Is.Null);
+        });
+    }
+
+    [Test]
+    public void Parse_WithExistingTables_StarDerivedLocalColumnDoesNotBindToOuterTable()
+    {
+        const string sql = "SELECT u.Id FROM dbo.T1 u WHERE EXISTS (SELECT 1 FROM (SELECT * FROM dbo.T2) d WHERE Id=0)";
+        var existing = new TableBase[]
+        {
+            CreateTable("dbo", "T1", a => a.AppendInt32Column("Id")),
+            CreateTable("dbo", "T2", a => a.AppendInt32Column("Id"))
+        };
+
+        var query = (ExprQuerySpecification)SqTSqlParser.Parse(sql, existing);
+        var outerTable = (SqTable)query.From!;
+        var outerColumn = (TableColumn)query.SelectList.Single();
+        var innerQuery = (ExprQuerySpecification)((ExprExists)query.Where!).SubQuery;
+        var derivedTable = (ExprDerivedTableQuery)innerQuery.From!;
+        var derivedQuery = (ExprQuerySpecification)derivedTable.Query;
+        var innerTable = (SqTable)derivedQuery.From!;
+        var localColumn = (ExprColumn)((ExprBooleanEq)innerQuery.Where!).Left;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(query.ToSql(), Is.EqualTo("SELECT [u].[Id] FROM [dbo].[T1] [u] WHERE EXISTS(SELECT 1 FROM (SELECT * FROM [dbo].[T2])[d] WHERE [Id]=0)"));
+            Assert.That(outerTable.FullName.TableName, Is.EqualTo("T1"));
+            Assert.That(outerColumn.Table, Is.SameAs(outerTable));
+            Assert.That(outerColumn, Is.SameAs(outerTable.Columns.Single()));
+            Assert.That(innerTable.FullName.TableName, Is.EqualTo("T2"));
+            Assert.That(innerTable.Columns.Single().Table, Is.SameAs(innerTable));
+            Assert.That(derivedQuery.SelectList.Single(), Is.TypeOf<ExprAllColumns>());
+            Assert.That(localColumn.ColumnName.Name, Is.EqualTo("Id"));
+            Assert.That(localColumn.Source, Is.Null);
+            Assert.That(localColumn, Is.Not.SameAs(outerColumn));
+            Assert.That((localColumn as TableColumn)?.Table, Is.Not.SameAs(outerTable));
+        });
+    }
+
+    [Test]
+    public void Parse_WithExistingTables_UnqualifiedColumnResolvesInNearestScope()
+    {
+        const string sql = "SELECT T1.Id FROM dbo.T1 WHERE EXISTS (SELECT Id FROM dbo.T2 WHERE T2.Id=T1.Id)";
+        var existing = new TableBase[]
+        {
+            CreateTable("dbo", "T1", a => a.AppendInt32Column("Id")),
+            CreateTable("dbo", "T2", a => a.AppendInt32Column("Id"))
+        };
+
+        var expr = SqTSqlParser.Parse(sql, existing);
+        var tables = expr.SyntaxTree().DescendantsAndSelf().OfType<SqTable>().ToArray();
+        var columns = expr.SyntaxTree().DescendantsAndSelf().OfType<TableColumn>().ToArray();
+
+        Assert.That(expr.ToSql(), Is.EqualTo("SELECT [T1].[Id] FROM [dbo].[T1] WHERE EXISTS(SELECT [T2].[Id] FROM [dbo].[T2] WHERE [T2].[Id]=[T1].[Id])"));
+        Assert.That(tables, Has.Length.EqualTo(2));
+        Assert.That(columns, Has.Length.EqualTo(4));
+        Assert.That(columns.Count(c => c.Table.FullName.TableName == "T1"), Is.EqualTo(2));
+        Assert.That(columns.Count(c => c.Table.FullName.TableName == "T2"), Is.EqualTo(2));
+        Assert.That(columns.All(c => tables.Any(t => ReferenceEquals(c.Table, t) && t.Columns.Any(owned => ReferenceEquals(owned, c)))), Is.True);
+    }
+
+    [Test]
+    public void Parse_WithExistingTables_UnqualifiedColumnUsesNearestMatchingOuterScope()
+    {
+        const string sql = "SELECT T0.Id FROM dbo.T0 WHERE EXISTS (SELECT 1 FROM dbo.T1 WHERE EXISTS (SELECT Id FROM dbo.T2))";
+        var existing = new TableBase[]
+        {
+            CreateTable("dbo", "T0", a => a.AppendInt32Column("Id")),
+            CreateTable("dbo", "T1", a => a.AppendInt32Column("Id")),
+            CreateTable("dbo", "T2", a => a.AppendInt32Column("Other"))
+        };
+
+        var expr = SqTSqlParser.Parse(sql, existing);
+        var tables = expr.SyntaxTree().DescendantsAndSelf().OfType<SqTable>().ToArray();
+        var columns = expr.SyntaxTree().DescendantsAndSelf().OfType<TableColumn>().ToArray();
+
+        Assert.That(expr.ToSql(), Is.EqualTo("SELECT [T0].[Id] FROM [dbo].[T0] WHERE EXISTS(SELECT 1 FROM [dbo].[T1] WHERE EXISTS(SELECT [T1].[Id] FROM [dbo].[T2]))"));
+        Assert.That(tables, Has.Length.EqualTo(3));
+        Assert.That(columns, Has.Length.EqualTo(2));
+        Assert.That(columns.Select(c => c.Table.FullName.TableName), Is.EqualTo(new[] { "T0", "T1" }));
+        Assert.That(columns.All(c => tables.Any(t => ReferenceEquals(c.Table, t) && t.Columns.Any(owned => ReferenceEquals(owned, c)))), Is.True);
+    }
+
+    [Test]
+    public void Parse_WithExistingTables_DuplicateCatalogTableIsRejected()
+    {
+        var existing = new TableBase[]
+        {
+            CreateTable("dbo", "T1", a => a.AppendInt32Column("Id")),
+            CreateTable("dbo", "T1", a => a.AppendInt32Column("Id"))
+        };
+
+        var ok = SqTSqlParser.TryParse("SELECT T1.Id FROM dbo.T1", existing, out IExpr? expr, out var error);
+
+        Assert.That(ok, Is.False);
+        Assert.That(expr, Is.Null);
+        Assert.That(error, Does.Contain("ambiguous"));
+    }
+
+    [Test]
+    public void Parse_WithExistingTables_DerivedAndPhysicalColumnsAreAmbiguous()
+    {
+        const string sql = "SELECT Id FROM (SELECT T1.Id FROM dbo.T1) d JOIN dbo.T2 ON d.Id=T2.Id";
+        var existing = new TableBase[]
+        {
+            CreateTable("dbo", "T1", a => a.AppendInt32Column("Id")),
+            CreateTable("dbo", "T2", a => a.AppendInt32Column("Id"))
+        };
+
+        var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
+
+        Assert.That(ok, Is.False);
+        Assert.That(expr, Is.Null);
+        Assert.That(error, Does.Contain("ambiguous"));
+    }
+
+    [Test]
+    public void Parse_WithoutExistingTables_DerivedColumnCannotDisambiguateUnknownPhysicalColumns()
+    {
+        const string sql = "SELECT Id FROM (SELECT T1.Id FROM dbo.T1) d JOIN dbo.T2 ON d.Id=T2.Id";
+
+        var ok = SqTSqlParser.TryParse(sql, out IExpr? expr, out var error);
+
+        Assert.That(ok, Is.False);
+        Assert.That(expr, Is.Null);
+        Assert.That(error, Does.Contain("ambiguous"));
+    }
+
+    [Test]
+    public void Parse_WithExistingTables_StarDerivedOutputCannotDisambiguatePhysicalColumn()
+    {
+        const string sql = "SELECT Id FROM (SELECT * FROM dbo.T1) d JOIN dbo.T2 ON d.Id=T2.Id";
+        var existing = new TableBase[]
+        {
+            CreateTable("dbo", "T1", a => a.AppendInt32Column("Id")),
+            CreateTable("dbo", "T2", a => a.AppendInt32Column("Id"))
+        };
+
+        var ok = SqTSqlParser.TryParse(sql, existing, out IExpr? expr, out var error);
+
+        Assert.That(ok, Is.False);
+        Assert.That(expr, Is.Null);
+        Assert.That(error, Does.Contain("ambiguous"));
     }
 
     [Test]
@@ -430,6 +672,7 @@ public class TSqlParserExistingTablesTest
         var expr = SqTSqlParser.Parse(sql, existing);
         var tables = expr.SyntaxTree().DescendantsAndSelf().OfType<SqTable>().ToArray();
 
+        Assert.That(expr.ToSql(), Is.EqualTo("SELECT [a].[Id],[b].[Id] FROM [dbo].[Users] [a] JOIN [dbo].[Users] [b] ON [a].[Id]=[b].[Id]"));
         Assert.That(tables, Has.Length.EqualTo(2));
         Assert.That(tables[0], Is.Not.SameAs(tables[1]));
         Assert.That(tables[0].Columns[0], Is.Not.SameAs(tables[1].Columns[0]));

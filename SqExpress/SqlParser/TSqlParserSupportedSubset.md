@@ -7,6 +7,9 @@
 - Supported syntax must either parse deterministically into SqExpress AST or return a stable parser error.
 - Unsupported syntax should be rejected explicitly instead of being partially parsed or silently ignored.
 - Ambiguous or invalid table/column binding should fail instead of being guessed.
+- When a visible physical table has no supplied column metadata, an unqualified column cannot be assigned to another visible source solely because that source exposes a matching name.
+- Unqualified columns resolve in the nearest scope with a known match. Multiple possible sources in that scope, including derived-table outputs, are rejected as ambiguous.
+- A source with unknown output columns, such as a derived `SELECT *`, prevents an unqualified reference from being rebound to an outer table. A single such source retains the unqualified reference; multiple possible local sources are rejected.
 
 ## Supported Statement Shapes
 

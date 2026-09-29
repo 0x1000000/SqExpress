@@ -101,10 +101,18 @@ public sealed class SqTable : TableBase
     }
 
     internal static SqTable Clone(TableBase table, ExprTableAlias? alias)
+        => Clone(table, alias, qualifyUnaliasedColumns: false);
+
+    internal static SqTable Clone(TableBase table, ExprTableAlias? alias, bool qualifyUnaliasedColumns)
     {
         var result = new SqTable(table.FullName, alias);
+        IExprColumnSource? columnSource = result.Alias;
+        if (columnSource == null && qualifyUnaliasedColumns)
+        {
+            columnSource = new ExprTableFullName(null, result.FullName.AsExprTableFullName().TableName);
+        }
         var columns = table.Columns
-            .Select(column => column.WithTable(result).WithSource(result.Alias))
+            .Select(column => column.WithTable(result).WithSource(columnSource))
             .ToArray();
         result.AddColumns(columns);
 

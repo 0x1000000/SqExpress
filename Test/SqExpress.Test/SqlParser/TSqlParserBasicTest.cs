@@ -315,14 +315,15 @@ public class TSqlParserBasicTest
     }
 
     [Test]
-    public void ParseUpdateWithCteInFromAndUnqualifiedSetValue_MapsSuccessfully()
+    public void ParseUpdateWithCteInFromAndUnqualifiedSetValue_RejectsUnknownTargetColumnAmbiguity()
     {
         const string inputSql = "WITH C AS (SELECT 1 AS X) UPDATE dbo.Users SET Score = X FROM C WHERE Id = 1";
 
         var ok = SqTSqlParser.TryParse(inputSql, out IExpr? expr, out var error);
 
-        Assert.That(ok, Is.True, error);
-        Assert.That(expr, Is.Not.Null);
+        Assert.That(ok, Is.False);
+        Assert.That(expr, Is.Null);
+        Assert.That(error, Does.Contain("ambiguous"));
     }
 
     [Test]

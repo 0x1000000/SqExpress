@@ -92,6 +92,15 @@ internal sealed class TableBinder : ExprVisitorBase
     }
 
     public override void VisitExprColumn(ExprColumn expr)
+        => this.BindColumn(expr, preserveUnqualifiedSource: false);
+
+    public override void VisitExprColumnSetClause(ExprColumnSetClause expr)
+    {
+        this.BindColumn(expr.Column, preserveUnqualifiedSource: expr.Column.Source == null);
+        this.Accept(expr.Value);
+    }
+
+    private void BindColumn(ExprColumn expr, bool preserveUnqualifiedSource)
     {
         if (expr is TableColumn || this._scope == null)
         {
@@ -101,7 +110,7 @@ internal sealed class TableBinder : ExprVisitorBase
         var resolution = this.ResolveColumn(expr);
         if (resolution.Column is { } column)
         {
-            this._replacements[expr] = column;
+            this._replacements[expr] = preserveUnqualifiedSource ? column.WithSource(null) : column;
         }
         else if (resolution.DiagnosticCode.HasValue)
         {
@@ -184,7 +193,7 @@ internal sealed class TableBinder : ExprVisitorBase
             return alreadyBound;
         }
 
-        var result = SqTable.Clone(matches[0], table.Alias);
+        var result = SqTable.Clone(matches[0], table.Alias, qualifyUnaliasedColumns: true);
         this._replacements[table] = result;
         return result;
     }
@@ -214,7 +223,9 @@ internal sealed class TableBinder : ExprVisitorBase
             for (var scope = this._scope; scope != null; scope = scope.Parent)
             {
                 if (scope.DerivedAliases.Any(a => AliasEquals(a, alias))) return default;
-                var tables = scope.Physical.Where(t => t.Alias != null && AliasEquals(t.Alias.Alias, alias)).ToArray();
+                var tables = scope.Physical.Where(t => t.Alias != null
+                    ? AliasEquals(t.Alias.Alias, alias)
+                    : alias is IExprName name && string.Equals(t.FullName.AsExprTableFullName().TableName.Name, name.Name, StringComparison.OrdinalIgnoreCase)).ToArray();
                 if (tables.Length == 1) return ResolveInTable(tables[0], expr);
                 if (tables.Length > 1) return ColumnResolution.Error(TableBindingDiagnosticCode.AmbiguousColumn, $"Column source alias '{AliasDisplay(alias)}' is ambiguous.");
             }
@@ -225,7 +236,7 @@ internal sealed class TableBinder : ExprVisitorBase
         {
             for (var scope = this._scope; scope != null; scope = scope.Parent)
             {
-                var tables = scope.Physical.Where(t => FullNameMatches(fullName, t.FullName)).ToArray();
+                var tables = scope.Physical.Where(t => t.Alias == null && FullNameMatches(fullName, t.FullName)).ToArray();
                 if (tables.Length == 1) return ResolveInTable(tables[0], expr);
                 if (tables.Length > 1) return ColumnResolution.Error(TableBindingDiagnosticCode.AmbiguousColumn, $"Column source '{Format(fullName)}' is ambiguous.");
             }
@@ -258,7 +269,7 @@ internal sealed class TableBinder : ExprVisitorBase
     {
         var matches = table.Columns.Where(c => ExprNameEqualityComparer.CaseInsensitive.Equals(c.ColumnName, expr.ColumnName)).ToArray();
         return matches.Length == 1
-            ? new ColumnResolution(matches[0])
+            ? new ColumnResolution(expr.Source is IExprTableFullName ? matches[0].WithSource(expr.Source) : matches[0])
             : ColumnResolution.Error(TableBindingDiagnosticCode.UnknownColumn, $"Could not bind column '{expr.ColumnName.Name}' in table '{Format(table.FullName)}'.");
     }
 
