@@ -22,8 +22,8 @@ public class ScCascadeDelete : IScenario
             await child.Script.Create().Exec(context.Database);
 
             var discoveredChild = (await context.Database.GetTables())
-                .Single(t => t.FullName.TableName == "CascadeChild");
-            var discoveredAction = discoveredChild.Columns.Single(c => c.ColumnName.Name == "ParentId")
+                .Single(t => string.Equals(t.FullName.TableName, "CascadeChild", StringComparison.OrdinalIgnoreCase));
+            var discoveredAction = discoveredChild.Columns.Single(c => string.Equals(c.ColumnName.Name, "ParentId", StringComparison.OrdinalIgnoreCase))
                 .ColumnMeta?.ForeignKeys?[0].OnDelete;
             if (discoveredAction != ForeignKeyDeleteAction.Cascade)
             {
