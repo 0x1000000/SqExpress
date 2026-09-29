@@ -4,7 +4,7 @@ namespace SqExpress.DbMetadata.Internal.Model;
 
 internal class ColumnModel
 {
-    public ColumnModel(string name, ColumnRef dbName, int ordinalPosition, ColumnType columnType, PkInfo? pk, bool identity, DefaultValue? defaultValue, List<ColumnRef>? fk)
+    public ColumnModel(string name, ColumnRef dbName, int ordinalPosition, ColumnType columnType, PkInfo? pk, bool identity, DefaultValue? defaultValue, List<ForeignKeyModel>? fk)
     {
         this.Name = name;
         this.DbName = dbName;
@@ -23,7 +23,7 @@ internal class ColumnModel
     public PkInfo? Pk { get; }
     public bool Identity { get; }
     public DefaultValue? DefaultValue { get; }
-    public List<ColumnRef>? Fk { get; }
+    public List<ForeignKeyModel>? Fk { get; }
 
     public ColumnModel WithName(string newName) =>
         new ColumnModel(

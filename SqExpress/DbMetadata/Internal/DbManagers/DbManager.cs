@@ -143,7 +143,7 @@ internal class DbManager : IDisposable
     private bool TryBuildColumnModel(
         ColumnRawModel rawColumn,
         List<IndexColumnModel>? pkCols,
-        List<ColumnRef>? fkList,
+        List<ForeignKeyModel>? fkList,
         out ColumnModel columnModel)
     {
         string clrName = ToColCrlName(rawColumn.DbName);
@@ -208,7 +208,7 @@ internal class DbManager : IDisposable
             var parentTables = columns.Values
                 .Where(c => c.Fk != null)
                 .SelectMany(c => c.Fk!)
-                .Select(f => f.Table)
+                .Select(f => f.Column.Table)
                 .Distinct()
                 .Where(pt => !pt.Equals(table)) //Self ref
                 .ToList();

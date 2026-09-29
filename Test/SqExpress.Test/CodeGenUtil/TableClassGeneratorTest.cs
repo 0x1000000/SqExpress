@@ -503,7 +503,7 @@ public class TableClassGeneratorTest
                 new LoadIndexesResult(
                     new Dictionary<TableRef, PrimaryKeyModel>(),
                     new Dictionary<TableRef, List<IndexModel>>()),
-                new Dictionary<ColumnRef, List<ColumnRef>>()));
+                new Dictionary<ColumnRef, List<ForeignKeyModel>>()));
         }
 
         public ColumnType? TryGetColType(ColumnRawModel raw)

@@ -147,7 +147,7 @@ public class Program
                     Console.WriteLine($"{tableModel.DbName} ({tableModel.Name})");
                     foreach (var tableModelColumn in tableModel.Columns)
                     {
-                        Console.WriteLine($"- {tableModelColumn.DbName.Name} {tableModelColumn.ColumnType.GetType().Name}{(tableModelColumn.Pk.HasValue ? " (PK)":null)}{(tableModelColumn.Fk != null ? $" (FK: {string.Join(';', tableModelColumn.Fk.Select(f=>f.ToString()))})" : null)}");
+                Console.WriteLine($"- {tableModelColumn.DbName.Name} {tableModelColumn.ColumnType.GetType().Name}{(tableModelColumn.Pk.HasValue ? " (PK)":null)}{(tableModelColumn.Fk != null ? $" (FK: {string.Join(';', tableModelColumn.Fk.Select(f=>f.Column.ToString()))})" : null)}");
                     }
                 }
             }

@@ -283,10 +283,9 @@ public static class TableComparisonExtensions
             result |= ColumnMetaComparison.DifferentPrimaryKey;
         }
 
-        if (!ShouldIgnoreColumnForeignKeys(flags) && !AreColumnListsEqual(
-                thisMeta.ForeignKeyColumns,
-                otherMeta.ForeignKeyColumns
-            ))
+        if (!ShouldIgnoreColumnForeignKeys(flags) &&
+            (!AreColumnListsEqual(thisMeta.ForeignKeyColumns, otherMeta.ForeignKeyColumns) ||
+             !AreForeignKeyActionsEqual(thisMeta.ForeignKeys, otherMeta.ForeignKeys)))
         {
             result |= ColumnMetaComparison.DifferentFk;
         }
@@ -310,6 +309,16 @@ public static class TableComparisonExtensions
         }
 
         return result;
+    }
+
+    private static bool AreForeignKeyActionsEqual(IReadOnlyList<ColumnForeignKey>? left, IReadOnlyList<ColumnForeignKey>? right)
+    {
+        if (left == null || right == null)
+        {
+            return left == null && right == null;
+        }
+
+        return left.Count == right.Count && !left.Where((fk, index) => fk.OnDelete != right[index].OnDelete).Any();
     }
 
     public static bool Includes(

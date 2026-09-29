@@ -129,7 +129,13 @@ static void ApplyForeignKeys(EfRelationalMetadata metadata, object entityType, E
             var column = table.Columns.FirstOrDefault(c => string.Equals(c.Name, dependentColumn, StringComparison.OrdinalIgnoreCase));
             if (column != null && principalColumn != null)
             {
-                column.ForeignKeys.Add(new EfColumnRefMetadata { Schema = principalSchema, Table = principalTableName!, Column = principalColumn });
+                column.ForeignKeys.Add(new EfColumnRefMetadata
+                {
+                    Schema = principalSchema,
+                    Table = principalTableName!,
+                    Column = principalColumn,
+                    CascadeDelete = metadata.IsCascadeDelete(foreignKey)
+                });
             }
         }
     }
@@ -364,6 +370,7 @@ internal sealed class EfColumnRefMetadata
     public string Schema { get; set; } = "";
     public string Table { get; set; } = "";
     public string Column { get; set; } = "";
+    public bool CascadeDelete { get; set; }
 }
 
 internal sealed class EfIndexMetadata
@@ -415,6 +422,8 @@ internal sealed class EfRelationalMetadata
     public IEnumerable<object> GetForeignKeyProperties(object foreignKey) => GetEnumerableProperty(foreignKey, "Properties");
     public object GetPrincipalEntityType(object foreignKey) => GetPublicProperty(foreignKey.GetType(), "PrincipalEntityType")?.GetValue(foreignKey) ?? throw new ExtractorException("Could not read EF foreign key principal entity type.");
     public object GetPrincipalKey(object foreignKey) => GetPublicProperty(foreignKey.GetType(), "PrincipalKey")?.GetValue(foreignKey) ?? throw new ExtractorException("Could not read EF foreign key principal key.");
+    public bool IsCascadeDelete(object foreignKey) =>
+        string.Equals(GetPublicProperty(foreignKey.GetType(), "DeleteBehavior")?.GetValue(foreignKey)?.ToString(), "Cascade", StringComparison.Ordinal);
     public IEnumerable<object> GetIndexProperties(object index) => GetEnumerableProperty(index, "Properties");
     public bool IsUnique(object index) => (bool?)GetPublicProperty(index.GetType(), "IsUnique")?.GetValue(index) ?? false;
     public bool IsClustered(object index) => GetAnnotationValue(index, "SqlServer:Clustered") as bool? ?? false;

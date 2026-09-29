@@ -14,6 +14,8 @@ internal class PgConstraint : TableBase
 
     public StringTableColumn ConType { get; }
 
+    public StringTableColumn ConFDelType { get; }
+
     public PgConstraint(Alias alias = default) : base(null, "pg_constraint", alias)
     {
         ConName = CreateStringColumn("conname", null);
@@ -22,5 +24,6 @@ internal class PgConstraint : TableBase
         ConKey = CreateStringColumn("conkey", null);
         ConFKey = CreateStringColumn("confkey", null);
         ConType = CreateStringColumn("contype", null);
+        ConFDelType = CreateStringColumn("confdeltype", null);
     }
 }

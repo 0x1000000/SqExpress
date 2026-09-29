@@ -19,7 +19,7 @@ internal interface IDbStrategy : IDisposable
 internal record struct DbRawModels(
     List<ColumnRawModel> Columns,
     LoadIndexesResult Indexes,
-    Dictionary<ColumnRef, List<ColumnRef>> ForeignKeys);
+    Dictionary<ColumnRef, List<ForeignKeyModel>> ForeignKeys);
 
 internal readonly struct LoadIndexesResult
 {

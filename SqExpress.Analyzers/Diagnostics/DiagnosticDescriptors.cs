@@ -175,6 +175,14 @@ internal static class DiagnosticDescriptors
         isEnabledByDefault: true,
         description: "Reports foreign key attributes that point to an unknown target column.");
 
+    public static readonly DiagnosticDescriptor TableDescriptorInvalidForeignKeyDeleteAction = new DiagnosticDescriptor(
+        id: "SQEX125",
+        title: "Invalid foreign key delete action",
+        messageFormat: "Invalid foreign key delete action for column '{0}' in table {1}; specify a target table and column and use a supported action",
+        category: "SourceGeneration",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     public static readonly DiagnosticDescriptor TableDescriptorInvalidDefaultValue = new DiagnosticDescriptor(
         id: "SQEX114",
         title: "Table descriptor default value is invalid",

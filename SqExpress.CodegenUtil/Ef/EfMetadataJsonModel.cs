@@ -56,6 +56,7 @@ internal sealed class EfColumnRefMetadata
     public string Table { get; set; } = "";
 
     public string Column { get; set; } = "";
+    public bool CascadeDelete { get; set; }
 }
 
 internal sealed class EfIndexMetadata

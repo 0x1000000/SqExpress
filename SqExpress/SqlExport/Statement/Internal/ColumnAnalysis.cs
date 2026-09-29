@@ -26,17 +26,24 @@ internal readonly struct ColumnAnalysis
                 this.Pk.Add(column);
             }
 
-            if (column.ColumnMeta.ForeignKeyColumns != null)
+            if (column.ColumnMeta.ForeignKeys != null)
             {
-                foreach (var foreignKeyColumn in column.ColumnMeta.ForeignKeyColumns)
+                foreach (var foreignKey in column.ColumnMeta.ForeignKeys)
                 {
+                    var foreignKeyColumn = foreignKey.ReferencedColumn;
                     var foreignTable = foreignKeyColumn.Table.FullName;
 
                     if (!this.Fks.ContainsKey(foreignTable))
                     {
                         this.Fks.Add(foreignTable, new List<ColumnRelationship>(4));
                     }
-                    this.Fks[foreignTable].Add(new ColumnRelationship(@internal: column.ColumnName, external: foreignKeyColumn.ColumnName));
+                    var relationships = this.Fks[foreignTable];
+                    if (relationships.Count > 0 && relationships[0].OnDelete != foreignKey.OnDelete)
+                    {
+                        throw new SqExpressException(
+                            $"Conflicting ON DELETE actions for columns {relationships[0].Internal.Name} and {column.ColumnName.Name} in foreign key from {column.Table.FullName.TableName} to {foreignTable.TableName}");
+                    }
+                    relationships.Add(new ColumnRelationship(@internal: column.ColumnName, external: foreignKeyColumn.ColumnName, foreignKey.OnDelete));
                 }
             }
         }
@@ -46,11 +53,13 @@ internal readonly struct ColumnAnalysis
     {
         public readonly ExprColumnName Internal;
         public readonly ExprColumnName External;
+        public readonly ForeignKeyDeleteAction OnDelete;
 
-        public ColumnRelationship(ExprColumnName @internal, ExprColumnName external)
+        public ColumnRelationship(ExprColumnName @internal, ExprColumnName external, ForeignKeyDeleteAction onDelete)
         {
             this.Internal = @internal;
             this.External = external;
+            this.OnDelete = onDelete;
         }
     }
 }

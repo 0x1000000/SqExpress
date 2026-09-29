@@ -73,6 +73,8 @@ public abstract class TableColumnAttributeBase : Attribute
 
     public string? FkColumn { get; set; }
 
+    public ForeignKeyDeleteAction FkOnDelete { get; set; }
+
     public string? DefaultValue { get; set; }
 
     public string? SqModels { get; set; }

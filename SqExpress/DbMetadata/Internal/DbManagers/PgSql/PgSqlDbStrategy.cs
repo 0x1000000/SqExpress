@@ -310,7 +310,7 @@ internal class PgSqlDbStrategy : DbStrategyBase
             );
     }
 
-    private Task<Dictionary<ColumnRef, List<ColumnRef>>> LoadForeignKeys()
+    private Task<Dictionary<ColumnRef, List<ForeignKeyModel>>> LoadForeignKeys()
     {
         var tCon = new PgConstraintUnNest();
 
@@ -328,7 +328,8 @@ internal class PgSqlDbStrategy : DbStrategyBase
                 tCol.AttName.As("column_name"),
                 tFoSch.NspName.As("foreign_table_schema"),
                 tFoTbl.RelName.As("foreign_table_name"),
-                tFoCol.AttName.As("foreign_column_name")
+                tFoCol.AttName.As("foreign_column_name"),
+                Cast(tCon.ConFDelType, SqlType.String(1)).As("foreign_delete_action")
             )
             .From(tCon)
             .InnerJoin(tTbl, tTbl.Oid == tCon.ConRelId)
@@ -343,7 +344,7 @@ internal class PgSqlDbStrategy : DbStrategyBase
             .Done()
             .Query(
                 Database,
-                new Dictionary<ColumnRef, List<ColumnRef>>(),
+                new Dictionary<ColumnRef, List<ForeignKeyModel>>(),
                 (acc, r) =>
                 {
                     var columnName = new ColumnRef(
@@ -364,7 +365,8 @@ internal class PgSqlDbStrategy : DbStrategyBase
                         acc.Add(columnName, colList);
                     }
 
-                    colList.Add(refColumnName);
+                    colList.Add(new ForeignKeyModel(refColumnName,
+                        r.GetString("foreign_delete_action") == "c" ? ForeignKeyDeleteAction.Cascade : ForeignKeyDeleteAction.NoAction));
 
                     return acc;
                 }
@@ -458,11 +460,14 @@ internal class PgSqlDbStrategy : DbStrategyBase
 
         public Int32CustomColumn ConKeyIndex { get; }
 
+        public StringCustomColumn ConFDelType { get; }
+
         public PgConstraintUnNest(Alias alias = default) : base(alias)
         {
             ConName = _table.ConName.AddToDerivedTable(this);
             ConRelId = _table.ConRelId.AddToDerivedTable(this);
             ConFRelId = _table.ConFRelId.AddToDerivedTable(this);
+            ConFDelType = _table.ConFDelType.AddToDerivedTable(this);
             ConKey = CreateStringColumn("con_key_i");
             ConFKey = CreateStringColumn("con_f_key_i");
             ConKeyIndex = CreateInt32Column("con_key_index");
@@ -474,6 +479,7 @@ internal class PgSqlDbStrategy : DbStrategyBase
                     _table.ConName,
                     _table.ConRelId,
                     _table.ConFRelId,
+                    _table.ConFDelType,
                     ScalarFunctionSys("unnest", _table.ConKey).As(ConKey),
                     ScalarFunctionSys("unnest", _table.ConFKey).As(ConFKey),
                     ScalarFunctionSys(

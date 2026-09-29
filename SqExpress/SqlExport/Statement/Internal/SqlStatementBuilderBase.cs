@@ -103,6 +103,10 @@ internal abstract class SqlStatementBuilderBase : IStatementVisitor
             this.FormattingWriter.Append(" REFERENCES ");
             foreignTable.Accept(this.ExprBuilder, null);
             this.ExprBuilder.AcceptListComaSeparatedPar('(', pairList.SelectToReadOnlyList(i => i.External), ')', null);
+            if (pairList[0].OnDelete == ForeignKeyDeleteAction.Cascade)
+            {
+                this.FormattingWriter.Append(" ON DELETE CASCADE");
+            }
         }
     }
 

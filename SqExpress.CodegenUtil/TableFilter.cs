@@ -49,7 +49,7 @@ internal static class TableFilter
         var columns = table.Columns.Select(column =>
         {
             var foreignKeys = column.Fk?
-                .Where(foreignKey => selectedTables.Contains(QualifiedName(foreignKey.Table)))
+                .Where(foreignKey => selectedTables.Contains(QualifiedName(foreignKey.Column.Table)))
                 .ToList();
 
             return new ColumnModel(

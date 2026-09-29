@@ -29,7 +29,7 @@ internal class SqliteDbStrategy : DbStrategyBase
         var columns = new List<ColumnRawModel>();
         var primaryKeys = new Dictionary<TableRef, PrimaryKeyModel>();
         var indexes = new Dictionary<TableRef, List<IndexModel>>();
-        var foreignKeys = new Dictionary<ColumnRef, List<ColumnRef>>();
+        var foreignKeys = new Dictionary<ColumnRef, List<ForeignKeyModel>>();
 
         foreach (var table in tables)
         {
@@ -251,7 +251,7 @@ internal class SqliteDbStrategy : DbStrategyBase
         return result;
     }
 
-    private async Task LoadForeignKeys(TableRef table, Dictionary<ColumnRef, List<ColumnRef>> foreignKeys)
+    private async Task LoadForeignKeys(TableRef table, Dictionary<ColumnRef, List<ForeignKeyModel>> foreignKeys)
     {
         await this.WithOpenConnection(async () =>
         {
@@ -269,7 +269,9 @@ internal class SqliteDbStrategy : DbStrategyBase
                     foreignKeys[from] = refs;
                 }
 
-                refs.Add(to);
+                refs.Add(new ForeignKeyModel(to,
+                    string.Equals(reader.GetString(6), "CASCADE", StringComparison.OrdinalIgnoreCase)
+                        ? ForeignKeyDeleteAction.Cascade : ForeignKeyDeleteAction.NoAction));
             }
         });
     }

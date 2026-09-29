@@ -60,7 +60,9 @@ internal static class EfMetadataTableReader
                         : null,
                     column.Identity,
                     GetDefaultValue(column),
-                    column.ForeignKeys.Select(f => new ColumnRef(f.Schema, f.Table, f.Column)).ToList()));
+                    column.ForeignKeys.Select(f => new ForeignKeyModel(
+                        new ColumnRef(f.Schema, f.Table, f.Column),
+                        f.CascadeDelete ? ForeignKeyDeleteAction.Cascade : ForeignKeyDeleteAction.NoAction)).ToList()));
             }
 
             var includedColumnNames = columns
@@ -102,7 +104,7 @@ internal static class EfMetadataTableReader
                 var parents = current.Columns
                     .Where(c => c.Fk != null)
                     .SelectMany(c => c.Fk!)
-                    .Select(c => c.Table)
+                    .Select(c => c.Column.Table)
                     .Where(t => !t.Equals(tableRef))
                     .Distinct()
                     .ToArray();

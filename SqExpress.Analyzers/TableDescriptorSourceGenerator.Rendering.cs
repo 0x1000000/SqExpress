@@ -450,6 +450,13 @@ public sealed partial class TableDescriptorSourceGenerator
                     issue.Subject,
                     issue.TableDisplayName,
                     issue.RelatedValue ?? string.Empty);
+            case CodeGenValidationIssueKind.InvalidForeignKeyDeleteAction:
+                return CreateDiagnosticsAtLocations(
+                    candidate.ColumnLocationsBySqlName.TryGetValue(issue.Subject, out var invalidActionLocations) ? invalidActionLocations :
+                    [candidate.TableAttributeLocation],
+                    DiagnosticDescriptors.TableDescriptorInvalidForeignKeyDeleteAction,
+                    issue.Subject,
+                    issue.TableDisplayName);
             default:
                 throw new ArgumentOutOfRangeException(nameof(issue.Kind), issue.Kind, null);
         }

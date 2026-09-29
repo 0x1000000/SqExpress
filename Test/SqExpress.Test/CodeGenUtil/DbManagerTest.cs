@@ -204,11 +204,11 @@ public class DbManagerTest : IDbStrategy
         return Task.FromResult(result);
     }
 
-    private Task<Dictionary<ColumnRef, List<ColumnRef>>> LoadForeignKeys()
+    private Task<Dictionary<ColumnRef, List<ForeignKeyModel>>> LoadForeignKeys()
     {
-        Dictionary<ColumnRef, List<ColumnRef>> result = new Dictionary<ColumnRef, List<ColumnRef>>();
+        Dictionary<ColumnRef, List<ForeignKeyModel>> result = new Dictionary<ColumnRef, List<ForeignKeyModel>>();
 
-        result.Add(new ColumnRef("dbo", "TableA", "Id"), [new ColumnRef("dbo", "TableZ", "Id")]);
+        result.Add(new ColumnRef("dbo", "TableA", "Id"), [new ForeignKeyModel(new ColumnRef("dbo", "TableZ", "Id"), ForeignKeyDeleteAction.NoAction)]);
 
         return Task.FromResult(result);
     }
@@ -288,7 +288,7 @@ public class DbManagerTest : IDbStrategy
                             )
                         ]
                     }),
-                new Dictionary<ColumnRef, List<ColumnRef>>()));
+                new Dictionary<ColumnRef, List<ForeignKeyModel>>()));
         }
 
         public ColumnType? TryGetColType(ColumnRawModel raw)

@@ -14,9 +14,12 @@ internal class MsSqlReferentialConstraints : TableBase
 
         MatchOption = CreateStringColumn("MATCH_OPTION", 11);
         UpdateRule = CreateStringColumn("UPDATE_RULE", 11);
+        DeleteRule = CreateStringColumn("DELETE_RULE", 11);
     }
 
     public StringTableColumn UpdateRule { get; set; }
+
+    public StringTableColumn DeleteRule { get; set; }
 
     public StringTableColumn MatchOption { get; set; }
 

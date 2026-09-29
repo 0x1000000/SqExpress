@@ -57,7 +57,8 @@ public enum CodeGenValidationIssueKind
     UnknownIndexColumn,
     DescendingColumnMustBeIndexed,
     ForeignKeyTableNotFound,
-    ForeignKeyColumnNotFound
+    ForeignKeyColumnNotFound,
+    InvalidForeignKeyDeleteAction
 }
 
 public enum CodeGenDefaultValueKind
@@ -179,6 +180,35 @@ public sealed class CodeGenColumnModel
         bool isDate,
         string? sqModels = null,
         string? sqModelCastTypeName = null)
+        : this(kind, sqlName, propertyName, isPrimaryKey, isIdentity, foreignKeyDatabase, foreignKeySchema,
+            foreignKeyTable, foreignKeyColumn, defaultValueKind, defaultValue, isUnicode, maxLength,
+            isFixedLength, isText, precision, scale, isDate, sqModels, sqModelCastTypeName,
+            ForeignKeyDeleteAction.NoAction)
+    {
+    }
+
+    public CodeGenColumnModel(
+        CodeGenColumnKind kind,
+        string sqlName,
+        string? propertyName,
+        bool isPrimaryKey,
+        bool isIdentity,
+        string? foreignKeyDatabase,
+        string? foreignKeySchema,
+        string? foreignKeyTable,
+        string? foreignKeyColumn,
+        CodeGenDefaultValueKind defaultValueKind,
+        string? defaultValue,
+        bool isUnicode,
+        int? maxLength,
+        bool isFixedLength,
+        bool isText,
+        int precision,
+        int scale,
+        bool isDate,
+        string? sqModels,
+        string? sqModelCastTypeName,
+        ForeignKeyDeleteAction fkOnDelete)
     {
         this.Kind = kind;
         this.SqlName = sqlName;
@@ -189,6 +219,7 @@ public sealed class CodeGenColumnModel
         this.ForeignKeySchema = foreignKeySchema;
         this.ForeignKeyTable = foreignKeyTable;
         this.ForeignKeyColumn = foreignKeyColumn;
+        this.FkOnDelete = fkOnDelete;
         this.DefaultValueKind = defaultValueKind;
         this.DefaultValue = defaultValue;
         this.IsUnicode = isUnicode;
@@ -219,6 +250,8 @@ public sealed class CodeGenColumnModel
     public string? ForeignKeyTable { get; }
 
     public string? ForeignKeyColumn { get; }
+
+    public ForeignKeyDeleteAction FkOnDelete { get; }
 
     public CodeGenDefaultValueKind DefaultValueKind { get; }
 

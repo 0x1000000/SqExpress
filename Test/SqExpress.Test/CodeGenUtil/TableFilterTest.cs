@@ -72,7 +72,7 @@ public class TableFilterTest
                 null,
                 false,
                 null,
-                [new ColumnRef("dbo", "Customer", "Id")]
+                [new ForeignKeyModel(new ColumnRef("dbo", "Customer", "Id"), ForeignKeyDeleteAction.NoAction)]
             ));
 
         var result = TableFilter.Apply([customer, order], ["Order"], new string[0]);
@@ -96,7 +96,7 @@ public class TableFilterTest
                 null,
                 false,
                 null,
-                [new ColumnRef("dbo", "Customer", "Id")]
+                [new ForeignKeyModel(new ColumnRef("dbo", "Customer", "Id"), ForeignKeyDeleteAction.NoAction)]
             ));
 
         var result = TableFilter.Apply([customer, order], ["dbo.*"], new string[0]);

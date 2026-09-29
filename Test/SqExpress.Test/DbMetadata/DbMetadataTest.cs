@@ -72,7 +72,7 @@ public class DbMetadataTest
                         null,
                         false,
                         null,
-                        [new ColumnRef("dbo", "TableB", "Id")]
+                        [new ForeignKeyModel(new ColumnRef("dbo", "TableB", "Id"), ForeignKeyDeleteAction.NoAction)]
                     )
                 ],
                 []
@@ -99,7 +99,7 @@ public class DbMetadataTest
                         null,
                         false,
                         null,
-                        [new ColumnRef("dbo", "TableA", "Id")]
+                        [new ForeignKeyModel(new ColumnRef("dbo", "TableA", "Id"), ForeignKeyDeleteAction.NoAction)]
                     )
                 ],
                 []

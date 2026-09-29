@@ -1,11 +1,40 @@
 ﻿using System.Threading;
 using NUnit.Framework;
+using SqExpress.SqlExport;
 
 namespace SqExpress.Test.Meta;
 
 [TestFixture]
 public class TableFkRefTest
 {
+    [Test]
+    public void CascadeDeleteExportsToAllDialects()
+    {
+        var parent = new CascadeParent();
+        var child = new CascadeChild();
+        Assert.That(child.ParentId.ColumnMeta?.ForeignKeys?[0].OnDelete, Is.EqualTo(ForeignKeyDeleteAction.Cascade));
+        Assert.That(child.ParentId.ColumnMeta?.ForeignKeyColumns?[0].ColumnName, Is.EqualTo(parent.Id.ColumnName));
+
+        foreach (var exporter in new ISqlExporter[]
+                 { TSqlExporter.Default, PgSqlExporter.Default, MySqlExporter.OracleDefault, SqliteExporter.Default })
+        {
+            Assert.That(exporter.ToSql(child.Script.Create()), Does.Contain("ON DELETE CASCADE"));
+        }
+    }
+
+    [Test]
+    public void ConflictingDeleteActionsOnCompositeForeignKeyAreRejected()
+    {
+        var table = new MixedActionChild();
+        Assert.Throws<SqExpressException>(() => TSqlExporter.Default.ToSql(table.Script.Create()));
+    }
+
+    [Test]
+    public void DeleteActionParticipatesInTableComparison()
+    {
+        Assert.That(new CascadeChild().CompareWith(new NoActionChild()), Is.Not.Null);
+    }
+
     [Test]
     public void SelfFkTest()
     {
@@ -56,6 +85,52 @@ public class TableFkRefTest
         public Int32TableColumn RefId { get; }
 
         public Int32TableColumn Id { get; }
+    }
+
+    class CascadeParent : TableBase
+    {
+        public CascadeParent() : base("dbo", "CascadeParent")
+        {
+            this.Id = this.CreateInt32Column("Id", ColumnMeta.PrimaryKey());
+        }
+
+        public Int32TableColumn Id { get; }
+    }
+
+    class CascadeChild : TableBase
+    {
+        public CascadeChild() : base("dbo", "CascadeChild")
+        {
+            this.ParentId = this.CreateInt32Column("ParentId",
+                ColumnMeta.ForeignKey<CascadeParent>(p => p.Id, ForeignKeyDeleteAction.Cascade));
+        }
+
+        public Int32TableColumn ParentId { get; }
+    }
+
+    class MixedActionChild : TableBase
+    {
+        public MixedActionChild() : base("dbo", "MixedActionChild")
+        {
+            this.Parent1 = this.CreateInt32Column("Parent1",
+                ColumnMeta.ForeignKey<CascadeParent>(p => p.Id, ForeignKeyDeleteAction.Cascade));
+            this.Parent2 = this.CreateInt32Column("Parent2",
+                ColumnMeta.ForeignKey<CascadeParent>(p => p.Id));
+        }
+
+        public Int32TableColumn Parent1 { get; }
+        public Int32TableColumn Parent2 { get; }
+    }
+
+    class NoActionChild : TableBase
+    {
+        public NoActionChild() : base("dbo", "CascadeChild")
+        {
+            this.ParentId = this.CreateInt32Column("ParentId",
+                ColumnMeta.ForeignKey<CascadeParent>(p => p.Id));
+        }
+
+        public Int32TableColumn ParentId { get; }
     }
 
     class CrossFkTable1 : TableBase

@@ -137,6 +137,10 @@ internal class SqliteStatementBuilder : SqlStatementBuilderBase
             this.FormattingWriter.Append(" REFERENCES ");
             foreignTable.Accept(this.ExprBuilder, null);
             this.ExprBuilder.AcceptListComaSeparatedPar('(', pairList.Select(p => p.External).ToList(), ')', null);
+            if (pairList[0].OnDelete == ForeignKeyDeleteAction.Cascade)
+            {
+                this.FormattingWriter.Append(" ON DELETE CASCADE");
+            }
         }
 
         this.FormattingWriter.Append(')');

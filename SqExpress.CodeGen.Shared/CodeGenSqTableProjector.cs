@@ -102,7 +102,10 @@ internal static class CodeGenSqTableProjector
             isText: projection.IsText,
             precision: projection.Precision,
             scale: projection.Scale,
-            isDate: projection.IsDate
+            isDate: projection.IsDate,
+            sqModels: null,
+            sqModelCastTypeName: null,
+            fkOnDelete: column.ColumnMeta?.ForeignKeys?.FirstOrDefault()?.OnDelete ?? ForeignKeyDeleteAction.NoAction
         );
     }
 

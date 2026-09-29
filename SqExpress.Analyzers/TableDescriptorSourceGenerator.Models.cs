@@ -311,7 +311,8 @@ public sealed partial class TableDescriptorSourceGenerator
             GetNamedInt(attribute, nameof(DecimalColumnAttributeBase.Scale)),
             GetNamedBool(attribute, nameof(DateTimeColumnAttributeBase.IsDate)),
             GetNamedString(attribute, nameof(TableColumnAttributeBase.SqModels)),
-            GetNamedTypeName(attribute, nameof(TableColumnAttributeBase.SqModelCast)));
+            GetNamedTypeName(attribute, nameof(TableColumnAttributeBase.SqModelCast)),
+            (ForeignKeyDeleteAction)GetNamedInt(attribute, nameof(TableColumnAttributeBase.FkOnDelete)));
         return true;
     }
 
@@ -757,6 +758,8 @@ public sealed partial class TableDescriptorSourceGenerator
                 return CreateDiagnostic(DiagnosticDescriptors.TableDescriptorForeignKeyTableNotFound, symbol, issue.Subject, issue.TableDisplayName, issue.RelatedValue ?? string.Empty);
             case CodeGenValidationIssueKind.ForeignKeyColumnNotFound:
                 return CreateDiagnostic(DiagnosticDescriptors.TableDescriptorForeignKeyColumnNotFound, symbol, issue.Subject, issue.TableDisplayName, issue.RelatedValue ?? string.Empty);
+            case CodeGenValidationIssueKind.InvalidForeignKeyDeleteAction:
+                return CreateDiagnostic(DiagnosticDescriptors.TableDescriptorInvalidForeignKeyDeleteAction, symbol, issue.Subject, issue.TableDisplayName);
             default:
                 throw new ArgumentOutOfRangeException(nameof(issue.Kind), issue.Kind, null);
         }

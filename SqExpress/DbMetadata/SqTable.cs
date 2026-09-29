@@ -259,7 +259,7 @@ public sealed class SqTable : TableBase
             return new ColumnMeta(
                 columnModel.Pk != null,
                 columnModel.Identity,
-                columnModel.Fk?.Select(this._contextStorage).ToList(),
+                columnModel.Fk?.Select(fk => new ColumnForeignKey(this._contextStorage(fk.Column), fk.OnDelete)).ToList(),
                 defaultValue);
 
         }

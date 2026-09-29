@@ -369,12 +369,13 @@ internal class MySqlDbStrategy : DbStrategyBase
             );
     }
 
-    private Task<(Dictionary<ColumnRef, List<ColumnRef>> Fks, Dictionary<TableRef, List<string>> FkName,
+    private Task<(Dictionary<ColumnRef, List<ForeignKeyModel>> Fks, Dictionary<TableRef, List<string>> FkName,
             Dictionary<TableRef, string> Pks)>
         LoadConstrains()
     {
         var tTableConstraints = new MySqlTableConstraints();
         var tColumnUsage = new MySqlKeyColumnUsage();
+        var tReferentialConstraints = new MySqlReferentialConstraints();
 
         return Select(
                 tTableConstraints.ConstraintType,
@@ -384,7 +385,8 @@ internal class MySqlDbStrategy : DbStrategyBase
                 tColumnUsage.ColumnName,
                 tColumnUsage.ReferencedTableSchema,
                 tColumnUsage.ReferencedTableName,
-                tColumnUsage.ReferencedColumnName
+                tColumnUsage.ReferencedColumnName,
+                tReferentialConstraints.DeleteRule
             )
             .From(tColumnUsage)
             .InnerJoin(
@@ -395,11 +397,14 @@ internal class MySqlDbStrategy : DbStrategyBase
                 & tTableConstraints.TableName == tColumnUsage.TableName
                 & tTableConstraints.ConstraintName == tColumnUsage.ConstraintName
             )
+            .LeftJoin(tReferentialConstraints,
+                on: tReferentialConstraints.ConstraintSchema == tColumnUsage.ConstraintSchema
+                    & tReferentialConstraints.ConstraintName == tColumnUsage.ConstraintName)
             .Where(GetTableFilter(tColumnUsage) & tTableConstraints.ConstraintType.In("PRIMARY KEY", "FOREIGN KEY"))
             .OrderBy(tColumnUsage.OrdinalPosition)
             .Query(
                 Database,
-                (Fks: new Dictionary<ColumnRef, List<ColumnRef>>(),
+                (Fks: new Dictionary<ColumnRef, List<ForeignKeyModel>>(),
                     FkName: new Dictionary<TableRef, List<string>>(),
                     Pks: new Dictionary<TableRef, string>()),
                 (acc, r) =>
@@ -431,7 +436,9 @@ internal class MySqlDbStrategy : DbStrategyBase
                             acc.Fks.Add(columnName, colList);
                         }
 
-                        colList.Add(refColumnName);
+                        colList.Add(new ForeignKeyModel(refColumnName,
+                            tReferentialConstraints.DeleteRule.Read(r) == "CASCADE"
+                                ? ForeignKeyDeleteAction.Cascade : ForeignKeyDeleteAction.NoAction));
 
                         if (!acc.FkName.TryGetValue(refTableName, out var fkList))
                         {

@@ -108,6 +108,7 @@ All column attributes inherit from `TableColumnAttributeBase` and support these 
 | `FkDatabase` | `string?` | Foreign key target database. |
 | `FkTable` | `string?` | Foreign key target table name. |
 | `FkColumn` | `string?` | Foreign key target column name. |
+| `FkOnDelete` | `ForeignKeyDeleteAction` | Delete action for the foreign key. Defaults to `NoAction`; use `Cascade` to delete referencing rows with the parent. |
 | `DefaultValue` | `string?` | Default value text. Parsed according to the column type. |
 | `SqModels` | `string?` | Comma-separated DTO model list. Each entry is `ModelName` or `ModelName.PropertyName`. |
 | `SqModelCast` | `Type?` | Optional CLR cast applied when reading this column into all generated DTO models that include it. |
@@ -120,6 +121,26 @@ Example:
 [StringColumn("FirstName", SqModels = "UserDto,UserName")]
 [Int32Column("UserId", SqModels = "UserDto.Id", SqModelCast = typeof(long))]
 ```
+
+### Foreign Key Delete Actions
+
+Set `FkOnDelete` alongside `FkTable` and `FkColumn` to generate `ON DELETE CASCADE`:
+
+```cs
+using SqExpress;
+using SqExpress.TableDeclarationAttributes;
+
+[NullableInt32Column("CompanyId", FkTable = "Company", FkColumn = "CompanyId",
+    FkOnDelete = ForeignKeyDeleteAction.Cascade)]
+```
+
+For a handwritten table descriptor, pass the action to `ColumnMeta.ForeignKey`:
+
+```cs
+ColumnMeta.ForeignKey<TableCompany>(t => t.CompanyId, ForeignKeyDeleteAction.Cascade)
+```
+
+Omitting the action preserves the default foreign key behavior. SQLite connections must enable foreign-key enforcement for cascade deletion to run.
 
 ## SqModel Metadata
 

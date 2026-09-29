@@ -75,7 +75,7 @@ internal static class DbModelMapper
         }
 
         var filteredForeignKeys = columnModel.Fk
-            .Where(storage.ContainsKey)
+            .Where(fk => storage.ContainsKey(fk.Column))
             .ToList();
 
         if (filteredForeignKeys.Count == columnModel.Fk.Count)

@@ -102,6 +102,18 @@ public static class CodeGenTableDescriptorSupport
             }
         }
 
+        foreach (var column in candidate.Columns)
+        {
+            if (column.FkOnDelete != ForeignKeyDeleteAction.NoAction &&
+                (column.FkOnDelete != ForeignKeyDeleteAction.Cascade ||
+                 string.IsNullOrWhiteSpace(column.ForeignKeyTable) ||
+                 string.IsNullOrWhiteSpace(column.ForeignKeyColumn)))
+            {
+                issues.Add(new CodeGenValidationIssue(CodeGenValidationIssueKind.InvalidForeignKeyDeleteAction,
+                    column.SqlName, candidate.TableDisplayName));
+            }
+        }
+
         foreach (var column in candidate.Columns.Where(static c => !string.IsNullOrWhiteSpace(c.ForeignKeyTable) && !string.IsNullOrWhiteSpace(c.ForeignKeyColumn)))
         {
             var targetKey = BuildTableKey(CodeGenTableKind.Table, column.ForeignKeyDatabase, column.ForeignKeySchema ?? candidate.SchemaName, column.ForeignKeyTable!);
@@ -754,6 +766,11 @@ public static class CodeGenTableDescriptorSupport
             yield return NamedAttributeArgument("FkColumn", Literal(column.ForeignKeyColumn));
         }
 
+        if (column.FkOnDelete == ForeignKeyDeleteAction.Cascade)
+        {
+            yield return NamedAttributeArgument("FkOnDelete", MemberAccess(SyntaxFactory.IdentifierName("ForeignKeyDeleteAction"), "Cascade"));
+        }
+
         if ((column.Kind == CodeGenColumnKind.String || column.Kind == CodeGenColumnKind.NullableString) && column.IsUnicode)
         {
             yield return NamedAttributeArgument("Unicode", BoolLiteral(true));
@@ -1053,13 +1070,21 @@ public static class CodeGenTableDescriptorSupport
                     .Select(c => string.IsNullOrWhiteSpace(c.PropertyName) ? ToIdentifier(c.SqlName) : c.PropertyName!)
                     .First();
 
-                Append(
-                    SyntaxFactory.GenericName("ForeignKey")
-                        .WithTypeArgumentList(SyntaxFactory.TypeArgumentList(SyntaxFactory.SingletonSeparatedList<TypeSyntax>(RenderForeignKeyTargetType(candidate, targetTable)))),
-                    SyntaxFactory.Argument(
-                        SyntaxFactory.SimpleLambdaExpression(
-                            SyntaxFactory.Parameter(SyntaxFactory.Identifier("t")),
-                            MemberAccess(SyntaxFactory.IdentifierName("t"), targetPropertyName))));
+                var foreignKeyMethod = SyntaxFactory.GenericName("ForeignKey")
+                    .WithTypeArgumentList(SyntaxFactory.TypeArgumentList(SyntaxFactory.SingletonSeparatedList<TypeSyntax>(RenderForeignKeyTargetType(candidate, targetTable))));
+                var foreignKeyArgument = SyntaxFactory.Argument(
+                    SyntaxFactory.SimpleLambdaExpression(
+                        SyntaxFactory.Parameter(SyntaxFactory.Identifier("t")),
+                        MemberAccess(SyntaxFactory.IdentifierName("t"), targetPropertyName)));
+                if (column.FkOnDelete == ForeignKeyDeleteAction.Cascade)
+                {
+                    Append(foreignKeyMethod, foreignKeyArgument,
+                        SyntaxFactory.Argument(MemberAccess(SyntaxFactory.IdentifierName("ForeignKeyDeleteAction"), "Cascade")));
+                }
+                else
+                {
+                    Append(foreignKeyMethod, foreignKeyArgument);
+                }
             }
         }
 
@@ -1662,7 +1687,8 @@ public static class CodeGenTableDescriptorSupport
                     column.Scale,
                     column.IsDate,
                     string.IsNullOrWhiteSpace(column.SqModels) ? preserved.SqModels : column.SqModels,
-                    string.IsNullOrWhiteSpace(column.SqModelCastTypeName) ? preserved.SqModelCastTypeName : column.SqModelCastTypeName);
+                    string.IsNullOrWhiteSpace(column.SqModelCastTypeName) ? preserved.SqModelCastTypeName : column.SqModelCastTypeName,
+                    column.FkOnDelete);
             })
             .ToImmutableArray();
 
@@ -1730,6 +1756,7 @@ public static class CodeGenTableDescriptorSupport
             CodeGenValidationIssueKind.DescendingColumnMustBeIndexed => $"Descending column \"{issue.Subject}\" must also be included in the index for table {issue.TableDisplayName}.",
             CodeGenValidationIssueKind.ForeignKeyTableNotFound => $"Could not find foreign key table \"{issue.Subject}\" referenced by column \"{issue.RelatedValue}\" in table {issue.TableDisplayName}.",
             CodeGenValidationIssueKind.ForeignKeyColumnNotFound => $"Could not find foreign key column \"{issue.Subject}\" referenced by column \"{issue.RelatedValue}\" in table {issue.TableDisplayName}.",
+            CodeGenValidationIssueKind.InvalidForeignKeyDeleteAction => $"Invalid foreign key delete action for column \"{issue.Subject}\" in table {issue.TableDisplayName}.",
             _ => $"Unknown validation issue \"{issue.Kind}\" for table {issue.TableDisplayName}."
         };
     }

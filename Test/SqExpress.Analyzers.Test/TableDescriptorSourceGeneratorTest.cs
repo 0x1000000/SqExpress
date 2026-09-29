@@ -274,6 +274,47 @@ public class TableDescriptorSourceGeneratorTest
     }
 
     [Test]
+    public void Generate_WhenCascadeDeleteIsDeclared_PassesDeleteAction()
+    {
+        var source = """
+                     using SqExpress;
+                     using SqExpress.TableDeclarationAttributes;
+
+                     [TableDescriptor("dbo", "Company")]
+                     [Int32Column("CompanyId", Pk = true)]
+                     public partial class Company { }
+
+                     [TableDescriptor("dbo", "User")]
+                     [Int32Column("CompanyId", FkTable = "Company", FkColumn = "CompanyId", FkOnDelete = ForeignKeyDeleteAction.Cascade)]
+                     public partial class User { }
+                     """;
+
+        var result = RunGenerator(source);
+        var generated = GetGeneratedSource(result, "User");
+
+        Assert.That(result.Diagnostics, Is.Empty, FormatDiagnostics(result.Diagnostics));
+        Assert.That(result.OutputCompilation.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error), Is.Empty,
+            FormatDiagnostics(result.OutputCompilation.GetDiagnostics()));
+        Assert.That(generated, Does.Contain("ForeignKey<Company>(t => t.CompanyId, ForeignKeyDeleteAction.Cascade)"));
+    }
+
+    [Test]
+    public void Generate_WhenCascadeDeleteHasNoForeignKey_ReportsDiagnostic()
+    {
+        var source = """
+                     using SqExpress;
+                     using SqExpress.TableDeclarationAttributes;
+
+                     [TableDescriptor("dbo", "Orphan")]
+                     [Int32Column("ParentId", FkOnDelete = ForeignKeyDeleteAction.Cascade)]
+                     public partial class Orphan { }
+                     """;
+
+        var result = RunGenerator(source);
+        Assert.That(result.Diagnostics.Any(d => d.Id == "SQEX125"), Is.True, FormatDiagnostics(result.Diagnostics));
+    }
+
+    [Test]
     public void Generate_WhenPredefinedDefaultsAreUsed_UsesExpectedExpressions()
     {
         var source = """

@@ -46,7 +46,8 @@ public class Program
         {
             DataSource = $"sqexpress-inttest-{parametrizationMode}-{Guid.NewGuid():N}",
             Mode = SqliteOpenMode.Memory,
-            Cache = SqliteCacheMode.Shared
+            Cache = SqliteCacheMode.Shared,
+            ForeignKeys = true
         }.ToString();
 
         try
@@ -95,11 +96,13 @@ public class Program
                 "for-json-nested-books" => new ScForJsonNestedBooks(),
                 "get-views" => new ScGetViews(),
                 "get-tables-complex" => new ScGetTablesComplex(),
+                "cascade-delete" => new ScCascadeDelete(),
                 _ => throw new ArgumentException($"Unknown scenario '{scenario}'.")
             };
         }
 
         return new ScCreateTables()
+            .Then(new ScCascadeDelete())
             .Then(new ScInsertUserData())
             .Then(new ScSqlInjections())
             .Then(new ScLike())

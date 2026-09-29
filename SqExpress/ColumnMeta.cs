@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using SqExpress.Syntax.Value;
 using SqExpress.Utils;
 
@@ -14,14 +15,22 @@ public class ColumnMeta
 
     public IReadOnlyList<TableColumn>? ForeignKeyColumns { get; }
 
+    public IReadOnlyList<ColumnForeignKey>? ForeignKeys { get; }
+
     public ExprValue? ColumnDefaultValue { get; }
 
     internal ColumnMeta(bool isPrimaryKey, bool isIdentity, IReadOnlyList<TableColumn>? foreignFactory, ExprValue? defaultValue)
+        : this(isPrimaryKey, isIdentity, foreignFactory?.Select(c => new ColumnForeignKey(c, ForeignKeyDeleteAction.NoAction)).ToArray(), defaultValue)
+    {
+    }
+
+    internal ColumnMeta(bool isPrimaryKey, bool isIdentity, IReadOnlyList<ColumnForeignKey>? foreignKeys, ExprValue? defaultValue)
     {
         this.IsPrimaryKey = isPrimaryKey;
         this.IsIdentity = isIdentity;
         this.ColumnDefaultValue = defaultValue;
-        this.ForeignKeyColumns = foreignFactory;
+        this.ForeignKeys = foreignKeys;
+        this.ForeignKeyColumns = foreignKeys?.Select(fk => fk.ReferencedColumn).ToArray();
     }
 
     public static ColumnMetaBuilder PrimaryKey() => ColumnMetaBuilder.Default.PrimaryKey();
@@ -30,7 +39,11 @@ public class ColumnMeta
 
     public static ColumnMetaBuilder ForeignKey<TTable>(Func<TTable, TableColumn> fkFactory) where TTable : TableBase, new() => ColumnMetaBuilder.Default.ForeignKey(fkFactory);
 
+    public static ColumnMetaBuilder ForeignKey<TTable>(Func<TTable, TableColumn> fkFactory, ForeignKeyDeleteAction onDelete) where TTable : TableBase, new() => ColumnMetaBuilder.Default.ForeignKey(fkFactory, onDelete);
+
     public static ColumnMetaBuilder ForeignKey(TableColumn column) => ColumnMetaBuilder.Default.ForeignKey(column);
+
+    public static ColumnMetaBuilder ForeignKey(TableColumn column, ForeignKeyDeleteAction onDelete) => ColumnMetaBuilder.Default.ForeignKey(column, onDelete);
 
     public static ColumnMetaBuilder DefaultValue(ExprValue defaultValue) => ColumnMetaBuilder.Default.DefaultValue(defaultValue);
 
@@ -41,12 +54,12 @@ public class ColumnMeta
 
         private readonly bool _isPrimaryKey;
         private readonly bool _isIdentity;
-        private readonly TableColumn[]? _fks;
+        private readonly ColumnForeignKey[]? _fks;
         private readonly ExprValue? _defaultValue;
 
         public static ColumnMetaBuilder Default => new ColumnMetaBuilder(false, false, null, null);
 
-        internal ColumnMetaBuilder(bool isPrimaryKey, bool isIdentity, TableColumn[]? fks, ExprValue? defaultValue)
+        internal ColumnMetaBuilder(bool isPrimaryKey, bool isIdentity, ColumnForeignKey[]? fks, ExprValue? defaultValue)
         {
             this._isPrimaryKey = isPrimaryKey;
             this._isIdentity = isIdentity;
@@ -73,7 +86,11 @@ public class ColumnMeta
         }
 
         public ColumnMetaBuilder ForeignKey<TTable>(Func<TTable, TableColumn> fkFactory) where TTable : TableBase, new()
+            => this.ForeignKey(fkFactory, ForeignKeyDeleteAction.NoAction);
+
+        public ColumnMetaBuilder ForeignKey<TTable>(Func<TTable, TableColumn> fkFactory, ForeignKeyDeleteAction onDelete) where TTable : TableBase, new()
         {
+            ValidateDeleteAction(onDelete);
             TableColumn? fkColumn;
 
             if(FkFactoriesCache.TryAdd(fkFactory, 0))
@@ -86,20 +103,29 @@ public class ColumnMeta
             }
             FkFactoriesCache.Clear();
 
+            return this.ForeignKey(fkColumn!, onDelete);
+        }
+
+        public ColumnMetaBuilder ForeignKey(TableColumn column)
+            => this.ForeignKey(column, ForeignKeyDeleteAction.NoAction);
+
+        public ColumnMetaBuilder ForeignKey(TableColumn column, ForeignKeyDeleteAction onDelete)
+        {
+            ValidateDeleteAction(onDelete);
+            var fk = new ColumnForeignKey(column, onDelete);
             var newFks = this._fks == null
-                ? [fkColumn]
-                : Helpers.Combine(this._fks, fkColumn);
+                ? [fk]
+                : Helpers.Combine(this._fks, fk);
 
             return new ColumnMetaBuilder(this._isPrimaryKey, this._isIdentity, newFks, this._defaultValue);
         }
 
-        public ColumnMetaBuilder ForeignKey(TableColumn column)
+        private static void ValidateDeleteAction(ForeignKeyDeleteAction onDelete)
         {
-            var newFks = this._fks == null
-                ? [column]
-                : Helpers.Combine(this._fks, column);
-
-            return new ColumnMetaBuilder(this._isPrimaryKey, this._isIdentity, newFks, this._defaultValue);
+            if (onDelete != ForeignKeyDeleteAction.NoAction && onDelete != ForeignKeyDeleteAction.Cascade)
+            {
+                throw new SqExpressException($"Unsupported foreign key delete action: {onDelete}");
+            }
         }
 
         public ColumnMetaBuilder DefaultValue(ExprValue defaultValue)

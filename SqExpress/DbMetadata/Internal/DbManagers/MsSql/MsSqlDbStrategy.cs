@@ -331,7 +331,7 @@ internal class MsSqlDbStrategy : DbStrategyBase
                 });
     }
 
-    private Task<Dictionary<ColumnRef, List<ColumnRef>>> LoadForeignKeys()
+    private Task<Dictionary<ColumnRef, List<ForeignKeyModel>>> LoadForeignKeys()
     {
 
         var tConstraints = new MsSqlReferentialConstraints();
@@ -352,6 +352,7 @@ internal class MsSqlDbStrategy : DbStrategyBase
                 tKeys.TableSchema,
                 tKeys.TableName,
                 tKeys.ColumnName,
+                tConstraints.DeleteRule,
                 tSysSchemas.Name.As(rSchema),
                 tSysTables.Name.As(rName),
                 tSysColumns.Name.As(rColumnName))
@@ -366,7 +367,7 @@ internal class MsSqlDbStrategy : DbStrategyBase
             .OrderBy(tKeys.OrdinalPosition)
             .Query(
                 Database,
-                new Dictionary<ColumnRef, List<ColumnRef>>(),
+                new Dictionary<ColumnRef, List<ForeignKeyModel>>(),
                 (acc, r) =>
                 {
                     var columnName = new ColumnRef(
@@ -385,7 +386,8 @@ internal class MsSqlDbStrategy : DbStrategyBase
                         acc.Add(columnName, colList);
                     }
 
-                    colList.Add(refColumnName);
+                    colList.Add(new ForeignKeyModel(refColumnName,
+                        tConstraints.DeleteRule.Read(r) == "CASCADE" ? ForeignKeyDeleteAction.Cascade : ForeignKeyDeleteAction.NoAction));
 
                     return acc;
                 });
