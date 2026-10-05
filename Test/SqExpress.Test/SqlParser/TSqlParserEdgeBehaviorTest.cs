@@ -368,4 +368,89 @@ public class TSqlParserEdgeBehaviorTest
         Assert.That(delete.Target.FullName.AsExprTableFullName().TableName.Name, Is.EqualTo("User"));
         Assert.That(delete.Filter, Is.Not.Null);
     }
+
+    [TestCase("UNION", ExprQueryExpressionType.Union)]
+    [TestCase("UNION ALL", ExprQueryExpressionType.UnionAll)]
+    [TestCase("EXCEPT", ExprQueryExpressionType.Except)]
+    public void Intersect_BindsMoreTightlyThanUnionOrExcept(string operation, ExprQueryExpressionType expectedRoot)
+    {
+        var expression = SqTSqlParser.Parse($"SELECT 1 {operation} SELECT 2 INTERSECT SELECT 2");
+
+        Assert.That(expression, Is.TypeOf<ExprQueryExpression>());
+        var query = (ExprQueryExpression)expression;
+        Assert.That(query.QueryExpressionType, Is.EqualTo(expectedRoot));
+        Assert.That(query.Right, Is.TypeOf<ExprQueryExpression>());
+        Assert.That(((ExprQueryExpression)query.Right).QueryExpressionType, Is.EqualTo(ExprQueryExpressionType.Intersect));
+    }
+
+    [TestCase("SELECT 1 WHERE 'a_b' LIKE 'a!_b' ESCAPE '!'")]
+    [TestCase("SELECT 1 WHERE 'a_b' NOT LIKE 'a!_b' ESCAPE '!'")]
+    public void LikeEscape_WhenEscapeAffectsPattern_IsRejected(string sql)
+    {
+        AssertRejected(sql);
+    }
+
+    [Test]
+    public void DecimalLiteralBeyondClrPrecision_IsRejectedInsteadOfRounded()
+    {
+        AssertRejected("SELECT 0.12345678901234567890123456789");
+    }
+
+    [TestCase("UPDATE TOP (1) dbo.Users SET Name = 'changed'")]
+    [TestCase("DELETE TOP (1) FROM dbo.Users")]
+    public void DmlTopWithoutWhere_IsRejected(string sql)
+    {
+        AssertRejected(sql);
+    }
+
+    [Test]
+    public void MergeMultipleMatchedActions_IsRejectedInsteadOfDroppingFirstAction()
+    {
+        AssertRejected("MERGE dbo.Target AS t USING dbo.Source AS s ON t.Id = s.Id "
+            + "WHEN MATCHED AND s.Flag = 1 THEN UPDATE SET Value = s.Value "
+            + "WHEN MATCHED THEN DELETE;");
+    }
+
+    [Test]
+    public void SchemaQualifiedTable_IsNotReplacedByCteWithSameName()
+    {
+        var expression = SqTSqlParser.Parse("WITH c AS (SELECT 1 AS Id) SELECT c.Id FROM dbo.c");
+        Assert.That(expression.ToSql(TSqlExporter.Default), Does.Contain("[dbo].[c]"));
+    }
+
+    [Test]
+    public void CteColumnList_ReplacesInnerProjectionNames()
+    {
+        AssertRejected("WITH c(Renamed) AS (SELECT 1 AS Original) SELECT c.Original FROM c");
+    }
+
+    [TestCase("SELECT 1 UNION SELECT 1, 2")]
+    [TestCase("SELECT (SELECT 1, 2)")]
+    [TestCase("SELECT 1 WHERE 1 IN (SELECT 1, 2)")]
+    public void KnownQueryArityMismatch_IsRejected(string sql)
+    {
+        AssertRejected(sql);
+    }
+
+    [Test]
+    public void WindowRowsFrame_IsPreserved()
+    {
+#pragma warning disable SQEX012 // Raw SQL deliberately uses a table without a compiled descriptor.
+        var expression = SqTSqlParser.Parse(
+            "SELECT SUM(u.Id) OVER (ORDER BY u.Id ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) FROM dbo.Users u");
+#pragma warning restore SQEX012
+        var over = expression.SyntaxTree().DescendantsAndSelf().OfType<ExprOver>().Single();
+
+        Assert.That(over.FrameClause, Is.Not.Null);
+        Assert.That(over.FrameClause!.Start, Is.TypeOf<ExprValueFrameBorder>());
+        Assert.That(over.FrameClause.End, Is.TypeOf<ExprCurrentRowFrameBorder>());
+    }
+
+    private static void AssertRejected(string sql)
+    {
+        var success = SqTSqlParser.TryParse(sql, out var expression, out var error);
+        Assert.That(success, Is.False, "Input must fail closed: " + sql);
+        Assert.That(expression, Is.Null);
+        Assert.That(error, Is.Not.Null.And.Not.Empty);
+    }
 }

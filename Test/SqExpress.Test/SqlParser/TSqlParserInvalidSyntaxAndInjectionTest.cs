@@ -7,6 +7,16 @@ namespace SqExpress.Test.SqlParser;
 
 public class TSqlParserInvalidSyntaxAndInjectionTest
 {
+    [Test]
+    public void UnterminatedOuterBlockComment_IsRejected()
+    {
+        var ok = SqTSqlParser.TryParse("SELECT 1 /* outer /* inner */", out IExpr? expr, out var error);
+
+        Assert.That(ok, Is.False);
+        Assert.That(expr, Is.Null);
+        Assert.That(error, Is.EqualTo("Syntax error: unterminated block comment."));
+    }
+
     [TestCaseSource(nameof(InvalidSyntaxCases))]
     public void InvalidSyntaxReturnsError(string sql, string expectedError)
     {

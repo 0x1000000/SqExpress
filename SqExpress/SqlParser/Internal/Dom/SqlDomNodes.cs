@@ -73,15 +73,18 @@ internal sealed class SqlDomWithClause
 
 internal sealed class SqlDomCte
 {
-    public SqlDomCte(string name, string querySql)
+    public SqlDomCte(string name, string querySql, IReadOnlyList<string>? columnNames)
     {
         this.Name = name;
         this.QuerySql = querySql;
+        this.ColumnNames = columnNames;
     }
 
     public string Name { get; }
 
     public string QuerySql { get; }
+
+    public IReadOnlyList<string>? ColumnNames { get; }
 }
 
 internal sealed class SqlDomSelectClause
@@ -95,8 +98,10 @@ internal sealed class SqlDomSelectClause
         string? groupBySql,
         bool hasHavingClause,
         string? havingSql,
-        string? orderBySql,
-        string? offsetFetchSql,
+        SqlDomOrderByClause? orderBy,
+        string? orderByError,
+        SqlDomOffsetFetchClause? offsetFetch,
+        string? offsetFetchError,
         bool isDistinct,
         string? topSql,
         bool hasSetOperation)
@@ -109,8 +114,10 @@ internal sealed class SqlDomSelectClause
         this.GroupBySql = groupBySql;
         this.HasHavingClause = hasHavingClause;
         this.HavingSql = havingSql;
-        this.OrderBySql = orderBySql;
-        this.OffsetFetchSql = offsetFetchSql;
+        this.OrderBy = orderBy;
+        this.OrderByError = orderByError;
+        this.OffsetFetch = offsetFetch;
+        this.OffsetFetchError = offsetFetchError;
         this.IsDistinct = isDistinct;
         this.TopSql = topSql;
         this.HasSetOperation = hasSetOperation;
@@ -132,15 +139,55 @@ internal sealed class SqlDomSelectClause
 
     public string? HavingSql { get; }
 
-    public string? OrderBySql { get; }
+    public SqlDomOrderByClause? OrderBy { get; }
 
-    public string? OffsetFetchSql { get; }
+    public string? OrderByError { get; }
+
+    public SqlDomOffsetFetchClause? OffsetFetch { get; }
+
+    public string? OffsetFetchError { get; }
 
     public bool IsDistinct { get; }
 
     public string? TopSql { get; }
 
     public bool HasSetOperation { get; }
+}
+
+internal sealed class SqlDomOrderByClause
+{
+    public SqlDomOrderByClause(IReadOnlyList<SqlDomOrderByItem> items)
+    {
+        this.Items = items;
+    }
+
+    public IReadOnlyList<SqlDomOrderByItem> Items { get; }
+}
+
+internal sealed class SqlDomOrderByItem
+{
+    public SqlDomOrderByItem(string expressionSql, bool descending)
+    {
+        this.ExpressionSql = expressionSql;
+        this.Descending = descending;
+    }
+
+    public string ExpressionSql { get; }
+
+    public bool Descending { get; }
+}
+
+internal sealed class SqlDomOffsetFetchClause
+{
+    public SqlDomOffsetFetchClause(string offsetSql, string? fetchSql)
+    {
+        this.OffsetSql = offsetSql;
+        this.FetchSql = fetchSql;
+    }
+
+    public string OffsetSql { get; }
+
+    public string? FetchSql { get; }
 }
 
 internal sealed class SqlDomSelectItem
