@@ -146,5 +146,25 @@ public class TSqlParserCastTest
                 "SELECT CAST(1 AS VARCHAR(abc)) AS [A]",
                 "Type 'VARCHAR' length argument is invalid.")
             .SetName("Cast_VarCharInvalidLengthToken");
+
+        yield return new TestCaseData(
+                "SELECT CAST(1 AS DECIMAL(39, 0))",
+                "Type 'DECIMAL' numeric argument is out of range.")
+            .SetName("Cast_DecimalPrecisionOutOfRange");
+
+        yield return new TestCaseData(
+                "SELECT CAST('x' AS VARCHAR(8001))",
+                "Type 'VARCHAR' length argument is invalid.")
+            .SetName("Cast_VarCharLengthOutOfRange");
+
+        yield return new TestCaseData(
+                "SELECT CAST('x' AS NVARCHAR(4001))",
+                "Type 'NVARCHAR' length argument is invalid.")
+            .SetName("Cast_NVarCharLengthOutOfRange");
+
+        yield return new TestCaseData(
+                "SELECT CAST(1 AS DECIMAL())",
+                "Type 'DECIMAL' arguments cannot be empty.")
+            .SetName("Cast_DecimalEmptyArguments");
     }
 }

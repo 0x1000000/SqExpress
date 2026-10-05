@@ -733,6 +733,19 @@ public class TSqlParserExistingTablesTest
         Assert.That(derivedColumns.Any(column => column.ColumnName.Name == "OrderId"), Is.True);
     }
 
+    [Test]
+    public void Parse_WithExistingTables_ReusedAliasInNestedScopeDoesNotPolluteOuterValidation()
+    {
+        var users = SqTable.Create("dbo", "Users", a => a.AppendInt32Column("Id"));
+        var orders = SqTable.Create("dbo", "Orders", a => a.AppendInt32Column("OrderId"));
+        var success = SqTSqlParser.TryParse(
+            "SELECT x.Id FROM dbo.Users x WHERE EXISTS (SELECT x.OrderId FROM dbo.Orders x)",
+            new TableBase[] { users, orders }, out var expression, out var error);
+
+        Assert.That(success, Is.True, error);
+        Assert.That(expression, Is.Not.Null);
+    }
+
     private static SqTable CreateTable(
         string? schema,
         string tableName,

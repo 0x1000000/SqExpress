@@ -64,7 +64,7 @@ internal sealed class SqlDomParser
             return false;
         }
 
-        var cursor = new TokenCursor(tokens, rawSql);
+        var cursor = new SqlTokenCursor(tokens, rawSql);
         var withClause = ParseWithClause(cursor);
         var kind = DetermineStatementKind(cursor.Tokens, cursor.Index);
 
@@ -476,20 +476,15 @@ internal sealed class SqlDomParser
             return true;
         }
 
-        if (selectClause.OrderBySql != null && !IsValidTopLevelCommaSeparatedClause(selectClause.OrderBySql))
+        if (selectClause.OrderByError != null)
         {
-            error = "Syntax error: ORDER BY clause is invalid.";
+            error = selectClause.OrderByError;
             return true;
         }
 
-        if (ContainsTopLevelKeyword(selectClause.OrderBySql, "FETCH"))
+        if (selectClause.OffsetFetchError != null)
         {
-            error = "Syntax error: OFFSET/FETCH clause is invalid.";
-            return true;
-        }
-
-        if (TryDetectOffsetFetchError(selectClause.OrderBySql, selectClause.OffsetFetchSql, out error))
-        {
+            error = selectClause.OffsetFetchError;
             return true;
         }
 
@@ -1287,92 +1282,11 @@ internal sealed class SqlDomParser
             return false;
         }
 
-        var depth = 0;
-        var segmentHasToken = false;
-        for (var i = 0; i < meaningfulTokens.Count; i++)
-        {
-            var token = meaningfulTokens[i];
-            if (token.Type == SqlTokenType.OpenParen)
-            {
-                depth++;
-                segmentHasToken = true;
-                continue;
-            }
-
-            if (token.Type == SqlTokenType.CloseParen)
-            {
-                if (depth > 0)
-                {
-                    depth--;
-                }
-
-                segmentHasToken = true;
-                continue;
-            }
-
-            if (depth == 0 && token.Type == SqlTokenType.Comma)
-            {
-                if (!segmentHasToken)
-                {
-                    return false;
-                }
-
-                segmentHasToken = false;
-                continue;
-            }
-
-            segmentHasToken = true;
-        }
-
-        return segmentHasToken;
+        return SqlTokenReader.TrySplitTopLevelCommaRanges(meaningfulTokens, 0, meaningfulTokens.Count, out _);
     }
 
     private static bool IsValidTopLevelCommaSeparatedClause(IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)
-    {
-        if (endExclusive <= startInclusive)
-        {
-            return false;
-        }
-
-        var depth = 0;
-        var segmentHasToken = false;
-        for (var i = startInclusive; i < endExclusive; i++)
-        {
-            var token = tokens[i];
-            if (token.Type == SqlTokenType.OpenParen)
-            {
-                depth++;
-                segmentHasToken = true;
-                continue;
-            }
-
-            if (token.Type == SqlTokenType.CloseParen)
-            {
-                if (depth > 0)
-                {
-                    depth--;
-                }
-
-                segmentHasToken = true;
-                continue;
-            }
-
-            if (depth == 0 && token.Type == SqlTokenType.Comma)
-            {
-                if (!segmentHasToken)
-                {
-                    return false;
-                }
-
-                segmentHasToken = false;
-                continue;
-            }
-
-            segmentHasToken = true;
-        }
-
-        return segmentHasToken;
-    }
+        => SqlTokenReader.TrySplitTopLevelCommaRanges(tokens, startInclusive, endExclusive, out _);
 
     private static bool ContainsTopLevelKeyword(string? sql, string keyword)
     {
@@ -1385,75 +1299,149 @@ internal sealed class SqlDomParser
         return ContainsTopLevelKeyword(tokens, 0, keyword);
     }
 
-    private static bool TryDetectOffsetFetchError(string? orderBySql, string? offsetFetchSql, [NotNullWhen(true)] out string? error)
+    internal static bool TryParseOffsetFetchClause(
+        string? orderBySql,
+        string? offsetFetchSql,
+        out SqlDomOffsetFetchClause? clause,
+        [NotNullWhen(false)] out string? error)
     {
+        clause = null;
         if (string.IsNullOrWhiteSpace(offsetFetchSql))
         {
             error = null;
-            return false;
+            return true;
         }
 
         if (string.IsNullOrWhiteSpace(orderBySql))
         {
             error = "Syntax error: OFFSET requires ORDER BY clause.";
-            return true;
+            return false;
         }
 
         var tokens = GetMeaningfulTokens(offsetFetchSql!);
         if (tokens.Count < 3 || !tokens[0].IsKeyword("OFFSET"))
         {
             error = "Syntax error: OFFSET/FETCH clause is invalid.";
-            return true;
+            return false;
         }
 
         var index = 1;
+        var offsetStart = index;
         if (!TryReadClauseExpression(tokens, ref index, "ROW", "ROWS"))
         {
             error = "Syntax error: OFFSET/FETCH clause is invalid.";
-            return true;
+            return false;
         }
+        var offsetSql = SqlTokenReader.SliceSql(offsetFetchSql!, tokens, offsetStart, index - 1);
 
         if (index >= tokens.Count)
         {
+            clause = new SqlDomOffsetFetchClause(offsetSql, null);
             error = null;
-            return false;
+            return true;
         }
 
         if (!tokens[index].IsKeyword("FETCH"))
         {
             error = "Syntax error: OFFSET/FETCH clause is invalid.";
-            return true;
+            return false;
         }
 
         index++;
         if (index >= tokens.Count || (!tokens[index].IsKeyword("NEXT") && !tokens[index].IsKeyword("FIRST")))
         {
             error = "Syntax error: OFFSET/FETCH clause is invalid.";
-            return true;
+            return false;
         }
 
         index++;
+        var fetchStart = index;
         if (!TryReadClauseExpression(tokens, ref index, "ROW", "ROWS"))
         {
             error = "Syntax error: OFFSET/FETCH clause is invalid.";
-            return true;
+            return false;
         }
+        var fetchSql = SqlTokenReader.SliceSql(offsetFetchSql!, tokens, fetchStart, index - 1);
 
         if (index >= tokens.Count || !tokens[index].IsKeyword("ONLY"))
         {
             error = "Syntax error: OFFSET/FETCH clause is invalid.";
-            return true;
+            return false;
         }
 
         index++;
         if (index != tokens.Count)
         {
             error = "Syntax error: OFFSET/FETCH clause is invalid.";
+            return false;
+        }
+
+        clause = new SqlDomOffsetFetchClause(offsetSql, fetchSql);
+        error = null;
+        return true;
+    }
+
+    internal static bool TryParseOrderByClause(
+        string? orderBySql,
+        out SqlDomOrderByClause? clause,
+        [NotNullWhen(false)] out string? error)
+    {
+        clause = null;
+        if (orderBySql == null)
+        {
+            error = null;
             return true;
         }
 
+        if (string.IsNullOrWhiteSpace(orderBySql))
+        {
+            error = "Syntax error: ORDER BY clause is invalid.";
+            return false;
+        }
+
+        var tokens = GetMeaningfulTokens(orderBySql);
+        var start = 0;
+        if (tokens.Count >= 2 && tokens[0].IsKeyword("ORDER") && tokens[1].IsKeyword("BY"))
+        {
+            start = 2;
+        }
+
+        if (!SqlTokenReader.TrySplitTopLevelCommaRanges(tokens, start, tokens.Count, out var ranges))
+        {
+            error = "Syntax error: ORDER BY clause is invalid.";
+            return false;
+        }
+
+        var items = new List<SqlDomOrderByItem>(ranges.Count);
+        for (var i = 0; i < ranges.Count; i++)
+        {
+            var range = ranges[i];
+            var expressionEnd = range.End;
+            var descending = false;
+            if (expressionEnd > range.Start && (tokens[expressionEnd - 1].IsKeyword("ASC") || tokens[expressionEnd - 1].IsKeyword("DESC")))
+            {
+                descending = tokens[expressionEnd - 1].IsKeyword("DESC");
+                expressionEnd--;
+            }
+
+            if (expressionEnd <= range.Start)
+            {
+                error = "Syntax error: ORDER BY clause is invalid.";
+                return false;
+            }
+
+            var expressionSql = SqlTokenReader.SliceSql(orderBySql, tokens, range.Start, expressionEnd);
+            if (ContainsTopLevelKeyword(expressionSql, "FETCH"))
+            {
+                error = "Syntax error: OFFSET/FETCH clause is invalid.";
+                return false;
+            }
+            items.Add(new SqlDomOrderByItem(expressionSql, descending));
+        }
+
+        clause = new SqlDomOrderByClause(items);
         error = null;
-        return false;
+        return true;
     }
 
     private static List<SqlToken> GetMeaningfulTokens(string sql)
@@ -2019,7 +2007,7 @@ internal sealed class SqlDomParser
                || tokens[closeParenIndex + 1].IsKeyword("OFFSET");
     }
 
-    private static SqlDomWithClause? ParseWithClause(TokenCursor cursor)
+    private static SqlDomWithClause? ParseWithClause(SqlTokenCursor cursor)
     {
         if (!cursor.Current.IsKeyword("WITH"))
         {
@@ -2039,9 +2027,37 @@ internal sealed class SqlDomParser
             var cteName = cursor.Current.IdentifierValue;
             cursor.MoveNext();
 
+            IReadOnlyList<string>? columnNames = null;
             if (cursor.Current.Type == SqlTokenType.OpenParen)
             {
-                SkipBalancedParenthesis(cursor);
+                var columnListCloseIndex = FindMatchingCloseParen(cursor.Tokens, cursor.Index);
+                if (columnListCloseIndex < 0)
+                {
+                    break;
+                }
+
+                var names = new List<string>();
+                var expectName = true;
+                for (var i = cursor.Index + 1; i < columnListCloseIndex; i++)
+                {
+                    if (expectName && cursor.Tokens[i].IsIdentifierLike)
+                    {
+                        names.Add(cursor.Tokens[i].IdentifierValue);
+                        expectName = false;
+                    }
+                    else if (!expectName && cursor.Tokens[i].Type == SqlTokenType.Comma)
+                    {
+                        expectName = true;
+                    }
+                    else
+                    {
+                        names.Clear();
+                        break;
+                    }
+                }
+
+                columnNames = names;
+                cursor.TryMoveTo(columnListCloseIndex + 1);
             }
 
             if (!cursor.Current.IsKeyword("AS"))
@@ -2065,9 +2081,9 @@ internal sealed class SqlDomParser
 
             var close = cursor.Tokens[closeIndex];
             var querySql = cursor.Sql.Substring(open.End, close.Start - open.End).Trim();
-            ctes.Add(new SqlDomCte(cteName, querySql));
+            ctes.Add(new SqlDomCte(cteName, querySql, columnNames));
 
-            cursor.Index = closeIndex + 1;
+            cursor.TryMoveTo(closeIndex + 1);
             if (cursor.Current.Type == SqlTokenType.Comma)
             {
                 if (cursor.Index + 1 >= cursor.Tokens.Count || !cursor.Tokens[cursor.Index + 1].IsIdentifierLike)
@@ -2266,6 +2282,9 @@ internal sealed class SqlDomParser
             current++;
         }
 
+        TryParseOrderByClause(orderBySql, out var orderBy, out var orderByError);
+        TryParseOffsetFetchClause(orderBySql, offsetFetchSql, out var offsetFetch, out var offsetFetchError);
+
         return new SqlDomSelectClause(
             items,
             hasValidSelectListSyntax,
@@ -2275,8 +2294,10 @@ internal sealed class SqlDomParser
             groupBySql,
             hasHavingClause,
             havingSql,
-            orderBySql,
-            offsetFetchSql,
+            orderBy,
+            orderByError,
+            offsetFetch,
+            offsetFetchError,
             isDistinct,
             topSql,
             hasSetOperation);
@@ -2741,25 +2762,7 @@ internal sealed class SqlDomParser
     }
 
     private static List<string> ParseMultipartIdentifier(IReadOnlyList<SqlToken> tokens, ref int index, int endExclusive)
-    {
-        var result = new List<string>();
-        if (index >= endExclusive || !tokens[index].IsIdentifierLike)
-        {
-            return result;
-        }
-
-        result.Add(tokens[index].IdentifierValue);
-        index++;
-
-        while ((index + 1) < endExclusive && tokens[index].Type == SqlTokenType.Dot && tokens[index + 1].IsIdentifierLike)
-        {
-            index++;
-            result.Add(tokens[index].IdentifierValue);
-            index++;
-        }
-
-        return result;
-    }
+        => SqlTokenReader.ReadMultipartIdentifier(tokens, ref index, endExclusive);
 
     private static string? ParseOptionalAlias(IReadOnlyList<SqlToken> tokens, ref int index, int endExclusive)
     {
@@ -2823,28 +2826,7 @@ internal sealed class SqlDomParser
     }
 
     private static int FindMatchingCloseParen(IReadOnlyList<SqlToken> tokens, int openParenIndex)
-    {
-        var depth = 0;
-        for (var i = openParenIndex; i < tokens.Count; i++)
-        {
-            if (tokens[i].Type == SqlTokenType.OpenParen)
-            {
-                depth++;
-                continue;
-            }
-
-            if (tokens[i].Type == SqlTokenType.CloseParen)
-            {
-                depth--;
-                if (depth == 0)
-                {
-                    return i;
-                }
-            }
-        }
-
-        return -1;
-    }
+        => SqlTokenReader.FindMatchingCloseParen(tokens, openParenIndex);
 
     private static int FindStatementEnd(IReadOnlyList<SqlToken> tokens, int startIndex)
     {
@@ -3053,7 +3035,7 @@ internal sealed class SqlDomParser
     private static bool IsKeyword(IReadOnlyList<SqlToken> tokens, int index, string keyword)
         => index >= 0 && index < tokens.Count && tokens[index].IsKeyword(keyword);
 
-    private static void SkipBalancedParenthesis(TokenCursor cursor)
+    private static void SkipBalancedParenthesis(SqlTokenCursor cursor)
     {
         if (cursor.Current.Type != SqlTokenType.OpenParen)
         {
@@ -3063,48 +3045,17 @@ internal sealed class SqlDomParser
         var closeIndex = FindMatchingCloseParen(cursor.Tokens, cursor.Index);
         if (closeIndex > cursor.Index)
         {
-            cursor.Index = closeIndex + 1;
+            cursor.TryMoveTo(closeIndex + 1);
         }
     }
 
     private static string SliceSql(string sql, IReadOnlyList<SqlToken> tokens, int startInclusive, int endExclusive)
     {
-        if (startInclusive >= endExclusive || startInclusive < 0 || endExclusive > tokens.Count)
+        if (startInclusive >= endExclusive)
         {
             return string.Empty;
         }
 
-        var startPos = tokens[startInclusive].Start;
-        var endPos = tokens[endExclusive - 1].End;
-        return sql.Substring(startPos, endPos - startPos).Trim();
-    }
-
-    private sealed class TokenCursor
-    {
-        public TokenCursor(IReadOnlyList<SqlToken> tokens, string sql)
-        {
-            this.Tokens = tokens;
-            this.Sql = sql;
-            this.Index = 0;
-        }
-
-        public IReadOnlyList<SqlToken> Tokens { get; }
-
-        public string Sql { get; }
-
-        public int Index { get; set; }
-
-        public SqlToken Current
-            => this.Index >= 0 && this.Index < this.Tokens.Count
-                ? this.Tokens[this.Index]
-                : this.Tokens[this.Tokens.Count - 1];
-
-        public void MoveNext()
-        {
-            if (this.Index < this.Tokens.Count - 1)
-            {
-                this.Index++;
-            }
-        }
+        return SqlTokenReader.SliceSql(sql, tokens, startInclusive, endExclusive);
     }
 }

@@ -186,7 +186,12 @@ internal static class SqTSqlParserParseDiagnosticHelper
             return false;
         }
 
-        expectedTables = CollectExpectedTables(parsedExpr!);
+        var artifactKeys = new HashSet<string>(
+            parsedTables!.Select(i => GetTableKey(i.FullName.AsExprTableFullName())),
+            StringComparer.OrdinalIgnoreCase);
+        expectedTables = CollectExpectedTables(parsedExpr!)
+            .Where(i => artifactKeys.Contains(i.TableKey))
+            .ToList();
         return true;
     }
 

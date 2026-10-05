@@ -26,12 +26,14 @@
 - `INNER`, `LEFT`, `RIGHT`, `FULL`, `CROSS JOIN`
 - `CROSS APPLY`, `OUTER APPLY`
 - Subqueries and derived tables
+- CTE output column lists, including recursive CTE binding
 - Set operations already covered by tests: `UNION`, `UNION ALL`, `INTERSECT`, `EXCEPT`
 - `ORDER BY`
 - `OFFSET ... FETCH`
 - `GROUP BY`
 - `STRING_AGG(value, separator)` with optional `WITHIN GROUP (ORDER BY ...)`
 - Current expression/function/window subset already covered by parser tests
+- Finite `ROWS` window frames representable by `ExprFrameClause`
 - Portable JSON scalar functions: `JSON_VALUE`, `JSON_QUERY`, and set/remove forms of `JSON_MODIFY`
 - `JSON_OBJECT` and `JSON_ARRAY` with static object keys
 - Typed `OPENJSON(...[, literal_path]) WITH (...)` table sources, including `AS JSON` fragment columns

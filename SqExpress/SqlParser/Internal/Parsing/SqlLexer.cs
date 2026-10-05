@@ -43,20 +43,27 @@ internal static class SqlLexer
             if (ch == '/' && (index + 1) < sql.Length && sql[index + 1] == '*')
             {
                 index += 2;
-                var closed = false;
-                while ((index + 1) < sql.Length)
+                var commentDepth = 1;
+                while ((index + 1) < sql.Length && commentDepth > 0)
                 {
+                    if (sql[index] == '/' && sql[index + 1] == '*')
+                    {
+                        commentDepth++;
+                        index += 2;
+                        continue;
+                    }
+
                     if (sql[index] == '*' && sql[index + 1] == '/')
                     {
+                        commentDepth--;
                         index += 2;
-                        closed = true;
-                        break;
+                        continue;
                     }
 
                     index++;
                 }
 
-                if (!closed)
+                if (commentDepth != 0)
                 {
                     result = null;
                     error = "Syntax error: unterminated block comment.";

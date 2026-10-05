@@ -22,6 +22,7 @@ internal static class SqlDomTableArtifactExtractor
         }
 
         var aliasToTable = new Dictionary<string, TableIdentity>(StringComparer.OrdinalIgnoreCase);
+        var ambiguousAliases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var byTable = new Dictionary<TableIdentity, TableColumnMap>(TableIdentityComparer.Instance);
 
         for (var i = 0; i < statement.TableReferences.Count; i++)
@@ -40,7 +41,18 @@ internal static class SqlDomTableArtifactExtractor
             }
 
             var aliasKey = string.IsNullOrWhiteSpace(tableRef.Alias) ? tableRef.Table : tableRef.Alias!;
-            aliasToTable[aliasKey] = tableIdentity;
+            if (!ambiguousAliases.Contains(aliasKey))
+            {
+                if (aliasToTable.TryGetValue(aliasKey, out var previous) && !TableIdentityComparer.Instance.Equals(previous, tableIdentity))
+                {
+                    aliasToTable.Remove(aliasKey);
+                    ambiguousAliases.Add(aliasKey);
+                }
+                else
+                {
+                    aliasToTable[aliasKey] = tableIdentity;
+                }
+            }
         }
 
         for (var i = 0; i < statement.ColumnReferences.Count; i++)
@@ -335,28 +347,7 @@ internal static class SqlDomTableArtifactExtractor
     }
 
     private static int FindMatchingCloseParen(IReadOnlyList<SqlToken> tokens, int openParenIndex)
-    {
-        var depth = 0;
-        for (var i = openParenIndex; i < tokens.Count; i++)
-        {
-            if (tokens[i].Type == SqlTokenType.OpenParen)
-            {
-                depth++;
-                continue;
-            }
-
-            if (tokens[i].Type == SqlTokenType.CloseParen)
-            {
-                depth--;
-                if (depth == 0)
-                {
-                    return i;
-                }
-            }
-        }
-
-        return -1;
-    }
+        => SqlTokenReader.FindMatchingCloseParen(tokens, openParenIndex);
 
     private static string UnescapeSqlString(string tokenText)
     {
