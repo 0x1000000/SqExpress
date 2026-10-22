@@ -64,7 +64,7 @@ SqExpress is also a strong fit when SQL is produced dynamically, including by AI
 ### Working with Expressions
 
 1. [T-SQL Parser (SqTSqlParser)](#t-sql-parser-sqtsqlparser)
-2. [Syntax Tree](#syntax-tree) (Traversal and Modification)
+2. [Syntax Tree](#syntax-tree) (Traversal and Modification) — worked examples in the [AST modification cookbook](Documentation/ast_modification_cookbook.md)
 3. [Serialization to XML](#serialization-to-xml)
 4. [Serialization to JSON](#serialization-to-json)
 5. [Serialization to Plain List](#serialization-to-plain-list)
@@ -670,6 +670,8 @@ Here, SqExpress shows its full power: composable joins, derived tables, subqueri
 The section walks step by step through `Joining Tables`, `Aliasing`, `Derived Tables`, `Subqueries`, `CTE`, `Analytic And Window Functions`, and `Set Operators`.
 Each example is designed to keep intent obvious in C# while preserving tight control over the resulting SQL shape.
 Use these patterns when query complexity, performance tuning, and long-term maintainability matter.
+
+For worked examples from basic projections to complex analytic queries, see the [SELECT query cookbook](Documentation/select_cookbook.md), with compilable C# examples and actual formatted SQL output.
 
 ## Joining Tables
 
